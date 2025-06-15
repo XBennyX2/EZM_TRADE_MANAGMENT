@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}Change User Role{% endblock %}
+{% block content %}
+<div class="container mt-5">
+  <h2 class="mb-4 text-center">Change Role for {{ user.username }}</h2>
+  <div class="card p-4 shadow" style="max-width: 500px; margin: 0 auto;">
+    <form method="POST">
+      {% csrf_token %}
+      <div class="mb-3">
+        {{ form.role.label_tag }}
+        {{ form.role }}
+      </div>
+      <button type="submit" class="btn btn-primary w-100">Update Role</button>
+      <a href="{% url 'manage_users' %}" class="btn btn-secondary w-100 mt-2">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,26 @@
+<!-- templates/users/register.html -->
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+{% block title %}Register{% endblock %}
+
+{% block content %}
+<div class="form-container">
+  <h2 class="text-center mb-4 text-indigo">Create Your Account</h2>
+  <form method="POST" novalidate>
+    {% csrf_token %}
+    {% for field in form %}
+      <div class="mb-3">
+        <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+        {{ field|add_class:"form-control" }}
+        {% if field.errors %}
+          <div class="text-danger small mt-1">{{ field.errors|striptags }}</div>
+        {% endif %}
+      </div>
+    {% endfor %}
+    <button type="submit" class="btn btn-cyan w-100">Register</button>
+  </form>
+  <div class="text-center mt-3">
+    <small>Already have an account? <a href="{% url 'login' %}" class="text-indigo">Login</a></small>
+  </div>
+</div>
+{% endblock %}

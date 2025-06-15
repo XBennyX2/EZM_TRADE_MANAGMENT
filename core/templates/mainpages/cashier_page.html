@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block title %}Cashier Dashboard{% endblock %}
+{% block content %}
+<div class="container mt-5 text-center">
+  <h2>Welcome Cashier {{ request.user.first_name }}!</h2>
+  <p>Create orders, view products, and process refunds.</p>
+</div>
+{% endblock %}

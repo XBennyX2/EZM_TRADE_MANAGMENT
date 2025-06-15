@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block title %}Manage Users{% endblock %}
+{% block content %}
+<div class="container mt-5">
+  <h2 class="mb-4 text-center">User Management</h2>
+
+  <!-- Search and Filter Form -->
+  <form method="GET" class="row g-3 mb-4">
+    <div class="col-md-4">
+      <input type="text" name="search" value="{{ request.GET.search }}" class="form-control" placeholder="Search by name or username">
+    </div>
+    <div class="col-md-4">
+      <select name="role" class="form-select">
+        <option value="">All Roles</option>
+        <option value="admin" {% if request.GET.role == 'admin' %}selected{% endif %}>Admin</option>
+        <option value="customer" {% if request.GET.role == 'customer' %}selected{% endif %}>Customer</option>
+        <option value="store_owner" {% if request.GET.role == 'store_owner' %}selected{% endif %}>Store Owner</option>
+        <option value="store_manager" {% if request.GET.role == 'store_manager' %}selected{% endif %}>Store Manager</option>
+        <option value="cashier" {% if request.GET.role == 'cashier' %}selected{% endif %}>Cashier</option>
+      </select>
+    </div>
+    <div class="col-md-4">
+      <button type="submit" class="btn btn-primary w-100">Search</button>
+    </div>
+  </form>
+
+  <!-- Users Table -->
+  <table class="table table-bordered table-hover">
+    <thead class="table-primary">
+      <tr>
+        <th>Username</th>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for user in users %}
+      <tr>
+        <td>{{ user.username }}</td>
+        <td>{{ user.email }}</td>
+        <td>{{ user.get_role_display }}</td>
+        <td>
+          {% if user.is_active %}
+            <span class="badge bg-success">Active</span>
+          {% else %}
+            <span class="badge bg-danger">Inactive</span>
+          {% endif %}
+        </td>
+        <td>
+          <a href="{% url 'view_user_detail' user.id %}" class="btn btn-info btn-sm">Details</a>
+          <a href="{% url 'toggle_user_status' user.id %}" class="btn btn-warning btn-sm">
+            {% if user.is_active %}Deactivate{% else %}Activate{% endif %}
+          </a>
+          <a href="{% url 'change_user_role' user.id %}" class="btn btn-secondary btn-sm">Change Role</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="text-center">No users found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

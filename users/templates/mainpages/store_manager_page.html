@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block title %}Store Manager Dashboard{% endblock %}
+{% block content %}
+<div class="container mt-5 text-center">
+  <h2>Hi Store Manager {{ request.user.first_name }}!</h2>
+  <p>Manage your store, approve refunds, and handle daily stock here.</p>
+</div>
+{% endblock %}

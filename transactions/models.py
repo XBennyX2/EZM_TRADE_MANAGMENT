@@ -43,6 +43,7 @@ class Receipt(models.Model):
     """
     Represents a receipt generated for a sales transaction.
     """
+    
     transaction = models.OneToOneField(Transaction, on_delete=models.CASCADE, limit_choices_to={'transaction_type': 'sale'})
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     timestamp = models.DateTimeField(auto_now_add=True)
@@ -55,10 +56,18 @@ class Order(models.Model):
     Links multiple products and their quantities to a single receipt,
     representing the items in a customer's purchase.
     """
-    receipt = models.ForeignKey(Receipt, on_delete=models.CASCADE, related_name='orders')
+    # This is the key change: we allow this field to be null initially.
+    receipt = models.ForeignKey(
+        Receipt,
+        on_delete=models.CASCADE,
+        related_name='orders',
+        null=True,  # Allows the order to exist without a receipt
+        blank=True
+    )
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField()
     price_at_time_of_sale = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
-        return f'{self.quantity} of {self.product.name} for receipt {self.receipt.id}'
+        receipt_id = self.receipt.id if self.receipt else "unassigned"
+        return f'{self.quantity} of {self.product.name} for receipt {receipt_id}'

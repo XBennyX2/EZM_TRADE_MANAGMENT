@@ -1,8 +1,9 @@
 from django.db import models
 
-# Create your models here.
 from django.db import models
 from store.models import Store 
+from transactions.models import Transaction
+from django.conf import *
 
 class Category(models.Model):
     """
@@ -79,7 +80,6 @@ class ReturnRequest(models.Model):
         ('rejected', 'Rejected'),
     ]
 
-    # Link to the original sale transaction for verification
     original_transaction = models.ForeignKey(Transaction, on_delete=models.CASCADE, limit_choices_to={'transaction_type': 'sale'})
     reason = models.TextField(help_text="Reason for the return request.")
     requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)

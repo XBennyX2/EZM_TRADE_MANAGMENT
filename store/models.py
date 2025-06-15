@@ -1,9 +1,4 @@
 from django.db import models
-
-# Create your models here.
-# stores/models.py
-
-from django.db import models
 from django.conf import settings
 
 class Store(models.Model):

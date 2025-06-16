@@ -34,7 +34,10 @@
 
           <div class="text-center mt-4">
             <small class="text-muted">Didn't receive the code?</small><br>
-            <a href="{% url 'resend_otp' user.id %}" class="btn btn-link p-0">Resend OTP</a>
+            <form method="POST" action="{% url 'resend_otp' %}" class="d-inline" id="resend-otp-form">
+              {% csrf_token %}
+              <button type="submit" id="resend-otp-btn" class="btn btn-link p-0 fs-6 fw-semibold">Resend OTP</button>
+            </form>
           </div>
         </div>
       </div>
@@ -42,4 +45,46 @@
   </div>
 </div>
 
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const resendBtn = document.getElementById('resend-otp-btn');
+    const resendForm = document.getElementById('resend-otp-form');
+    const cooldownSeconds = 60;
+    const storageKey = 'otp_resend_timestamp';
+
+    function disableButton(seconds) {
+      resendBtn.disabled = true;
+      let timeLeft = seconds;
+      resendBtn.textContent = `Resend OTP (${timeLeft}s)`;
+
+      const interval = setInterval(() => {
+        timeLeft--;
+        if (timeLeft > 0) {
+          resendBtn.textContent = `Resend OTP (${timeLeft}s)`;
+        } else {
+          resendBtn.textContent = 'Resend OTP';
+          resendBtn.disabled = false;
+          clearInterval(interval);
+          localStorage.removeItem(storageKey);
+        }
+      }, 1000);
+    }
+
+    // Check if cooldown is active
+    const lastSent = localStorage.getItem(storageKey);
+    if (lastSent) {
+      const elapsed = Math.floor((Date.now() - parseInt(lastSent, 10)) / 1000);
+      if (elapsed < cooldownSeconds) {
+        disableButton(cooldownSeconds - elapsed);
+      }
+    }
+
+    // On resend button click, start cooldown and save timestamp
+    resendForm.addEventListener('submit', function(e) {
+      // Disable button immediately after clicking
+      disableButton(cooldownSeconds);
+      localStorage.setItem(storageKey, Date.now().toString());
+    });
+  });
+</script>
 {% endblock %}

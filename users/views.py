@@ -26,11 +26,25 @@ class EmailThread(threading.Thread):
     def run(self):
         self.email.send()
 
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+
 def send_otp_email(user):
-    subject = 'Your OTP Code for BuildSync'
-    message = f'Your OTP code is: {user.otp_code}'
-    email_msg = EmailMessage(subject, message, settings.DEFAULT_FROM_EMAIL, [user.email])
-    EmailThread(email_msg).start()
+    subject = "Welcome to EZM Trade — Verify Your Email"
+    from_email = settings.DEFAULT_FROM_EMAIL
+    to_email = user.email
+
+    context = {
+        'username': user.username,
+        'otp': user.otp_code,
+    }
+
+    text_content = f"Hi {user.username},\nWelcome to EZM Trade!\nYour OTP code is: {user.otp_code}"
+    html_content = render_to_string('users/email_otp.html', context)
+
+    msg = EmailMultiAlternatives(subject, text_content, from_email, [to_email])
+    msg.attach_alternative(html_content, "text/html")
+    msg.send()
 
 def register_view(request):
     if request.method == 'POST':
@@ -54,7 +68,7 @@ def register_view(request):
     return render(request, 'users/register.html', {'form': form})
 
 def resend_otp(request):
-    if request.method == 'POST':
+    if request.method in ['GET', 'POST']:
         email = request.session.get('otp_email')
         if not email:
             messages.error(request, "Session expired. Please register again.")
@@ -73,8 +87,9 @@ def resend_otp(request):
         send_otp_email(user)
         messages.success(request, "A new OTP has been sent to your email.")
         return redirect('verify_otp', user_id=user.id)
-    else:
-        return redirect('register')
+
+    return redirect('register')
+
 
 from django.shortcuts import get_object_or_404
 
@@ -88,7 +103,7 @@ def verify_otp_view(request, user_id):
         otp = request.POST.get('otp')
 
         # Check expiration
-        if user.otp_created_at and timezone.now() > user.otp_created_at + timedelta(minutes=15):
+        if user.otp_created_at and timezone.now() > user.otp_created_at + timedelta(minutes=5):
             messages.error(request, "OTP expired. Please request a new one.")
             return redirect('resend_otp')
 
@@ -116,8 +131,9 @@ def login_view(request):
         form = CustomLoginForm(data=request.POST)
         if form.is_valid():
             user = form.get_user()
+
             if not user.is_active:
-                messages.error(request, "Your account is inactive. Please verify your email.")
+                messages.error(request, "Your account is inactive. Please contact the administrator for activation.")
                 return redirect('login')
 
             login(request, user)
@@ -142,7 +158,6 @@ def login_view(request):
         form = CustomLoginForm()
 
     return render(request, 'users/login.html', {'form': form})
-
 
 
 from django.contrib.auth import logout

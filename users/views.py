@@ -225,9 +225,32 @@ from django.contrib.auth.decorators import login_required
 def customer_page(request):
     return render(request, 'mainpages/customer_page.html')
 
+
+
+from django.shortcuts import render
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 @login_required
 def admin_dashboard(request):
-    return render(request, 'mainpages/admin_dashboard.html')
+    total_users = User.objects.count()
+    active_users = User.objects.filter(is_active=True).count()
+    inactive_users = User.objects.filter(is_active=False).count()
+    verified_users = User.objects.filter(is_verified=True).count()
+    unverified_users = User.objects.filter(is_verified=False).count()
+
+    users = User.objects.order_by('-date_joined')[:10]  # Latest 10 users
+
+    context = {
+        'total_users': total_users,
+        'active_users': active_users,
+        'inactive_users': inactive_users,
+        'verified_users': verified_users,
+        'unverified_users': unverified_users,
+        'users': users,
+    }
+    return render(request, 'mainpages/admin_dashboard.html', context)
+
 
 @login_required
 def store_owner_page(request):

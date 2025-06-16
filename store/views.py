@@ -1,18 +1,33 @@
-from rest_framework import viewsets
-from rest_framework.exceptions import PermissionDenied
-from rest_framework.permissions import IsAuthenticated
+from django.shortcuts import render
+from django.urls import reverse_lazy
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from .models import Store
-from .serializers import StoreSerializer
+from .forms import StoreForm
 
-class StoreViewSet(viewsets.ModelViewSet):
-    queryset = Store.objects.all()
-    serializer_class = StoreSerializer
-    permission_classes = [IsAuthenticated] # Base permission for all actions
+class StoreOwnerRequiredMixin(UserPassesTestMixin):
+    """Mixin to ensure user is an admin or store owner."""
+    def test_func(self):
+        return self.request.user.role in ['admin', 'store_owner']
 
-    def check_permissions(self, request):
-        super().check_permissions(request)
+class StoreListView(LoginRequiredMixin, ListView):
+    model = Store
+    template_name = 'stores/store_list.html' # We will create this template
+    context_object_name = 'stores'
 
-        # For writing actions (POST, PUT, DELETE), check for specific roles
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            if not request.user.role in ['admin', 'store_owner']:
-                raise PermissionDenied(detail="You do not have permission to manage stores.")
+class StoreCreateView(LoginRequiredMixin, StoreOwnerRequiredMixin, CreateView):
+    model = Store
+    form_class = StoreForm
+    template_name = 'stores/store_form.html'
+    success_url = reverse_lazy('store_list') # Redirect to the list view on success
+
+class StoreUpdateView(LoginRequiredMixin, StoreOwnerRequiredMixin, UpdateView):
+    model = Store
+    form_class = StoreForm
+    template_name = 'stores/store_form.html'
+    success_url = reverse_lazy('store_list')
+
+class StoreDeleteView(LoginRequiredMixin, StoreOwnerRequiredMixin, DeleteView):
+    model = Store
+    template_name = 'stores/store_confirm_delete.html'
+    success_url = reverse_lazy('store_list')

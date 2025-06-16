@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}Verify OTP{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+      <div class="card border-0 shadow-lg rounded-4">
+        <div class="card-body p-4">
+          <h4 class="card-title text-center mb-3 text-primary fw-bold">Email Verification</h4>
+          <p class="text-center text-muted mb-4">
+            A 6-digit OTP has been sent to your email:<br>
+            <strong class="text-dark">{{ user.email }}</strong>
+          </p>
+
+          {% if messages %}
+            {% for message in messages %}
+              <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+
+          <form method="POST" class="needs-validation" novalidate>
+            {% csrf_token %}
+            <div class="form-floating mb-4">
+              <input type="text" name="otp" id="otp" maxlength="6" class="form-control text-center fs-4 tracking-widest" placeholder="123456" required pattern="\d{6}">
+              <label for="otp">Enter 6-digit OTP</label>
+              <div class="invalid-feedback">Please enter a valid 6-digit OTP.</div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 py-2">Verify OTP</button>
+          </form>
+
+          <div class="text-center mt-4">
+            <small class="text-muted">Didn't receive the code?</small><br>
+            <a href="{% url 'resend_otp' user.id %}" class="btn btn-link p-0">Resend OTP</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

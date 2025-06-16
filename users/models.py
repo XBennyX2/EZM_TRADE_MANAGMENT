@@ -11,3 +11,6 @@ class CustomUser(AbstractUser):
         ('cashier', 'Cashier'),
     ]
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    is_verified = models.BooleanField(default=False)
+    otp_code = models.CharField(max_length=6, blank=True, null=True)
+    otp_created_at = models.DateTimeField(null=True, blank=True)

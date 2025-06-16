@@ -4,22 +4,125 @@ from django.contrib.auth import authenticate, login
 from .forms import CustomUserCreationForm, CustomLoginForm
 from .models import CustomUser
 
+# users/views.py
+from .utils import send_otp_email
+from django.utils.crypto import get_random_string
+
+
+
+from django.core.mail import send_mail
+from django.contrib import messages
+from django.utils.crypto import get_random_string
+from django.shortcuts import redirect
+from django.conf import settings
+from django.core.mail import EmailMessage
+import threading
+
+class EmailThread(threading.Thread):
+    def __init__(self, email):
+        self.email = email
+        threading.Thread.__init__(self)
+
+    def run(self):
+        self.email.send()
+
+def send_otp_email(user):
+    subject = 'Your OTP Code for BuildSync'
+    message = f'Your OTP code is: {user.otp_code}'
+    email_msg = EmailMessage(subject, message, settings.DEFAULT_FROM_EMAIL, [user.email])
+    EmailThread(email_msg).start()
+
 def register_view(request):
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
-            form.save()
-            return redirect('login')
+            user = form.save(commit=False)
+            user.is_active = False  # Prevent login until verified
+
+            # Generate and set OTP
+            user.otp_code = get_random_string(length=6, allowed_chars='0123456789')
+            user.otp_created_at = timezone.now()
+            user.save()
+
+            send_otp_email(user)
+            request.session['otp_email'] = user.email
+
+            return redirect('verify_otp', user_id=user.id)
     else:
         form = CustomUserCreationForm()
+
     return render(request, 'users/register.html', {'form': form})
+
+def resend_otp(request):
+    if request.method == 'POST':
+        email = request.session.get('otp_email')
+        if not email:
+            messages.error(request, "Session expired. Please register again.")
+            return redirect('register')
+
+        user = CustomUser.objects.filter(email=email).first()
+        if not user:
+            messages.error(request, "User not found.")
+            return redirect('register')
+
+        # Generate new OTP and reset timer
+        user.otp_code = get_random_string(length=6, allowed_chars='0123456789')
+        user.otp_created_at = timezone.now()
+        user.save()
+
+        send_otp_email(user)
+        messages.success(request, "A new OTP has been sent to your email.")
+        return redirect('verify_otp', user_id=user.id)
+    else:
+        return redirect('register')
+
+from django.shortcuts import get_object_or_404
+
+from django.utils import timezone
+from datetime import timedelta
+
+def verify_otp_view(request, user_id):
+    user = get_object_or_404(CustomUser, pk=user_id)
+
+    if request.method == 'POST':
+        otp = request.POST.get('otp')
+
+        # Check expiration
+        if user.otp_created_at and timezone.now() > user.otp_created_at + timedelta(minutes=15):
+            messages.error(request, "OTP expired. Please request a new one.")
+            return redirect('resend_otp')
+
+        if otp == user.otp_code:
+            user.is_active = True
+            user.is_verified = True  
+            user.otp_code = ''
+            user.otp_created_at = None
+            user.save()
+            messages.success(request, "Your account has been verified.")
+            return redirect('login')
+        else:
+            messages.error(request, "Invalid OTP. Please try again.")
+
+    return render(request, 'users/verify_otp.html', {'user': user})
+
+
+from django.contrib import messages
+from django.contrib.auth import login
+from django.shortcuts import render, redirect
+from .forms import CustomLoginForm
 
 def login_view(request):
     if request.method == 'POST':
         form = CustomLoginForm(data=request.POST)
         if form.is_valid():
             user = form.get_user()
+            if not user.is_active:
+                messages.error(request, "Your account is inactive. Please verify your email.")
+                return redirect('login')
+
             login(request, user)
+
+            # Role-based redirects
             if user.is_superuser or user.role == 'admin':
                 return redirect('admin_dashboard')
             elif user.role == 'customer':
@@ -30,9 +133,17 @@ def login_view(request):
                 return redirect('store_manager_page')
             elif user.role == 'cashier':
                 return redirect('cashier_page')
+            else:
+                messages.warning(request, "No role assigned. Contact admin.")
+                return redirect('login')
+        else:
+            messages.error(request, "Invalid email or password.")
     else:
         form = CustomLoginForm()
+
     return render(request, 'users/login.html', {'form': form})
+
+
 
 from django.contrib.auth import logout
 

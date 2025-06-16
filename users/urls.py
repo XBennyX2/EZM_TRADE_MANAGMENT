@@ -4,6 +4,8 @@ from .views import *
 
 urlpatterns = [
     path('register/', register_view, name='register'),
+    path('verify-otp/<int:user_id>/', verify_otp_view, name='verify_otp'),
+    path('resend-otp/<int:user_id>/', resend_otp, name='resend_otp'),
     path('login/', login_view, name='login'),
     path('logout/', logout_view, name='logout'),
 

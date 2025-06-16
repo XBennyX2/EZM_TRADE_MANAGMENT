@@ -249,6 +249,8 @@ from .forms import ChangeUserRoleForm  # You'll create this form.
 
 User = get_user_model()
 
+from django.core.paginator import Paginator
+
 def is_admin(user):
     return user.is_authenticated and user.role == 'admin'
 
@@ -256,6 +258,7 @@ def is_admin(user):
 def manage_users(request):
     search_query = request.GET.get('search', '')
     role_filter = request.GET.get('role', '')
+    page_number = request.GET.get('page')
 
     users = User.objects.all()
 
@@ -269,8 +272,17 @@ def manage_users(request):
     if role_filter:
         users = users.filter(role=role_filter)
 
+    paginator = Paginator(users.order_by('username'), 5)  # Show 10 users per page
+    page_obj = paginator.get_page(page_number)
+
     context = {
-        'users': users,
+        'users': page_obj.object_list,
+        'page_obj': page_obj,
+        'paginator': paginator,
+        'is_paginated': page_obj.has_other_pages(),  # Optional but useful in template
+        'search_query': search_query,
+        'role_filter': role_filter,
+        'total_users': users.count()
     }
     return render(request, 'admin/manage_users.html', context)
 

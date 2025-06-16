@@ -1,7 +1,6 @@
 from django.db import models
 from django.conf import settings
-from Inventory.models import Product
-from store.models import Store
+
 
 class Transaction(models.Model):
     """
@@ -12,15 +11,24 @@ class Transaction(models.Model):
         ('sale', 'Sale'),
         ('restock', 'Restock'),
         ('transfer', 'Transfer'),
+        ('refund', 'Refund'),
     ]
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    # Use strings 'app_name.ModelName' to define relationships to other apps.
+    product = models.ForeignKey('Inventory.Product', on_delete=models.CASCADE)
     quantity = models.IntegerField(help_text="Quantity of product involved. Can be negative for sales.")
     transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES)
     timestamp = models.DateTimeField(auto_now_add=True)
-    store = models.ForeignKey(Store, on_delete=models.CASCADE)
+    store = models.ForeignKey('store.Store', on_delete=models.CASCADE)
 
     def __str__(self):
-        return f'{self.transaction_type} of {self.quantity} {self.product.name} at {self.store.name}'
+        # We use try-except blocks to avoid errors if related objects don't exist yet
+        try:
+            product_name = self.product.name
+            store_name = self.store.name
+            return f'{self.transaction_type} of {self.quantity} {product_name} at {store_name}'
+        except (AttributeError,):
+            return f'Transaction ID: {self.id}'
+
 
 class FinancialRecord(models.Model):
     """
@@ -30,7 +38,7 @@ class FinancialRecord(models.Model):
         ('revenue', 'Revenue'),
         ('expense', 'Expense'),
     ]
-    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='financial_records')
+    store = models.ForeignKey('store.Store', on_delete=models.CASCADE, related_name='financial_records')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     record_type = models.CharField(max_length=10, choices=RECORD_TYPES)
     timestamp = models.DateTimeField(auto_now_add=True)
@@ -43,7 +51,7 @@ class Receipt(models.Model):
     """
     Represents a receipt generated for a sales transaction.
     """
-    
+    # This relationship is fine as-is because Transaction is defined in the same file.
     transaction = models.OneToOneField(Transaction, on_delete=models.CASCADE, limit_choices_to={'transaction_type': 'sale'})
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     timestamp = models.DateTimeField(auto_now_add=True)
@@ -56,15 +64,17 @@ class Order(models.Model):
     Links multiple products and their quantities to a single receipt,
     representing the items in a customer's purchase.
     """
-    # This is the key change: we allow this field to be null initially.
+    # This relationship is also fine as Receipt is defined above in the same file.
+    # We allow it to be null to handle the workflow where orders are created before the receipt.
     receipt = models.ForeignKey(
         Receipt,
         on_delete=models.CASCADE,
         related_name='orders',
-        null=True,  # Allows the order to exist without a receipt
+        null=True,
         blank=True
     )
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    # This must be a string to avoid the circular import with the 'inventory' app.
+    product = models.ForeignKey('Inventory.Product', on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField()
     price_at_time_of_sale = models.DecimalField(max_digits=10, decimal_places=2)
 

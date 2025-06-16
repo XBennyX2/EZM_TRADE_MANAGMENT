@@ -13,7 +13,7 @@ class StoreOwnerRequiredMixin(UserPassesTestMixin):
 class StoreListView(LoginRequiredMixin, ListView):
     model = Store
     template_name = 'store/store_list.html' # We will create this template
-    context_object_name = 'store'
+    context_object_name = 'stores'
 
 class StoreCreateView(LoginRequiredMixin, StoreOwnerRequiredMixin, CreateView):
     model = Store

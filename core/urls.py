@@ -6,6 +6,6 @@ urlpatterns = [
     path('', login_view, name='login'),
     path('admin/', admin.site.urls),
     path('users/', include('users.urls')),
-    path('stores/', include('stores.urls')),
-    path('inventory/', include('inventory.urls')),
+    path('stores/', include('store.urls')),
+    path('inventory/', include('Inventory.urls')),
 ]

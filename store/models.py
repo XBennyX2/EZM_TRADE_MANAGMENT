@@ -11,6 +11,14 @@ class Store(models.Model):
         blank=True,
         limit_choices_to={'role': 'store_manager'}
     )
+    cashier = models.OneToOneField(
+    settings.AUTH_USER_MODEL,
+    on_delete=models.SET_NULL,
+    null=True,
+    blank=True,
+    related_name='cashier_of_store',
+    limit_choices_to={'role': 'cashier'}
+    )
 
     def __str__(self):
         return self.name

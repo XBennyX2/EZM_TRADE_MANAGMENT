@@ -47,6 +47,22 @@ def send_otp_email(user):
     msg.send()
 
 def register_view(request):
+    if request.user.is_authenticated:
+        user = request.user
+        if user.is_superuser or user.role == 'admin':
+            return redirect('admin_dashboard')
+        elif user.role == 'customer':
+            return redirect('customer_page')
+        elif user.role == 'store_owner':
+            return redirect('store_owner_page')
+        elif user.role == 'store_manager':
+            return redirect('store_manager_page')
+        elif user.role == 'cashier':
+            return redirect('cashier_page')
+        else:
+            messages.warning(request, "Your account has no assigned role. Contact admin.")
+            return redirect('login')
+
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
@@ -127,18 +143,52 @@ from django.shortcuts import render, redirect
 from .forms import CustomLoginForm
 
 def login_view(request):
+    if request.user.is_authenticated:
+        user = request.user
+        if getattr(user, 'is_verified', False):
+            # Verified users go to their dashboard pages
+            if user.is_superuser or user.role == 'admin':
+                return redirect('admin_dashboard')
+            elif user.role == 'customer':
+                return redirect('customer_page')
+            elif user.role == 'store_owner':
+                return redirect('store_owner_page')
+            elif user.role == 'store_manager':
+                return redirect('store_manager_page')
+            elif user.role == 'cashier':
+                return redirect('cashier_page')
+            else:
+                messages.warning(request, "No role assigned. Contact admin.")
+                return redirect('login')
+        else:
+            # Not verified → redirect to verify OTP page
+            request.session['otp_email'] = user.email
+            return redirect('verify_otp', user_id=user.id)
+
     if request.method == 'POST':
         form = CustomLoginForm(data=request.POST)
         if form.is_valid():
             user = form.get_user()
 
+            if not getattr(user, 'is_verified', False):
+                # Send new OTP and redirect to verify page
+                user.otp_code = get_random_string(length=6, allowed_chars='0123456789')
+                user.otp_created_at = timezone.now()
+                user.save()
+                send_otp_email(user)
+
+                request.session['otp_email'] = user.email
+                messages.info(request, "Your account is not verified. A new OTP has been sent to your email.")
+                return redirect('verify_otp', user_id=user.id)
+
+            # Verified users: check if active
             if not user.is_active:
-                messages.error(request, "Your account is inactive. Please contact the administrator for activation.")
+                messages.error(request, "Your account is inactive. Please contact the administrator.")
                 return redirect('login')
 
+            # Verified and active → log them in and redirect by role
             login(request, user)
 
-            # Role-based redirects
             if user.is_superuser or user.role == 'admin':
                 return redirect('admin_dashboard')
             elif user.role == 'customer':
@@ -158,6 +208,8 @@ def login_view(request):
         form = CustomLoginForm()
 
     return render(request, 'users/login.html', {'form': form})
+
+
 
 
 from django.contrib.auth import logout

@@ -26,6 +26,8 @@ class Product(models.Model):
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    material = models.TextField()
+
     
 
     def __str__(self):
@@ -41,6 +43,7 @@ class Stock(models.Model):
     last_updated = models.DateTimeField(auto_now=True)
     low_stock_threshold = models.PositiveIntegerField(default=10, help_text="Threshold for low stock alerts.")
     selling_price = models.DecimalField(max_digits=10, decimal_places=2, help_text="Selling price of the product at this store.")  # New field
+    
 
 
     class Meta:

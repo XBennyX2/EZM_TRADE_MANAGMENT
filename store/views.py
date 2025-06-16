@@ -12,22 +12,22 @@ class StoreOwnerRequiredMixin(UserPassesTestMixin):
 
 class StoreListView(LoginRequiredMixin, ListView):
     model = Store
-    template_name = 'stores/store_list.html' # We will create this template
-    context_object_name = 'stores'
+    template_name = 'store/store_list.html' # We will create this template
+    context_object_name = 'store'
 
 class StoreCreateView(LoginRequiredMixin, StoreOwnerRequiredMixin, CreateView):
     model = Store
     form_class = StoreForm
-    template_name = 'stores/store_form.html'
+    template_name = 'store/store_form.html'
     success_url = reverse_lazy('store_list') # Redirect to the list view on success
 
 class StoreUpdateView(LoginRequiredMixin, StoreOwnerRequiredMixin, UpdateView):
     model = Store
     form_class = StoreForm
-    template_name = 'stores/store_form.html'
+    template_name = 'store/store_form.html'
     success_url = reverse_lazy('store_list')
 
 class StoreDeleteView(LoginRequiredMixin, StoreOwnerRequiredMixin, DeleteView):
     model = Store
-    template_name = 'stores/store_confirm_delete.html'
+    template_name = 'store/store_confirm_delete.html'
     success_url = reverse_lazy('store_list')

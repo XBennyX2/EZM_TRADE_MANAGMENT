@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Products</h1>
+<a href="{% url 'product_create' %}" class="btn btn-primary mb-3">Add New Product</a>
+<div class="list-group">
+    {% for product in products %}
+    <div class="list-group-item">
+        <div class="d-flex w-100 justify-content-between">
+            <h5 class="mb-1">{{ product.name }}</h5>
+            <small>${{ product.price }}</small>
+        </div>
+        <p class="mb-1">{{ product.description }}</p>
+        <small class="text-muted">Category: {{ product.category.name }}</small>
+        <div class="mt-2">
+            <a href="{% url 'product_update' product.pk %}" class="btn btn-secondary btn-sm">Edit</a>
+            <a href="{% url 'product_delete' product.pk %}" class="btn btn-danger btn-sm">Delete</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

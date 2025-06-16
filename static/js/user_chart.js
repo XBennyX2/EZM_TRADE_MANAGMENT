@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', function () {
           chartData.verified_users,
           chartData.unverified_users
         ],
-        backgroundColor: ['#198754', '#dc3545', '#0d6efd', '#ffc107'],
+        backgroundColor: ['#0d6efd', '#dc3545', '#198754', '#ffc107'], // Updated for navy+bootstrap colors
         borderColor: 'rgba(255, 255, 255, 0.8)',
         borderWidth: 2,
         hoverOffset: 40
@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', function () {
         },
         tooltip: {
           enabled: true,
-          backgroundColor: '#333',
+          backgroundColor: '#001F4D',
           titleColor: '#fff',
           bodyColor: '#eee'
         }

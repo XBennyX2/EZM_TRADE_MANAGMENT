@@ -46,8 +46,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'users',
     'store',
-    'Inventory',
-    'transactions',
+    # 'Inventory',
+    # 'transactions',
 ]
 
 AUTH_USER_MODEL = 'users.CustomUser'

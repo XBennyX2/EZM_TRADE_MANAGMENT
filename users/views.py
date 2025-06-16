@@ -255,9 +255,10 @@ def admin_dashboard(request):
 
 from store.models import Store
 @login_required
+
 def store_owner_page(request):
     if request.user.role != 'store_owner':
-        return redirect('dashboard')  # restrict access if needed
+        return redirect('')  # restrict access if needed
 
     # Filter only the stores owned by the current store owner
     stores = Store.objects.filter(owner=request.user).select_related('manager_assignment__manager')
@@ -266,10 +267,25 @@ def store_owner_page(request):
         'stores': stores
     })
 
+
+from django.shortcuts import render
+from store.models import Store, StoreCashier  # adjust path if needed
+
 @login_required
 def store_manager_page(request):
-    return render(request, 'mainpages/store_manager_page.html')
+    try:
+        store = Store.objects.get(manager_assignment__manager=request.user)
+    except Store.DoesNotExist:
+        store = None
 
+    cashier_assignment = None
+    if store:
+        cashier_assignment = StoreCashier.objects.filter(store=store, is_active=True).first()
+
+    return render(request, 'mainpages/store_manager_page.html', {
+        'store': store,
+        'cashier_assignment': cashier_assignment
+    })
 @login_required
 def cashier_page(request):
     return render(request, 'mainpages/cashier_page.html')

@@ -9,7 +9,8 @@
   <div class="row gx-4 justify-content-start align-items-start mb-5">
     <!-- User Overview with Chart -->
     <div class="col-md-6 mb-4">
-      <div class="card shadow border-0 rounded-4 p-4 h-100" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white;">
+      <div class="card shadow border-0 rounded-4 p-4 h-100" 
+           style="background: linear-gradient(135deg, #001F4D, #003366); color: white;">
         <h5 class="card-title mb-3 fw-bold">User Overview</h5>
         <p class="mb-4 fs-5">
           Total Users:
@@ -22,13 +23,13 @@
     <!-- Manage Users -->
     <div class="col-md-5 mb-4">
       <a href="{% url 'manage_users' %}" class="text-decoration-none">
-        <div class="card shadow border-0 rounded-4 h-100 hover-shadow transition bg-white">
+        <div class="card shadow border-0 rounded-4 h-100 hover-shadow transition" style="background-color: #001F4D;">
           <div class="card-body d-flex flex-column justify-content-center align-items-center py-5">
             <div class="mb-4">
-              <i class="bi bi-people-fill" style="font-size: 3.5rem; color: #6f42c1;"></i>
+              <i class="bi bi-people-fill" style="font-size: 3.5rem; color: #5A7BBF;"></i>
             </div>
-            <h4 class="card-title fw-bold text-primary mb-3">Manage Users</h4>
-            <p class="card-text text-secondary fs-6 text-center px-3">
+            <h4 class="card-title fw-bold text-light mb-3">Manage Users</h4>
+            <p class="card-text text-light fs-6 text-center px-3">
               View, activate/deactivate, and assign roles to system users.
             </p>
             <div class="mt-4">
@@ -43,12 +44,12 @@
   </div>
 
   <!-- Latest Users Table -->
-  <div class="card shadow-sm rounded-4 border-0">
+  <div class="card shadow-sm rounded-4 border-0" style="background-color: #00264d; color: white;">
     <div class="card-body">
-      <h5 class="card-title mb-4 fw-bold text-secondary">Latest Users</h5>
+      <h5 class="card-title mb-4 fw-bold text-light">Latest Users</h5>
       <div class="table-responsive">
-        <table class="table table-hover align-middle text-center">
-          <thead class="table-light">
+        <table class="table table-hover align-middle text-center" style="color: white;">
+          <thead style="background-color: #003366;">
             <tr>
               <th>#</th>
               <th>Username</th>
@@ -104,7 +105,6 @@
     unverified_users: Number("{{ unverified_users }}")
   };
 </script>
-
 
 <!-- Local JS & CSS -->
 <script src="{% static 'js/user_chart.js' %}"></script>

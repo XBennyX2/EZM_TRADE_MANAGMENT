@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}Assign Cashier{% endblock %}
+{% block content %}
+<div class="container mt-5">
+  <h3 class="mb-4">Assign Cashier for {{ store.name }}</h3>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button class="btn btn-primary" type="submit">Assign</button>
+  </form>
+</div>
+{% endblock %}

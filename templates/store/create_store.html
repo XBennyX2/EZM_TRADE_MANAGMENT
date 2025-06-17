@@ -1,28 +1,40 @@
 {% extends 'base.html' %}
+{% load widget_tweaks %}
 {% block title %}Create Store{% endblock %}
+
 {% block content %}
-<div class="container mt-5" style="max-width: 600px;">
-  <h2 class="mb-4">Create a New Store</h2>
-
-  <form method="post" novalidate>
-    {% csrf_token %}
-    <div class="mb-3">
-      {{ form.name.label_tag }}
-      {{ form.name }}
-      {% if form.name.errors %}
-        <div class="text-danger">{{ form.name.errors.0 }}</div>
-      {% endif %}
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card shadow rounded-4 border-0">
+        <div class="card-header bg-primary text-white fw-semibold">
+          Create a New Store
+        </div>
+        <div class="card-body">
+          <form method="POST" novalidate>
+            {% csrf_token %}
+            <div class="mb-3">
+              <label for="id_name" class="form-label">Store Name</label>
+              {{ form.name|add_class:"form-control rounded-3" }}
+              {% if form.name.errors %}
+                <div class="text-danger small">{{ form.name.errors }}</div>
+              {% endif %}
+            </div>
+            <div class="mb-3">
+              <label for="id_location" class="form-label">Location</label>
+              {{ form.location|add_class:"form-control rounded-3" }}
+              {% if form.location.errors %}
+                <div class="text-danger small">{{ form.location.errors }}</div>
+              {% endif %}
+            </div>
+            <div class="text-end">
+              <button type="submit" class="btn btn-success">Create Store</button>
+              <a href="{% url 'store_owner_page' %}" class="btn btn-secondary">Cancel</a>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
-
-    <div class="mb-3">
-      {{ form.location.label_tag }}
-      {{ form.location }}
-      {% if form.location.errors %}
-        <div class="text-danger">{{ form.location.errors.0 }}</div>
-      {% endif %}
-    </div>
-
-    <button type="submit" class="btn btn-primary">Create Store</button>
-  </form>
+  </div>
 </div>
 {% endblock %}

@@ -1,8 +1,62 @@
 {% extends 'base.html' %}
+
 {% block title %}Store Manager Dashboard{% endblock %}
+
 {% block content %}
-<div class="container mt-5 text-center">
-  <h2>Hi Store Manager {{ request.user.first_name }}!</h2>
-  <p>Manage your store, approve refunds, and handle daily stock here.</p>
+<div class="container py-5">
+  <div class="row">
+    <!-- Left Side Greeting -->
+    <div class="col-md-7 d-flex flex-column justify-content-center">
+      <h1 class="display-5 fw-bold mb-3">Welcome, {{ request.user.first_name }} 👋</h1>
+      <p class="lead">This is your dashboard. View your store details and manage your cashier assignments easily.</p>
+    </div>
+
+    <!-- Right Side Store Card -->
+    <div class="col-md-5">
+      {% if store %}
+        <div class="card shadow-lg border-0 rounded-4 animate__animated animate__fadeInRight" style="background: linear-gradient(135deg, #001F4D 0%, #003366 100%); color: #ffffff;">
+          <div class="card-body">
+            <h4 class="card-title fw-bold mb-3">{{ store.name }}</h4>
+            <p class="mb-3">
+              <i class="bi bi-geo-alt-fill me-2"></i>
+              {{ store.location }}
+            </p>
+
+            <hr class="my-3" style="border-color: rgba(255,255,255,0.3);">
+
+            {% if cashier_assignment %}
+              <div class="mb-3">
+                <h6 class="mb-1 fw-semibold">Active Cashier</h6>
+                <p class="mb-0 fs-5">{{ cashier_assignment.cashier.get_full_name }}</p>
+                <p class="mb-0" style="font-size: 0.9rem; color: #cbd5e1;">
+                  <i class="bi bi-envelope-fill me-1"></i> {{ cashier_assignment.cashier.email }}
+                </p>
+                <span class="badge bg-success mt-2">Active</span>
+              </div>
+
+              <a href="{% url 'revoke_cashier' store.id cashier_assignment.cashier.id %}"
+                 class="btn btn-outline-light w-100"
+                 onclick="return confirm('Are you sure you want to remove this cashier?');">
+                <i class="bi bi-person-x"></i> Remove Cashier
+              </a>
+            {% else %}
+              <div class="alert alert-info text-center mt-3 mb-3" role="alert" style="background-color: rgba(255,255,255,0.15); color: #e0e7ff;">
+                No cashier is currently assigned to this store.
+              </div>
+              <a href="{% url 'assign_cashier' store.id %}"
+                 class="btn btn-outline-light w-100"
+                 onclick="return confirm('Are you sure you want to assign a cashier?');">
+                <i class="bi bi-person-plus"></i> Assign Cashier
+              </a>
+            {% endif %}
+          </div>
+        </div>
+      {% else %}
+        <div class="alert alert-warning mt-4 text-center">
+          <i class="bi bi-exclamation-triangle"></i> You are not currently assigned to any store.
+        </div>
+      {% endif %}
+    </div>
+  </div>
 </div>
 {% endblock %}

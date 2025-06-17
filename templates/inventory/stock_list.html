@@ -1,13 +1,18 @@
 {% extends 'base.html' %}
 {% block content %}
 <h1>Stock Levels</h1>
+
+{% if request.user.role == 'store_manager' %}
+<a href="{% url 'stock_create' %}" class="btn btn-primary mb-3">Add New Stock Item</a>
+{% endif %}
+
 <table class="table table-striped">
     <thead>
         <tr>
             <th>Product</th>
             <th>Store</th>
             <th>Quantity</th>
-            <th>Low Stock Threshold</th>
+            <th>Actions</th>
         </tr>
     </thead>
     <tbody>
@@ -16,11 +21,18 @@
             <td>{{ stock.product.name }}</td>
             <td>{{ stock.store.name }}</td>
             <td>{{ stock.quantity }}</td>
-            <td>{{ stock.low_stock_threshold }}</td>
+            <td>
+                {% if request.user.role == 'store_owner' or stock.store.manager == request.user %}
+                <a href="{% url 'stock_update' stock.pk %}" class="btn btn-secondary btn-sm">Update</a>
+                {% endif %}
+                {% if request.user.role == 'store_owner' %}
+                <a href="{% url 'stock_delete' stock.pk %}" class="btn btn-danger btn-sm">Delete</a>
+                {% endif %}
+            </td>
         </tr>
         {% empty %}
         <tr>
-            <td colspan="4">No stock information available.</td>
+            <td colspan="4" class="text-center">No stock information available.</td>
         </tr>
         {% endfor %}
     </tbody>

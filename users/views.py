@@ -252,9 +252,19 @@ def admin_dashboard(request):
     return render(request, 'mainpages/admin_dashboard.html', context)
 
 
+
+from store.models import Store
 @login_required
 def store_owner_page(request):
-    return render(request, 'mainpages/store_owner_page.html')
+    if request.user.role != 'store_owner':
+        return redirect('dashboard')  # restrict access if needed
+
+    # Filter only the stores owned by the current store owner
+    stores = Store.objects.filter(owner=request.user).select_related('manager_assignment__manager')
+
+    return render(request, 'mainpages/store_owner_page.html', {
+        'stores': stores
+    })
 
 @login_required
 def store_manager_page(request):

@@ -1,0 +1,15 @@
+.hover-shadow:hover {
+  box-shadow: 0 0 1.25rem rgba(111, 66, 193, 0.5);
+  transform: translateY(-6px);
+  transition: all 0.25s ease-in-out;
+}
+
+.card {
+  border-radius: 1rem !important;
+}
+
+.btn-primary:hover {
+  background-color: #5a32b1;
+  box-shadow: 0 6px 12px rgba(90, 50, 177, 0.6);
+  transition: all 0.3s ease;
+}

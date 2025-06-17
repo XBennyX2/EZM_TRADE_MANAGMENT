@@ -1,6 +1,4 @@
 from django.db import models
-
-from django.db import models
 from store.models import Store 
 from transactions.models import Transaction
 from django.conf import *

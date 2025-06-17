@@ -1,19 +1,25 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Admin Dashboard{% endblock %}
+
 {% block content %}
 <div class="container mt-5">
+
+  <!-- Row: Chart and Manage Users -->
   <div class="row gx-4 justify-content-start align-items-start mb-5">
     <!-- User Overview with Chart -->
     <div class="col-md-6 mb-4">
       <div class="card shadow border-0 rounded-4 p-4 h-100" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white;">
         <h5 class="card-title mb-3 fw-bold">User Overview</h5>
-        <p class="mb-4 fs-5">Total Users: <span class="badge bg-light text-dark fs-6">{{ total_users }}</span></p>
-
+        <p class="mb-4 fs-5">
+          Total Users:
+          <span class="badge bg-light text-dark fs-6">{{ total_users }}</span>
+        </p>
         <canvas id="userStatusChart" style="max-height: 320px;"></canvas>
       </div>
     </div>
 
-    <!-- Manage Users Card -->
+    <!-- Manage Users -->
     <div class="col-md-5 mb-4">
       <a href="{% url 'manage_users' %}" class="text-decoration-none">
         <div class="card shadow border-0 rounded-4 h-100 hover-shadow transition bg-white">
@@ -36,7 +42,7 @@
     </div>
   </div>
 
-  <!-- Users Table -->
+  <!-- Latest Users Table -->
   <div class="card shadow-sm rounded-4 border-0">
     <div class="card-body">
       <h5 class="card-title mb-4 fw-bold text-secondary">Latest Users</h5>
@@ -86,79 +92,22 @@
   </div>
 </div>
 
-<!-- Chart.js CDN -->
+<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+<!-- Inject user status data into JS -->
 <script>
-  const ctx = document.getElementById('userStatusChart').getContext('2d');
-  const userStatusChart = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: ['Active', 'Inactive', 'Verified', 'Unverified'],
-      datasets: [{
-        label: 'User Status',
-        data: [
-          {{ active_users }},
-          {{ inactive_users }},
-          {{ verified_users }},
-          {{ unverified_users }}
-        ],
-        backgroundColor: [
-          '#198754', // green
-          '#dc3545', // red
-          '#0d6efd', // blue
-          '#ffc107'  // yellow
-        ],
-        borderColor: 'rgba(255, 255, 255, 0.8)',
-        borderWidth: 2,
-        hoverOffset: 40
-      }]
-    },
-    options: {
-      responsive: true,
-      cutout: '65%',
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: {
-            color: 'white',
-            font: {
-              size: 14,
-              weight: '600'
-            }
-          }
-        },
-        tooltip: {
-          enabled: true,
-          backgroundColor: '#333',
-          titleColor: '#fff',
-          bodyColor: '#eee'
-        }
-      }
-    }
-  });
+  const chartData = {
+    active_users: Number("{{ active_users }}"),
+    inactive_users: Number("{{ inactive_users }}"),
+    verified_users: Number("{{ verified_users }}"),
+    unverified_users: Number("{{ unverified_users }}")
+  };
 </script>
 
-<!-- Bootstrap Icons CDN -->
+
+<!-- Local JS & CSS -->
+<script src="{% static 'js/user_chart.js' %}"></script>
+<link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-
-<style>
-  .hover-shadow:hover {
-    box-shadow: 0 0 1.25rem rgba(111, 66, 193, 0.5);
-    transform: translateY(-6px);
-    transition: all 0.25s ease-in-out;
-  }
-
-  /* Card rounded corners and smooth shadow for modern look */
-  .card {
-    border-radius: 1rem !important;
-  }
-
-  /* Button hover */
-  .btn-primary:hover {
-    background-color: #5a32b1;
-    box-shadow: 0 6px 12px rgba(90, 50, 177, 0.6);
-    transition: all 0.3s ease;
-  }
-</style>
 {% endblock %}

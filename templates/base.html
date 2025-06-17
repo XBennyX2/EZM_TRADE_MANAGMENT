@@ -8,23 +8,43 @@
   <!-- Bootstrap 5 CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   
-  <!-- Optional: Bootstrap Icons CDN for user icon -->
+  <!-- Bootstrap Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
 
   <style>
     body {
-      background-color: #f1f5f9;
+      background-color: #f8fafc;
+      font-family: 'Segoe UI', sans-serif;
     }
 
+    /* Navbar */
     .navbar-custom {
-      background: linear-gradient(to right, #4F46E5, #06B6D4);
+      background: linear-gradient(to right, #1e293b, #0f172a);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 
     .navbar-brand {
       font-weight: 700;
       font-size: 1.6rem;
-      letter-spacing: 1px;
+      letter-spacing: 0.5px;
       color: #ffffff !important;
+      transition: color 0.3s ease;
+    }
+
+    .navbar-brand:hover {
+      color: #94a3b8 !important;
+    }
+
+    .nav-link {
+      color: #e2e8f0 !important;
+    }
+
+    .nav-link:hover {
+      color: #cbd5e1 !important;
+    }
+
+    .dropdown-menu {
+      border-radius: 0.5rem;
     }
 
     .form-container {
@@ -33,25 +53,26 @@
       padding: 30px;
       background-color: #ffffff;
       border-radius: 12px;
-      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
     }
 
     .btn-indigo {
-      background-color: #4F46E5;
+      background-color: #6366f1;
       color: #fff;
+      transition: background-color 0.3s ease;
     }
 
     .btn-indigo:hover {
-      background-color: #4338CA;
+      background-color: #4f46e5;
     }
 
     .btn-cyan {
-      background-color: #06B6D4;
+      background-color: #06b6d4;
       color: #fff;
     }
 
     .btn-cyan:hover {
-      background-color: #0891B2;
+      background-color: #0891b2;
     }
 
     /* User dropdown styles */
@@ -64,62 +85,66 @@
       font-weight: 500;
       user-select: none;
     }
+    .nav-link.btn-light:hover {
+  color: #000 !important;
+  background-color: #f8f9fa !important;
+}
+
+
     .nav-user-dropdown:hover,
     .nav-user-dropdown:focus {
-      color: #e0e0e0;
+      color: #cbd5e1;
       text-decoration: none;
     }
 
-    /* Smaller icon size */
     .nav-user-icon {
-      font-size: 1.25rem;
+      font-size: 1.3rem;
     }
   </style>
 </head>
 <body>
 
   <!-- Navbar -->
-<nav class="navbar navbar-expand-lg navbar-custom">
-  <div class="container">
-    <a class="navbar-brand" href="#">EZM</a>
+  <nav class="navbar navbar-expand-lg navbar-custom">
+    <div class="container">
+      <a class="navbar-brand" href="{% url 'login' %}">EZM</a>
 
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent"
-            aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
-    </button>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent"
+              aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
 
-    <div class="collapse navbar-collapse justify-content-end" id="navbarContent">
-      <ul class="navbar-nav align-items-center">
-        {% if user.is_authenticated %}
-          <li class="nav-item dropdown">
-            <a class="nav-user-dropdown nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
-               data-bs-toggle="dropdown" aria-expanded="false">
-              <i class="bi bi-person-circle nav-user-icon"></i> {{ user.username }}
-            </a>
-            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-              <li><a class="dropdown-item text-danger" href="{% url 'logout' %}">Signout</a></li>
-            </ul>
-          </li>
-        {% else %}
-          <li class="nav-item me-2">
-            <a class="nav-link btn btn-light text-dark px-3" href="{% url 'login' %}">Login</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link btn btn-cyan px-3" href="{% url 'register' %}">Sign Up</a>
-          </li>
-        {% endif %}
-      </ul>
+      <div class="collapse navbar-collapse justify-content-end" id="navbarContent">
+        <ul class="navbar-nav align-items-center">
+          {% if user.is_authenticated %}
+            <li class="nav-item dropdown">
+              <a class="nav-user-dropdown nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
+                 data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-person-circle nav-user-icon"></i> {{ user.username }}
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                <li><a class="dropdown-item text-danger" href="{% url 'logout' %}">Sign out</a></li>
+              </ul>
+            </li>
+          {% else %}
+            <li class="nav-item me-2">
+              <a class="nav-link btn btn-light text-dark px-3" href="{% url 'login' %}">Login</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link btn btn-cyan px-3" href="{% url 'register' %}">Sign Up</a>
+            </li>
+          {% endif %}
+        </ul>
+      </div>
     </div>
-  </div>
-</nav>
-
+  </nav>
 
   <!-- Page content -->
-  <div class="container">
+  <div class="container py-4">
     {% block content %}{% endblock %}
   </div>
 
-  <!-- Bootstrap Bundle JS (includes Popper for dropdowns) -->
+  <!-- Bootstrap Bundle JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

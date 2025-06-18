@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1>Process Sale</h1>
+    <form id="sale-form" method="post" class="card p-3">
+        {% csrf_token %}
+        <div id="product-list">
+            <div class="product-item">
+                <div class="mb-3">
+                    <label for="product-0" class="form-label">Product:</label>
+                    <select id="product-0" name="product" class="form-select product-select" required>
+                        {% for product in products %}
+                        <option value="{{ product.id }}">{{ product.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label for="quantity-0" class="form-label">Quantity:</label>
+                    <input type="number" id="quantity-0" name="quantity" value="1" min="1"
+                        class="form-control quantity-input" required>
+                </div>
+                <button type="button" class="btn btn-danger remove-product">Remove</button>
+            </div>
+        </div>
+
+        <button type="button" id="add-product" class="btn btn-secondary">Add Product</button>
+
+        <div class="mb-3">
+            <label for="discount" class="form-label">Discount (%):</label>
+            <input type="number" id="discount" name="discount" value="0" min="0" max="100" class="form-control">
+        </div>
+
+        <div class="mb-3 form-check">
+            <input type="checkbox" id="taxable" name="taxable" class="form-check-input">
+            <label class="form-check-label" for="taxable">Taxable</label>
+        </div>
+
+        <div id="totals" class="alert alert-info">
+            <p>Subtotal: <span id="subtotal">0.00</span></p>
+            <p>Tax: <span id="tax">0.00</span></p>
+            <p>Discount Amount: <span id="discount-amount">0.00</span></p>
+            <p>Total: <span id="total">0.00</span></p>
+        </div>
+
+        <div class="mb-3">
+            <label for="payment-type" class="form-label">Payment Type:</label>
+            <select id="payment-type" name="payment_type" class="form-select">
+                <option value="cash">Cash</option>
+                <option value="credit_card">Credit Card</option>
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Finalize Sale</button>
+    </form>
+
+    <script>
+        const productList = document.getElementById('product-list');
+        const addProductButton = document.getElementById('add-product');
+        let productCount = 1;
+
+        addProductButton.addEventListener('click', () => {
+            const productItem = document.createElement('div');
+            productItem.classList.add('product-item');
+            productItem.innerHTML = `
+          <div class="mb-3">
+            <label for="product-${productCount}" class="form-label">Product:</label>
+            <select id="product-${productCount}" name="product" class="form-select product-select" required>
+              {% for product in products %}
+                <option value="{{ product.id }}">{{ product.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label for="quantity-${productCount}" class="form-label">Quantity:</label>
+            <input type="number" id="quantity-${productCount}" name="quantity" value="1" min="1" class="form-control quantity-input" required>
+          </div>
+          <button type="button" class="btn btn-danger remove-product">Remove</button>
+        `;
+            productList.appendChild(productItem);
+            productCount++;
+            attachEventListeners();
+        });
+
+        function attachEventListeners() {
+            const productSelects = document.querySelectorAll('.product-select');
+            const quantityInputs = document.querySelectorAll('.quantity-input');
+            const removeProductButtons = document.querySelectorAll('.remove-product');
+
+            productSelects.forEach(select => select.addEventListener('change', calculateTotals));
+            quantityInputs.forEach(input => input.addEventListener('input', calculateTotals));
+            removeProductButtons.forEach(button => button.addEventListener('click', (event) => {
+                event.target.parentNode.remove();
+                calculateTotals();
+            }));
+        }
+
+        attachEventListeners();
+
+        const discountInput = document.getElementById('discount');
+        const taxableCheckbox = document.getElementById('taxable');
+        const subtotalSpan = document.getElementById('subtotal');
+        const taxSpan = document.getElementById('tax');
+        const discountAmountSpan = document.getElementById('discount-amount');
+        const totalSpan = document.getElementById('total');
+
+        function calculateTotals() {
+            let subtotal = 0;
+            const productSelects = document.querySelectorAll('.product-select');
+            const quantityInputs = document.querySelectorAll('.quantity-input');
+
+            productSelects.forEach((select, index) => {
+                const productId = select.value;
+                const quantity = parseFloat(quantityInputs[index].value);
+
+                fetch(`/stores/get_product_price/${productId}/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const price = parseFloat(data.price);
+                        subtotal += price * quantity;
+
+                        const discount = parseFloat(discountInput.value);
+                        let discountAmount = subtotal * (discount / 100);
+                        subtotal -= discountAmount;
+                        const taxable = taxableCheckbox.checked;
+                        let tax = taxable ? subtotal * 0.05 : 0; // Assuming 5% tax
+                        let total = subtotal + tax;
+
+                        subtotalSpan.textContent = subtotal.toFixed(2);
+                        taxSpan.textContent = tax.toFixed(2);
+                        discountAmountSpan.textContent = discountAmount.toFixed(2);
+                        totalSpan.textContent = total.toFixed(2);
+                    });
+            });
+        }
+
+        discountInput.addEventListener('input', calculateTotals);
+        taxableCheckbox.addEventListener('change', calculateTotals);
+
+        // Initial calculation
+        calculateTotals();
+    </script>
+</div>
+{% endblock %}

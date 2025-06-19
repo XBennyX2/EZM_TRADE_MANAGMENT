@@ -269,12 +269,12 @@ def store_owner_page(request):
 
 
 from django.shortcuts import render
-from store.models import Store, StoreCashier  # adjust path if needed
+from store.models import Store  # adjust path if needed
 
 @login_required
 def store_manager_page(request):
     try:
-        store = Store.objects.get(manager_assignment__manager=request.user)
+        store = Store.objects.get(store_manager=request.user)
     except Store.DoesNotExist:
         store = None
 
@@ -286,9 +286,14 @@ def store_manager_page(request):
         'store': store,
         'cashier_assignment': cashier_assignment
     })
+from store.models import Store, Order  # adjust path if needed
+from transactions.models import Transaction
+
 @login_required
 def cashier_page(request):
-    return render(request, 'mainpages/cashier_page.html')
+    orders = Order.objects.filter(customer=request.user).order_by('-created_at')[:10]
+    transactions = [order.transaction for order in orders if order.transaction]
+    return render(request, 'mainpages/cashier_page.html', {'transactions': transactions})
 
 from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import render, get_object_or_404, redirect

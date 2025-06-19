@@ -1,8 +1,31 @@
 {% extends 'base.html' %}
 {% block title %}Cashier Dashboard{% endblock %}
 {% block content %}
-<div class="container mt-5 text-center">
+<div class="container mt-5">
   <h2>Welcome Cashier {{ request.user.first_name }}!</h2>
   <p>Create orders, view products, and process refunds.</p>
+  <a href="{% url 'process_sale' %}" class="btn btn-primary">Process Sale</a>
+
+  <h3 class="mt-4">Previous Sales Transactions</h3>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Transaction ID</th>
+        <th>Date</th>
+        <th>Total Amount</th>
+        <th>Payment Type</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for transaction in transactions %}
+      <tr>
+        <td>{{ transaction.id }}</td>
+        <td>{{ transaction.timestamp }}</td>
+        <td>{{ transaction.total_amount }}</td>
+        <td>{{ transaction.payment_type }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
 {% endblock %}

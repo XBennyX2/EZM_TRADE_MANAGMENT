@@ -14,18 +14,19 @@ class Transaction(models.Model):
         ('refund', 'Refund'),
     ]
     # Use strings 'app_name.ModelName' to define relationships to other apps.
-    product = models.ForeignKey('Inventory.Product', on_delete=models.CASCADE)
+    # product = models.ForeignKey('Inventory.Product', on_delete=models.CASCADE) # Remove this line
     quantity = models.IntegerField(help_text="Quantity of product involved. Can be negative for sales.")
     transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES)
     timestamp = models.DateTimeField(auto_now_add=True)
     store = models.ForeignKey('store.Store', on_delete=models.CASCADE)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) # Add this line
 
     def __str__(self):
         # We use try-except blocks to avoid errors if related objects don't exist yet
         try:
-            product_name = self.product.name
+            # product_name = self.product.name # Remove this line
             store_name = self.store.name
-            return f'{self.transaction_type} of {self.quantity} {product_name} at {store_name}'
+            return f'{self.transaction_type} of {self.quantity} at {store_name}' # Update this line
         except (AttributeError,):
             return f'Transaction ID: {self.id}'
 
@@ -74,9 +75,10 @@ class Order(models.Model):
         blank=True
     )
     # This must be a string to avoid the circular import with the 'inventory' app.
-    product = models.ForeignKey('Inventory.Product', on_delete=models.CASCADE)
+    # product = models.ForeignKey('Inventory.Product', on_delete=models.CASCADE, related_name='transaction_orders') # Remove this line
     quantity = models.PositiveIntegerField()
     price_at_time_of_sale = models.DecimalField(max_digits=10, decimal_places=2)
+    transaction = models.ForeignKey(Transaction, on_delete=models.CASCADE, related_name='orders', null=True, blank=True) # Add this line
 
     def __str__(self):
         receipt_id = self.receipt.id if self.receipt else "unassigned"

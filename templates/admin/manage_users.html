@@ -6,19 +6,64 @@
     <div class="card-body">
       <h3 class="text-center text-primary mb-4">👥 User Management</h3>
 
+
+      <!-- Create User Form -->
+      <div class="mb-4">
+        <h4 class="text-primary">Create New User</h4>
+        <form method="POST">
+          {% csrf_token %}
+          <div class="row gy-2 gx-3 align-items-center">
+            <div class="col-md-4">
+              {{ form.username.errors }}
+              <div class="input-group">
+                <div class="input-group-text">@</div>
+                {{ form.username }}
+              </div>
+            </div>
+            <div class="col-md-4">
+              {{ form.first_name.errors }}
+              {{ form.first_name }}
+            </div>
+            <div class="col-md-4">
+              {{ form.last_name.errors }}
+              {{ form.last_name }}
+            </div>
+            <div class="col-md-4">
+              {{ form.email.errors }}
+              {{ form.email }}
+            </div>
+            <div class="col-md-4">
+              {{ form.role.errors }}
+              {{ form.role }}
+            </div>
+            <div class="col-md-4">
+              {{ form.full_name.errors }}
+              {{ form.full_name }}
+            </div>
+            <div class="col-md-4">
+              {{ form.phone_number.errors }}
+              {{ form.phone_number }}
+            </div>
+            <div class="col-md-4">
+              <button type="submit" class="btn btn-success w-100">Create User</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
       <!-- Filter/Search Form -->
       <form method="GET" class="row gy-2 gx-3 align-items-center mb-4">
         <div class="col-md-4">
-          <input type="text" name="search" value="{{ request.GET.search }}" class="form-control" placeholder="🔍 Search by name or username">
+          <input type="text" name="search" value="{{ request.GET.search }}" class="form-control"
+            placeholder="🔍 Search by name or username">
         </div>
         <div class="col-md-4">
           <select name="role" class="form-select">
             <option value="">All Roles</option>
-            <option value="admin" {% if request.GET.role == 'admin' %}selected{% endif %}>Admin</option>
-            <option value="customer" {% if request.GET.role == 'customer' %}selected{% endif %}>Customer</option>
-            <option value="store_owner" {% if request.GET.role == 'store_owner' %}selected{% endif %}>Store Owner</option>
-            <option value="store_manager" {% if request.GET.role == 'store_manager' %}selected{% endif %}>Store Manager</option>
-            <option value="cashier" {% if request.GET.role == 'cashier' %}selected{% endif %}>Cashier</option>
+            <option value="admin" {% if is_admin %}selected{% endif %}>Admin</option>
+            <option value="store_owner" {% if is_store_owner %}selected{% endif %}>Store Owner</option>
+            <option value="store_manager" {% if is_store_manager %}selected{% endif %}>Store Manager</option>
+            <option value="cashier" {% if is_cashier %}selected{% endif %}>Cashier</option>
           </select>
         </div>
         <div class="col-md-4">
@@ -36,7 +81,6 @@
               <th>Email</th>
               <th>Role</th>
               <th>Status</th>
-              <th>Verified</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -49,30 +93,24 @@
               <td><span class="badge bg-secondary">{{ user.get_role_display }}</span></td>
               <td>
                 {% if user.is_active %}
-                  <span class="badge bg-success">Active</span>
+                <span class="badge bg-success">Active</span>
                 {% else %}
-                  <span class="badge bg-danger">Inactive</span>
-                {% endif %}
-              </td>
-              <td>
-                {% if user.is_verified %}
-                  <span class="badge bg-success"><i class="bi bi-check-circle-fill"></i> Verified</span>
-                {% else %}
-                  <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle-fill"></i> Not Verified</span>
+                <span class="badge bg-danger">Inactive</span>
                 {% endif %}
               </td>
               <td>
                 <a href="{% url 'view_user_detail' user.id %}" class="btn btn-outline-info btn-sm">Details</a>
-                <a href="{% url 'toggle_user_status' user.id %}" 
-                   class="btn btn-outline-warning btn-sm" 
-                   onclick="return confirm('Are you sure you want to {% if user.is_active %}deactivate{% else %}activate{% endif %} this user?');">
+                <a href="{% url 'toggle_user_status' user.id %}" class="btn btn-outline-warning btn-sm"
+                  onclick="return confirm('Are you sure you want to {% if user.is_active %}deactivate{% else %}activate{% endif %} this user?');">
                   {% if user.is_active %}Deactivate{% else %}Activate{% endif %}
                 </a>
                 <a href="{% url 'change_user_role' user.id %}" class="btn btn-outline-secondary btn-sm">Change Role</a>
               </td>
             </tr>
             {% empty %}
-            <tr><td colspan="7" class="text-muted">No users found.</td></tr>
+            <tr>
+              <td colspan="7" class="text-muted">No users found.</td>
+            </tr>
             {% endfor %}
           </tbody>
         </table>
@@ -89,29 +127,32 @@
         <nav>
           <ul class="pagination mb-0">
             {% if page_obj.has_previous %}
-              <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.previous_page_number }}&search={{ request.GET.search }}&role={{ request.GET.role }}">Previous</a>
-              </li>
+            <li class="page-item">
+              <a class="page-link"
+                href="?page={{ page_obj.previous_page_number }}&search={{ request.GET.search }}&role={{ request.GET.role }}">Previous</a>
+            </li>
             {% else %}
-              <li class="page-item disabled"><span class="page-link">Previous</span></li>
+            <li class="page-item disabled"><span class="page-link">Previous</span></li>
             {% endif %}
 
             {% for num in page_obj.paginator.page_range %}
-              {% if page_obj.number == num %}
-                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-              {% else %}
-                <li class="page-item">
-                  <a class="page-link" href="?page={{ num }}&search={{ request.GET.search }}&role={{ request.GET.role }}">{{ num }}</a>
-                </li>
-              {% endif %}
+            {% if page_obj.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% else %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ num }}&search={{ request.GET.search }}&role={{ request.GET.role }}">{{
+                num }}</a>
+            </li>
+            {% endif %}
             {% endfor %}
 
             {% if page_obj.has_next %}
-              <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.next_page_number }}&search={{ request.GET.search }}&role={{ request.GET.role }}">Next</a>
-              </li>
+            <li class="page-item">
+              <a class="page-link"
+                href="?page={{ page_obj.next_page_number }}&search={{ request.GET.search }}&role={{ request.GET.role }}">Next</a>
+            </li>
             {% else %}
-              <li class="page-item disabled"><span class="page-link">Next</span></li>
+            <li class="page-item disabled"><span class="page-link">Next</span></li>
             {% endif %}
           </ul>
         </nav>

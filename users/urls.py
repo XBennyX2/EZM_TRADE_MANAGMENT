@@ -3,10 +3,6 @@ from django.urls import path
 from .views import *
 
 urlpatterns = [
-    path('register/', register_view, name='register'),
-    path('verify-otp/<int:user_id>/', verify_otp_view, name='verify_otp'),
-    path('resend-otp/', resend_otp, name='resend_otp'),
-
     path('login/', login_view, name='login'),
     path('logout/', logout_view, name='logout'),
 
@@ -17,9 +13,9 @@ urlpatterns = [
     path('admin/user/<int:user_id>/', view_user_detail, name='view_user_detail'),
 
     # Role-based pages
-    path('customer/', customer_page, name='customer_page'),
     path('admin-dashboard/', admin_dashboard, name='admin_dashboard'),
     path('store-owner/', store_owner_page, name='store_owner_page'),
     path('store-manager/', store_manager_page, name='store_manager_page'),
     path('cashier/', cashier_page, name='cashier_page'),
+    path('change_password/', change_password, name='change_password'),
 ]

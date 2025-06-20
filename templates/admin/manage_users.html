@@ -7,49 +7,7 @@
       <h3 class="text-center text-primary mb-4">👥 User Management</h3>
 
 
-      <!-- Create User Form -->
-      <div class="mb-4">
-        <h4 class="text-primary">Create New User</h4>
-        <form method="POST">
-          {% csrf_token %}
-          <div class="row gy-2 gx-3 align-items-center">
-            <div class="col-md-4">
-              {{ form.username.errors }}
-              <div class="input-group">
-                <div class="input-group-text">@</div>
-                {{ form.username }}
-              </div>
-            </div>
-            <div class="col-md-4">
-              {{ form.first_name.errors }}
-              {{ form.first_name }}
-            </div>
-            <div class="col-md-4">
-              {{ form.last_name.errors }}
-              {{ form.last_name }}
-            </div>
-            <div class="col-md-4">
-              {{ form.email.errors }}
-              {{ form.email }}
-            </div>
-            <div class="col-md-4">
-              {{ form.role.errors }}
-              {{ form.role }}
-            </div>
-            <div class="col-md-4">
-              {{ form.full_name.errors }}
-              {{ form.full_name }}
-            </div>
-            <div class="col-md-4">
-              {{ form.phone_number.errors }}
-              {{ form.phone_number }}
-            </div>
-            <div class="col-md-4">
-              <button type="submit" class="btn btn-success w-100">Create User</button>
-            </div>
-          </div>
-        </form>
-      </div>
+      <a href="{% url 'create_user' %}" class="btn btn-success mb-4">Create User</a>
 
       <!-- Filter/Search Form -->
       <form method="GET" class="row gy-2 gx-3 align-items-center mb-4">

@@ -138,7 +138,7 @@ def admin_dashboard(request):
     active_users = User.objects.filter(is_active=True).count()
     inactive_users = User.objects.filter(is_active=False).count()
     #verified_users = User.objects.filter(is_verified=True).count()
-    #unverified_users = User.objects.filter(is_verified=False).count()
+    #unverified_users = User.objects.filter(is_verified=True).count()
 
     users = User.objects.order_by('-date_joined')[:10]  # Latest 10 users
 
@@ -161,8 +161,8 @@ def store_owner_page(request):
     if request.user.role != 'store_owner':
         return redirect('')  # restrict access if needed
 
-    # Filter only the stores owned by the current store owner
-    stores = Store.objects.filter(owner=request.user).select_related('manager_assignment__manager')
+    # Retrieve all stores
+    stores = Store.objects.all().select_related('store_manager')
 
     return render(request, 'mainpages/store_owner_page.html', {
         'stores': stores
@@ -255,18 +255,56 @@ def manage_users(request):
         'is_store_manager': role_filter == 'store_manager',
         'is_cashier': role_filter == 'cashier',
     }
-    if request.method == 'POST':
-        form = CustomUserCreationFormAdmin(request.POST)
-        if form.is_valid():
-            user = form.save(commit=False)
-            password = get_random_string(12)  # Generate a random password
-            user.set_password(password)
-            user.is_active = True
-            user.is_first_login = True
-            user.full_name = form.cleaned_data['full_name']
-            user.phone_number = form.cleaned_data['phone_number']
-            user.save()
+    return render(request, 'admin/manage_users.html', context)
 
+
+@user_passes_test(is_admin)
+def create_user(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        first_name = request.POST.get('first_name')
+        last_name = request.POST.get('last_name')
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+        role = request.POST.get('role')
+        full_name = request.POST.get('full_name')
+        phone_number = request.POST.get('phone_number')
+
+        context = {
+            'username': username,
+            'first_name': first_name,
+            'last_name': last_name,
+            'email': email,
+            'full_name': full_name,
+            'phone_number': phone_number,
+            'role': role
+        }
+
+        # Basic validation
+        if not all([username, first_name, last_name, email, password, role]):
+            messages.error(request, "All required fields must be filled.")
+            return render(request, 'admin/create_user.html', context)
+
+        # Check if username already exists
+        User = get_user_model()
+        if User.objects.filter(username=username).exists():
+            messages.error(request, "Username already exists. Please choose a different username.")
+            return render(request, 'admin/create_user.html', context)
+
+        try:
+            # Create the user
+            user = User.objects.create_user(
+                username=username,
+                first_name=first_name,
+                last_name=last_name,
+                email=email,
+                password=password,
+                role=role,
+                full_name=full_name,
+                phone_number=phone_number,
+            )
+
+            # Send email with credentials
             subject = "Account Created"
             message = f"Your account has been created.\n" \
                       f"Username: {user.username}\n" \
@@ -279,11 +317,13 @@ def manage_users(request):
 
             messages.success(request, f"User {user.username} created successfully. Email sent with credentials.")
             return redirect('manage_users')
+        except Exception as e:
+            messages.error(request, f"Error creating user: {e}")
+            return render(request, 'admin/create_user.html', context)
     else:
-        form = CustomUserCreationFormAdmin()
+        return render(request, 'admin/create_user.html')
 
-    context['form'] = form
-    return render(request, 'admin/manage_users.html', context)
+
 
 @user_passes_test(is_admin)
 def toggle_user_status(request, user_id):
@@ -325,7 +365,10 @@ def change_password(request):
                 request.user.save()
                 update_session_auth_hash(request, request.user)  # Important!
                 messages.success(request, 'Your password was successfully updated!')
-                return redirect('admin_dashboard')  # Redirect to a relevant page
+                if request.user.role == 'store_owner':
+                    return redirect('store_owner_page')  # Redirect to store owner page
+                else:
+                    return redirect('admin_dashboard')  # Redirect to admin dashboard
             else:
                 messages.error(request, 'Please enter the correct old password.')
     else:

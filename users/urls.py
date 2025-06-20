@@ -11,6 +11,7 @@ urlpatterns = [
     path('admin/user/<int:user_id>/toggle-status/', toggle_user_status, name='toggle_user_status'),
     path('admin/user/<int:user_id>/change-role/', change_user_role, name='change_user_role'),
     path('admin/user/<int:user_id>/', view_user_detail, name='view_user_detail'),
+    path('admin/create-user/', create_user, name='create_user'),
 
     # Role-based pages
     path('admin-dashboard/', admin_dashboard, name='admin_dashboard'),

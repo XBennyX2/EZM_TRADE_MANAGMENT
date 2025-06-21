@@ -9,8 +9,6 @@ from .models import CustomUser
 from .utils import send_otp_email
 from django.utils.crypto import get_random_string
 
-
-
 from django.core.mail import send_mail
 from django.contrib import messages
 from django.utils.crypto import get_random_string
@@ -47,15 +45,10 @@ def send_otp_email(user):
     msg.attach_alternative(html_content, "text/html")
     msg.send()
 
-
-
-
 from django.shortcuts import get_object_or_404
 
 from django.utils import timezone
 from datetime import timedelta
-
-
 
 from django.contrib import messages
 from django.contrib.auth import login
@@ -116,17 +109,11 @@ def login_view(request):
 
     return render(request, 'users/login.html', {'form': form})
 
-
-
-
 from django.contrib.auth import logout
 
 def logout_view(request):
     logout(request)
     return redirect('login')
-
-
-
 
 from django.shortcuts import render
 from django.contrib.auth import get_user_model
@@ -152,8 +139,6 @@ def admin_dashboard(request):
     }
     return render(request, 'mainpages/admin_dashboard.html', context)
 
-
-
 from store.models import Store
 @login_required
 
@@ -168,9 +153,8 @@ def store_owner_page(request):
         'stores': stores
     })
 
-
 from django.shortcuts import render
-from store.models import Store  # adjust path if needed
+from store.models import Store, StoreCashier  # adjust path if needed
 
 @login_required
 def store_manager_page(request):
@@ -189,7 +173,6 @@ def store_manager_page(request):
         'store': store,
         'cashier_assignment': cashier_assignment
     })
-
 
     cashier_assignment = None
     if store:
@@ -257,7 +240,6 @@ def manage_users(request):
     }
     return render(request, 'admin/manage_users.html', context)
 
-
 @user_passes_test(is_admin)
 def create_user(request):
     if request.method == 'POST':
@@ -322,8 +304,6 @@ def create_user(request):
             return render(request, 'admin/create_user.html', context)
     else:
         return render(request, 'admin/create_user.html')
-
-
 
 @user_passes_test(is_admin)
 def toggle_user_status(request, user_id):

@@ -4,8 +4,8 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
 from django.shortcuts import redirect
 
-from .models import Category, Product, Stock
-from .forms import CategoryForm, ProductForm, StockCreateForm, StockUpdateForm
+from .models import Product, Stock
+from .forms import ProductForm, StockCreateForm, StockUpdateForm
 
 # --- Custom Permission Mixins ---
 
@@ -39,34 +39,6 @@ class ObjectManagerRequiredMixin(UserPassesTestMixin):
         if user.role == 'store_manager' and hasattr(obj, 'store'):
             return obj.store.manager == user # Is the user the manager of this stock's store?
         return False
-
-# --- Category Views (Catalog Management) ---
-
-class CategoryListView(LoginRequiredMixin, ListView):
-    model = Category
-    template_name = 'inventory/category_list.html'
-    context_object_name = 'categories'
-
-class CategoryCreateView(LoginRequiredMixin, ManagerAndOwnerMixin, CreateView):
-    model = Category
-    form_class = CategoryForm
-    template_name = 'inventory/form_template.html'
-    extra_context = {'title': 'Create New Category'}
-    success_url = reverse_lazy('category_list')
-
-class CategoryUpdateView(LoginRequiredMixin, ManagerAndOwnerMixin, UpdateView):
-    model = Category
-    form_class = CategoryForm
-    template_name = 'inventory/form_template.html'
-    extra_context = {'title': 'Edit Category'}
-    success_url = reverse_lazy('category_list')
-
-class CategoryDeleteView(LoginRequiredMixin, StoreOwnerMixin, DeleteView):
-    model = Category
-    template_name = 'inventory/confirm_delete_template.html'
-    extra_context = {'title': 'Delete Category'}
-    success_url = reverse_lazy('category_list')
-
 
 # --- Product Views (Catalog Management) ---
 

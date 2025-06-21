@@ -97,3 +97,47 @@ def process_sale(request):
 def get_product_price(request, product_id):
     product = get_object_or_404(Product, pk=product_id)
     return JsonResponse({'price': product.price})
+
+from django.shortcuts import render
+
+from .forms import StoreForm
+
+def create_store(request):
+    if request.method == 'POST':
+        form = StoreForm(request.POST)
+        if form.is_valid():
+            store = form.save()
+            return redirect('store_owner_page')  # Redirect to store owner page after successful creation
+    else:
+        form = StoreForm()
+    return render(request, 'store/create_store.html', {'form': form})
+
+from django.shortcuts import render, get_object_or_404
+from .models import Store
+
+import logging
+from .forms import AssignManagerForm
+
+logger = logging.getLogger(__name__)
+
+@login_required
+def manage_store(request, store_id):
+    store = get_object_or_404(Store, pk=store_id)
+    if request.method == 'POST':
+        form = AssignManagerForm(request.POST)
+        if form.is_valid():
+            manager = form.cleaned_data['manager']
+            logger.info(f"Assigning manager {manager.username} to store {store.name}")
+            store.store_manager = manager
+            store.save()
+            manager.store = store
+            manager.save()
+            logger.info(f"Successfully assigned manager {manager.username} to store {store.name}")
+            from django.contrib import messages
+            messages.success(request, f"Successfully assigned {manager.username} to {store.name}")
+            return redirect('store_owner_page')
+        else:
+            logger.warning(f"Invalid form data: {form.errors}")
+    else:
+        form = AssignManagerForm()
+    return render(request, 'store/manage_store.html', {'store': store, 'form': form})

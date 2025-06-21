@@ -1,39 +1,33 @@
 from django.db import models
-from store.models import Store 
+from store.models import Store
 from transactions.models import Transaction
 from django.conf import *
 
-class Category(models.Model):
-    """
-    Organizes products into categories like 'Cement', 'Steel', etc. 
-    """
-    name = models.CharField(max_length=100, unique=True)
-    description = models.TextField(blank=True)
-
-    class Meta:
-        verbose_name_plural = "Categories"
-
-    def __str__(self):
-        return self.name
+SETTINGS_CHOICES = [
+    ('Aggregates and Composites', 'Aggregates and Composites'),
+    ('Masonry', 'Masonry'),
+    ('Metals', 'Metals'),
+    ('Wood and Wood Products', 'Wood and Wood Products'),
+    ('Plastics and Polymers', 'Plastics and Polymers'),
+    ('Glass and Finishing Materials', 'Glass and Finishing Materials'),
+]
 
 class Product(models.Model):
     """
-    Represents a specific product with its details. 
+    Represents a specific product with its details.
     """
     name = models.CharField(max_length=100)
-    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
+    category = models.CharField(max_length=100, choices=SETTINGS_CHOICES, default='')
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
     material = models.TextField()
-
-    
 
     def __str__(self):
         return self.name
 
 class Stock(models.Model):
     """
-    Tracks the quantity of a specific product at a specific store. 
+    Tracks the quantity of a specific product at a specific store.
     """
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='stock_levels')
     store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='stock_items')
@@ -41,8 +35,6 @@ class Stock(models.Model):
     last_updated = models.DateTimeField(auto_now=True)
     low_stock_threshold = models.PositiveIntegerField(default=10, help_text="Threshold for low stock alerts.")
     selling_price = models.DecimalField(max_digits=10, decimal_places=2, help_text="Selling price of the product at this store.")  # New field
-    
-
 
     class Meta:
         unique_together = ('product', 'store')  # Ensures one stock entry per product per store
@@ -52,7 +44,7 @@ class Stock(models.Model):
 
 class StockTransferRequest(models.Model):
     """
-    Manages the request-and-approval workflow for moving stock between stores. 
+    Manages the request-and-approval workflow for moving stock between stores.
     """
     STATUS_CHOICES = [
         ('pending', 'Pending'),

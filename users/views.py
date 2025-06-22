@@ -347,6 +347,8 @@ def change_password(request):
                 messages.success(request, 'Your password was successfully updated!')
                 if request.user.role == 'store_owner':
                     return redirect('store_owner_page')  # Redirect to store owner page
+                elif request.user.role == 'store_manager':
+                    return redirect('store_manager_page')
                 else:
                     return redirect('admin_dashboard')  # Redirect to admin dashboard
             else:

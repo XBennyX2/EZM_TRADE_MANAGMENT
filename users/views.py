@@ -1,4 +1,4 @@
-# users/views.py
+
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
@@ -6,11 +6,17 @@ from .forms import CustomLoginForm
 from .models import CustomUser
 
 # users/views.py
-from .utils import send_otp_email
 from django.utils.crypto import get_random_string
 
 from django.core.mail import send_mail
 from django.contrib import messages
+import logging
+logger = logging.getLogger(__name__)
+try:
+    from users.templatetags.users_utils import send_otp_email
+except ImportError as e:
+    logger.error(f"Could not import users.templatetags.users_utils: {e}")
+    raise
 from django.utils.crypto import get_random_string
 from django.shortcuts import redirect
 from django.conf import settings
@@ -62,8 +68,8 @@ def login_view(request):
             # Verified users go to their dashboard pages
             if user.is_superuser or user.role == 'admin':
                 return redirect('admin_dashboard')
-            elif user.role == 'store_owner':
-                return redirect('store_owner_page')
+            elif user.role == 'head_manager':
+                return redirect('head_manager_page')
             elif user.role == 'store_manager':
                 return redirect('store_manager_page')
             elif user.role == 'cashier':
@@ -88,8 +94,8 @@ def login_view(request):
                 return redirect('change_password')
             elif user.role == 'admin':
                 return redirect('admin_dashboard')
-            elif user.role == 'store_owner':
-                return redirect('store_owner_page')
+            elif user.role == 'head_manager':
+                return redirect('head_manager_page')
             elif user.role == 'store_manager':
                 try:
                     store = Store.objects.get(store_manager=user)
@@ -142,8 +148,8 @@ def admin_dashboard(request):
 from store.models import Store
 @login_required
 
-def store_owner_page(request):
-    if request.user.role != 'store_owner':
+def head_manager_page(request):
+    if request.user.role != 'head_manager':
         return redirect('')  # restrict access if needed
 
     # Retrieve all stores
@@ -234,10 +240,12 @@ def manage_users(request):
         'role_filter': role_filter,
         'total_users': users.count(),
         'is_admin': role_filter == 'admin',
-        'is_store_owner': role_filter == 'store_owner',
+        'is_head_manager': role_filter == 'head_manager',
         'is_store_manager': role_filter == 'store_manager',
         'is_cashier': role_filter == 'cashier',
     }
+    logger.debug(f"page_obj: {page_obj}")
+    logger.debug(f"page_obj.paginator.page_range: {page_obj.paginator.page_range}")
     return render(request, 'admin/manage_users.html', context)
 
 @user_passes_test(is_admin)
@@ -345,8 +353,8 @@ def change_password(request):
                 request.user.save()
                 update_session_auth_hash(request, request.user)  # Important!
                 messages.success(request, 'Your password was successfully updated!')
-                if request.user.role == 'store_owner':
-                    return redirect('store_owner_page')  # Redirect to store owner page
+                if request.user.role == 'head_manager':
+                    return redirect('head_manager_page')  # Redirect to store owner page
                 elif request.user.role == 'store_manager':
                     return redirect('store_manager_page')
                 else:
@@ -356,3 +364,16 @@ def change_password(request):
     else:
         form = ChangePasswordForm()
     return render(request, 'users/change_password.html', {'form': form})
+
+@login_required
+@user_passes_test(is_admin)
+def admin_settings(request):
+    if request.method == 'POST':
+        form = AdminSettingsForm(request.POST, instance=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Your settings have been updated!')
+            return redirect('admin_settings')
+    else:
+        form = AdminSettingsForm(instance=request.user)
+    return render(request, 'admin/admin_settings.html', {'form': form})

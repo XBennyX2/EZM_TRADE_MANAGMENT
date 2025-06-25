@@ -16,7 +16,7 @@ User = get_user_model()
 class ChangeUserRoleForm(forms.ModelForm):
     class Meta:
         model = User
-        fields = ['role']
+        fields = ['role', 'store']
 
 class ChangePasswordForm(forms.Form):
     old_password = forms.CharField(widget=forms.PasswordInput, label="Old Password")
@@ -42,3 +42,9 @@ class CustomUserCreationFormAdmin(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = CustomUser
         fields = UserCreationForm.Meta.fields + ('first_name', 'last_name', 'email', 'role', 'full_name', 'phone_number')
+
+class AdminSettingsForm(forms.ModelForm):
+    class Meta:
+        model = CustomUser
+        fields = ['first_name', 'last_name', 'email', 'phone_number']
+

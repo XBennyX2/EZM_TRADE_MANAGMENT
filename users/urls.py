@@ -1,6 +1,6 @@
 # users/urls.py
 from django.urls import path
-from .views import login_view, logout_view, admin_dashboard, store_manager_page, cashier_page, change_password, head_manager_page, manage_users, toggle_user_status, change_user_role, view_user_detail, create_user, admin_settings
+from .views import login_view, logout_view, admin_dashboard, store_manager_page, cashier_page, head_manager_page, manage_users, toggle_user_status, change_user_role, view_user_detail, create_user, admin_settings, admin_edit_profile, admin_change_password
 
 urlpatterns = [
     path('login/', login_view, name='login'),
@@ -18,6 +18,7 @@ urlpatterns = [
     path('head-manager/', head_manager_page, name='head_manager_page'),
     path('store-manager/', store_manager_page, name='store_manager_page'),
     path('cashier/', cashier_page, name='cashier_page'),
-    path('change_password/', change_password, name='change_password'),
     path('admin/settings/', admin_settings, name='admin_settings'),
+    path('admin/profile/edit/', admin_edit_profile, name='admin_edit_profile'),
+    path('admin/profile/change-password/', admin_change_password, name='admin_change_password'),
 ]

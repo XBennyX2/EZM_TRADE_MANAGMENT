@@ -1,5 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 import logging
 logger = logging.getLogger(__name__)
 try:
@@ -15,3 +17,6 @@ urlpatterns = [
     path('stores/', include('store.urls')),
     path('inventory/', include('Inventory.urls')),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

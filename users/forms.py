@@ -2,16 +2,13 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from .models import CustomUser
+from django.contrib.auth import get_user_model
 
+User = get_user_model()
 
 class CustomLoginForm(AuthenticationForm):
     username = forms.CharField(widget=forms.TextInput(attrs={'placeholder': 'Username'}))
     password = forms.CharField(widget=forms.PasswordInput(attrs={'placeholder': 'Password'}))
-
-from django import forms
-from django.contrib.auth import get_user_model
-
-User = get_user_model()
 
 class ChangeUserRoleForm(forms.ModelForm):
     class Meta:
@@ -43,8 +40,14 @@ class CustomUserCreationFormAdmin(UserCreationForm):
         model = CustomUser
         fields = UserCreationForm.Meta.fields + ('first_name', 'last_name', 'email', 'role', 'full_name', 'phone_number')
 
-class AdminSettingsForm(forms.ModelForm):
+class EditProfileForm(forms.ModelForm):
     class Meta:
         model = CustomUser
         fields = ['first_name', 'last_name', 'email', 'phone_number']
 
+class AdminSettingsForm(forms.Form):
+    CHOICES = [
+        ('edit_profile', 'Edit Profile Information'),
+        ('change_password', 'Change Password'),
+    ]
+    selection = forms.ChoiceField(choices=CHOICES, widget=forms.RadioSelect, label="Select Action")

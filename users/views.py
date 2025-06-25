@@ -80,9 +80,7 @@ def login_view(request):
                 return redirect('login')
 
             login(request, user)
-            if user.is_first_login:
-                return redirect('change_password')
-            elif user.role == 'admin':
+            if user.role == 'admin':
                 return redirect('admin_dashboard')
             elif user.role == 'head_manager':
                 return redirect('head_manager_page')

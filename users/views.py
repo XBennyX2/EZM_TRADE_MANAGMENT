@@ -57,18 +57,17 @@ from django.contrib.auth import update_session_auth_hash
 def login_view(request):
     if request.user.is_authenticated:
         user = request.user
-        if getattr(user, 'is_verified', False):
-            if user.is_superuser or user.role == 'admin':
-                return redirect('admin_dashboard')
-            elif user.role == 'head_manager':
-                return redirect('head_manager_page')
-            elif user.role == 'store_manager':
-                return redirect('store_manager_page')
-            elif user.role == 'cashier':
-                return redirect('cashier_page')
-            else:
-                messages.warning(request, "No role assigned. Contact admin.")
-                return redirect('login')
+        if user.is_superuser or user.role == 'admin':
+            return redirect('admin_dashboard')
+        elif user.role == 'head_manager':
+            return redirect('head_manager_page')
+        elif user.role == 'store_manager':
+            return redirect('store_manager_page')
+        elif user.role == 'cashier':
+            return redirect('cashier_page')
+        else:
+            messages.warning(request, "No role assigned. Contact admin.")
+            return redirect('login')
 
     if request.method == 'POST':
         form = CustomLoginForm(data=request.POST)

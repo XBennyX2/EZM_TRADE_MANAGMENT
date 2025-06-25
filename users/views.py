@@ -79,22 +79,32 @@ def login_view(request):
                 return redirect('login')
 
             login(request, user)
-            if user.role == 'admin':
-                return redirect('admin_dashboard')
-            elif user.role == 'head_manager':
-                return redirect('head_manager_page')
-            elif user.role == 'store_manager':
-                try:
-                    store = Store.objects.get(store_manager=user)
-                    return redirect('store_manager_page')
-                except Store.DoesNotExist:
-                    messages.warning(request, "You are not assigned to manage any store.")
-                    return redirect('login')
-            elif user.role == 'cashier':
-                return redirect('cashier_page')
+            if user.is_first_login:
+                if user.role == 'admin':
+                    return redirect('admin_change_password')
+                elif user.role == 'head_manager':
+                    return redirect('head_manager_settings')
+                elif user.role == 'store_manager':
+                    return redirect('store_manager_settings')
+                elif user.role == 'cashier':
+                    return redirect('cashier_settings')
             else:
-                messages.warning(request, "No role assigned. Contact admin.")
-                return redirect('login')
+                if user.role == 'admin':
+                    return redirect('admin_dashboard')
+                elif user.role == 'head_manager':
+                    return redirect('head_manager_page')
+                elif user.role == 'store_manager':
+                    try:
+                        store = Store.objects.get(store_manager=user)
+                        return redirect('store_manager_page')
+                    except Store.DoesNotExist:
+                        messages.warning(request, "You are not assigned to manage any store.")
+                        return redirect('login')
+                elif user.role == 'cashier':
+                    return redirect('cashier_page')
+                else:
+                    messages.warning(request, "No role assigned. Contact admin.")
+                    return redirect('login')
         else:
             messages.error(request, "Invalid email or password.")
     else:
@@ -292,9 +302,18 @@ def change_user_role(request, user_id):
     return render(request, 'admin/change_user_role.html', {'form': form, 'user': user})
 
 @login_required
-@user_passes_test(is_admin)
 def admin_settings(request):
-    return render(request, 'admin/admin_settings.html')
+    if request.user.role == 'admin':
+        return render(request, 'admin/admin_settings.html')
+    elif request.user.role == 'head_manager':
+        return redirect('head_manager_settings')
+    elif request.user.role == 'store_manager':
+        return redirect('store_manager_settings')
+    elif request.user.role == 'cashier':
+        return redirect('cashier_settings')
+    else:
+        messages.warning(request, "No role assigned. Contact admin.")
+        return redirect('login')
 
 @login_required
 def admin_edit_profile(request):
@@ -328,3 +347,15 @@ def admin_change_password(request):
     else:
         form = ChangePasswordForm()
     return render(request, 'users/change_password.html', {'form': form})
+
+@login_required
+def head_manager_settings(request):
+    return render(request, 'mainpages/head_manager_settings.html')
+
+@login_required
+def store_manager_settings(request):
+    return render(request, 'mainpages/store_manager_settings.html')
+
+@login_required
+def cashier_settings(request):
+    return render(request, 'mainpages/cashier_settings.html')

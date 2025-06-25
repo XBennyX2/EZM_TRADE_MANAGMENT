@@ -33,12 +33,11 @@ class CustomUserCreationFormAdmin(UserCreationForm):
     first_name = forms.CharField(max_length=30, required=True)
     last_name = forms.CharField(max_length=30, required=True)
     email = forms.EmailField(max_length=254, required=True)
-    full_name = forms.CharField(max_length=100, required=False)
     phone_number = forms.CharField(max_length=20, required=False)
 
     class Meta(UserCreationForm.Meta):
         model = CustomUser
-        fields = UserCreationForm.Meta.fields + ('first_name', 'last_name', 'email', 'role', 'full_name', 'phone_number')
+        fields = UserCreationForm.Meta.fields + ('first_name', 'last_name', 'email', 'role', 'phone_number')
 
 class EditProfileForm(forms.ModelForm):
     class Meta:

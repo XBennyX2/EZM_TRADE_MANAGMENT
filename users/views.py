@@ -222,7 +222,6 @@ def create_user(request):
         email = request.POST.get('email')
         password = request.POST.get('password')
         role = request.POST.get('role')
-        full_name = request.POST.get('full_name')
         phone_number = request.POST.get('phone_number')
 
         context = {
@@ -230,7 +229,6 @@ def create_user(request):
             'first_name': first_name,
             'last_name': last_name,
             'email': email,
-            'full_name': full_name,
             'phone_number': phone_number,
             'role': role
         }
@@ -252,7 +250,6 @@ def create_user(request):
                 email=email,
                 password=password,
                 role=role,
-                full_name=full_name,
                 phone_number=phone_number,
             )
 
@@ -260,7 +257,6 @@ def create_user(request):
             message = f"Your account has been created.\\n" \
                       f"Username: {user.username}\\n" \
                       f"Password: {password}\\n" \
-                      f"Full Name: {user.full_name}\\n" \
                       f"Phone Number: {user.phone_number}"
             from_email = settings.DEFAULT_FROM_EMAIL
             to_email = [user.email]

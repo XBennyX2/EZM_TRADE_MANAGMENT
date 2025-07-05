@@ -7,17 +7,16 @@
 {% block content %}
 <div class="container mt-4">
     <div class="row justify-content-center">
-        <div class="col-lg-12">
-            <!-- Header -->
-            <div class="d-flex align-items-center mb-4">
+        <div class="col-12">
+            <!-- Header Section -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
                 <a href="{% url 'purchase_order_list' %}" class="btn btn-outline-secondary me-3">
                     <i class="bi bi-arrow-left"></i>
                 </a>
                 <div>
                     <h2 class="mb-0">
                         <i class="bi bi-cart-check text-primary me-2"></i>
-                        {% if object %}Edit Purchase Order #{{ object.order_number }}{% else %}Create Purchase Order{%
-                        endif %}
+                        Purchase Order Form
                     </h2>
                     <p class="text-muted mb-0">
                         {% if object %}
@@ -32,11 +31,11 @@
             <form method="post" novalidate>
                 {% csrf_token %}
 
-                <!-- Purchase Order Information -->
+                <!-- Purchase Order Details Card -->
                 <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-primary text-white">
+                    <div class="card-header bg-light">
                         <h5 class="mb-0">
-                            <i class="bi bi-info-circle me-2"></i>Purchase Order Information
+                            <i class="bi bi-info-circle me-2"></i>Purchase Order Details
                         </h5>
                     </div>
                     <div class="card-body">
@@ -82,13 +81,13 @@
                     </div>
                 </div>
 
-                <!-- Purchase Order Items -->
+                <!-- Purchase Order Items Card -->
                 <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">
                             <i class="bi bi-list-ul me-2"></i>Order Items
                         </h5>
-                        <button type="button" class="btn btn-light btn-sm" id="add-item">
+                        <button type="button" id="add-form" class="btn btn-outline-primary btn-sm">
                             <i class="bi bi-plus-circle me-1"></i>Add Item
                         </button>
                     </div>
@@ -160,9 +159,8 @@
                             {% endfor %}
                         </div>
 
-                        <div class="text-muted small">
-                            <i class="bi bi-info-circle me-1"></i>
-                            Add at least one item to create the purchase order.
+                        <div id="empty-form" style="display: none;">
+                            <!-- This will be populated by JavaScript -->
                         </div>
                     </div>
                 </div>
@@ -182,57 +180,33 @@
     </div>
 </div>
 
-<!-- Empty form template for adding new items -->
-<div id="empty-form" style="display: none;">
-    <div class="formset-form border rounded p-3 mb-3">
-        <div class="row g-3">
-            <div class="col-md-4">
-                <label class="form-label">Product *</label>
-                <select name="__prefix__-warehouse_product" class="form-select">
-                    <option value="">Select a product</option>
-                </select>
-            </div>
-
-            <div class="col-md-3">
-                <label class="form-label">Quantity *</label>
-                <input type="number" name="__prefix__-quantity_ordered" class="form-control" min="1">
-            </div>
-
-            <div class="col-md-3">
-                <label class="form-label">Unit Price *</label>
-                <input type="number" name="__prefix__-unit_price" class="form-control" step="0.01" min="0.01">
-            </div>
-
-            <div class="col-md-2 d-flex align-items-end">
-                <button type="button" class="btn btn-outline-danger btn-sm remove-form">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         let formCount = parseInt(document.querySelector('#id_items-TOTAL_FORMS').value);
+        const maxForms = parseInt(document.querySelector('#id_items-MAX_NUM_FORMS').value);
+        const formsetContainer = document.querySelector('#formset-container');
+        const addButton = document.querySelector('#add-form');
 
-        // Add new form
-        document.getElementById('add-item').addEventListener('click', function () {
-            const emptyForm = document.getElementById('empty-form').innerHTML;
-            const newForm = emptyForm.replace(/__prefix__/g, formCount);
+        // Get the empty form template
+        const emptyFormTemplate = `{{ formset.empty_form|escapejs }}`;
 
-            document.getElementById('formset-container').insertAdjacentHTML('beforeend', newForm);
-
-            formCount++;
-            document.querySelector('#id_items-TOTAL_FORMS').value = formCount;
+        addButton.addEventListener('click', function () {
+            if (formCount < maxForms) {
+                const newForm = emptyFormTemplate.replace(/__prefix__/g, formCount);
+                const formDiv = document.createElement('div');
+                formDiv.className = 'formset-form border rounded p-3 mb-3';
+                formDiv.innerHTML = newForm;
+                formsetContainer.appendChild(formDiv);
+                formCount++;
+                document.querySelector('#id_items-TOTAL_FORMS').value = formCount;
+            }
         });
 
-        // Remove form
-        document.addEventListener('click', function (e) {
-            if (e.target.closest('.remove-form')) {
+        // Handle remove buttons
+        formsetContainer.addEventListener('click', function (e) {
+            if (e.target.classList.contains('remove-form') || e.target.closest('.remove-form')) {
                 const form = e.target.closest('.formset-form');
                 const deleteInput = form.querySelector('input[name$="-DELETE"]');
-
                 if (deleteInput) {
                     deleteInput.checked = true;
                     form.style.display = 'none';

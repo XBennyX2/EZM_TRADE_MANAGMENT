@@ -199,6 +199,40 @@ class WarehouseListView(LoginRequiredMixin, StoreOwnerMixin, ListView):
     context_object_name = 'warehouses'
     paginate_by = 20
 
+    def get_queryset(self):
+        queryset = Warehouse.objects.all()
+
+        # Search functionality
+        search = self.request.GET.get('search')
+        if search:
+            queryset = queryset.filter(
+                models.Q(name__icontains=search) |
+                models.Q(warehouse_id__icontains=search) |
+                models.Q(address__icontains=search) |
+                models.Q(city__icontains=search)
+            )
+
+        # Status filter
+        status = self.request.GET.get('status')
+        if status == 'active':
+            queryset = queryset.filter(is_active=True)
+        elif status == 'inactive':
+            queryset = queryset.filter(is_active=False)
+
+        return queryset.order_by('name')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        warehouses = Warehouse.objects.all()
+
+        context['active_count'] = warehouses.filter(is_active=True).count()
+        context['total_capacity'] = warehouses.aggregate(
+            total=models.Sum('capacity')
+        )['total'] or 0
+        context['location_count'] = warehouses.values('city').distinct().count()
+
+        return context
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['total_warehouses'] = Warehouse.objects.count()

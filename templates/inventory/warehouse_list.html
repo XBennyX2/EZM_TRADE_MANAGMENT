@@ -1,0 +1,255 @@
+{% extends 'base.html' %}
+{% block title %}Warehouse Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header Section -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="d-flex align-items-center">
+                    <a href="{% url 'head_manager_page' %}" class="btn btn-outline-secondary me-3">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    <div>
+                        <h2 class="mb-0">
+                            <i class="bi bi-building text-primary me-2"></i>
+                            Warehouse Management
+                        </h2>
+                        <p class="text-muted mb-0">Manage warehouse locations and information</p>
+                    </div>
+                </div>
+                <a href="{% url 'warehouse_create' %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle me-2"></i>Add New Warehouse
+                </a>
+            </div>
+
+            <!-- Search and Filter Section -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-search"></i>
+                                </span>
+                                <input type="text" name="search" class="form-control" placeholder="Search warehouses..."
+                                    value="{{ request.GET.search }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <select name="status" class="form-select">
+                                <option value="">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-outline-primary w-100">
+                                <i class="bi bi-funnel me-1"></i>Filter
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white shadow-sm">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="card-title">Total Warehouses</h6>
+                                    <h3 class="mb-0">{{ warehouses.count }}</h3>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="bi bi-building fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white shadow-sm">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="card-title">Active Warehouses</h6>
+                                    <h3 class="mb-0">{{ active_count|default:0 }}</h3>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="bi bi-check-circle fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white shadow-sm">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="card-title">Total Capacity</h6>
+                                    <h3 class="mb-0">{{ total_capacity|default:0 }}</h3>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="bi bi-boxes fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white shadow-sm">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="card-title">Locations</h6>
+                                    <h3 class="mb-0">{{ location_count|default:0 }}</h3>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="bi bi-geo-alt fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Warehouses Table -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="bi bi-list me-2"></i>Warehouse List
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if warehouses %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Warehouse Name</th>
+                                    <th>Location</th>
+                                    <th>Manager</th>
+                                    <th>Capacity</th>
+                                    <th>Contact</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for warehouse in warehouses %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold">{{ warehouse.name }}</div>
+                                        <small class="text-muted">ID: {{ warehouse.warehouse_id }}</small>
+                                    </td>
+                                    <td>
+                                        <div>{{ warehouse.address|truncatechars:50 }}</div>
+                                        {% if warehouse.city %}
+                                        <small class="text-muted">{{ warehouse.city }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if warehouse.manager_name %}
+                                        <div class="fw-bold">{{ warehouse.manager_name }}</div>
+                                        {% else %}
+                                        <span class="text-muted">No Manager Assigned</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if warehouse.capacity %}
+                                        <span class="badge bg-info">{{ warehouse.capacity }} units</span>
+                                        {% else %}
+                                        <span class="text-muted">Not specified</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if warehouse.phone %}
+                                        <div><i class="bi bi-telephone me-1"></i>{{ warehouse.phone }}</div>
+                                        {% endif %}
+                                        {% if warehouse.email %}
+                                        <div><i class="bi bi-envelope me-1"></i>{{ warehouse.email }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if warehouse.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'warehouse_update' warehouse.pk %}"
+                                                class="btn btn-sm btn-outline-primary" title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <a href="{% url 'warehouse_delete' warehouse.pk %}"
+                                                class="btn btn-sm btn-outline-danger" title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if is_paginated %}
+                    <div class="d-flex justify-content-between align-items-center p-3">
+                        <div class="text-muted">
+                            Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{
+                            page_obj.paginator.count }} warehouses
+                        </div>
+                        <nav>
+                            <ul class="pagination mb-0">
+                                {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link"
+                                        href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">First</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link"
+                                        href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Previous</a>
+                                </li>
+                                {% endif %}
+
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_obj.number }}</span>
+                                </li>
+
+                                {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link"
+                                        href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Next</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link"
+                                        href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Last</a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-building display-4 text-muted"></i>
+                        <h5 class="mt-3">No Warehouses Found</h5>
+                        <p class="text-muted">Start by adding your first warehouse to the system.</p>
+                        <a href="{% url 'warehouse_create' %}" class="btn btn-primary">
+                            <i class="bi bi-plus-circle me-2"></i>Add First Warehouse
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

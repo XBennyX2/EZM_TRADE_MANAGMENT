@@ -4,13 +4,57 @@ from .models import Product, Stock
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
-        fields = ['name', 'category', 'description', 'price', 'material']
+        fields = [
+            'name', 'category', 'description', 'price', 'material',
+            'size', 'variation', 'product_type', 'supplier_company',
+            'batch_number', 'expiry_date', 'room', 'shelf', 'floor',
+            'storing_condition'
+        ]
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            # Basic Information
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Product name'}),
             'category': forms.Select(attrs={'class': 'form-control'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'price': forms.NumberInput(attrs={'class': 'form-control'}),
-            'material': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Product description'}),
+            'price': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': '0.00'}),
+            'material': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Material composition'}),
+
+            # Product Specifications
+            'size': forms.Select(attrs={'class': 'form-control'}),
+            'variation': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Color, model, style, etc.'}),
+            'product_type': forms.Select(attrs={'class': 'form-control'}),
+
+            # Supplier Information
+            'supplier_company': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Supplier company name'}),
+
+            # Batch and Tracking
+            'batch_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Batch/Lot number'}),
+            'expiry_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+
+            # Storage Location
+            'room': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Storage room'}),
+            'shelf': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Shelf location'}),
+            'floor': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Floor level'}),
+
+            # Storage Conditions
+            'storing_condition': forms.Select(attrs={'class': 'form-control'}),
+        }
+
+        labels = {
+            'name': 'Product Name',
+            'category': 'Category',
+            'description': 'Description',
+            'price': 'Base Price ($)',
+            'material': 'Material',
+            'size': 'Size',
+            'variation': 'Variation',
+            'product_type': 'Product Type',
+            'supplier_company': 'Supplier Company',
+            'batch_number': 'Batch Number',
+            'expiry_date': 'Expiry Date',
+            'room': 'Storage Room',
+            'shelf': 'Shelf',
+            'floor': 'Floor',
+            'storing_condition': 'Storage Condition',
         }
         
 class StockCreateForm(forms.ModelForm):

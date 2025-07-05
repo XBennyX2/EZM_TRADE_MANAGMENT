@@ -161,7 +161,7 @@ def manage_store(request, store_id):
 @login_required
 def cashier_dashboard(request):
     """
-    Enhanced cashier dashboard with order management capabilities
+    Enhanced cashier dashboard with products categorized by batch and expiry status
     """
     if request.user.role != 'cashier':
         messages.error(request, "Access denied. Cashier role required.")
@@ -169,34 +169,168 @@ def cashier_dashboard(request):
 
     if not request.user.store:
         messages.error(request, "You are not assigned to any store. Contact your manager.")
-        return redirect('login')
+        return redirect('cashier_page')
+
+    from django.utils import timezone
+    from django.db import models
+    from collections import defaultdict
+
+    # Get store's available products (not expired and in stock)
+    current_date = timezone.now().date()
+
+    # Get all stock for this store - let's be more explicit about the query
+    available_products = Stock.objects.select_related('product').filter(
+        store=request.user.store
+    ).filter(
+        quantity__gt=0
+    ).filter(
+        models.Q(product__expiry_date__isnull=True) |
+        models.Q(product__expiry_date__gt=current_date)
+    ).order_by('product__batch_number', 'product__expiry_date', 'product__name')
+
+    # Group products by batch number
+    products_by_batch = defaultdict(list)
+    for stock in available_products:
+        batch_key = stock.product.batch_number or 'No Batch'
+        products_by_batch[batch_key].append(stock)
 
     # Get recent transactions for this cashier
     recent_transactions = Transaction.objects.filter(
         store=request.user.store,
         transaction_type='sale'
-    ).order_by('-timestamp')[:10]
+    ).order_by('-timestamp')[:5]
 
-    # Get pending orders (if any)
-    pending_orders = Order.objects.filter(
-        customer=request.user,
-        transaction__isnull=True
-    ).order_by('-created_at')
-
-    # Get store's available products
-    available_products = Stock.objects.filter(
+    # Add some debug information for troubleshooting
+    total_stock_items = Stock.objects.filter(store=request.user.store).count()
+    out_of_stock_items = Stock.objects.filter(store=request.user.store, quantity=0).count()
+    expired_items = Stock.objects.filter(
         store=request.user.store,
-        quantity__gt=0
-    ).select_related('product')
+        product__expiry_date__lte=current_date
+    ).count() if current_date else 0
 
     context = {
+        'products_by_batch': dict(products_by_batch),
         'recent_transactions': recent_transactions,
-        'pending_orders': pending_orders,
-        'available_products': available_products,
         'store': request.user.store,
+        'current_date': current_date,
+        'debug_stats': {
+            'total_stock_items': total_stock_items,
+            'available_products_count': len(available_products),
+            'out_of_stock_items': out_of_stock_items,
+            'expired_items': expired_items,
+        }
     }
 
     return render(request, 'store/cashier_dashboard.html', context)
+
+
+
+
+
+@login_required
+def process_single_sale(request):
+    """
+    Process a single product sale with customer information
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method'})
+
+    if request.user.role != 'cashier':
+        return JsonResponse({'success': False, 'error': 'Unauthorized'})
+
+    if not request.user.store:
+        return JsonResponse({'success': False, 'error': 'No store assigned'})
+
+    try:
+        product_id = request.POST.get('product_id')
+        quantity = int(request.POST.get('quantity', 0))
+        customer_name = request.POST.get('customer_name', '').strip()
+        customer_phone = request.POST.get('customer_phone', '').strip()
+        payment_type = request.POST.get('payment_type', 'cash')
+
+        # Validate inputs
+        if not all([product_id, quantity > 0, customer_name, customer_phone]):
+            return JsonResponse({'success': False, 'error': 'All fields are required'})
+
+        # Validate customer name (only letters and spaces)
+        import re
+        if not re.match(r'^[A-Za-z\s]+$', customer_name):
+            return JsonResponse({'success': False, 'error': 'Customer name should only contain letters and spaces'})
+
+        # Validate phone number (only numbers, +, spaces, hyphens, parentheses)
+        if not re.match(r'^[\+]?[0-9\s\-\(\)]+$', customer_phone):
+            return JsonResponse({'success': False, 'error': 'Phone number should only contain numbers and + symbol'})
+
+        # Get product and stock
+        try:
+            stock = Stock.objects.select_related('product').get(
+                product_id=product_id,
+                store=request.user.store
+            )
+        except Stock.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Product not found in store'})
+
+        # Check stock availability
+        if stock.quantity < quantity:
+            return JsonResponse({'success': False, 'error': f'Only {stock.quantity} items available'})
+
+        # Check if product is expired
+        if stock.product.expiry_date:
+            from django.utils import timezone
+            if stock.product.expiry_date <= timezone.now().date():
+                return JsonResponse({'success': False, 'error': 'Product has expired'})
+
+        # Calculate total
+        total_amount = stock.selling_price * quantity
+
+        with transaction.atomic():
+            # Create Transaction
+            transaction_obj = Transaction.objects.create(
+                transaction_type='sale',
+                quantity=quantity,
+                total_amount=total_amount,
+                store=request.user.store,
+                payment_type=payment_type
+            )
+
+            # Create Receipt
+            receipt = Receipt.objects.create(
+                transaction=transaction_obj,
+                total_amount=total_amount,
+                customer_name=customer_name,
+                customer_phone=customer_phone
+            )
+
+            # Create Transaction Order
+            TransactionOrder.objects.create(
+                receipt=receipt,
+                transaction=transaction_obj,
+                product=stock.product,
+                quantity=quantity,
+                price_at_time_of_sale=stock.selling_price
+            )
+
+            # Update stock
+            stock.quantity -= quantity
+            stock.save()
+
+            # Create Financial Record
+            FinancialRecord.objects.create(
+                store=request.user.store,
+                cashier=request.user,
+                amount=total_amount,
+                record_type='revenue'
+            )
+
+        return JsonResponse({
+            'success': True,
+            'receipt_id': receipt.id,
+            'total_amount': float(total_amount),
+            'message': 'Sale processed successfully'
+        })
+
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
 
 
 @login_required
@@ -495,7 +629,11 @@ def generate_receipt_pdf(request, receipt_id):
         ).select_related('receipt', 'product')
 
         # Calculate breakdown
-        subtotal = sum(item.quantity * item.price_at_time_of_sale for item in order_items)
+        subtotal_before_tax = sum(item.quantity * item.price_at_time_of_sale for item in order_items)
+
+        # Calculate tax (5% of total)
+        tax_amount = receipt.total_amount * 0.05 / 1.05  # Reverse calculate tax from total
+        subtotal = receipt.total_amount - tax_amount
 
         # Add subtotal to each item for template
         for item in order_items:
@@ -505,22 +643,21 @@ def generate_receipt_pdf(request, receipt_id):
             'receipt': receipt,
             'transaction': transaction_obj,
             'order_items': order_items,
-            'subtotal': receipt.subtotal,
+            'subtotal': subtotal,
+            'tax_amount': tax_amount,
             'store': transaction_obj.store,
             'cashier': request.user,
             'timestamp': transaction_obj.timestamp,
             'customer_name': receipt.customer_name,
             'customer_phone': receipt.customer_phone,
-            'discount_amount': receipt.discount_amount,
-            'discount_percent': receipt.discount_percent,
-            'tax_amount': receipt.tax_amount,
             'payment_method': transaction_obj.payment_type,
         }
 
         # Render HTML template
         receipt_html = render_to_string('store/receipt_pdf_template.html', context)
 
-        # Generate PDF
+        # Generate PDF using weasyprint
+        from weasyprint import HTML
         pdf = HTML(string=receipt_html).write_pdf()
 
         response = HttpResponse(pdf, content_type='application/pdf')
@@ -528,6 +665,9 @@ def generate_receipt_pdf(request, receipt_id):
         return response
 
     except Exception as e:
+        print(f"PDF Generation Error: {str(e)}")  # Debug print
+        import traceback
+        traceback.print_exc()  # Print full traceback
         messages.error(request, f"Error generating receipt: {str(e)}")
         return redirect('cashier_dashboard')
 
@@ -647,6 +787,7 @@ def email_receipt(request, receipt_id):
 
         # Generate PDF
         receipt_html = render_to_string('store/receipt_pdf_template.html', context)
+        from weasyprint import HTML
         pdf = HTML(string=receipt_html).write_pdf()
 
         # Send email

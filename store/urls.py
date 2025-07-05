@@ -11,6 +11,7 @@ urlpatterns = [
 
 # Cashier Order System URLs
     path('cashier/dashboard/', views.cashier_dashboard, name='cashier_dashboard'),
+    path('process-single-sale/', views.process_single_sale, name='process_single_sale'),
     path('cashier/initiate-order/', views.initiate_order, name='initiate_order'),
     path('cashier/add-to-cart/', views.add_to_cart, name='add_to_cart'),
     path('cashier/remove-from-cart/', views.remove_from_cart, name='remove_from_cart'),

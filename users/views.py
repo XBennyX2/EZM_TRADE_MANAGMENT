@@ -143,11 +143,12 @@ def admin_dashboard(request):
 @login_required
 def head_manager_page(request):
     if request.user.role != 'head_manager':
-        return redirect('')
+        messages.warning(request, "Access denied. You don't have permission to access this page.")
+        return redirect('login')
 
     stores = Store.objects.all().select_related('store_manager')
 
-    return render(request, 'mainpages/store_owner_page.html', {
+    return render(request, 'mainpages/head_manager_page.html', {
         'stores': stores
     })
 
@@ -353,6 +354,12 @@ def admin_change_password(request):
 
 @login_required
 def head_manager_settings(request):
+    # Mark user as no longer first login after visiting settings
+    if request.user.is_first_login:
+        request.user.is_first_login = False
+        request.user.save()
+        messages.info(request, "Welcome! Please update your password and profile information.")
+
     return render(request, 'mainpages/head_manager_settings.html')
 
 @login_required

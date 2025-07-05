@@ -53,7 +53,7 @@ AUTH_USER_MODEL = 'users.CustomUser'
 
 # Authentication URLs
 LOGIN_URL = '/users/login/'
-LOGIN_REDIRECT_URL = '/users/login/'
+# LOGIN_REDIRECT_URL is handled by custom login view based on user role
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+{% block title %}{{ warehouse.name }} - Warehouse Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header Section -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="d-flex align-items-center">
+                    <a href="{% url 'warehouse_list' %}" class="btn btn-outline-secondary me-3">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    <div>
+                        <h2 class="mb-0">
+                            <i class="bi bi-building text-primary me-2"></i>
+                            {{ warehouse.name }}
+                        </h2>
+                        <p class="text-muted mb-0">Warehouse inventory and product details</p>
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'warehouse_update' warehouse.pk %}" class="btn btn-outline-primary">
+                        <i class="bi bi-pencil me-2"></i>Edit Warehouse
+                    </a>
+                </div>
+            </div>
+
+            <!-- Warehouse Information Card -->
+            <div class="row mb-4">
+                <div class="col-lg-8">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">
+                                <i class="bi bi-info-circle me-2"></i>Warehouse Information
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-muted">Address</h6>
+                                    <p>{{ warehouse.address }}</p>
+                                    
+                                    {% if warehouse.manager_name %}
+                                    <h6 class="text-muted">Manager</h6>
+                                    <p>{{ warehouse.manager_name }}</p>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-muted">Contact Information</h6>
+                                    {% if warehouse.phone %}
+                                    <p><i class="bi bi-telephone me-2"></i>{{ warehouse.phone }}</p>
+                                    {% endif %}
+                                    {% if warehouse.email %}
+                                    <p><i class="bi bi-envelope me-2"></i>{{ warehouse.email }}</p>
+                                    {% endif %}
+                                    
+                                    <h6 class="text-muted">Capacity</h6>
+                                    <p>{{ warehouse.capacity }} units</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Statistics Card -->
+                <div class="col-lg-4">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">
+                                <i class="bi bi-graph-up me-2"></i>Inventory Statistics
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-6">
+                                    <div class="border-end">
+                                        <h4 class="text-primary mb-0">{{ total_products }}</h4>
+                                        <small class="text-muted">Product Types</small>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <h4 class="text-success mb-0">{{ total_quantity }}</h4>
+                                    <small class="text-muted">Total Units</small>
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="row text-center">
+                                <div class="col-6">
+                                    <div class="border-end">
+                                        <h5 class="text-warning mb-0">{{ low_stock_count }}</h5>
+                                        <small class="text-muted">Low Stock</small>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <h5 class="text-danger mb-0">{{ out_of_stock_count }}</h5>
+                                    <small class="text-muted">Out of Stock</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search and Filter Section -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="search" class="form-label">Search Products</label>
+                            <input type="text" class="form-control" id="search" name="search" 
+                                   value="{{ request.GET.search }}" placeholder="Product name, ID, SKU...">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="category" class="form-label">Category</label>
+                            <select class="form-select" id="category" name="category">
+                                <option value="">All Categories</option>
+                                {% for category in categories %}
+                                <option value="{{ category }}" {% if request.GET.category == category %}selected{% endif %}>
+                                    {{ category|title }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="stock_status" class="form-label">Stock Status</label>
+                            <select class="form-select" id="stock_status" name="stock_status">
+                                <option value="">All Stock Levels</option>
+                                <option value="normal">Normal Stock</option>
+                                <option value="low">Low Stock</option>
+                                <option value="out">Out of Stock</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                                <a href="{% url 'warehouse_detail' warehouse.pk %}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-circle"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Products Table -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-box-seam me-2"></i>Products in Warehouse
+                    </h5>
+                    <span class="badge bg-primary">{{ total_products }} products</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if products %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Category</th>
+                                    <th>SKU</th>
+                                    <th>Current Stock</th>
+                                    <th>Min Level</th>
+                                    <th>Unit Price</th>
+                                    <th>Status</th>
+                                    <th>Location</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in products %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold">{{ product.product_name }}</div>
+                                        <small class="text-muted">ID: {{ product.product_id }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ product.category|title }}</span>
+                                    </td>
+                                    <td>
+                                        <code>{{ product.sku }}</code>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <span class="fw-bold me-2">{{ product.quantity_in_stock }}</span>
+                                            {% if product.quantity_in_stock == 0 %}
+                                            <span class="badge bg-danger">Out of Stock</span>
+                                            {% elif product.quantity_in_stock <= product.minimum_stock_level %}
+                                            <span class="badge bg-warning">Low Stock</span>
+                                            {% else %}
+                                            <span class="badge bg-success">In Stock</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>{{ product.minimum_stock_level }}</td>
+                                    <td>${{ product.unit_price|floatformat:2 }}</td>
+                                    <td>
+                                        {% if product.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if product.warehouse_location %}
+                                        <small class="text-muted">{{ product.warehouse_location }}</small>
+                                        {% else %}
+                                        <small class="text-muted">Not specified</small>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-box display-1 text-muted"></i>
+                        <h4 class="text-muted mt-3">No Products Found</h4>
+                        <p class="text-muted">
+                            {% if request.GET.search or request.GET.category or request.GET.stock_status %}
+                            No products match your search criteria. Try adjusting your filters.
+                            {% else %}
+                            This warehouse doesn't have any products yet.
+                            {% endif %}
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

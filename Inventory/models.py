@@ -168,6 +168,14 @@ class WarehouseProduct(models.Model):
         related_name='warehouse_products',
         help_text="Primary supplier for this product"
     )
+    warehouse = models.ForeignKey(
+        'Warehouse',
+        on_delete=models.CASCADE,
+        related_name='products',
+        help_text="Warehouse where this product is stored",
+        null=True,
+        blank=True
+    )
 
     class Meta:
         ordering = ['product_name', 'category']

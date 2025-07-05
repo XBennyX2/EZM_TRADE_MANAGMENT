@@ -3,8 +3,8 @@ from .views import (
     ProductListView, ProductCreateView, ProductUpdateView, ProductDeleteView,
     StockListView, StockCreateView, StockUpdateView, StockDeleteView,
     SupplierListView, SupplierCreateView, SupplierUpdateView, SupplierDeleteView,
-    WarehouseListView, WarehouseCreateView, WarehouseUpdateView, WarehouseDeleteView,
-    SupplierProductListView, WarehouseProductCreateView, WarehouseProductUpdateView,
+    WarehouseListView, WarehouseDetailView, WarehouseCreateView, WarehouseUpdateView, WarehouseDeleteView,
+    SupplierProductListView, WarehouseProductCreateView, WarehouseProductUpdateView, WarehouseProductDeleteView,
     PurchaseOrderListView, PurchaseOrderCreateView, PurchaseOrderDetailView, PurchaseOrderUpdateView
 )
 
@@ -29,9 +29,11 @@ urlpatterns = [
     path('suppliers/<int:supplier_id>/products/', SupplierProductListView.as_view(), name='supplier_products'),
     path('suppliers/<int:supplier_id>/products/new/', WarehouseProductCreateView.as_view(), name='warehouse_product_create'),
     path('warehouse-products/<int:pk>/edit/', WarehouseProductUpdateView.as_view(), name='warehouse_product_update'),
+    path('warehouse-products/<int:pk>/delete/', WarehouseProductDeleteView.as_view(), name='warehouse_product_delete'),
 
     # Warehouse URLs
     path('warehouses/', WarehouseListView.as_view(), name='warehouse_list'),
+    path('warehouses/<int:pk>/', WarehouseDetailView.as_view(), name='warehouse_detail'),
     path('warehouses/new/', WarehouseCreateView.as_view(), name='warehouse_create'),
     path('warehouses/<int:pk>/edit/', WarehouseUpdateView.as_view(), name='warehouse_update'),
     path('warehouses/<int:pk>/delete/', WarehouseDeleteView.as_view(), name='warehouse_delete'),

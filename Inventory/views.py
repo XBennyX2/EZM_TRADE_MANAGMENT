@@ -4,8 +4,9 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
 from django.shortcuts import redirect, get_object_or_404
 from django.db import models
+from django.db.models import ProtectedError
 
-from .models import Product, Stock, Supplier, WarehouseProduct, Warehouse, PurchaseOrder, PurchaseOrderItem
+from .models import Product, Stock, Supplier, WarehouseProduct, Warehouse, PurchaseOrder, PurchaseOrderItem, SETTINGS_CHOICES
 from .forms import (
     ProductForm, StockCreateForm, StockUpdateForm, SupplierForm, WarehouseProductForm,
     WarehouseForm, PurchaseOrderForm, PurchaseOrderItemForm, PurchaseOrderItemFormSet
@@ -194,49 +195,65 @@ class SupplierDeleteView(LoginRequiredMixin, StoreOwnerMixin, DeleteView):
 # --- Warehouse Management Views ---
 
 class WarehouseListView(LoginRequiredMixin, StoreOwnerMixin, ListView):
-    model = Warehouse
+    model = WarehouseProduct
     template_name = 'inventory/warehouse_list.html'
-    context_object_name = 'warehouses'
+    context_object_name = 'products'
     paginate_by = 20
 
     def get_queryset(self):
-        queryset = Warehouse.objects.all()
+        queryset = WarehouseProduct.objects.select_related('warehouse', 'supplier').all()
 
         # Search functionality
         search = self.request.GET.get('search')
         if search:
             queryset = queryset.filter(
-                models.Q(name__icontains=search) |
-                models.Q(warehouse_id__icontains=search) |
-                models.Q(address__icontains=search) |
-                models.Q(city__icontains=search)
+                models.Q(product_name__icontains=search) |
+                models.Q(product_id__icontains=search) |
+                models.Q(category__icontains=search) |
+                models.Q(sku__icontains=search) |
+                models.Q(warehouse__name__icontains=search)
             )
 
-        # Status filter
-        status = self.request.GET.get('status')
-        if status == 'active':
-            queryset = queryset.filter(is_active=True)
-        elif status == 'inactive':
-            queryset = queryset.filter(is_active=False)
+        # Category filter
+        category = self.request.GET.get('category')
+        if category:
+            queryset = queryset.filter(category=category)
 
-        return queryset.order_by('name')
+        # Warehouse filter
+        warehouse_id = self.request.GET.get('warehouse')
+        if warehouse_id:
+            queryset = queryset.filter(warehouse_id=warehouse_id)
+
+        # Stock status filter
+        stock_status = self.request.GET.get('stock_status')
+        if stock_status == 'low':
+            queryset = queryset.filter(quantity_in_stock__lte=models.F('minimum_stock_level'))
+        elif stock_status == 'out':
+            queryset = queryset.filter(quantity_in_stock=0)
+        elif stock_status == 'normal':
+            queryset = queryset.filter(quantity_in_stock__gt=models.F('minimum_stock_level'))
+
+        return queryset.order_by('warehouse__name', 'product_name')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        warehouses = Warehouse.objects.all()
 
-        context['active_count'] = warehouses.filter(is_active=True).count()
-        context['total_capacity'] = warehouses.aggregate(
-            total=models.Sum('capacity')
+        # Get all products for statistics
+        all_products = WarehouseProduct.objects.all()
+
+        context['total_products'] = all_products.count()
+        context['total_quantity'] = all_products.aggregate(
+            total=models.Sum('quantity_in_stock')
         )['total'] or 0
-        context['location_count'] = warehouses.values('city').distinct().count()
+        context['low_stock_count'] = all_products.filter(
+            quantity_in_stock__lte=models.F('minimum_stock_level')
+        ).count()
+        context['out_of_stock_count'] = all_products.filter(quantity_in_stock=0).count()
 
-        return context
+        # Get categories and warehouses for filters
+        context['categories'] = [choice[0] for choice in SETTINGS_CHOICES]
+        context['warehouses'] = Warehouse.objects.filter(is_active=True)
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['total_warehouses'] = Warehouse.objects.count()
-        context['active_warehouses'] = Warehouse.objects.filter(is_active=True).count()
         return context
 
 
@@ -260,6 +277,56 @@ class WarehouseUpdateView(LoginRequiredMixin, StoreOwnerMixin, UpdateView):
     def form_valid(self, form):
         messages.success(self.request, f"Warehouse '{form.instance.name}' updated successfully!")
         return super().form_valid(form)
+
+
+class WarehouseDetailView(LoginRequiredMixin, StoreOwnerMixin, DetailView):
+    model = Warehouse
+    template_name = 'inventory/warehouse_detail.html'
+    context_object_name = 'warehouse'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        warehouse = self.get_object()
+
+        # Get all products in this warehouse
+        products = WarehouseProduct.objects.filter(warehouse=warehouse)
+
+        # Search functionality
+        search = self.request.GET.get('search')
+        if search:
+            products = products.filter(
+                models.Q(product_name__icontains=search) |
+                models.Q(product_id__icontains=search) |
+                models.Q(category__icontains=search) |
+                models.Q(sku__icontains=search)
+            )
+
+        # Category filter
+        category = self.request.GET.get('category')
+        if category:
+            products = products.filter(category=category)
+
+        # Stock status filter
+        stock_status = self.request.GET.get('stock_status')
+        if stock_status == 'low':
+            products = products.filter(quantity_in_stock__lte=models.F('minimum_stock_level'))
+        elif stock_status == 'out':
+            products = products.filter(quantity_in_stock=0)
+        elif stock_status == 'normal':
+            products = products.filter(quantity_in_stock__gt=models.F('minimum_stock_level'))
+
+        context['products'] = products.order_by('product_name')
+        context['total_products'] = products.count()
+        context['total_quantity'] = products.aggregate(
+            total=models.Sum('quantity_in_stock')
+        )['total'] or 0
+        context['low_stock_count'] = products.filter(
+            quantity_in_stock__lte=models.F('minimum_stock_level')
+        ).count()
+        context['out_of_stock_count'] = products.filter(quantity_in_stock=0).count()
+        context['categories'] = [choice[0] for choice in SETTINGS_CHOICES]
+
+        return context
 
 
 class WarehouseDeleteView(LoginRequiredMixin, StoreOwnerMixin, DeleteView):
@@ -302,7 +369,7 @@ class SupplierProductListView(LoginRequiredMixin, StoreOwnerMixin, ListView):
         context['supplier'] = self.supplier
         context['search_query'] = self.request.GET.get('search', '')
         context['selected_category'] = self.request.GET.get('category', '')
-        context['categories'] = WarehouseProduct.CATEGORY_CHOICES
+        context['categories'] = SETTINGS_CHOICES
         context['total_products'] = self.get_queryset().count()
         context['low_stock_products'] = self.get_queryset().filter(
             quantity_in_stock__lte=models.F('minimum_stock_level')
@@ -344,6 +411,26 @@ class WarehouseProductUpdateView(LoginRequiredMixin, StoreOwnerMixin, UpdateView
     def form_valid(self, form):
         messages.success(self.request, f"Product '{form.instance.product_name}' updated successfully!")
         return super().form_valid(form)
+
+
+class WarehouseProductDeleteView(LoginRequiredMixin, StoreOwnerMixin, DeleteView):
+    model = WarehouseProduct
+    template_name = 'inventory/confirm_delete_template.html'
+    success_url = reverse_lazy('warehouse_list')
+
+    def form_valid(self, form):
+        product = self.get_object()
+        try:
+            messages.success(self.request, f"Product '{product.product_name}' deleted successfully!")
+            return super().form_valid(form)
+        except ProtectedError as e:
+            # Handle the case where the product cannot be deleted due to foreign key constraints
+            messages.error(
+                self.request,
+                f"Cannot delete '{product.product_name}' because it is referenced in purchase orders. "
+                "Please remove or update the related purchase order items first."
+            )
+            return redirect('warehouse_list')
 
 
 # --- Purchase Order Views ---

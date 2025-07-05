@@ -13,14 +13,14 @@
                     </a>
                     <div>
                         <h2 class="mb-0">
-                            <i class="bi bi-building text-primary me-2"></i>
-                            Warehouse Management
+                            <i class="bi bi-box-seam text-primary me-2"></i>
+                            Warehouse Inventory
                         </h2>
-                        <p class="text-muted mb-0">Manage warehouse locations and information</p>
+                        <p class="text-muted mb-0">View and manage products in all warehouses</p>
                     </div>
                 </div>
-                <a href="{% url 'warehouse_create' %}" class="btn btn-primary">
-                    <i class="bi bi-plus-circle me-2"></i>Add New Warehouse
+                <a href="{% url 'supplier_list' %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle me-2"></i>Add New Product
                 </a>
             </div>
 
@@ -28,20 +28,33 @@
             <div class="card shadow-sm mb-4">
                 <div class="card-body">
                     <form method="get" class="row g-3">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <div class="input-group">
                                 <span class="input-group-text">
                                     <i class="bi bi-search"></i>
                                 </span>
-                                <input type="text" name="search" class="form-control" placeholder="Search warehouses..."
+                                <input type="text" name="search" class="form-control" placeholder="Search products..."
                                     value="{{ request.GET.search }}">
                             </div>
                         </div>
-                        <div class="col-md-4">
-                            <select name="status" class="form-select">
-                                <option value="">All Status</option>
-                                <option value="active">Active</option>
-                                <option value="inactive">Inactive</option>
+                        <div class="col-md-3">
+                            <select name="category" class="form-select">
+                                <option value="">All Categories</option>
+                                {% for category in categories %}
+                                <option value="{{ category }}">
+                                    {{ category|title }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <select name="warehouse" class="form-select">
+                                <option value="">All Warehouses</option>
+                                {% for warehouse in warehouses %}
+                                <option value="{{ warehouse.id }}">
+                                    {{ warehouse.name }}
+                                </option>
+                                {% endfor %}
                             </select>
                         </div>
                         <div class="col-md-2">
@@ -60,11 +73,11 @@
                         <div class="card-body">
                             <div class="d-flex justify-content-between">
                                 <div>
-                                    <h6 class="card-title">Total Warehouses</h6>
-                                    <h3 class="mb-0">{{ warehouses.count }}</h3>
+                                    <h6 class="card-title">Total Products</h6>
+                                    <h3 class="mb-0">{{ total_products }}</h3>
                                 </div>
                                 <div class="align-self-center">
-                                    <i class="bi bi-building fs-1"></i>
+                                    <i class="bi bi-box-seam fs-1"></i>
                                 </div>
                             </div>
                         </div>
@@ -75,11 +88,11 @@
                         <div class="card-body">
                             <div class="d-flex justify-content-between">
                                 <div>
-                                    <h6 class="card-title">Active Warehouses</h6>
-                                    <h3 class="mb-0">{{ active_count|default:0 }}</h3>
+                                    <h6 class="card-title">Total Quantity</h6>
+                                    <h3 class="mb-0">{{ total_quantity }}</h3>
                                 </div>
                                 <div class="align-self-center">
-                                    <i class="bi bi-check-circle fs-1"></i>
+                                    <i class="bi bi-stack fs-1"></i>
                                 </div>
                             </div>
                         </div>
@@ -90,26 +103,26 @@
                         <div class="card-body">
                             <div class="d-flex justify-content-between">
                                 <div>
-                                    <h6 class="card-title">Total Capacity</h6>
-                                    <h3 class="mb-0">{{ total_capacity|default:0 }}</h3>
+                                    <h6 class="card-title">Low Stock</h6>
+                                    <h3 class="mb-0">{{ low_stock_count }}</h3>
                                 </div>
                                 <div class="align-self-center">
-                                    <i class="bi bi-boxes fs-1"></i>
+                                    <i class="bi bi-exclamation-triangle fs-1"></i>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="card bg-warning text-white shadow-sm">
+                    <div class="card bg-danger text-white shadow-sm">
                         <div class="card-body">
                             <div class="d-flex justify-content-between">
                                 <div>
-                                    <h6 class="card-title">Locations</h6>
-                                    <h3 class="mb-0">{{ location_count|default:0 }}</h3>
+                                    <h6 class="card-title">Out of Stock</h6>
+                                    <h3 class="mb-0">{{ out_of_stock_count }}</h3>
                                 </div>
                                 <div class="align-self-center">
-                                    <i class="bi bi-geo-alt fs-1"></i>
+                                    <i class="bi bi-x-circle fs-1"></i>
                                 </div>
                             </div>
                         </div>
@@ -117,78 +130,77 @@
                 </div>
             </div>
 
-            <!-- Warehouses Table -->
+            <!-- Products Table -->
             <div class="card shadow-sm">
                 <div class="card-header bg-light">
                     <h5 class="mb-0">
-                        <i class="bi bi-list me-2"></i>Warehouse List
+                        <i class="bi bi-box-seam me-2"></i>Products in Warehouses
                     </h5>
                 </div>
                 <div class="card-body p-0">
-                    {% if warehouses %}
+                    {% if products %}
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Warehouse Name</th>
-                                    <th>Location</th>
-                                    <th>Manager</th>
-                                    <th>Capacity</th>
-                                    <th>Contact</th>
+                                    <th>Product</th>
+                                    <th>Category</th>
+                                    <th>Warehouse</th>
+                                    <th>Current Stock</th>
+                                    <th>Min Level</th>
+                                    <th>Unit Price</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for warehouse in warehouses %}
+                                {% for product in products %}
                                 <tr>
                                     <td>
-                                        <div class="fw-bold">{{ warehouse.name }}</div>
-                                        <small class="text-muted">ID: {{ warehouse.warehouse_id }}</small>
+                                        <div class="fw-bold">{{ product.product_name }}</div>
+                                        <small class="text-muted">ID: {{ product.product_id }}</small>
+                                        <small class="text-muted d-block">SKU: {{ product.sku }}</small>
                                     </td>
                                     <td>
-                                        <div>{{ warehouse.address|truncatechars:50 }}</div>
-                                        {% if warehouse.city %}
-                                        <small class="text-muted">{{ warehouse.city }}</small>
-                                        {% endif %}
+                                        <span class="badge bg-secondary">{{ product.category|title }}</span>
                                     </td>
                                     <td>
-                                        {% if warehouse.manager_name %}
-                                        <div class="fw-bold">{{ warehouse.manager_name }}</div>
+                                        {% if product.warehouse %}
+                                        <div class="fw-bold">{{ product.warehouse.name }}</div>
+                                        <small class="text-muted">{{ product.warehouse_location|default:"No location"
+                                            }}</small>
                                         {% else %}
-                                        <span class="text-muted">No Manager Assigned</span>
+                                        <span class="text-muted">No warehouse assigned</span>
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% if warehouse.capacity %}
-                                        <span class="badge bg-info">{{ warehouse.capacity }} units</span>
-                                        {% else %}
-                                        <span class="text-muted">Not specified</span>
-                                        {% endif %}
+                                        <div class="fw-bold">{{ product.quantity_in_stock }}</div>
+                                        <small class="text-muted">units</small>
                                     </td>
                                     <td>
-                                        {% if warehouse.phone %}
-                                        <div><i class="bi bi-telephone me-1"></i>{{ warehouse.phone }}</div>
-                                        {% endif %}
-                                        {% if warehouse.email %}
-                                        <div><i class="bi bi-envelope me-1"></i>{{ warehouse.email }}</div>
-                                        {% endif %}
+                                        <span class="badge bg-warning text-dark">{{ product.minimum_stock_level
+                                            }}</span>
                                     </td>
                                     <td>
-                                        {% if warehouse.is_active %}
-                                        <span class="badge bg-success">Active</span>
-                                        {% else %}
-                                        <span class="badge bg-danger">Inactive</span>
-                                        {% endif %}
+                                        <div class="fw-bold">${{ product.unit_price }}</div>
+                                    </td>
+                                    <td>
+                                        {% if product.quantity_in_stock == 0 %}
+                                        <span class="badge bg-danger">Out of Stock</span>
+                                        {% elif product.quantity_in_stock <= product.minimum_stock_level %} <span
+                                            class="badge bg-warning text-dark">Low Stock</span>
+                                            {% else %}
+                                            <span class="badge bg-success">In Stock</span>
+                                            {% endif %}
                                     </td>
                                     <td>
                                         <div class="btn-group" role="group">
-                                            <a href="{% url 'warehouse_update' warehouse.pk %}"
-                                                class="btn btn-sm btn-outline-primary" title="Edit">
+                                            <a href="{% url 'warehouse_product_update' product.pk %}"
+                                                class="btn btn-sm btn-outline-primary" title="Edit Product">
                                                 <i class="bi bi-pencil"></i>
                                             </a>
-                                            <a href="{% url 'warehouse_delete' warehouse.pk %}"
-                                                class="btn btn-sm btn-outline-danger" title="Delete">
+                                            <a href="{% url 'warehouse_product_delete' product.pk %}"
+                                                class="btn btn-sm btn-outline-danger" title="Delete Product">
                                                 <i class="bi bi-trash"></i>
                                             </a>
                                         </div>
@@ -204,7 +216,7 @@
                     <div class="d-flex justify-content-between align-items-center p-3">
                         <div class="text-muted">
                             Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{
-                            page_obj.paginator.count }} warehouses
+                            page_obj.paginator.count }} products
                         </div>
                         <nav>
                             <ul class="pagination mb-0">
@@ -239,11 +251,11 @@
                     {% endif %}
                     {% else %}
                     <div class="text-center py-5">
-                        <i class="bi bi-building display-4 text-muted"></i>
-                        <h5 class="mt-3">No Warehouses Found</h5>
-                        <p class="text-muted">Start by adding your first warehouse to the system.</p>
-                        <a href="{% url 'warehouse_create' %}" class="btn btn-primary">
-                            <i class="bi bi-plus-circle me-2"></i>Add First Warehouse
+                        <i class="bi bi-box-seam display-4 text-muted"></i>
+                        <h5 class="mt-3">No Products Found</h5>
+                        <p class="text-muted">No products are currently stored in the warehouses.</p>
+                        <a href="{% url 'supplier_list' %}" class="btn btn-primary">
+                            <i class="bi bi-plus-circle me-2"></i>Add First Product
                         </a>
                     </div>
                     {% endif %}

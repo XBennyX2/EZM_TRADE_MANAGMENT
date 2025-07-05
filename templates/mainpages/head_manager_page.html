@@ -19,6 +19,56 @@
         </div>
     </div>
 
+    <!-- Management Cards -->
+    <div class="row mb-5 g-4">
+        <div class="col-md-4">
+            <a href="{% url 'supplier_list' %}" class="text-decoration-none text-reset d-block">
+                <div class="card shadow-sm rounded-4 border-0 hover-shadow transition">
+                    <div class="card-body text-center py-4">
+                        <i class="bi bi-truck fs-1 text-success mb-3"></i>
+                        <h5 class="card-title fw-bold mb-2">Supplier Management</h5>
+                        <p class="card-text text-muted">Manage suppliers and their information</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-4">
+            <a href="{% url 'warehouse_list' %}" class="text-decoration-none text-reset d-block">
+                <div class="card shadow-sm rounded-4 border-0 hover-shadow transition">
+                    <div class="card-body text-center py-4">
+                        <i class="bi bi-building fs-1 text-warning mb-3"></i>
+                        <h5 class="card-title fw-bold mb-2">Warehouse Management</h5>
+                        <p class="card-text text-muted">Manage warehouse information and locations</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-4">
+            <a href="{% url 'product_list' %}" class="text-decoration-none text-reset d-block">
+                <div class="card shadow-sm rounded-4 border-0 hover-shadow transition">
+                    <div class="card-body text-center py-4">
+                        <i class="bi bi-box-seam fs-1 text-info mb-3"></i>
+                        <h5 class="card-title fw-bold mb-2">Product Catalog</h5>
+                        <p class="card-text text-muted">View and manage product catalog</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Purchase Order Management -->
+        <div class="col-md-4">
+            <a href="{% url 'purchase_order_list' %}" class="text-decoration-none text-reset d-block">
+                <div class="card shadow-sm rounded-4 border-0 hover-shadow transition">
+                    <div class="card-body text-center py-4">
+                        <i class="bi bi-cart-check fs-1 text-success mb-3"></i>
+                        <h5 class="card-title fw-bold mb-2">Purchase Orders</h5>
+                        <p class="card-text text-muted">Create and track purchase orders</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
     <!-- Stores Summary Table -->
     <div class="card shadow-sm rounded-4 border-0">
         <div class="card-header" style="background-color: #001f4d; color: white; font-weight: 600;">

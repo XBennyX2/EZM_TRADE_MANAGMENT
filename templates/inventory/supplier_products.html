@@ -1,0 +1,282 @@
+{% extends 'base.html' %}
+{% block title %}{{ supplier.name }} - Products{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header Section -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="d-flex align-items-center">
+                    <a href="{% url 'supplier_list' %}" class="btn btn-outline-secondary me-3">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    <div>
+                        <h2 class="mb-0">
+                            <i class="bi bi-box-seam text-primary me-2"></i>
+                            {{ supplier.name }} - Products
+                        </h2>
+                        <p class="text-muted mb-0">Products available from this supplier</p>
+                    </div>
+                </div>
+                <a href="{% url 'warehouse_product_create' supplier.pk %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle me-2"></i>Add New Product
+                </a>
+            </div>
+
+            <!-- Supplier Info Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <h6 class="text-muted">Contact Person</h6>
+                            <p class="mb-0">{{ supplier.contact_person|default:"Not specified" }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h6 class="text-muted">Email</h6>
+                            <p class="mb-0">
+                                {% if supplier.email %}
+                                <a href="mailto:{{ supplier.email }}">{{ supplier.email }}</a>
+                                {% else %}
+                                Not specified
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-3">
+                            <h6 class="text-muted">Phone</h6>
+                            <p class="mb-0">
+                                {% if supplier.phone %}
+                                <a href="tel:{{ supplier.phone }}">{{ supplier.phone }}</a>
+                                {% else %}
+                                Not specified
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-3">
+                            <h6 class="text-muted">Status</h6>
+                            <p class="mb-0">
+                                {% if supplier.is_active %}
+                                <span class="badge bg-success">Active</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="card-title">Total Products</h6>
+                                    <h3 class="mb-0">{{ total_products }}</h3>
+                                </div>
+                                <i class="bi bi-box-seam fs-1 opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="card-title">Low Stock Items</h6>
+                                    <h3 class="mb-0">{{ low_stock_products }}</h3>
+                                </div>
+                                <i class="bi bi-exclamation-triangle fs-1 opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="card-title">Active Products</h6>
+                                    <h3 class="mb-0">{{ products|length }}</h3>
+                                </div>
+                                <i class="bi bi-check-circle fs-1 opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search and Filter Section -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-search"></i>
+                                </span>
+                                <input type="text" class="form-control" name="search" 
+                                       value="{{ search_query }}" placeholder="Search products...">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <select name="category" class="form-select">
+                                <option value="">All Categories</option>
+                                {% for value, label in categories %}
+                                <option value="{{ value }}" {% if value == selected_category %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-outline-primary">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                                <a href="{% url 'supplier_products' supplier.pk %}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-arrow-clockwise"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Products Table -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-list-ul me-2"></i>Product Catalog
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if products %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Category</th>
+                                    <th>Stock</th>
+                                    <th>Unit Price</th>
+                                    <th>Stock Level</th>
+                                    <th>Location</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in products %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold text-primary">{{ product.product_name }}</div>
+                                        <small class="text-muted">ID: {{ product.product_id }}</small>
+                                        {% if product.sku %}
+                                        <br><small class="text-muted">SKU: {{ product.sku }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark">{{ product.get_category_display }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold">{{ product.quantity_in_stock }}</div>
+                                        {% if product.quantity_in_stock <= product.minimum_stock_level %}
+                                        <small class="text-danger">
+                                            <i class="bi bi-exclamation-triangle"></i> Low Stock
+                                        </small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold">${{ product.unit_price }}</div>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            Min: {{ product.minimum_stock_level }}<br>
+                                            Max: {{ product.maximum_stock_level }}<br>
+                                            Reorder: {{ product.reorder_point }}
+                                        </small>
+                                    </td>
+                                    <td>{{ product.warehouse_location|default:"-" }}</td>
+                                    <td>
+                                        {% if product.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'warehouse_product_update' product.pk %}" 
+                                               class="btn btn-sm btn-outline-primary" title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <button class="btn btn-sm btn-outline-success" title="Create Purchase Order">
+                                                <i class="bi bi-cart-plus"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if is_paginated %}
+                    <div class="card-footer">
+                        <nav aria-label="Products pagination">
+                            <ul class="pagination justify-content-center mb-0">
+                                {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}">First</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}">Previous</a>
+                                </li>
+                                {% endif %}
+
+                                <li class="page-item active">
+                                    <span class="page-link">
+                                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                    </span>
+                                </li>
+
+                                {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}">Next</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}">Last</a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                    {% endif %}
+
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-box-seam display-1 text-muted"></i>
+                        <h4 class="mt-3">No Products Found</h4>
+                        <p class="text-muted">
+                            {% if search_query or selected_category %}
+                            No products match your search criteria.
+                            {% else %}
+                            This supplier doesn't have any products yet.
+                            {% endif %}
+                        </p>
+                        <a href="{% url 'warehouse_product_create' supplier.pk %}" class="btn btn-primary">
+                            <i class="bi bi-plus-circle me-2"></i>Add First Product
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

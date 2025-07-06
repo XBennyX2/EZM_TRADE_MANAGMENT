@@ -80,6 +80,40 @@
         </div>
       </div>
     </div>
+
+    <div class="col-md-6">
+      <div class="card dashboard-card h-100">
+        <div class="card-body">
+          <h5 class="card-title"><i class="bi bi-people card-icon"></i> Cashier Management</h5>
+          <p class="card-text">Assign and manage cashiers for your store.</p>
+          <div class="d-flex gap-2 mt-3">
+            <a href="{% url 'manage_cashiers' %}" class="btn btn-outline-info w-50">
+              <i class="bi bi-people-fill"></i> Manage Cashiers
+            </a>
+            <a href="{% url 'assign_cashier' %}" class="btn btn-info w-50">
+              <i class="bi bi-person-plus"></i> Assign Cashier
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card dashboard-card h-100">
+        <div class="card-body">
+          <h5 class="card-title"><i class="bi bi-graph-up card-icon"></i> Reports & Analytics</h5>
+          <p class="card-text">View sales reports and store performance.</p>
+          <div class="d-flex gap-2 mt-3">
+            <a href="#" class="btn btn-outline-success w-50">
+              <i class="bi bi-bar-chart"></i> Sales Report
+            </a>
+            <a href="#" class="btn btn-success w-50">
+              <i class="bi bi-file-earmark-text"></i> Inventory Report
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}

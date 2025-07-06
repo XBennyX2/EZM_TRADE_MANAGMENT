@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Receipt #{{ receipt.id }}</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            margin: 0;
+            padding: 20px;
+            max-width: 350px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #000;
+            padding-bottom: 10px;
+        }
+
+        .store-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .store-info {
+            font-size: 12px;
+            margin-bottom: 2px;
+        }
+
+        .receipt-info {
+            margin-bottom: 15px;
+            font-size: 12px;
+        }
+
+        .receipt-info div {
+            margin-bottom: 3px;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+            font-size: 11px;
+        }
+        
+        .items-header {
+            border-bottom: 1px solid #000;
+            padding: 5px 0;
+            margin-bottom: 5px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            font-size: 11px;
+        }
+
+        .item-name {
+            flex: 1;
+        }
+
+        .item-qty {
+            width: 30px;
+            text-align: center;
+        }
+
+        .item-price {
+            width: 60px;
+            text-align: right;
+        }
+
+        .item-total {
+            width: 70px;
+            text-align: right;
+        }
+
+        .totals {
+            border-top: 1px solid #000;
+            padding-top: 10px;
+            margin-bottom: 15px;
+        }
+
+        .total-line {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            font-size: 11px;
+        }
+
+        .total-line.final {
+            font-weight: bold;
+            font-size: 12px;
+            border-top: 1px solid #000;
+            padding-top: 5px;
+            margin-top: 5px;
+        }
+        
+        .footer {
+            text-align: center;
+            border-top: 2px solid #000;
+            padding-top: 10px;
+            font-size: 10px;
+        }
+        
+        .thank-you {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .contact-info {
+            margin-bottom: 3px;
+        }
+        
+        .timestamp {
+            font-size: 9px;
+            color: #666;
+        }
+        
+        .dashed-line {
+            border-top: 1px dashed #000;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Store Header -->
+    <div class="header">
+        <div class="store-name">EZM Trade & Investment</div>
+        <div class="store-info">piassa</div>
+        <div class="store-info">Phone: {{ store.phone_number|default:"" }}</div>
+    </div>
+
+    <!-- Receipt Information -->
+    <div class="receipt-info">
+        <div>Receipt #: {{ receipt.id }}</div>
+        <div>SalesOrder ID: {{ transaction.id }}</div>
+        <div>Date: {{ transaction.timestamp|date:"M d, Y" }}</div>
+        <div>Cashier: {{ cashier.get_full_name|default:cashier.username|default:"Unknown" }}</div>
+        <div>Customer: {{ receipt.customer_name|default:"Walk-in Customer" }}</div>
+        {% if receipt.customer_phone %}
+        <div>Phone: {{ receipt.customer_phone }}</div>
+        {% endif %}
+    </div>
+
+    <!-- Items Header -->
+    <div class="items-header">
+        <span class="item-name">Product</span>
+        <span class="item-qty">Qty</span>
+        <span class="item-price">Unit Price</span>
+        <span class="item-total">Total</span>
+    </div>
+
+    <!-- Items -->
+    {% for item in order_items %}
+    <div class="item-row">
+        <span class="item-name">{{ item.product.name|truncatechars:15 }}</span>
+        <span class="item-qty">{{ item.quantity }}</span>
+        <span class="item-price">${{ item.price_at_time_of_sale|floatformat:2 }}</span>
+        <span class="item-total">${{ item.subtotal|floatformat:2 }}</span>
+    </div>
+    {% empty %}
+    <div class="item-row">
+        <span style="text-align: center; font-style: italic;">No items sold</span>
+    </div>
+    {% endfor %}
+
+    <!-- Totals -->
+    <div class="totals">
+        <div class="total-line">
+            <span>Subtotal:</span>
+            <span>${{ subtotal|floatformat:2 }}</span>
+        </div>
+        <div class="total-line">
+            <span>Tax (5%):</span>
+            <span>${{ tax_amount|floatformat:2 }}</span>
+        </div>
+        <div class="total-line final">
+            <span>TOTAL:</span>
+            <span>${{ receipt.total_amount|floatformat:2 }}</span>
+        </div>
+    </div>
+
+    <!-- Payment Information -->
+    <div class="receipt-info" style="margin-top: 15px;">
+        <div>Payment Method: {{ transaction.get_payment_type_display }}</div>
+        <div>Amount Paid: ${{ receipt.total_amount|floatformat:2 }}</div>
+        <div>Transaction Time: {{ transaction.timestamp|date:"M d, Y H:i:s" }}</div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer" style="text-align: center; margin-top: 20px; font-size: 11px;">
+        <div style="font-weight: bold; margin-bottom: 10px;">THANK YOU FOR YOUR BUSINESS!</div>
+        <div style="margin-bottom: 5px;">For inquiries:</div>
+        <div style="margin-bottom: 15px;">Visit us again soon!</div>
+        <div style="border-top: 1px dashed #000; padding-top: 10px; font-size: 9px; color: #666;">
+            Generated: {{ transaction.timestamp|date:"M d, Y H:i:s" }}
+        </div>
+    </div>
+</body>
+</html>

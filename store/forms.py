@@ -23,9 +23,28 @@ class AssignManagerForm(forms.Form):
         # Further refine queryset if needed, e.g., only verified users
         self.fields['manager'].queryset = CustomUser.objects.filter(
             is_active=True,
-        ).exclude(role__in=['head_manager', 'admin'])
+        ).exclude(role__in=['store_owner', 'admin'])
 
 from django import forms
 from users.models import CustomUser
+from .models import StoreCashier
+
+
+class AssignCashierForm(forms.Form):
+    cashier = forms.ModelChoiceField(
+        queryset=CustomUser.objects.filter(role='cashier', is_active=True, store__isnull=True),
+        label="Select Cashier",
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        help_text="Only unassigned cashiers are shown"
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Only show cashiers who are not assigned to any store
+        self.fields['cashier'].queryset = CustomUser.objects.filter(
+            role='cashier',
+            is_active=True,
+            store__isnull=True
+        )
 
 

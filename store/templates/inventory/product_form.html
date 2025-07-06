@@ -1,0 +1,252 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h2 class="mb-1">{{ title }}</h2>
+          <p class="text-muted mb-0">Manage product information and specifications</p>
+        </div>
+        <div>
+          <a href="{% url 'product_list' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Back to Products
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Form -->
+  <form method="post" class="needs-validation" novalidate>
+    {% csrf_token %}
+    
+    <!-- Basic Information -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Basic Information</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label for="{{ form.name.id_for_label }}" class="form-label">{{ form.name.label }}</label>
+              {{ form.name|add_class:"form-control" }}
+              {% if form.name.errors %}
+                <div class="text-danger small">{{ form.name.errors|striptags }}</div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label for="{{ form.category.id_for_label }}" class="form-label">{{ form.category.label }}</label>
+              {{ form.category|add_class:"form-control" }}
+              {% if form.category.errors %}
+                <div class="text-danger small">{{ form.category.errors|striptags }}</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        
+        <div class="row">
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label for="{{ form.price.id_for_label }}" class="form-label">{{ form.price.label }}</label>
+              <div class="input-group">
+                <span class="input-group-text">$</span>
+                {{ form.price|add_class:"form-control" }}
+              </div>
+              {% if form.price.errors %}
+                <div class="text-danger small">{{ form.price.errors|striptags }}</div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label for="{{ form.product_type.id_for_label }}" class="form-label">{{ form.product_type.label }}</label>
+              {{ form.product_type|add_class:"form-control" }}
+              {% if form.product_type.errors %}
+                <div class="text-danger small">{{ form.product_type.errors|striptags }}</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        
+        <div class="mb-3">
+          <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
+          {{ form.description|add_class:"form-control" }}
+          {% if form.description.errors %}
+            <div class="text-danger small">{{ form.description.errors|striptags }}</div>
+          {% endif %}
+        </div>
+        
+        <div class="mb-3">
+          <label for="{{ form.material.id_for_label }}" class="form-label">{{ form.material.label }}</label>
+          {{ form.material|add_class:"form-control" }}
+          {% if form.material.errors %}
+            <div class="text-danger small">{{ form.material.errors|striptags }}</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Product Specifications -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-gear me-2"></i>Product Specifications</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label for="{{ form.size.id_for_label }}" class="form-label">{{ form.size.label }}</label>
+              {{ form.size|add_class:"form-control" }}
+              {% if form.size.errors %}
+                <div class="text-danger small">{{ form.size.errors|striptags }}</div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label for="{{ form.variation.id_for_label }}" class="form-label">{{ form.variation.label }}</label>
+              {{ form.variation|add_class:"form-control" }}
+              {% if form.variation.errors %}
+                <div class="text-danger small">{{ form.variation.errors|striptags }}</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Supplier & Tracking -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-truck me-2"></i>Supplier & Tracking</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label for="{{ form.supplier_company.id_for_label }}" class="form-label">{{ form.supplier_company.label }}</label>
+              {{ form.supplier_company|add_class:"form-control" }}
+              {% if form.supplier_company.errors %}
+                <div class="text-danger small">{{ form.supplier_company.errors|striptags }}</div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label for="{{ form.batch_number.id_for_label }}" class="form-label">{{ form.batch_number.label }}</label>
+              {{ form.batch_number|add_class:"form-control" }}
+              {% if form.batch_number.errors %}
+                <div class="text-danger small">{{ form.batch_number.errors|striptags }}</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        
+        <div class="row">
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label for="{{ form.expiry_date.id_for_label }}" class="form-label">{{ form.expiry_date.label }}</label>
+              {{ form.expiry_date|add_class:"form-control" }}
+              {% if form.expiry_date.errors %}
+                <div class="text-danger small">{{ form.expiry_date.errors|striptags }}</div>
+              {% endif %}
+              <div class="form-text">Leave blank if product doesn't expire</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Storage Information -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-archive me-2"></i>Storage Information</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-4">
+            <div class="mb-3">
+              <label for="{{ form.room.id_for_label }}" class="form-label">{{ form.room.label }}</label>
+              {{ form.room|add_class:"form-control" }}
+              {% if form.room.errors %}
+                <div class="text-danger small">{{ form.room.errors|striptags }}</div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="mb-3">
+              <label for="{{ form.floor.id_for_label }}" class="form-label">{{ form.floor.label }}</label>
+              {{ form.floor|add_class:"form-control" }}
+              {% if form.floor.errors %}
+                <div class="text-danger small">{{ form.floor.errors|striptags }}</div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="mb-3">
+              <label for="{{ form.shelf.id_for_label }}" class="form-label">{{ form.shelf.label }}</label>
+              {{ form.shelf|add_class:"form-control" }}
+              {% if form.shelf.errors %}
+                <div class="text-danger small">{{ form.shelf.errors|striptags }}</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        
+        <div class="row">
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label for="{{ form.storing_condition.id_for_label }}" class="form-label">{{ form.storing_condition.label }}</label>
+              {{ form.storing_condition|add_class:"form-control" }}
+              {% if form.storing_condition.errors %}
+                <div class="text-danger small">{{ form.storing_condition.errors|striptags }}</div>
+              {% endif %}
+              <div class="form-text">Special storage requirements for electrical wires, ceramics, etc.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form Actions -->
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <a href="{% url 'product_list' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-x-circle me-2"></i>Cancel
+          </a>
+          <button type="submit" class="btn btn-success">
+            <i class="bi bi-check-circle me-2"></i>Save Product
+          </button>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+
+<style>
+.card-header {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.form-label {
+  font-weight: 600;
+  color: #495057;
+}
+
+.input-group-text {
+  background-color: #e9ecef;
+  border-color: #ced4da;
+}
+</style>
+{% endblock %}

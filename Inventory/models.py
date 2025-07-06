@@ -4,26 +4,112 @@ from transactions.models import Transaction
 from django.conf import *
 
 SETTINGS_CHOICES = [
-    ('Aggregates and Composites', 'Aggregates and Composites'),
-    ('Masonry', 'Masonry'),
-    ('Metals', 'Metals'),
-    ('Wood and Wood Products', 'Wood and Wood Products'),
-    ('Plastics and Polymers', 'Plastics and Polymers'),
+    ('Pipes', 'Pipes'),
+    ('Electric Wire', 'Electric Wire'),
+    ('Cement', 'Cement'),
+    ('Ceramics', 'Ceramics'),
     ('Glass and Finishing Materials', 'Glass and Finishing Materials'),
+]
+
+PRODUCT_TYPE_CHOICES = [
+    ('raw_material', 'Raw Material'),
+    ('finished_product', 'Finished Product'),
+    ('component', 'Component'),
+    ('tool', 'Tool'),
+    ('equipment', 'Equipment'),
+    ('consumable', 'Consumable'),
+]
+
+SIZE_CHOICES = [
+    ('XS', 'Extra Small'),
+    ('S', 'Small'),
+    ('M', 'Medium'),
+    ('L', 'Large'),
+    ('XL', 'Extra Large'),
+    ('XXL', 'Double Extra Large'),
+    ('custom', 'Custom Size'),
+]
+
+STORING_CONDITION_CHOICES = [
+    ('room_temperature', 'Room Temperature'),
+    ('cool_dry_place', 'Cool Dry Place'),
+    ('moisture_free', 'Moisture Free'),
+    ('temperature_sensitive', 'Temperature Sensitive'),
+    ('electrical_safe', 'Electrical Safe Storage'),
+    ('ceramic_safe', 'Ceramic Safe Storage'),
+    ('chemical_safe', 'Chemical Safe Storage'),
 ]
 
 class Product(models.Model):
     """
     Represents a specific product with its details.
     """
+    # Basic Information
     name = models.CharField(max_length=100)
     category = models.CharField(max_length=100, choices=SETTINGS_CHOICES, default='')
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
     material = models.TextField()
 
+    # Product Specifications
+    size = models.CharField(max_length=50, choices=SIZE_CHOICES, blank=True, null=True, help_text="Product size")
+    variation = models.CharField(max_length=100, blank=True, null=True, help_text="Product variation (color, model, etc.)")
+    product_type = models.CharField(max_length=50, choices=PRODUCT_TYPE_CHOICES, default='finished_product', help_text="Type of product")
+
+    # Supplier Information
+    supplier_company = models.CharField(max_length=200, blank=True, null=True, help_text="Supplier company name")
+
+    # Batch and Tracking
+    batch_number = models.CharField(max_length=100, blank=True, null=True, help_text="Batch or lot number")
+    expiry_date = models.DateField(blank=True, null=True, help_text="Product expiry date (if applicable)")
+
+    # Storage Location
+    room = models.CharField(max_length=50, blank=True, null=True, help_text="Storage room")
+    shelf = models.CharField(max_length=50, blank=True, null=True, help_text="Shelf location")
+    floor = models.CharField(max_length=50, blank=True, null=True, help_text="Floor level")
+
+    # Storage Conditions
+    storing_condition = models.CharField(
+        max_length=50,
+        choices=STORING_CONDITION_CHOICES,
+        default='room_temperature',
+        help_text="Required storage conditions"
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+
+    class Meta:
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['name']),
+            models.Index(fields=['category']),
+            models.Index(fields=['supplier_company']),
+            models.Index(fields=['batch_number']),
+            models.Index(fields=['expiry_date']),
+        ]
+
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.variation})" if self.variation else self.name
+
+    def is_expired(self):
+        """Check if product is expired"""
+        if self.expiry_date:
+            from django.utils import timezone
+            return self.expiry_date < timezone.now().date()
+        return False
+
+    def get_full_location(self):
+        """Get complete storage location"""
+        location_parts = []
+        if self.room:
+            location_parts.append(f"Room: {self.room}")
+        if self.floor:
+            location_parts.append(f"Floor: {self.floor}")
+        if self.shelf:
+            location_parts.append(f"Shelf: {self.shelf}")
+        return " | ".join(location_parts) if location_parts else "Location not specified"
 
 class Stock(models.Model):
     """

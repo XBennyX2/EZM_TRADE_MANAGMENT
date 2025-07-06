@@ -29,8 +29,8 @@
           <i class="fas fa-shopping-cart fa-3x text-success mb-3"></i>
           <h5 class="card-title">Process Sale</h5>
           <p class="card-text">Create new orders and process customer transactions.</p>
-          <a href="{% url 'process_sale' %}" class="btn btn-success">
-            <i class="fas fa-plus"></i> New Sale
+          <a href="{% url 'cashier_dashboard' %}" class="btn btn-success">
+            <i class="fas fa-plus"></i> Go to Dashboard
           </a>
         </div>
       </div>
@@ -101,8 +101,8 @@
         <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
         <h4>No transactions yet</h4>
         <p class="text-muted">Start processing sales to see transaction history here.</p>
-        <a href="{% url 'process_sale' %}" class="btn btn-primary">
-          <i class="fas fa-plus"></i> Process First Sale
+        <a href="{% url 'cashier_dashboard' %}" class="btn btn-primary">
+          <i class="fas fa-plus"></i> Go to Dashboard
         </a>
       </div>
       {% endif %}

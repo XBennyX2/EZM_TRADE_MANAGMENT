@@ -11,6 +11,7 @@ from .views import (
     login_view, logout_view, admin_dashboard, store_manager_page, cashier_page, head_manager_page,
     manage_users, toggle_user_status, change_user_role, view_user_detail, create_user,
     admin_settings, admin_edit_profile, admin_change_password, head_manager_settings,
+    head_manager_change_password, head_manager_edit_profile,
     store_manager_settings, cashier_settings, cashier_edit_profile, cashier_change_password,
     CustomPasswordChangeView, store_manager_stock_view, store_manager_sales_view,
     store_manager_cashier_management, assign_cashier_to_store, toggle_cashier_status
@@ -43,6 +44,8 @@ urlpatterns = [
     path('admin/profile/edit/', admin_edit_profile, name='admin_edit_profile'),
     path('admin/profile/change-password/', admin_change_password, name='admin_change_password'),
     path('head-manager/settings/', head_manager_settings, name='head_manager_settings'),
+    path('head-manager/profile/edit/', head_manager_edit_profile, name='head_manager_edit_profile'),
+    path('head-manager/profile/change-password/', head_manager_change_password, name='head_manager_change_password'),
     path('store-manager/settings/', store_manager_settings, name='store_manager_settings'),
     path('cashier/settings/', cashier_settings, name='cashier_settings'),
     path('cashier/profile/edit/', cashier_edit_profile, name='cashier_edit_profile'),

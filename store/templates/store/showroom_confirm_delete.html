@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% block title %}Delete Store{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <!-- Header -->
+            <div class="d-flex align-items-center mb-4">
+                <a href="{% url 'showroom_list' %}" class="btn btn-outline-secondary me-3">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                <div>
+                    <h2 class="mb-0">
+                        <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+                        Delete Store
+                    </h2>
+                    <p class="text-muted mb-0">Confirm store deletion</p>
+                </div>
+            </div>
+
+            <!-- Warning Card -->
+            <div class="card shadow-sm border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Confirm Deletion
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning" role="alert">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Warning!</strong> This action cannot be undone.
+                    </div>
+
+                    <p class="mb-3">Are you sure you want to delete the following store?</p>
+
+                    <!-- Store Information -->
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-muted">Store Name</h6>
+                                    <p class="fw-bold">{{ object.name }}</p>
+                                    
+                                    <h6 class="text-muted">Address</h6>
+                                    <p>{{ object.address }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    {% if object.phone_number %}
+                                    <h6 class="text-muted">Phone Number</h6>
+                                    <p>{{ object.phone_number }}</p>
+                                    {% endif %}
+                                    
+                                    {% if object.store_manager %}
+                                    <h6 class="text-muted">Current Manager</h6>
+                                    <p>{{ object.store_manager.get_full_name|default:object.store_manager.username }}</p>
+                                    {% else %}
+                                    <h6 class="text-muted">Manager Status</h6>
+                                    <p class="text-warning">No manager assigned</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Impact Warning -->
+                    <div class="mt-3">
+                        <h6 class="text-danger">
+                            <i class="bi bi-exclamation-circle me-1"></i>
+                            Deletion Impact:
+                        </h6>
+                        <ul class="text-muted">
+                            <li>All stock records for this store will be deleted</li>
+                            <li>All financial records will be deleted</li>
+                            <li>All transaction history will be deleted</li>
+                            <li>Any assigned manager will be unassigned</li>
+                            <li>Any assigned cashiers will be unassigned</li>
+                            <li>This action is permanent and cannot be reversed</li>
+                        </ul>
+                    </div>
+
+                    <!-- Store Statistics -->
+                    <div class="mt-3">
+                        <h6 class="text-info">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Current Store Data:
+                        </h6>
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="border-end">
+                                    <h5 class="text-primary">{{ object.stock_items.count|default:0 }}</h5>
+                                    <small class="text-muted">Stock Items</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="border-end">
+                                    <h5 class="text-success">{{ object.storecashier_set.count|default:0 }}</h5>
+                                    <small class="text-muted">Cashiers</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <h5 class="text-warning">{{ object.financialrecord_set.count|default:0 }}</h5>
+                                <small class="text-muted">Records</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="post" class="mt-4">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'showroom_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-trash me-2"></i>Yes, Delete Store
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Alternative Actions -->
+            <div class="card shadow-sm mt-4">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="bi bi-lightbulb me-2"></i>
+                        Alternative Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">Instead of deleting, you might want to:</p>
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'showroom_update' object.pk %}" class="btn btn-outline-primary">
+                            <i class="bi bi-pencil me-2"></i>Edit Store Information
+                        </a>
+                        {% if object.store_manager %}
+                        <button class="btn btn-outline-warning" onclick="unassignManager()">
+                            <i class="bi bi-person-dash me-2"></i>Unassign Manager Only
+                        </button>
+                        {% endif %}
+                        <a href="{% url 'showroom_detail' object.pk %}" class="btn btn-outline-info">
+                            <i class="bi bi-eye me-2"></i>View Store Details
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function unassignManager() {
+    if (confirm('Are you sure you want to unassign the current manager? This will not delete the store.')) {
+        // You can implement AJAX call here to unassign the manager
+        window.location.href = "{% url 'showroom_update' object.pk %}";
+    }
+}
+</script>
+{% endblock %}

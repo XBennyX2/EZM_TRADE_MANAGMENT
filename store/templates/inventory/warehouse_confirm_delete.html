@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% block title %}Delete Warehouse{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <!-- Header -->
+            <div class="d-flex align-items-center mb-4">
+                <a href="{% url 'warehouse_list' %}" class="btn btn-outline-secondary me-3">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                <div>
+                    <h2 class="mb-0">
+                        <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+                        Delete Warehouse
+                    </h2>
+                    <p class="text-muted mb-0">Confirm warehouse deletion</p>
+                </div>
+            </div>
+
+            <!-- Warning Card -->
+            <div class="card shadow-sm border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Confirm Deletion
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning" role="alert">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Warning!</strong> This action cannot be undone.
+                    </div>
+
+                    <p class="mb-3">Are you sure you want to delete the following warehouse?</p>
+
+                    <!-- Warehouse Information -->
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-muted">Warehouse Name</h6>
+                                    <p class="fw-bold">{{ object.name }}</p>
+                                    
+                                    <h6 class="text-muted">Warehouse ID</h6>
+                                    <p>{{ object.warehouse_id }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-muted">Location</h6>
+                                    <p>{{ object.address }}</p>
+                                    {% if object.city %}
+                                    <p class="text-muted">{{ object.city }}{% if object.state %}, {{ object.state }}{% endif %}</p>
+                                    {% endif %}
+                                    
+                                    {% if object.manager %}
+                                    <h6 class="text-muted">Manager</h6>
+                                    <p>{{ object.manager.get_full_name|default:object.manager.username }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Impact Warning -->
+                    <div class="mt-3">
+                        <h6 class="text-danger">
+                            <i class="bi bi-exclamation-circle me-1"></i>
+                            Deletion Impact:
+                        </h6>
+                        <ul class="text-muted">
+                            <li>All warehouse product records will be affected</li>
+                            <li>Stock movement history will be preserved but warehouse reference will be removed</li>
+                            <li>Any pending purchase orders linked to this warehouse may be affected</li>
+                            <li>This action is permanent and cannot be reversed</li>
+                        </ul>
+                    </div>
+
+                    <form method="post" class="mt-4">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'warehouse_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-trash me-2"></i>Yes, Delete Warehouse
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Alternative Actions -->
+            <div class="card shadow-sm mt-4">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="bi bi-lightbulb me-2"></i>
+                        Alternative Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">Instead of deleting, you might want to:</p>
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'warehouse_update' object.pk %}" class="btn btn-outline-primary">
+                            <i class="bi bi-pencil me-2"></i>Edit Warehouse Information
+                        </a>
+                        {% if object.is_active %}
+                        <button class="btn btn-outline-warning" onclick="deactivateWarehouse()">
+                            <i class="bi bi-pause-circle me-2"></i>Deactivate Warehouse (Keep Data)
+                        </button>
+                        {% else %}
+                        <button class="btn btn-outline-success" onclick="activateWarehouse()">
+                            <i class="bi bi-play-circle me-2"></i>Reactivate Warehouse
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function deactivateWarehouse() {
+    if (confirm('Are you sure you want to deactivate this warehouse? This will preserve all data but mark the warehouse as inactive.')) {
+        // You can implement AJAX call here to deactivate the warehouse
+        window.location.href = "{% url 'warehouse_update' object.pk %}";
+    }
+}
+
+function activateWarehouse() {
+    if (confirm('Are you sure you want to reactivate this warehouse?')) {
+        // You can implement AJAX call here to activate the warehouse
+        window.location.href = "{% url 'warehouse_update' object.pk %}";
+    }
+}
+</script>
+{% endblock %}

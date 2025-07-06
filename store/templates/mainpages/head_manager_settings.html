@@ -21,7 +21,8 @@
                                     <h5 class="card-title">Profile Settings</h5>
                                     <p class="card-text text-muted">Update your personal information and account details
                                     </p>
-                                    <a href="#" class="btn btn-outline-primary">Edit Profile</a>
+                                    <a href="{% url 'head_manager_edit_profile' %}" class="btn btn-outline-primary">Edit
+                                        Profile</a>
                                 </div>
                             </div>
                         </div>
@@ -33,7 +34,8 @@
                                     <i class="bi bi-shield-lock fs-1 text-warning mb-3"></i>
                                     <h5 class="card-title">Change Password</h5>
                                     <p class="card-text text-muted">Update your password for better security</p>
-                                    <a href="{% url 'password_change' %}" class="btn btn-outline-warning">Change
+                                    <a href="{% url 'head_manager_change_password' %}"
+                                        class="btn btn-outline-warning">Change
                                         Password</a>
                                 </div>
                             </div>

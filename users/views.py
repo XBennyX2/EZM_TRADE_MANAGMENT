@@ -657,6 +657,47 @@ def head_manager_settings(request):
 
     return render(request, 'mainpages/head_manager_settings.html')
 
+
+@login_required
+def head_manager_change_password(request):
+    if request.user.role != 'head_manager':
+        messages.warning(request, "Access denied. You don't have permission to access this page.")
+        return redirect('login')
+
+    if request.method == 'POST':
+        form = ChangePasswordForm(request.POST)
+        if form.is_valid():
+            old_password = form.cleaned_data['old_password']
+            new_password1 = form.cleaned_data['new_password1']
+            if request.user.check_password(old_password):
+                request.user.set_password(new_password1)
+                request.user.save()
+                update_session_auth_hash(request, request.user)
+                messages.success(request, 'Password changed successfully!')
+                return redirect('head_manager_settings')
+            else:
+                messages.error(request, 'Incorrect old password.')
+    else:
+        form = ChangePasswordForm()
+    return render(request, 'users/change_password.html', {'form': form})
+
+
+@login_required
+def head_manager_edit_profile(request):
+    if request.user.role != 'head_manager':
+        messages.warning(request, "Access denied. You don't have permission to access this page.")
+        return redirect('login')
+
+    if request.method == 'POST':
+        form = EditProfileForm(request.POST, instance=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Profile updated successfully!')
+            return redirect('head_manager_settings')
+    else:
+        form = EditProfileForm(instance=request.user)
+    return render(request, 'users/edit_profile.html', {'form': form})
+
 @login_required
 def store_manager_settings(request):
     return render(request, 'mainpages/store_manager_settings.html')

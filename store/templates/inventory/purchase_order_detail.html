@@ -1,0 +1,306 @@
+{% extends 'base.html' %}
+{% block title %}Purchase Order #{{ purchase_order.order_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header Section -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="d-flex align-items-center">
+                    <a href="{% url 'purchase_order_list' %}" class="btn btn-outline-secondary me-3">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    <div>
+                        <h2 class="mb-0">
+                            <i class="bi bi-cart-check text-primary me-2"></i>
+                            Purchase Order #{{ purchase_order.order_number }}
+                        </h2>
+                        <p class="text-muted mb-0">Order details and tracking information</p>
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    {% if purchase_order.status == 'pending' %}
+                    <a href="{% url 'purchase_order_update' purchase_order.pk %}" class="btn btn-outline-primary">
+                        <i class="bi bi-pencil me-2"></i>Edit Order
+                    </a>
+                    <button class="btn btn-success">
+                        <i class="bi bi-check-circle me-2"></i>Approve
+                    </button>
+                    <button class="btn btn-danger">
+                        <i class="bi bi-x-circle me-2"></i>Cancel
+                    </button>
+                    {% elif purchase_order.status == 'approved' %}
+                    <button class="btn btn-info">
+                        <i class="bi bi-truck me-2"></i>Mark as Shipped
+                    </button>
+                    {% elif purchase_order.status == 'shipped' %}
+                    <button class="btn btn-primary">
+                        <i class="bi bi-box-arrow-in-down me-2"></i>Mark as Received
+                    </button>
+                    {% endif %}
+                    <button class="btn btn-outline-secondary">
+                        <i class="bi bi-printer me-2"></i>Print
+                    </button>
+                </div>
+            </div>
+
+            <!-- Order Information Cards -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-info-circle me-2"></i>Order Information
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-muted">Order Number</h6>
+                                    <p class="fw-bold">{{ purchase_order.order_number }}</p>
+
+                                    <h6 class="text-muted">Order Date</h6>
+                                    <p>{{ purchase_order.order_date|date:"F d, Y" }}</p>
+
+                                    <h6 class="text-muted">Created By</h6>
+                                    <p>{{
+                                        purchase_order.created_by.get_full_name|default:purchase_order.created_by.username
+                                        }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-muted">Status</h6>
+                                    <p>
+                                        {% if purchase_order.status == 'pending' %}
+                                        <span class="badge bg-warning fs-6">Pending</span>
+                                        {% elif purchase_order.status == 'approved' %}
+                                        <span class="badge bg-success fs-6">Approved</span>
+                                        {% elif purchase_order.status == 'shipped' %}
+                                        <span class="badge bg-info fs-6">Shipped</span>
+                                        {% elif purchase_order.status == 'received' %}
+                                        <span class="badge bg-primary fs-6">Received</span>
+                                        {% elif purchase_order.status == 'cancelled' %}
+                                        <span class="badge bg-danger fs-6">Cancelled</span>
+                                        {% endif %}
+                                    </p>
+
+                                    <h6 class="text-muted">Expected Delivery</h6>
+                                    <p>
+                                        {% if purchase_order.expected_delivery_date %}
+                                        {{ purchase_order.expected_delivery_date|date:"F d, Y" }}
+                                        {% else %}
+                                        <span class="text-muted">Not specified</span>
+                                        {% endif %}
+                                    </p>
+
+                                    <h6 class="text-muted">Total Amount</h6>
+                                    <p class="fw-bold text-success fs-5">${{ purchase_order.total_amount|floatformat:2
+                                        }}</p>
+                                </div>
+                            </div>
+
+                            {% if purchase_order.notes %}
+                            <hr>
+                            <h6 class="text-muted">Notes</h6>
+                            <p class="mb-0">{{ purchase_order.notes }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-truck me-2"></i>Supplier Information
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <h6 class="fw-bold">{{ purchase_order.supplier.name }}</h6>
+
+                            {% if purchase_order.supplier.contact_person %}
+                            <p class="mb-1">
+                                <i class="bi bi-person me-1"></i>
+                                {{ purchase_order.supplier.contact_person }}
+                            </p>
+                            {% endif %}
+
+                            {% if purchase_order.supplier.email %}
+                            <p class="mb-1">
+                                <i class="bi bi-envelope me-1"></i>
+                                <a href="mailto:{{ purchase_order.supplier.email }}">{{ purchase_order.supplier.email
+                                    }}</a>
+                            </p>
+                            {% endif %}
+
+                            {% if purchase_order.supplier.phone %}
+                            <p class="mb-1">
+                                <i class="bi bi-telephone me-1"></i>
+                                <a href="tel:{{ purchase_order.supplier.phone }}">{{ purchase_order.supplier.phone
+                                    }}</a>
+                            </p>
+                            {% endif %}
+
+                            {% if purchase_order.supplier.address %}
+                            <p class="mb-0">
+                                <i class="bi bi-geo-alt me-1"></i>
+                                {{ purchase_order.supplier.address }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Items -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-list-ul me-2"></i>Order Items
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if items %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Category</th>
+                                    <th>Quantity Ordered</th>
+                                    <th>Unit Price</th>
+                                    <th>Total Price</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in items %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold">{{ item.warehouse_product.product_name }}</div>
+                                        <small class="text-muted">ID: {{ item.warehouse_product.product_id }}</small>
+                                        {% if item.warehouse_product.sku %}
+                                        <br><small class="text-muted">SKU: {{ item.warehouse_product.sku }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark">{{
+                                            item.warehouse_product.get_category_display }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold">{{ item.quantity_ordered }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold">${{ item.unit_price|floatformat:2 }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold text-success">${{ item.total_price|floatformat:2 }}</div>
+                                    </td>
+                                    <td>
+                                        {% if purchase_order.status == 'pending' %}
+                                        <span class="badge bg-warning">Pending</span>
+                                        {% elif purchase_order.status == 'approved' %}
+                                        <span class="badge bg-success">Approved</span>
+                                        {% elif purchase_order.status == 'shipped' %}
+                                        <span class="badge bg-info">In Transit</span>
+                                        {% elif purchase_order.status == 'received' %}
+                                        <span class="badge bg-primary">Received</span>
+                                        {% elif purchase_order.status == 'cancelled' %}
+                                        <span class="badge bg-danger">Cancelled</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <th colspan="4" class="text-end">Total Amount:</th>
+                                    <th class="text-success">${{ purchase_order.total_amount|floatformat:2 }}</th>
+                                    <th></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-box display-4 text-muted"></i>
+                        <h5 class="mt-3">No Items Found</h5>
+                        <p class="text-muted">This purchase order doesn't have any items.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Timeline/History Section -->
+            <div class="card shadow-sm mt-4">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-clock-history me-2"></i>Order Timeline
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-primary"></div>
+                            <div class="timeline-content">
+                                <h6 class="mb-1">Order Created</h6>
+                                <p class="text-muted mb-0">{{ purchase_order.created_date|date:"F d, Y g:i A" }}</p>
+                            </div>
+                        </div>
+
+                        {% if purchase_order.status != 'pending' %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-success"></div>
+                            <div class="timeline-content">
+                                <h6 class="mb-1">Order Status Updated</h6>
+                                <p class="text-muted mb-0">Status changed to {{ purchase_order.get_status_display }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #dee2e6;
+    }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 20px;
+    }
+
+    .timeline-marker {
+        position: absolute;
+        left: -22px;
+        top: 5px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        box-shadow: 0 0 0 2px #dee2e6;
+    }
+
+    .timeline-content {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 3px solid #007bff;
+    }
+</style>
+{% endblock %}

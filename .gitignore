@@ -68,3 +68,4 @@ coverage.xml
 .idea/
 *.sublime-workspace
 *.sublime-project
+db.sqlite3

@@ -159,7 +159,7 @@ def store_manager_page(request):
         store = Store.objects.get(store_manager=request.user)
     except Store.DoesNotExist:
         messages.warning(request, "You are not assigned to manage any store.")
-        return redirect('admin_dashboard')
+        # return redirect('admin_dashboard')
 
     cashier_assignment = None
     if store:
@@ -169,8 +169,290 @@ def store_manager_page(request):
         'store': store,
         'cashier_assignment': cashier_assignment
     })
-from store.models import Order
+
+@login_required
+def store_manager_stock_view(request):
+    """View for store manager to see their own store stock and other stores' stock"""
+    if request.user.role != 'store_manager':
+        messages.error(request, "Access denied. Store managers only.")
+        return redirect('login')
+
+    try:
+        manager_store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.warning(request, "You are not assigned to manage any store.")
+        return redirect('login')
+
+    # Get own store stock
+    own_stock = Stock.objects.filter(store=manager_store).select_related('product', 'store')
+
+    # Get other stores' stock
+    other_stores_stock = Stock.objects.exclude(store=manager_store).select_related('product', 'store')
+
+    context = {
+        'manager_store': manager_store,
+        'own_stock': own_stock,
+        'other_stores_stock': other_stores_stock,
+    }
+    return render(request, 'store_manager/stock_view.html', context)
+
+@login_required
+def store_manager_sales_view(request):
+    """View for store manager to see sales of their own store"""
+    if request.user.role != 'store_manager':
+        messages.error(request, "Access denied. Store managers only.")
+        return redirect('login')
+
+    try:
+        manager_store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.warning(request, "You are not assigned to manage any store.")
+        return redirect('login')
+
+    # Get sales transactions for the store
+    sales_transactions = Transaction.objects.filter(
+        store=manager_store,
+        transaction_type='sale'
+    ).order_by('-timestamp')
+
+    # Get financial records for the store
+    financial_records = FinancialRecord.objects.filter(
+        store=manager_store
+    ).order_by('-timestamp')
+
+    # Calculate totals
+    today = datetime.now().date()
+    week_ago = today - timedelta(days=7)
+    month_ago = today - timedelta(days=30)
+
+    today_sales = financial_records.filter(
+        timestamp__date=today,
+        record_type='revenue'
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    week_sales = financial_records.filter(
+        timestamp__date__gte=week_ago,
+        record_type='revenue'
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    month_sales = financial_records.filter(
+        timestamp__date__gte=month_ago,
+        record_type='revenue'
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    context = {
+        'manager_store': manager_store,
+        'sales_transactions': sales_transactions[:20],  # Latest 20 transactions
+        'financial_records': financial_records[:20],  # Latest 20 records
+        'today_sales': today_sales,
+        'week_sales': week_sales,
+        'month_sales': month_sales,
+    }
+    return render(request, 'store_manager/sales_view.html', context)
+
+@login_required
+def store_manager_cashier_management(request):
+    """View for store manager to manage cashiers"""
+    if request.user.role != 'store_manager':
+        messages.error(request, "Access denied. Store managers only.")
+        return redirect('login')
+
+    try:
+        manager_store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.warning(request, "You are not assigned to manage any store.")
+        return redirect('login')
+
+    # Get all cashiers assigned to this store
+    store_cashiers = StoreCashier.objects.filter(store=manager_store).select_related('cashier')
+
+    # Get search query
+    search_query = request.GET.get('search', '')
+
+    # Get all available cashiers (not active in any store)
+    # Include cashiers that are inactive in other stores
+    active_cashier_ids = StoreCashier.objects.filter(is_active=True).values_list('cashier_id', flat=True)
+    available_cashiers = CustomUser.objects.filter(
+        role='cashier',
+        is_active=True
+    ).exclude(id__in=active_cashier_ids).order_by('username')
+
+    # Apply search filter
+    if search_query:
+        available_cashiers = available_cashiers.filter(
+            Q(username__icontains=search_query) |
+            Q(first_name__icontains=search_query) |
+            Q(last_name__icontains=search_query) |
+            Q(email__icontains=search_query)
+        )
+
+    # Pagination for available cashiers
+    from django.core.paginator import Paginator
+    paginator = Paginator(available_cashiers, 5)  # Show 5 cashiers per page
+    page_number = request.GET.get('page')
+    available_cashiers_page = paginator.get_page(page_number)
+
+    context = {
+        'manager_store': manager_store,
+        'store_cashiers': store_cashiers,
+        'available_cashiers': available_cashiers_page,
+        'search_query': search_query,
+    }
+    return render(request, 'store_manager/cashier_management.html', context)
+
+@login_required
+def assign_cashier_to_store(request, cashier_id):
+    """Assign a cashier to the store manager's store"""
+    if request.user.role != 'store_manager':
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'message': 'Access denied. Store managers only.'})
+        messages.error(request, "Access denied. Store managers only.")
+        return redirect('login')
+
+    try:
+        manager_store = Store.objects.get(store_manager=request.user)
+        cashier = CustomUser.objects.get(id=cashier_id, role='cashier')
+
+        # Check if store already has an active cashier
+        existing_active_cashier = StoreCashier.objects.filter(store=manager_store, is_active=True).first()
+        if existing_active_cashier:
+            message = f"Store {manager_store.name} already has an active cashier: {existing_active_cashier.cashier.username}. Please deactivate them first."
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'message': message, 'type': 'warning'})
+            messages.warning(request, message)
+            return redirect('store_manager_cashier_management')
+
+        # Check if cashier is already active in another store
+        existing_assignment = StoreCashier.objects.filter(cashier=cashier, is_active=True).first()
+        if existing_assignment:
+            message = f"{cashier.username} is already active at {existing_assignment.store.name}"
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'message': message, 'type': 'warning'})
+            messages.warning(request, message)
+            return redirect('store_manager_cashier_management')
+
+        # Check if cashier is already assigned to this store (but inactive)
+        existing_store_assignment = StoreCashier.objects.filter(store=manager_store, cashier=cashier).first()
+        if existing_store_assignment:
+            # Reactivate existing assignment
+            existing_store_assignment.is_active = True
+            existing_store_assignment.save()
+            message = f"Reactivated {cashier.username} for {manager_store.name}"
+        else:
+            # Create new assignment
+            StoreCashier.objects.create(
+                store=manager_store,
+                cashier=cashier,
+                is_active=True
+            )
+            message = f"Successfully assigned {cashier.username} to {manager_store.name}"
+
+        # Update cashier's store field
+        cashier.store = manager_store
+        cashier.save()
+
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True, 'message': message, 'type': 'success'})
+        messages.success(request, message)
+
+    except Store.DoesNotExist:
+        message = "You are not assigned to manage any store."
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'message': message, 'type': 'error'})
+        messages.error(request, message)
+    except CustomUser.DoesNotExist:
+        message = "Cashier not found."
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'message': message, 'type': 'error'})
+        messages.error(request, message)
+
+    return redirect('store_manager_cashier_management')
+
+@login_required
+def toggle_cashier_status(request, cashier_assignment_id):
+    """Activate or deactivate a cashier assignment"""
+    if request.user.role != 'store_manager':
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'message': 'Access denied. Store managers only.'})
+        messages.error(request, "Access denied. Store managers only.")
+        return redirect('login')
+
+    try:
+        manager_store = Store.objects.get(store_manager=request.user)
+        cashier_assignment = StoreCashier.objects.get(
+            id=cashier_assignment_id,
+            store=manager_store
+        )
+
+        # If trying to activate, check if store already has an active cashier
+        if not cashier_assignment.is_active:
+            existing_active_cashier = StoreCashier.objects.filter(
+                store=manager_store,
+                is_active=True
+            ).exclude(id=cashier_assignment_id).first()
+
+            if existing_active_cashier:
+                message = f"Store {manager_store.name} already has an active cashier: {existing_active_cashier.cashier.username}. Please deactivate them first."
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'message': message, 'type': 'warning'})
+                messages.warning(request, message)
+                return redirect('store_manager_cashier_management')
+
+            # Check if cashier is already active in another store
+            cashier_active_elsewhere = StoreCashier.objects.filter(
+                cashier=cashier_assignment.cashier,
+                is_active=True
+            ).exclude(store=manager_store).first()
+
+            if cashier_active_elsewhere:
+                message = f"{cashier_assignment.cashier.username} is already active at {cashier_active_elsewhere.store.name}"
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'message': message, 'type': 'warning'})
+                messages.warning(request, message)
+                return redirect('store_manager_cashier_management')
+
+        # Toggle the status
+        cashier_assignment.is_active = not cashier_assignment.is_active
+        cashier_assignment.save()
+
+        # Update cashier's store field based on status
+        if not cashier_assignment.is_active:
+            cashier_assignment.cashier.store = None
+        else:
+            cashier_assignment.cashier.store = manager_store
+        cashier_assignment.cashier.save()
+
+        status = "activated" if cashier_assignment.is_active else "deactivated"
+        message = f"Successfully {status} {cashier_assignment.cashier.username}"
+
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': message,
+                'type': 'success',
+                'new_status': cashier_assignment.is_active,
+                'cashier_id': cashier_assignment.id
+            })
+        messages.success(request, message)
+
+    except Store.DoesNotExist:
+        message = "You are not assigned to manage any store."
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'message': message, 'type': 'error'})
+        messages.error(request, message)
+    except StoreCashier.DoesNotExist:
+        message = "Cashier assignment not found."
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'message': message, 'type': 'error'})
+        messages.error(request, message)
+
+    return redirect('store_manager_cashier_management')
+from store.models import Order, Store, StoreCashier, FinancialRecord
 from transactions.models import Transaction
+from Inventory.models import Stock
+from django.db.models import Sum, Count
+from datetime import datetime, timedelta
+from django.http import JsonResponse
 
 @login_required
 def cashier_page(request):

@@ -23,7 +23,7 @@ class Order(models.Model):
 
 class FinancialRecord(models.Model):
     store = models.ForeignKey(Store, on_delete=models.CASCADE)
-    cashier = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    cashier = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='store_financial_records')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     timestamp = models.DateTimeField(auto_now_add=True)
     record_type = models.CharField(max_length=50)  # e.g., 'revenue', 'expense'
@@ -35,6 +35,20 @@ class StoreCashier(models.Model):
     store = models.ForeignKey(Store, on_delete=models.CASCADE)
     cashier = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     is_active = models.BooleanField(default=True)
+    assigned_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        # Ensure unique cashier per store
+        unique_together = ('store', 'cashier')
+        # Add constraint to ensure only one active cashier per store
+        constraints = [
+            models.UniqueConstraint(
+                fields=['store'],
+                condition=models.Q(is_active=True),
+                name='unique_active_cashier_per_store'
+            )
+        ]
 
     def __str__(self):
-        return f"{self.cashier.username} - {self.store.name}"
+        status = "Active" if self.is_active else "Inactive"
+        return f"{self.cashier.username} - {self.store.name} ({status})"

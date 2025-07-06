@@ -31,12 +31,12 @@
   }
 </style>
 
-<div class="container mt-5">
+<div class="container mt-3">
   <div class="dashboard-card">
     <div class="dashboard-header">
       <h3 class="mb-0"><i class="bi bi-speedometer2 card-icon"></i> Store Manager Dashboard</h3>
     </div>
-    <div class="card-body">
+    <div class="card-body p-3">
       <h5 class="card-title mb-3">Welcome, <strong>{{ user.username }}</strong>!</h5>
       {% if store %}
       <p class="card-text">Managing: <strong>{{ store.name }}</strong></p>
@@ -47,36 +47,103 @@
   </div>
 
   <div class="row mt-5 gy-4">
-    <div class="col-md-6">
+    <!-- Stock Management Card -->
+    <div class="col-md-6 col-lg-4">
       <div class="card dashboard-card h-100">
         <div class="card-body">
-          <h5 class="card-title"><i class="bi bi-box-seam card-icon"></i> Product Management</h5>
-          <p class="card-text">View and manage your product catalog with ease.</p>
+          <h5 class="card-title"><i class="bi bi-clipboard-data card-icon"></i> Stock Management</h5>
+          <p class="card-text">View your store's stock and other showrooms' inventory.</p>
           <div class="d-flex gap-2 mt-3">
-            <a href="{% url 'product_list' %}" class="btn btn-outline-primary w-50">
-              <i class="bi bi-eye"></i> View Products
-            </a>
-            <a href="{% url 'product_create' %}" class="btn btn-primary w-50">
-              <i class="bi bi-plus-circle"></i> Add Product
+            <a href="{% url 'store_manager_stock_view' %}" class="btn btn-outline-secondary w-100">
+              <i class="bi bi-list-check"></i> View All Stock
             </a>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="col-md-6">
+    <!-- Sales Management Card -->
+    <div class="col-md-6 col-lg-4">
       <div class="card dashboard-card h-100">
         <div class="card-body">
-          <h5 class="card-title"><i class="bi bi-clipboard-data card-icon"></i> Stock Management</h5>
-          <p class="card-text">Keep your inventory accurate and up to date.</p>
+          <h5 class="card-title"><i class="bi bi-graph-up card-icon"></i> Sales Management</h5>
+          <p class="card-text">Monitor your store's sales performance and revenue.</p>
           <div class="d-flex gap-2 mt-3">
-            <a href="{% url 'stock_list' %}" class="btn btn-outline-secondary w-50">
-              <i class="bi bi-list-check"></i> View Stock
-            </a>
-            <a href="{% url 'stock_create' %}" class="btn btn-secondary w-50">
-              <i class="bi bi-plus-square"></i> Add Stock
+            <a href="{% url 'store_manager_sales_view' %}" class="btn btn-outline-success w-100">
+              <i class="bi bi-bar-chart"></i> View Sales
             </a>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cashier Management Card -->
+    <div class="col-md-6 col-lg-4">
+      <div class="card dashboard-card h-100">
+        <div class="card-body">
+          <h5 class="card-title"><i class="bi bi-people card-icon"></i> Cashier Management</h5>
+          <p class="card-text">Manage cashiers assigned to your store.</p>
+          <div class="d-flex gap-2 mt-3">
+            <a href="{% url 'store_manager_cashier_management' %}" class="btn btn-outline-info w-100">
+              <i class="bi bi-person-gear"></i> Manage Cashiers
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Product Management Card -->
+    <div class="col-md-6 col-lg-4">
+      <div class="card dashboard-card h-100">
+        <div class="card-body">
+          <h5 class="card-title"><i class="bi bi-box-seam card-icon"></i> Product Management</h5>
+          <p class="card-text">View and manage your product catalog.</p>
+          <div class="d-flex gap-2 mt-3">
+            <a href="{% url 'product_list' %}" class="btn btn-outline-primary w-50">
+              <i class="bi bi-eye"></i> View
+            </a>
+            <a href="{% url 'product_create' %}" class="btn btn-primary w-50">
+              <i class="bi bi-plus-circle"></i> Add
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inventory Management Card -->
+    <div class="col-md-6 col-lg-4">
+      <div class="card dashboard-card h-100">
+        <div class="card-body">
+          <h5 class="card-title"><i class="bi bi-boxes card-icon"></i> Inventory Management</h5>
+          <p class="card-text">Manage stock levels and inventory.</p>
+          <div class="d-flex gap-2 mt-3">
+            <a href="{% url 'stock_list' %}" class="btn btn-outline-secondary w-50">
+              <i class="bi bi-list-check"></i> View
+            </a>
+            <a href="{% url 'stock_create' %}" class="btn btn-secondary w-50">
+              <i class="bi bi-plus-square"></i> Add
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Stats Card -->
+    <div class="col-md-6 col-lg-4">
+      <div class="card dashboard-card h-100">
+        <div class="card-body">
+          <h5 class="card-title"><i class="bi bi-speedometer2 card-icon"></i> Quick Stats</h5>
+          <p class="card-text">Overview of your store's performance.</p>
+          {% if store %}
+          <div class="mt-3">
+            <small class="text-muted">Store: <strong>{{ store.name }}</strong></small><br>
+            {% if cashier_assignment %}
+            <small class="text-muted">Active Cashier: <strong>{{ cashier_assignment.cashier.username }}</strong></small>
+            {% else %}
+            <small class="text-warning">No active cashier assigned</small>
+            {% endif %}
+          </div>
+          {% endif %}
         </div>
       </div>
     </div>

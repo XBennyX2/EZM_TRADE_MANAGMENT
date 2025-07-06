@@ -19,6 +19,7 @@ class Transaction(models.Model):
     transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES)
     timestamp = models.DateTimeField(auto_now_add=True)
     store = models.ForeignKey('store.Store', on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) # Add this line
 
     def __str__(self):
@@ -40,6 +41,7 @@ class FinancialRecord(models.Model):
         ('expense', 'Expense'),
     ]
     store = models.ForeignKey('store.Store', on_delete=models.CASCADE, related_name='financial_records')
+    cashier = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True, related_name='transaction_financial_records')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     record_type = models.CharField(max_length=10, choices=RECORD_TYPES)
     timestamp = models.DateTimeField(auto_now_add=True)

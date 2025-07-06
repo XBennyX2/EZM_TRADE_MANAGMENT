@@ -12,7 +12,8 @@ from .views import (
     manage_users, toggle_user_status, change_user_role, view_user_detail, create_user,
     admin_settings, admin_edit_profile, admin_change_password, head_manager_settings,
     store_manager_settings, cashier_settings, cashier_edit_profile, cashier_change_password,
-    CustomPasswordChangeView
+    CustomPasswordChangeView, store_manager_stock_view, store_manager_sales_view,
+    store_manager_cashier_management, assign_cashier_to_store, toggle_cashier_status
 )
 
 urlpatterns = [
@@ -31,6 +32,13 @@ urlpatterns = [
     path('head-manager/', head_manager_page, name='head_manager_page'),
     path('store-manager/', store_manager_page, name='store_manager_page'),
     path('cashier/', cashier_page, name='cashier_page'),
+
+    # Store Manager specific functionality
+    path('store-manager/stock/', store_manager_stock_view, name='store_manager_stock_view'),
+    path('store-manager/sales/', store_manager_sales_view, name='store_manager_sales_view'),
+    path('store-manager/cashiers/', store_manager_cashier_management, name='store_manager_cashier_management'),
+    path('store-manager/assign-cashier/<int:cashier_id>/', assign_cashier_to_store, name='assign_cashier_to_store'),
+    path('store-manager/toggle-cashier/<int:cashier_assignment_id>/', toggle_cashier_status, name='toggle_cashier_status'),
     path('admin/settings/', admin_settings, name='admin_settings'),
     path('admin/profile/edit/', admin_edit_profile, name='admin_edit_profile'),
     path('admin/profile/change-password/', admin_change_password, name='admin_change_password'),

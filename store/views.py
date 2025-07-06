@@ -8,7 +8,10 @@ from .models import Order, FinancialRecord
 from users.models import CustomUser
 from django.template.loader import render_to_string
 from django.http import HttpResponse
-from weasyprint import HTML  # Make sure you have WeasyPrint installed
+# from weasyprint import HTML  # WeasyPrint requires additional system libraries on Windows
+# For Windows installation, see: https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#windows
+# Uncomment the line below after installing GTK+ libraries
+# from weasyprint import HTML
 
 @login_required
 def process_sale(request):
@@ -81,13 +84,16 @@ def process_sale(request):
                 )
 
                 # Generate Receipt (basic HTML)
-                receipt_html = render_to_string('store/receipt_template.html', {'order': order, 'total': total, 'tax': tax, 'discount': discount_amount, 'payment_type': payment_type, 'order_items': order_items})
-                # Generate PDF
+                # receipt_html = render_to_string('store/receipt_template.html', {'order': order, 'total': total, 'tax': tax, 'discount': discount_amount, 'payment_type': payment_type, 'order_items': order_items})
+                # Generate PDF (requires WeasyPrint system libraries)
                 # html = HTML(string=receipt_html)
                 # pdf_file = html.write_pdf()
                 # response = HttpResponse(pdf_file, content_type='application/pdf')
                 # response['Content-Disposition'] = 'filename="receipt.pdf"'
                 # return HttpResponse(receipt_html)
+
+                # For now, redirect to success page instead of generating PDF
+                return redirect('store_manager_page')
 
         except ValueError as e:
             return render(request, 'store/process_sale.html', {'products': products, 'error': str(e)})

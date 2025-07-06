@@ -138,20 +138,57 @@ class StoreOwnerMixin(UserPassesTestMixin):
 def manage_store(request, store_id):
     store = get_object_or_404(Store, pk=store_id)
     if request.method == 'POST':
+        # Check if this is an unassign request
+        if request.POST.get('unassign_manager'):
+            if store.store_manager:
+                old_manager = store.store_manager
+                logger.info(f"Unassigning manager {old_manager.username} from store {store.name}")
+
+                # Unassign the manager
+                store.store_manager = None
+                store.save()
+                old_manager.store = None
+                old_manager.save()
+
+                logger.info(f"Successfully unassigned manager {old_manager.username} from store {store.name}")
+                from django.contrib import messages
+                messages.success(request, f"Successfully removed {old_manager.username} from {store.name}")
+            else:
+                from django.contrib import messages
+                messages.warning(request, "No manager is currently assigned to this store.")
+            return redirect('manage_store', store_id=store.id)
+
+        # Handle regular manager assignment
         form = AssignManagerForm(request.POST)
         if form.is_valid():
             manager = form.cleaned_data['manager']
+            old_manager = store.store_manager
+
             logger.info(f"Assigning manager {manager.username} to store {store.name}")
+
+            # Unassign old manager if exists
+            if old_manager and old_manager != manager:
+                old_manager.store = None
+                old_manager.save()
+                logger.info(f"Unassigned previous manager {old_manager.username}")
+
+            # Assign new manager
             store.store_manager = manager
             store.save()
             manager.store = store
             manager.save()
+
             logger.info(f"Successfully assigned manager {manager.username} to store {store.name}")
             from django.contrib import messages
-            messages.success(request, f"Successfully assigned {manager.username} to {store.name}")
-            return redirect('head_manager_page')
+            if old_manager and old_manager != manager:
+                messages.success(request, f"Successfully updated manager from {old_manager.username} to {manager.username} for {store.name}")
+            else:
+                messages.success(request, f"Successfully assigned {manager.username} to {store.name}")
+            return redirect('manage_store', store_id=store.id)
         else:
             logger.warning(f"Invalid form data: {form.errors}")
+            from django.contrib import messages
+            messages.error(request, "Please correct the errors below.")
     else:
         form = AssignManagerForm()
     return render(request, 'store/manage_store.html', {'store': store, 'form': form})

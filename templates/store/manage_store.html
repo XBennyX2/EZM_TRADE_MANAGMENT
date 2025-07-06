@@ -1,15 +1,472 @@
 {% extends 'base.html' %}
+{% load widget_tweaks %}
+
+{% block title %}Manage Store - {{ store.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .store-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    .info-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        overflow: hidden;
+    }
+
+    .info-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+    }
+
+    .info-card .card-header {
+        background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+        border-bottom: 3px solid #007bff;
+        font-weight: 600;
+    }
+
+    .manager-assignment-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    }
+
+    .manager-assignment-card .card-header {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        border-radius: 15px 15px 0 0;
+        padding: 1.5rem;
+    }
+
+    .status-badge {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+        border-radius: 25px;
+        font-weight: 500;
+    }
+
+    .btn-custom {
+        border-radius: 25px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+        border: none;
+    }
+
+    .btn-custom:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-assign {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        color: white;
+    }
+
+    .btn-back {
+        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        color: white;
+    }
+
+    .icon-wrapper {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+    }
+
+    .form-control,
+    .form-select {
+        border-radius: 10px;
+        border: 2px solid #e9ecef;
+        padding: 0.75rem 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+
+    .breadcrumb {
+        background: transparent;
+        padding: 0;
+        margin-bottom: 2rem;
+    }
+
+    .breadcrumb-item a {
+        color: #007bff;
+        text-decoration: none;
+    }
+
+    .breadcrumb-item a:hover {
+        text-decoration: underline;
+    }
+
+    @media (max-width: 768px) {
+        .store-header {
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .btn-custom {
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<h1>Manage Store</h1>
-<h2>{{ store.name }}</h2>
-<p>Address: {{ store.address }}</p>
-<p>Phone Number: {{ store.phone_number }}</p>
-<p>Current Manager: {{ store.store_manager.username }}</p>
+<div class="container-fluid px-4">
+    <!-- Breadcrumb Navigation -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'head_manager_page' %}"><i class="bi bi-house-door"></i>
+                    Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'showroom_list' %}"><i class="bi bi-shop"></i> Showrooms</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Manage Store</li>
+        </ol>
+    </nav>
 
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Assign Manager</button>
-</form>
+    <!-- Store Header -->
+    <div class="store-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <div class="d-flex align-items-center">
+                    <div class="icon-wrapper bg-white bg-opacity-20">
+                        <i class="bi bi-shop fs-3"></i>
+                    </div>
+                    <div>
+                        <h1 class="mb-1 fw-bold">{{ store.name }}</h1>
+                        <p class="mb-0 opacity-75">Store Management Dashboard</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                <span
+                    class="status-badge {% if store.store_manager %}bg-success{% else %}bg-warning text-dark{% endif %}">
+                    <i
+                        class="bi bi-{% if store.store_manager %}check-circle{% else %}exclamation-triangle{% endif %} me-1"></i>
+                    {% if store.store_manager %}Manager Assigned{% else %}No Manager{% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="row g-4">
+        <!-- Store Information Cards -->
+        <div class="col-lg-8">
+            <div class="row g-4">
+                <!-- Store Details Card -->
+                <div class="col-md-6">
+                    <div class="card info-card h-100">
+                        <div class="card-header">
+                            <div class="d-flex align-items-center">
+                                <div class="icon-wrapper bg-primary bg-opacity-10 me-3">
+                                    <i class="bi bi-info-circle text-primary fs-5"></i>
+                                </div>
+                                <h5 class="mb-0">Store Details</h5>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="text-muted small fw-bold">STORE NAME</label>
+                                <p class="mb-0 fs-5 fw-semibold">{{ store.name }}</p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="text-muted small fw-bold">ADDRESS</label>
+                                <p class="mb-0">
+                                    <i class="bi bi-geo-alt text-danger me-2"></i>
+                                    {{ store.address|default:"Not specified" }}
+                                </p>
+                            </div>
+                            <div class="mb-0">
+                                <label class="text-muted small fw-bold">PHONE NUMBER</label>
+                                <p class="mb-0">
+                                    <i class="bi bi-telephone text-success me-2"></i>
+                                    {{ store.phone_number|default:"Not specified" }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Current Manager Card -->
+                <div class="col-md-6">
+                    <div class="card info-card h-100">
+                        <div class="card-header">
+                            <div class="d-flex align-items-center">
+                                <div class="icon-wrapper bg-success bg-opacity-10 me-3">
+                                    <i class="bi bi-person-badge text-success fs-5"></i>
+                                </div>
+                                <h5 class="mb-0">Current Manager</h5>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            {% if store.store_manager %}
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="icon-wrapper bg-success me-3">
+                                    <i class="bi bi-person-check text-white"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1 fw-bold">{{
+                                        store.store_manager.get_full_name|default:store.store_manager.username }}</h6>
+                                    <small class="text-muted">@{{ store.store_manager.username }}</small>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <label class="text-muted small fw-bold">EMAIL</label>
+                                <p class="mb-0">
+                                    <i class="bi bi-envelope text-primary me-2"></i>
+                                    {{ store.store_manager.email|default:"Not provided" }}
+                                </p>
+                            </div>
+                            <div class="mb-0">
+                                <label class="text-muted small fw-bold">STATUS</label>
+                                <p class="mb-0">
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check-circle me-1"></i>Active Manager
+                                    </span>
+                                </p>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-4">
+                                <div class="icon-wrapper bg-warning bg-opacity-10 mx-auto mb-3">
+                                    <i class="bi bi-person-x text-warning fs-3"></i>
+                                </div>
+                                <h6 class="text-muted mb-2">No Manager Assigned</h6>
+                                <p class="text-muted small mb-0">This store currently has no assigned manager. Please
+                                    assign one using the form below.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Manager Assignment Form -->
+        <div class="col-lg-4">
+            <div class="card manager-assignment-card">
+                <div class="card-header">
+                    <div class="d-flex align-items-center">
+                        <div class="icon-wrapper bg-white bg-opacity-20 me-3">
+                            <i class="bi bi-person-plus fs-5"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-1">Manager Assignment</h5>
+                            <small class="opacity-75">Assign or change store manager</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-4">
+                    {% if messages %}
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        <i
+                            class="bi bi-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+
+                    <form method="post" id="managerAssignmentForm">
+                        {% csrf_token %}
+
+                        <div class="mb-4">
+                            <label for="{{ form.manager.id_for_label }}" class="form-label fw-bold">
+                                <i class="bi bi-person-badge me-2 text-primary"></i>Select Manager
+                            </label>
+                            {{ form.manager|add_class:"form-select" }}
+                            {% if form.manager.errors %}
+                            <div class="text-danger small mt-2">
+                                <i class="bi bi-exclamation-circle me-1"></i>
+                                {{ form.manager.errors.0 }}
+                            </div>
+                            {% endif %}
+                            <div class="form-text mt-2">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Only available store managers are shown in the list.
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-custom btn-assign">
+                                <i class="bi bi-person-check me-2"></i>
+                                {% if store.store_manager %}Update Manager{% else %}Assign Manager{% endif %}
+                            </button>
+
+                            {% if store.store_manager %}
+                            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal"
+                                data-bs-target="#unassignModal">
+                                <i class="bi bi-person-dash me-2"></i>Remove Current Manager
+                            </button>
+                            {% endif %}
+                        </div>
+                    </form>
+
+                    <!-- Quick Stats -->
+                    <div class="mt-4 pt-4 border-top">
+                        <h6 class="text-muted mb-3">
+                            <i class="bi bi-graph-up me-2"></i>Quick Stats
+                        </h6>
+                        <div class="row g-3 text-center">
+                            <div class="col-6">
+                                <div class="bg-light rounded p-3">
+                                    <div class="fs-4 fw-bold text-primary">{{ store.id }}</div>
+                                    <small class="text-muted">Store ID</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="bg-light rounded p-3">
+                                    <div class="fs-4 fw-bold text-success">
+                                        {% if store.store_manager %}1{% else %}0{% endif %}
+                                    </div>
+                                    <small class="text-muted">Managers</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="d-flex flex-wrap gap-3 justify-content-center justify-content-md-start">
+                <a href="{% url 'showroom_list' %}" class="btn btn-custom btn-back">
+                    <i class="bi bi-arrow-left me-2"></i>Back to Showrooms
+                </a>
+                <a href="{% url 'showroom_detail' store.pk %}" class="btn btn-outline-primary btn-custom">
+                    <i class="bi bi-eye me-2"></i>View Details
+                </a>
+                <a href="{% url 'showroom_update' store.pk %}" class="btn btn-outline-secondary btn-custom">
+                    <i class="bi bi-pencil me-2"></i>Edit Store
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Unassign Manager Modal -->
+{% if store.store_manager %}
+<div class="modal fade" id="unassignModal" tabindex="-1" aria-labelledby="unassignModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="unassignModalLabel">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Remove Manager
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="text-center mb-4">
+                    <div class="icon-wrapper bg-danger bg-opacity-10 mx-auto mb-3">
+                        <i class="bi bi-person-dash text-danger fs-3"></i>
+                    </div>
+                    <h6>Are you sure you want to remove the current manager?</h6>
+                    <p class="text-muted mb-0">
+                        This will unassign <strong>{{
+                            store.store_manager.get_full_name|default:store.store_manager.username }}</strong>
+                        from <strong>{{ store.name }}</strong>. This action can be undone by assigning a manager again.
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-2"></i>Cancel
+                </button>
+                <form method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="unassign_manager" value="true">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-person-dash me-2"></i>Remove Manager
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Form validation and enhancement
+        const form = document.getElementById('managerAssignmentForm');
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const selectElement = form.querySelector('select');
+
+        // Add loading state to submit button
+        form.addEventListener('submit', function () {
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Processing...';
+            submitBtn.disabled = true;
+        });
+
+        // Dynamic button text based on selection
+        selectElement.addEventListener('change', function () {
+            const selectedOption = this.options[this.selectedIndex];
+            if (selectedOption.value) {
+                const currentManager = '{{ store.store_manager.username|default:"" }}';
+                if (selectedOption.text.includes(currentManager) && currentManager) {
+                    submitBtn.innerHTML = '<i class="bi bi-person-check me-2"></i>Current Manager';
+                    submitBtn.disabled = true;
+                    submitBtn.classList.remove('btn-assign');
+                    submitBtn.classList.add('btn-secondary');
+                } else {
+                    submitBtn.innerHTML = '<i class="bi bi-person-check me-2"></i>{% if store.store_manager %}Update Manager{% else %}Assign Manager{% endif %}';
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('btn-secondary');
+                    submitBtn.classList.add('btn-assign');
+                }
+            }
+        });
+
+        // Auto-dismiss alerts after 5 seconds
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(function (alert) {
+            setTimeout(function () {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }, 5000);
+        });
+
+        // Add smooth scrolling to form on page load if there are errors
+        {% if form.errors %}
+        document.getElementById('managerAssignmentForm').scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+        });
+        {% endif %}
+
+        // Tooltip initialization for info icons
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    });
+</script>
 {% endblock %}

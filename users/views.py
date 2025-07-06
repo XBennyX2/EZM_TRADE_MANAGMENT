@@ -456,9 +456,22 @@ from django.http import JsonResponse
 
 @login_required
 def cashier_page(request):
-    orders = Order.objects.filter(customer=request.user).order_by('-created_at')[:10]
-    transactions = [order.transaction for order in orders if order.transaction]
-    return render(request, 'mainpages/cashier_page.html', {'transactions': transactions})
+    """
+    Cashier dashboard that checks for store assignment and shows appropriate content
+    """
+    if request.user.role != 'cashier':
+        messages.error(request, "Access denied. Cashier role required.")
+        return redirect('login')
+
+    # Check if cashier is assigned to a store
+    if not request.user.store:
+        # Show waiting message until store manager assigns them
+        return render(request, 'mainpages/cashier_waiting.html', {
+            'message': 'Please wait for your store manager to assign you to a store.'
+        })
+
+    # Cashier is assigned to a store, redirect to the proper dashboard
+    return redirect('cashier_dashboard')
 
 from django.contrib.auth.decorators import user_passes_test
 from django.db.models import Q

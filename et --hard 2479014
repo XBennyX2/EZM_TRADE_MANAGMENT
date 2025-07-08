@@ -1,0 +1,90 @@
+[33m2479014[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mcashier[m[33m)[m Merge branch 'noneSpoiled' of https://github.com/XBennyX2/EZM_TRADE_MANAGMENT into cashier
+[33m2a5e04e[m WIP: Save before merging upstream
+[33mac1b8ae[m[33m ([m[1;31mupstream/noneSpoiled[m[33m)[m Merge
+[33m8145463[m store manager merge
+[33mbaeda41[m mergeing StoreManager
+[33m011a078[m Merge branch 'noneSpoiled' of https://github.com/XBennyX2/EZM_TRADE_MANAGMENT into noneSpoiled
+[33mbf0eaa3[m updated
+[33m485cc88[m merge
+[33m226bd1d[m merge
+[33m7da854a[m Remove ignored files from tracking
+[33m1ee9d49[m Delete db.sqlite3
+[33m42d682e[m store manager dashboard/ cashier management complete
+[33m9350dfd[m Delete db.sqlite3
+[33m5f15a36[m Merge pull request #1 from XBennyX2/cashier
+[33m0104301[m Warehouse Duplicate Problem resolving
+[33ma4e4ba6[m HeadManager Product done only the warehouse list remaining
+[33mc33d812[m[33m ([m[1;31mupstream/cashier[m[33m)[m cashier process sales only
+[33m49458c8[m warehouse is still not fixed
+[33mff00ab3[m progress
+[33md287749[m Cashier related
+[33m99a01f6[m[33m ([m[1;32mnoneSpoiled[m[33m)[m Delete test_cashier_login.py
+[33m618d1ad[m[33m ([m[1;31morigin/noneSpoiled[m[33m, [m[1;31morigin/HEAD[m[33m)[m progress 1
+[33m5ad29b1[m HeadManager Functionality
+[33me3d296d[m Remove __pycache__ and pyc files from repository
+[33mb6f7fe5[m test
+[33me4dee07[m changed the product list UI
+[33m0166da8[m fixed the missing store casher and the UI of Store Manager
+[33md5b0cbb[m Created files for Settings
+[33m32aa35c[m LoggedIn users can not redirect to the login page
+[33m471888b[m Redirection of the HeadManager to its own page
+[33mcb39e28[m removed the fullname field on creating user
+[33m1093564[m add a settings for admin profile
+[33mf20df23[m added a settings for admin
+[33mc798103[m Merge pull request #8 from Nate2784/RemoveCustomers
+[33m16ded9e[m fixed the role issue
+[33m7c8b81a[m Merge pull request #7 from Nate2784/RemoveCustomers
+[33m68da235[m add an admin user
+[33m4a6a965[m Merge pull request #6 from Nate2784/RemoveCustomers
+[33m1ca8afa[m Made the catagory setting based
+[33m6a120d9[m corrected the store manager assligning and other s
+[33me87877f[m Merge pull request #5 from Nate2784/RemoveCustomers
+[33m5d89633[m add user creation in admin
+[33mf7ed001[m Merge pull request #4 from Nate2784/UI
+[33m826fb9b[m view
+[33m9f7e60b[m stash
+[33m8f4fc1e[m updated the UI
+[33m8998276[m Merge pull request #3 from Nate2784/Inventory
+[33m5eaeb4e[m Finished the Inventory Logic with the Mainpage templates as well
+[33me204b2d[m fixed some errors on the inventory app
+[33m492a9a6[m another merge conflict
+[33m7a98488[m merge
+[33m1448007[m resolved the merge conflict
+[33m77f24a4[m store creation manager assignment and cashier assignment done
+[33mb8d2b14[m the loop conflict
+[33m4f295d4[m code cleanup
+[33mdcac35e[m Update views.py
+[33mf5ff3ff[m stashed changes
+[33m4bef38f[m modified store models
+[33m90fe211[m corrected the Storelist
+[33m47f5317[m configured the apps url to this one
+[33mfd30925[m added urls for inventory
+[33m64ef3a3[m added CRUD for Catagory and Product
+[33m342869b[m added CategoryForm and ProductForm
+[33m0370dc1[m updated the url for the delete and edit
+[33mad0daa6[m template for store confirm delete
+[33m0028421[m template for store form
+[33ma83e6c9[m template for store list
+[33m354f47a[m added some view, create, update and delete view for store
+[33mb30592f[m Global template configuration
+[33m404b8dd[m include urls for store
+[33mfd77bce[m Added a StoreViewset
+[33md423034[m Serilizer for Store
+[33m86e0312[m Include store Inventory and Transactions in App
+[33m5834960[m added Material
+[33m7f469c9[m admin dashboard update
+[33m9be340d[m added pagnation to manage users and improved styling
+[33m99fe817[m login and register  logic updated
+[33m2c071ba[m custom template email otp msg
+[33m84ce788[m added email otp to verify users via email
+[33m81913dd[m added selling price
+[33m18147c7[m Corrected the models and others
+[33m07ba725[m Merge pull request #1 from Nate2784/Store_and_Transaction
+[33m05d55e8[m Created the Models
+[33mbfef2fd[m updated navbar ezm to redirect user to main page depending on role
+[33m56f1d20[m made templates global.
+[33m7996068[m Ignore Pycache files
+[33m5f05cc4[m Moved the template to core
+[33m76cd896[m pause
+[33md03998f[m initial push with users app
+[33m61efc8a[m Initial commit

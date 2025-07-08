@@ -1,0 +1,74 @@
+. {% extends 'base.html' %}
+{% block title %}Create User{% endblock %}
+{% block content %}
+<div class="container py-5">
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
+            <h3 class="text-center text-primary mb-4">Create New User</h3>
+
+            <form method="POST" class="max-w-lg mx-auto">
+                {% csrf_token %}
+                {% if messages %}
+                {% for message in messages %}
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                    <strong class="font-bold">Error!</strong>
+                    <span class="block sm:inline">{{message}}</span>
+                </div>
+                {% endfor %}
+                {% endif %}
+                <div class="mb-4">
+                    <label for="username" class="block text-gray-700 text-sm font-bold mb-2">Username</label>
+                    <input type="text" name="username" id="username"
+                        class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                        required>
+                </div>
+                <div class="mb-4">
+                    <label for="first_name" class="block text-gray-700 text-sm font-bold mb-2">First Name</label>
+                    <input type="text" name="first_name" id="first_name"
+                        class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                        required>
+                </div>
+                <div class="mb-4">
+                    <label for="last_name" class="block text-gray-700 text-sm font-bold mb-2">Last Name</label>
+                    <input type="text" name="last_name" id="last_name"
+                        class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                        required>
+                </div>
+                <div class="mb-4">
+                    <label for="email" class="block text-gray-700 text-sm font-bold mb-2">Email</label>
+                    <input type="email" name="email" id="email"
+                        class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                        required>
+                </div>
+                <div class="mb-4">
+                    <label for="password" class="block text-gray-700 text-sm font-bold mb-2">Password</label>
+                    <input type="password" name="password" id="password"
+                        class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                        required>
+                </div>
+                <div class="mb-4">
+                    <label for="role" class="block text-gray-700 text-sm font-bold mb-2">Role</label>
+                    <select name="role" id="role"
+                        class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <option value="admin">Admin</option>
+                        <option value="head_manager">Head Manager</option>
+                        <option value="store_manager">Store Manager</option>
+                        <option value="cashier">Cashier</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label for="phone_number" class="block text-gray-700 text-sm font-bold mb-2">Phone Number</label>
+                    <input type="text" name="phone_number" id="phone_number"
+                        class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+
+                <button
+                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                    type="submit">
+                    Create User
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock content %}

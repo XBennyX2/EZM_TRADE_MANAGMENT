@@ -1,0 +1,220 @@
+<!-- Role-based Sidebar Navigation Component -->
+{% if user.is_authenticated %}
+
+    <!-- Admin Sidebar -->
+    {% if user.is_superuser or user.role == 'admin' %}
+    <ul>
+        <li class="sidebar-menu-item">
+            <a href="{% url 'admin_dashboard' %}">
+                <i class="bi bi-speedometer2"></i>
+                <span>Dashboard</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="{% url 'manage_users' %}">
+                <i class="bi bi-people"></i>
+                <span>User Management</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="{% url 'product_list' %}">
+                <i class="bi bi-box-seam"></i>
+                <span>Products</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="{% url 'stock_list' %}">
+                <i class="bi bi-boxes"></i>
+                <span>Stock Management</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="#">
+                <i class="bi bi-graph-up"></i>
+                <span>Analytics</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="#">
+                <i class="bi bi-gear"></i>
+                <span>System Settings</span>
+            </a>
+        </li>
+    </ul>
+
+    <!-- Head Manager Sidebar -->
+    {% elif user.role == 'head_manager' %}
+    <ul>
+        <li class="sidebar-menu-item">
+            <a href="{% url 'head_manager_page' %}">
+                <i class="bi bi-speedometer2"></i>
+                <span>Dashboard</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="{% url 'warehouse_list' %}">
+                <i class="bi bi-building"></i>
+                <span>Warehouse Management</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="{% url 'product_list' %}">
+                <i class="bi bi-box-seam"></i>
+                <span>Products</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="{% url 'supplier_list' %}">
+                <i class="bi bi-truck"></i>
+                <span>Suppliers</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="{% url 'purchase_order_list' %}">
+                <i class="bi bi-cart-check"></i>
+                <span>Purchase Orders</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="{% url 'showroom_list' %}">
+                <i class="bi bi-shop"></i>
+                <span>Store Manager Assignment</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="#">
+                <i class="bi bi-bar-chart"></i>
+                <span>Financial Dashboard</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="#">
+                <i class="bi bi-arrow-left-right"></i>
+                <span>Stock Transfer Approvals</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="#">
+                <i class="bi bi-graph-up-arrow"></i>
+                <span>Reports & Analytics</span>
+            </a>
+        </li>
+    </ul>
+
+    <!-- Store Manager Sidebar -->
+    {% elif user.role == 'store_manager' %}
+    <ul>
+        <li class="sidebar-menu-item">
+            <a href="{% url 'store_manager_page' %}">
+                <i class="bi bi-speedometer2"></i>
+                <span>Dashboard</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="{% url 'store_product_list' %}">
+                <i class="bi bi-box-seam"></i>
+                <span>Products</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="#">
+                <i class="bi bi-boxes"></i>
+                <span>Stock Management</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="{% url 'manage_cashiers' %}">
+                <i class="bi bi-people"></i>
+                <span>Manage Cashiers</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="#">
+                <i class="bi bi-receipt"></i>
+                <span>Sales Reports</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="#">
+                <i class="bi bi-arrow-up-right"></i>
+                <span>Stock Requests</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="#">
+                <i class="bi bi-graph-up"></i>
+                <span>Store Analytics</span>
+            </a>
+        </li>
+    </ul>
+
+    <!-- Cashier Sidebar -->
+    {% elif user.role == 'cashier' %}
+    <ul>
+        <li class="sidebar-menu-item">
+            <a href="{% url 'cashier_page' %}">
+                <i class="bi bi-speedometer2"></i>
+                <span>Dashboard</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="{% url 'cashier_dashboard' %}">
+                <i class="bi bi-cash-register"></i>
+                <span>Point of Sale</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="{% url 'initiate_order' %}">
+                <i class="bi bi-cart-plus"></i>
+                <span>New Sale</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="#">
+                <i class="bi bi-receipt"></i>
+                <span>Transaction History</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="#">
+                <i class="bi bi-box-seam"></i>
+                <span>Product Lookup</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="#">
+                <i class="bi bi-clock-history"></i>
+                <span>Daily Reports</span>
+            </a>
+        </li>
+    </ul>
+
+    <!-- Default/Customer Sidebar -->
+    {% else %}
+    <ul>
+        <li class="sidebar-menu-item">
+            <a href="{% url 'login' %}">
+                <i class="bi bi-house-door"></i>
+                <span>Home</span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="#">
+                <i class="bi bi-person"></i>
+                <span>Profile</span>
+            </a>
+        </li>
+    </ul>
+    {% endif %}
+
+{% else %}
+    <!-- Not authenticated sidebar -->
+    <ul>
+        <li class="sidebar-menu-item">
+            <a href="{% url 'login' %}">
+                <i class="bi bi-box-arrow-in-right"></i>
+                <span>Login</span>
+            </a>
+        </li>
+    </ul>
+{% endif %}

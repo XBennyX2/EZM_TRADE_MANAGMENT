@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+{% block title %}
+{% if object %}Edit Product{% else %}Add New Product{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Header -->
+            <div class="d-flex align-items-center mb-4">
+                <a href="{% if object %}{% url 'supplier_products' object.supplier.pk %}{% else %}{% url 'supplier_list' %}{% endif %}" 
+                   class="btn btn-outline-secondary me-3">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                <div>
+                    <h2 class="mb-0">
+                        <i class="bi bi-box-seam text-primary me-2"></i>
+                        {% if object %}Edit Product{% else %}Add New Product{% endif %}
+                    </h2>
+                    <p class="text-muted mb-0">
+                        {% if object %}
+                        Update product information and inventory details
+                        {% else %}
+                        Add a new product to the warehouse catalog
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Form Card -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-info-circle me-2"></i>Product Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <!-- Basic Product Information -->
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.product_id.id_for_label }}" class="form-label">
+                                    <i class="bi bi-hash me-1"></i>Product ID *
+                                </label>
+                                {{ form.product_id|add_class:"form-control" }}
+                                {% if form.product_id.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.product_id.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="{{ form.product_name.id_for_label }}" class="form-label">
+                                    <i class="bi bi-box me-1"></i>Product Name *
+                                </label>
+                                {{ form.product_name|add_class:"form-control" }}
+                                {% if form.product_name.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.product_name.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-6">
+                                <label for="{{ form.category.id_for_label }}" class="form-label">
+                                    <i class="bi bi-tags me-1"></i>Category *
+                                </label>
+                                {{ form.category|add_class:"form-select" }}
+                                {% if form.category.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.category.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="{{ form.supplier.id_for_label }}" class="form-label">
+                                    <i class="bi bi-truck me-1"></i>Supplier *
+                                </label>
+                                {{ form.supplier|add_class:"form-select" }}
+                                {% if form.supplier.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.supplier.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Inventory Information -->
+                        <hr class="my-4">
+                        <h6 class="text-primary mb-3">
+                            <i class="bi bi-clipboard-data me-2"></i>Inventory Information
+                        </h6>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="{{ form.quantity_in_stock.id_for_label }}" class="form-label">
+                                    <i class="bi bi-boxes me-1"></i>Current Stock *
+                                </label>
+                                {{ form.quantity_in_stock|add_class:"form-control" }}
+                                {% if form.quantity_in_stock.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.quantity_in_stock.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="{{ form.unit_price.id_for_label }}" class="form-label">
+                                    <i class="bi bi-currency-dollar me-1"></i>Unit Price *
+                                </label>
+                                {{ form.unit_price|add_class:"form-control" }}
+                                {% if form.unit_price.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.unit_price.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="{{ form.reorder_point.id_for_label }}" class="form-label">
+                                    <i class="bi bi-arrow-repeat me-1"></i>Reorder Point *
+                                </label>
+                                {{ form.reorder_point|add_class:"form-control" }}
+                                {% if form.reorder_point.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.reorder_point.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-6">
+                                <label for="{{ form.minimum_stock_level.id_for_label }}" class="form-label">
+                                    <i class="bi bi-dash-circle me-1"></i>Minimum Stock Level *
+                                </label>
+                                {{ form.minimum_stock_level|add_class:"form-control" }}
+                                {% if form.minimum_stock_level.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.minimum_stock_level.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="{{ form.maximum_stock_level.id_for_label }}" class="form-label">
+                                    <i class="bi bi-plus-circle me-1"></i>Maximum Stock Level *
+                                </label>
+                                {{ form.maximum_stock_level|add_class:"form-control" }}
+                                {% if form.maximum_stock_level.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.maximum_stock_level.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Product Details -->
+                        <hr class="my-4">
+                        <h6 class="text-primary mb-3">
+                            <i class="bi bi-info-square me-2"></i>Product Details
+                        </h6>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="{{ form.sku.id_for_label }}" class="form-label">
+                                    <i class="bi bi-upc me-1"></i>SKU
+                                </label>
+                                {{ form.sku|add_class:"form-control" }}
+                                {% if form.sku.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.sku.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="{{ form.barcode.id_for_label }}" class="form-label">
+                                    <i class="bi bi-upc-scan me-1"></i>Barcode
+                                </label>
+                                {{ form.barcode|add_class:"form-control" }}
+                                {% if form.barcode.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.barcode.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="{{ form.weight.id_for_label }}" class="form-label">
+                                    <i class="bi bi-speedometer me-1"></i>Weight (kg)
+                                </label>
+                                {{ form.weight|add_class:"form-control" }}
+                                {% if form.weight.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.weight.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-6">
+                                <label for="{{ form.dimensions.id_for_label }}" class="form-label">
+                                    <i class="bi bi-rulers me-1"></i>Dimensions
+                                </label>
+                                {{ form.dimensions|add_class:"form-control" }}
+                                {% if form.dimensions.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.dimensions.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="{{ form.warehouse_location.id_for_label }}" class="form-label">
+                                    <i class="bi bi-geo-alt me-1"></i>Warehouse Location
+                                </label>
+                                {{ form.warehouse_location|add_class:"form-control" }}
+                                {% if form.warehouse_location.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.warehouse_location.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Status -->
+                        <hr class="my-4">
+                        <div class="form-check">
+                            {{ form.is_active|add_class:"form-check-input" }}
+                            <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                <i class="bi bi-check-circle me-1"></i>Active Product
+                            </label>
+                            <div class="form-text">
+                                Inactive products will not be available for purchase orders
+                            </div>
+                        </div>
+                        {% if form.is_active.errors %}
+                        <div class="text-danger small mt-1">
+                            {{ form.is_active.errors.0 }}
+                        </div>
+                        {% endif %}
+
+                        <!-- Form Actions -->
+                        <div class="d-flex justify-content-between mt-4 pt-3 border-top">
+                            <a href="{% if object %}{% url 'supplier_products' object.supplier.pk %}{% else %}{% url 'supplier_list' %}{% endif %}" 
+                               class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-2"></i>
+                                {% if object %}Update Product{% else %}Create Product{% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

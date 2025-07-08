@@ -1,17 +1,39 @@
 <!-- This is the manage_users.html template -->
-{% extends 'base.html' %}
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
 {% block title %}Manage Users{% endblock %}
+{% block page_title %}User Management{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
 {% block content %}
-<div class="container py-5">
-  <div class="card shadow-sm border-0">
+<div class="container-fluid">
+  <!-- Header Section -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="ezm-card">
+        <div class="ezm-card-header">
+          <i class="bi bi-people me-2"></i>User Management
+        </div>
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <p class="mb-0">Manage system users, roles, and permissions.</p>
+            <a href="{% url 'create_user' %}" class="btn btn-ezm-primary">
+              <i class="bi bi-person-plus me-2"></i>Create User
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter/Search Form -->
+  <div class="ezm-card mb-4">
     <div class="card-body">
-      <h3 class="text-center text-primary mb-4">👥 User Management</h3>
-
-
-      <a href="{% url 'create_user' %}" class="btn btn-success mb-4">Create User</a>
-
-      <!-- Filter/Search Form -->
-      <form method="GET" class="row gy-2 gx-3 align-items-center mb-4">
+      <form method="GET" class="row gy-2 gx-3 align-items-center">
         <div class="col-md-4">
           <input type="text" name="search" value="{{ request.GET.search }}" class="form-control"
             placeholder="🔍 Search by name or username">
@@ -26,98 +48,101 @@
           </select>
         </div>
         <div class="col-md-4">
-          <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search"></i> Search</button>
+          <button type="submit" class="btn btn-ezm-primary w-100"><i class="bi bi-search"></i> Search</button>
         </div>
       </form>
-
-      <!-- Users Table -->
-      <div class="table-responsive">
-        <table class="table table-hover align-middle text-center">
-          <thead class="table-light">
-            <tr>
-              <th>#</th>
-              <th>Username</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for user in users %}
-            <tr>
-              <td>{{ forloop.counter0|add:page_obj.start_index }}</td>
-              <td>{{ user.username }}</td>
-              <td>{{ user.email }}</td>
-              <td><span class="badge bg-secondary">{{ user.get_role_display }}</span></td>
-              <td>
-                {% if user.is_active %}
-                <span class="badge bg-success">Active</span>
-                {% else %}
-                <span class="badge bg-danger">Inactive</span>
-                {% endif %}
-              </td>
-              <td>
-                <a href="{% url 'view_user_detail' user.id %}" class="btn btn-outline-info btn-sm">Details</a>
-                <a href="{% url 'toggle_user_status' user.id %}" class="btn btn-outline-warning btn-sm"
-                  onclick="return confirm('Are you sure you want to {% if user.is_active %}deactivate{% else %}activate{% endif %} this user?');">
-                  {% if user.is_active %}Deactivate{% else %}Activate{% endif %}
-                </a>
-                <a href="{% url 'change_user_role' user.id %}" class="btn btn-outline-secondary btn-sm">Change Role</a>
-              </td>
-            </tr>
-            {% empty %}
-            <tr>
-              <td colspan="7" class="text-muted">No users found.</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Pagination with total users count -->
-      <div class="d-flex justify-content-between align-items-center mt-4">
-        <!-- Total Users -->
-        <div class="text-muted">
-          Total Users: {{ total_users }}
-        </div>
-
-        <!-- Pagination Controls -->
-        <nav>
-          <ul class="pagination mb-0">
-            {% if page_obj.has_previous %}
-            <li class="page-item">
-              <a class="page-link"
-                href="?page={{ page_obj.previous_page_number }}&search={{ request.GET.search }}&role={{ request.GET.role }}">Previous</a>
-            </li>
-            {% else %}
-            <li class="page-item disabled"><span class="page-link">Previous</span></li>
-            {% endif %}
-
-            {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{num}}</span></li>
-            {% else %}
-            <li class="page-item">
-              <a class="page-link" href="?page={{ num }}&search={{ request.GET.search }}&role={{ request.GET.role }}">
-                {{num }}</a>
-            </li>
-            {% endif %}
-            {% endfor %}
-
-            {% if page_obj.has_next %}
-            <li class="page-item">
-              <a class="page-link"
-                href="?page={{ page_obj.next_page_number }}&search={{ request.GET.search }}&role={{ request.GET.role }}">Next</a>
-            </li>
-            {% else %}
-            <li class="page-item disabled"><span class="page-link">Next</span></li>
-            {% endif %}
-          </ul>
-        </nav>
-      </div>
-
     </div>
   </div>
+
+  <!-- Users Table -->
+  <div class="ezm-card">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle text-center mb-0">
+        <thead style="background: linear-gradient(90deg, var(--accent-teal), var(--accent-cyan)); color: var(--white);">
+          <tr>
+            <th>#</th>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+          <tr>
+            <td>{{ forloop.counter0|add:page_obj.start_index }}</td>
+            <td>{{ user.username }}</td>
+            <td>{{ user.email }}</td>
+            <td><span class="badge bg-secondary">{{ user.get_role_display }}</span></td>
+            <td>
+              {% if user.is_active %}
+              <span class="badge bg-success">Active</span>
+              {% else %}
+              <span class="badge bg-danger">Inactive</span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="{% url 'view_user_detail' user.id %}" class="btn btn-outline-info btn-sm">Details</a>
+              <a href="{% url 'toggle_user_status' user.id %}" class="btn btn-outline-warning btn-sm"
+                onclick="return confirm('Are you sure you want to {% if user.is_active %}deactivate{% else %}activate{% endif %} this user?');">
+                {% if user.is_active %}Deactivate{% else %}Activate{% endif %}
+              </a>
+              <a href="{% url 'change_user_role' user.id %}" class="btn btn-outline-secondary btn-sm">Change Role</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-muted">No users found.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination with total users count -->
+    <div class="d-flex justify-content-between align-items-center mt-4">
+      <!-- Total Users -->
+      <div class="text-muted">
+        Total Users: {{ total_users }}
+      </div>
+
+      <!-- Pagination Controls -->
+      <nav>
+        <ul class="pagination mb-0">
+          {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link"
+              href="?page={{ page_obj.previous_page_number }}&search={{ request.GET.search }}&role={{ request.GET.role }}">Previous</a>
+          </li>
+          {% else %}
+          <li class="page-item disabled"><span class="page-link">Previous</span></li>
+          {% endif %}
+
+          {% for num in page_obj.paginator.page_range %}
+          {% if page_obj.number == num %}
+          <li class="page-item active"><span class="page-link">{{num}}</span></li>
+          {% else %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ num }}&search={{ request.GET.search }}&role={{ request.GET.role }}">
+              {{num }}</a>
+          </li>
+          {% endif %}
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link"
+              href="?page={{ page_obj.next_page_number }}&search={{ request.GET.search }}&role={{ request.GET.role }}">Next</a>
+          </li>
+          {% else %}
+          <li class="page-item disabled"><span class="page-link">Next</span></li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+
+  </div>
+</div>
 </div>
 {% endblock %}

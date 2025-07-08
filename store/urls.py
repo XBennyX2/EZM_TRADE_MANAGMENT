@@ -32,4 +32,5 @@ urlpatterns = [
     path('manager/assign-cashier/<int:store_id>/', views.assign_cashier, name='assign_cashier_to_store'),
     path('manager/remove-cashier/<int:cashier_id>/', views.remove_cashier, name='remove_cashier'),
     path('manager/manage-cashiers/', views.manage_cashiers, name='manage_cashiers'),
+    path('products/', views.store_product_list, name='store_product_list'),
 ]

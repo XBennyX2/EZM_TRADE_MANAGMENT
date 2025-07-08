@@ -1202,3 +1202,15 @@ def manage_cashiers(request):
     }
 
     return render(request, 'store/manage_cashiers.html', context)
+
+
+@login_required
+def store_product_list(request):
+    """
+    List all products available in the store.
+    """
+    products = Product.objects.all()
+    context = {
+        'products': products
+    }
+    return render(request, 'store/product_list.html', context)

@@ -23,6 +23,8 @@ body {
     transition: margin-left 0.3s ease;
 }
 
+
+
 /* Sidebar Styles */
 .sidebar {
     position: fixed;
@@ -32,15 +34,10 @@ body {
     width: 280px;
     background: linear-gradient(180deg, var(--primary-dark) 0%, var(--secondary-dark) 100%);
     color: var(--white);
-    transform: translateX(0);
-    transition: transform 0.3s ease;
     z-index: 1000;
     overflow-y: auto;
+    overflow-x: hidden;
     box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-}
-
-.sidebar.collapsed {
-    transform: translateX(-280px);
 }
 
 .sidebar-header {
@@ -59,20 +56,7 @@ body {
     letter-spacing: 1px;
 }
 
-.sidebar-toggle {
-    background: none;
-    border: none;
-    color: var(--white);
-    font-size: 1.2rem;
-    cursor: pointer;
-    padding: 5px;
-    border-radius: 4px;
-    transition: background-color 0.3s ease;
-}
 
-.sidebar-toggle:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-}
 
 .sidebar-menu {
     padding: 20px 0;
@@ -121,17 +105,12 @@ body {
 /* Main Content Area */
 .main-content {
     margin-left: 280px;
-    transition: margin-left 0.3s ease;
     min-height: 100vh;
-}
-
-.main-content.expanded {
-    margin-left: 0;
 }
 
 /* Top Navigation Bar */
 .top-navbar {
-    background: linear-gradient(90deg, var(--secondary-dark) 0%, var(--primary-dark) 100%);
+    background: linear-gradient(180deg, var(--primary-dark) 0%, var(--secondary-dark) 100%);
     color: var(--white);
     padding: 15px 30px;
     display: flex;
@@ -148,22 +127,7 @@ body {
     align-items: center;
 }
 
-.mobile-toggle {
-    display: none;
-    background: none;
-    border: none;
-    color: var(--white);
-    font-size: 1.3rem;
-    cursor: pointer;
-    margin-right: 15px;
-    padding: 8px;
-    border-radius: 4px;
-    transition: background-color 0.3s ease;
-}
 
-.mobile-toggle:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-}
 
 .page-title {
     font-size: 1.4rem;
@@ -370,23 +334,19 @@ body {
     .sidebar {
         transform: translateX(-280px);
     }
-    
+
     .sidebar.show {
         transform: translateX(0);
     }
-    
+
     .main-content {
         margin-left: 0;
     }
-    
-    .mobile-toggle {
-        display: block;
-    }
-    
+
     .profile-info {
         display: none;
     }
-    
+
     .content-area {
         padding: 20px 15px;
     }

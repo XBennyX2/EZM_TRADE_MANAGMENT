@@ -13,3 +13,4 @@ class CustomUser(AbstractUser):
     store = models.ForeignKey('store.Store', on_delete=models.SET_NULL, null=True, blank=True) # Add this line
     is_first_login = models.BooleanField(default=True)
     phone_number = models.CharField(max_length=20, blank=True)
+    email = models.EmailField(unique=True)  # Make email unique

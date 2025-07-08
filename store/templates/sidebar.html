@@ -54,22 +54,6 @@
             </li>
         </ul>
     </div>
-    <div class="sidebar-footer">
-        <ul>
-            <li class="sidebar-menu-item">
-                <a href="#">
-                    <i class="bi bi-person-circle"></i>
-                    <span>Profile</span>
-                </a>
-            </li>
-            <li class="sidebar-menu-item">
-                <a href="{% url 'logout' %}">
-                    <i class="bi bi-box-arrow-left"></i>
-                    <span>Log out</span>
-                </a>
-            </li>
-        </ul>
-    </div>
 </div>
 <style>
     .sidebar {
@@ -83,7 +67,6 @@
         padding: 20px;
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
     }
 
     .sidebar-header {
@@ -132,32 +115,6 @@
     }
 
     .sidebar-menu i {
-        margin-right: 10px;
-    }
-
-    .sidebar-footer ul {
-        list-style: none;
-        padding: 0;
-    }
-
-    .sidebar-footer li {
-        margin-bottom: 10px;
-    }
-
-    .sidebar-footer a {
-        color: #fff;
-        display: flex;
-        align-items: center;
-        padding: 10px;
-        border-radius: 5px;
-        text-decoration: none;
-    }
-
-    .sidebar-footer a:hover {
-        background-color: #334155;
-    }
-
-    .sidebar-footer i {
         margin-right: 10px;
     }
 </style>

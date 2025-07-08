@@ -1,24 +1,37 @@
-{% extends 'base.html' %}
+{% extends 'base_sidebar.html' %}
 {% load widget_tweaks %}
+
 {% block title %}
 {% if object %}Edit Store{% else %}Add New Store{% endif %}
 {% endblock %}
 
+{% block page_title %}
+{% if object %}Edit Store{% else %}Add New Store{% endif %}
+{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
+<div class="content-area">
     <div class="row justify-content-center">
         <div class="col-lg-8">
             <!-- Header -->
-            <div class="d-flex align-items-center mb-4">
-                <a href="{% url 'showroom_list' %}" class="btn btn-outline-secondary me-3">
-                    <i class="bi bi-arrow-left"></i>
-                </a>
-                <div>
-                    <h2 class="mb-0">
-                        <i class="bi bi-shop text-primary me-2"></i>
-                        {% if object %}Edit Store{% else %}Add New Store{% endif %}
-                    </h2>
-                    <p class="text-muted mb-0">
+            <div class="ezm-card mb-4">
+                <div class="ezm-card-header">
+                    <div class="d-flex align-items-center">
+                        <a href="{% url 'showroom_list' %}" class="btn btn-outline-light me-3">
+                            <i class="bi bi-arrow-left"></i>
+                        </a>
+                        <div>
+                            <i class="bi bi-shop me-2"></i>
+                            {% if object %}Edit Store{% else %}Add New Store{% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">
                         {% if object %}
                         Update store information and manager assignment
                         {% else %}
@@ -32,11 +45,9 @@
                 {% csrf_token %}
 
                 <!-- Store Information -->
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">
-                            <i class="bi bi-info-circle me-2"></i>Store Information
-                        </h5>
+                <div class="ezm-card mb-4">
+                    <div class="ezm-card-header">
+                        <i class="bi bi-info-circle me-2"></i>Store Information
                     </div>
                     <div class="card-body">
                         <div class="row g-3">
@@ -88,11 +99,9 @@
 
                 <!-- Manager Assignment (only for edit) -->
                 {% if object %}
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-success text-white">
-                        <h5 class="mb-0">
-                            <i class="bi bi-person me-2"></i>Manager Assignment
-                        </h5>
+                <div class="ezm-card mb-4">
+                    <div class="ezm-card-header">
+                        <i class="bi bi-person me-2"></i>Manager Assignment
                     </div>
                     <div class="card-body">
                         <div class="row g-3">
@@ -132,28 +141,28 @@
 
                 <!-- Store Statistics (only for edit) -->
                 {% if object %}
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-info text-white">
-                        <h5 class="mb-0">
-                            <i class="bi bi-graph-up me-2"></i>Store Overview
-                        </h5>
+                <div class="ezm-card mb-4">
+                    <div class="ezm-card-header">
+                        <i class="bi bi-graph-up me-2"></i>Store Overview
                     </div>
                     <div class="card-body">
                         <div class="row text-center">
                             <div class="col-md-4">
                                 <div class="border-end">
-                                    <h4 class="text-primary">{{ object.stock_items.count|default:0 }}</h4>
+                                    <h4 style="color: var(--accent-cyan);">{{ object.stock_items.count|default:0 }}</h4>
                                     <small class="text-muted">Products in Stock</small>
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="border-end">
-                                    <h4 class="text-success">{{ object.storecashier_set.count|default:0 }}</h4>
+                                    <h4 style="color: var(--success);">{{ object.storecashier_set.count|default:0 }}
+                                    </h4>
                                     <small class="text-muted">Assigned Cashiers</small>
                                 </div>
                             </div>
                             <div class="col-md-4">
-                                <h4 class="text-warning">{{ object.financialrecord_set.count|default:0 }}</h4>
+                                <h4 style="color: var(--accent-teal);">{{ object.financialrecord_set.count|default:0 }}
+                                </h4>
                                 <small class="text-muted">Financial Records</small>
                             </div>
                         </div>
@@ -163,10 +172,10 @@
 
                 <!-- Form Actions -->
                 <div class="d-flex justify-content-between">
-                    <a href="{% url 'showroom_list' %}" class="btn btn-outline-secondary">
+                    <a href="{% url 'showroom_list' %}" class="btn btn-ezm-secondary">
                         <i class="bi bi-x-circle me-2"></i>Cancel
                     </a>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-ezm-primary">
                         <i class="bi bi-check-circle me-2"></i>
                         {% if object %}Update Store{% else %}Create Store{% endif %}
                     </button>
@@ -175,27 +184,25 @@
 
             <!-- Quick Actions (only for edit) -->
             {% if object %}
-            <div class="card shadow-sm mt-4">
-                <div class="card-header bg-light">
-                    <h6 class="mb-0">
+            <div class="ezm-card mt-4">
+                <div class="card-body">
+                    <h6 class="mb-3">
                         <i class="bi bi-lightning me-2"></i>Quick Actions
                     </h6>
-                </div>
-                <div class="card-body">
                     <div class="row g-2">
                         <div class="col-md-4">
-                            <a href="{% url 'showroom_detail' object.pk %}" class="btn btn-outline-info w-100">
+                            <a href="{% url 'showroom_detail' object.pk %}" class="btn btn-ezm-secondary w-100">
                                 <i class="bi bi-eye me-2"></i>View Details
                             </a>
                         </div>
                         <div class="col-md-4">
-                            <a href="#" class="btn btn-outline-success w-100"
+                            <a href="#" class="btn btn-ezm-secondary w-100"
                                 onclick="alert('Stock management coming soon!')">
                                 <i class="bi bi-boxes me-2"></i>Manage Stock
                             </a>
                         </div>
                         <div class="col-md-4">
-                            <a href="#" class="btn btn-outline-warning w-100" onclick="alert('Reports coming soon!')">
+                            <a href="#" class="btn btn-ezm-secondary w-100" onclick="alert('Reports coming soon!')">
                                 <i class="bi bi-graph-up me-2"></i>View Reports
                             </a>
                         </div>

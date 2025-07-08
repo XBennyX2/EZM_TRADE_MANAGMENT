@@ -1,24 +1,37 @@
-{% extends 'base.html' %}
+{% extends 'base_sidebar.html' %}
 {% load widget_tweaks %}
+
 {% block title %}
 {% if object %}Edit Store{% else %}Add New Store{% endif %}
 {% endblock %}
 
+{% block page_title %}
+{% if object %}Edit Store{% else %}Add New Store{% endif %}
+{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
+<div class="content-area">
     <div class="row justify-content-center">
         <div class="col-lg-8">
             <!-- Header -->
-            <div class="d-flex align-items-center mb-4">
-                <a href="{% url 'showroom_list' %}" class="btn btn-outline-secondary me-3">
-                    <i class="bi bi-arrow-left"></i>
-                </a>
-                <div>
-                    <h2 class="mb-0">
-                        <i class="bi bi-shop text-primary me-2"></i>
-                        {% if object %}Edit Store{% else %}Add New Store{% endif %}
-                    </h2>
-                    <p class="text-muted mb-0">
+            <div class="ezm-card mb-4">
+                <div class="ezm-card-header">
+                    <div class="d-flex align-items-center">
+                        <a href="{% url 'showroom_list' %}" class="btn btn-outline-light me-3">
+                            <i class="bi bi-arrow-left"></i>
+                        </a>
+                        <div>
+                            <i class="bi bi-shop me-2"></i>
+                            {% if object %}Edit Store{% else %}Add New Store{% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">
                         {% if object %}
                         Update store information and manager assignment
                         {% else %}

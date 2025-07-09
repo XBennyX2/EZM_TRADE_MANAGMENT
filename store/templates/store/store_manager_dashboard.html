@@ -1,0 +1,722 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Store Manager Dashboard - {{ user_store.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-0">Store Manager Dashboard</h1>
+          <p class="text-muted">{{ user_store.name }} - {{ user_store.location }}</p>
+        </div>
+        <div>
+          <span class="badge bg-primary fs-6">{{ user.get_full_name }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Statistics Cards -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card bg-primary text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div>
+              <h4 class="card-title">${{ stats.total_stock_value|floatformat:2 }}</h4>
+              <p class="card-text">Total Stock Value</p>
+            </div>
+            <div class="align-self-center">
+              <i class="bi bi-currency-dollar fs-1"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-3">
+      <div class="card bg-success text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div>
+              <h4 class="card-title">{{ stats.total_stock_items }}</h4>
+              <p class="card-text">Stock Items</p>
+            </div>
+            <div class="align-self-center">
+              <i class="bi bi-box-seam fs-1"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-3">
+      <div class="card bg-warning text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div>
+              <h4 class="card-title">{{ stats.low_stock_items }}</h4>
+              <p class="card-text">Low Stock Alerts</p>
+            </div>
+            <div class="align-self-center">
+              <i class="bi bi-exclamation-triangle fs-1"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-3">
+      <div class="card bg-danger text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div>
+              <h4 class="card-title">{{ stats.expiring_soon }}</h4>
+              <p class="card-text">Expiring Soon</p>
+            </div>
+            <div class="align-self-center">
+              <i class="bi bi-calendar-x fs-1"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content Tabs -->
+  <div class="row">
+    <div class="col-12">
+      <ul class="nav nav-tabs" id="managerTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="stock-tab" data-bs-toggle="tab" data-bs-target="#stock" type="button" role="tab">
+            <i class="bi bi-box-seam me-2"></i>Stock Management
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="sales-tab" data-bs-toggle="tab" data-bs-target="#sales" type="button" role="tab">
+            <i class="bi bi-graph-up me-2"></i>Sales & Transactions
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="cashiers-tab" data-bs-toggle="tab" data-bs-target="#cashiers" type="button" role="tab">
+            <i class="bi bi-people me-2"></i>Cashier Management
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="transfers-tab" data-bs-toggle="tab" data-bs-target="#transfers" type="button" role="tab">
+            <i class="bi bi-arrow-left-right me-2"></i>Stock Transfers
+          </button>
+        </li>
+      </ul>
+
+      <div class="tab-content" id="managerTabsContent">
+        <!-- Stock Management Tab -->
+        <div class="tab-pane fade show active" id="stock" role="tabpanel">
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="mb-0">Store Stock (FIFO Ordered)</h5>
+              <div>
+                <a href="{% url 'stock_create' %}" class="btn btn-primary btn-sm">
+                  <i class="bi bi-plus-circle me-1"></i>Add Stock
+                </a>
+                <a href="{% url 'stock_list' %}" class="btn btn-outline-primary btn-sm">
+                  <i class="bi bi-list me-1"></i>View All
+                </a>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th>Quantity</th>
+                      <th>Price</th>
+                      <th>FIFO Info</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for stock in store_stock %}
+                    <tr class="{% if stock.quantity <= stock.low_stock_threshold %}table-warning{% endif %}">
+                      <td>
+                        <strong>{{ stock.product.name }}</strong>
+                        {% if stock.product.batch_number %}
+                          <br><small class="text-muted">Batch: {{ stock.product.batch_number }}</small>
+                        {% endif %}
+                      </td>
+                      <td>
+                        <span class="badge {% if stock.quantity <= stock.low_stock_threshold %}bg-warning{% else %}bg-success{% endif %}">
+                          {{ stock.quantity }}
+                        </span>
+                      </td>
+                      <td>${{ stock.selling_price }}</td>
+                      <td>
+                        {% if stock.product.expiry_date %}
+                          {% now "Y-m-d" as today %}
+                          {% if stock.product.expiry_date|date:"Y-m-d" <= today|add_days:7 %}
+                            <span class="badge bg-danger">⚠️ Expires {{ stock.product.expiry_date|date:"M d" }}</span>
+                          {% elif stock.product.expiry_date|date:"Y-m-d" <= today|add_days:30 %}
+                            <span class="badge bg-warning">⏰ Expires {{ stock.product.expiry_date|date:"M d" }}</span>
+                          {% else %}
+                            <small class="text-muted">Expires: {{ stock.product.expiry_date|date:"M d, Y" }}</small>
+                          {% endif %}
+                        {% endif %}
+                        {% if stock.received_date %}
+                          <br><small class="text-info">📅 Received: {{ stock.received_date|date:"M d" }}</small>
+                        {% endif %}
+                      </td>
+                      <td>
+                        {% if stock.quantity <= stock.low_stock_threshold %}
+                          <span class="badge bg-warning">Low Stock</span>
+                        {% elif stock.quantity == 0 %}
+                          <span class="badge bg-danger">Out of Stock</span>
+                        {% else %}
+                          <span class="badge bg-success">In Stock</span>
+                        {% endif %}
+                      </td>
+                      <td>
+                        <a href="{% url 'stock_update' stock.pk %}" class="btn btn-sm btn-outline-primary">
+                          <i class="bi bi-pencil"></i>
+                        </a>
+                        <button class="btn btn-sm btn-outline-warning" onclick="requestStockTransfer({{ stock.product.id }}, '{{ stock.product.name }}')">
+                          <i class="bi bi-arrow-right"></i>
+                        </button>
+                      </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                      <td colspan="6" class="text-center text-muted">No stock items found</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sales & Transactions Tab -->
+        <div class="tab-pane fade" id="sales" role="tabpanel">
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="mb-0">Recent Transactions (Last 30 Days)</h5>
+              <div>
+                <span class="badge bg-info">Today: {{ stats.today_sales }} sales</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Receipt #</th>
+                      <th>Customer</th>
+                      <th>Amount</th>
+                      <th>Payment Method</th>
+                      <th>Cashier</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for transaction in recent_transactions %}
+                    <tr>
+                      <td>{{ transaction.created_at|date:"M d, Y H:i" }}</td>
+                      <td>
+                        {% if transaction.receipt %}
+                          <a href="{% url 'view_receipt' transaction.receipt.id %}" class="text-decoration-none">
+                            #{{ transaction.receipt.id }}
+                          </a>
+                        {% else %}
+                          N/A
+                        {% endif %}
+                      </td>
+                      <td>{{ transaction.customer_name }}</td>
+                      <td>${{ transaction.total_amount }}</td>
+                      <td>
+                        <span class="badge bg-secondary">{{ transaction.payment_method }}</span>
+                      </td>
+                      <td>{{ transaction.cashier.get_full_name }}</td>
+                      <td>
+                        {% if transaction.receipt %}
+                          <a href="{% url 'view_receipt' transaction.receipt.id %}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye"></i>
+                          </a>
+                        {% endif %}
+                      </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                      <td colspan="7" class="text-center text-muted">No recent transactions</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cashier Management Tab -->
+        <div class="tab-pane fade" id="cashiers" role="tabpanel">
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="mb-0">Store Cashiers</h5>
+              <div>
+                <span class="badge bg-success">Active: {{ stats.active_cashiers }}</span>
+                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#assignCashierModal">
+                  <i class="bi bi-person-plus me-1"></i>Assign Cashier
+                </button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Phone</th>
+                      <th>Status</th>
+                      <th>Last Login</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for cashier in store_cashiers %}
+                    <tr>
+                      <td>{{ cashier.get_full_name }}</td>
+                      <td>{{ cashier.email }}</td>
+                      <td>{{ cashier.phone_number|default:"N/A" }}</td>
+                      <td>
+                        {% if cashier.is_active %}
+                          <span class="badge bg-success">Active</span>
+                        {% else %}
+                          <span class="badge bg-danger">Inactive</span>
+                        {% endif %}
+                      </td>
+                      <td>
+                        {% if cashier.last_login %}
+                          {{ cashier.last_login|date:"M d, Y H:i" }}
+                        {% else %}
+                          Never
+                        {% endif %}
+                      </td>
+                      <td>
+                        {% if cashier.is_active %}
+                          <button class="btn btn-sm btn-outline-warning" onclick="toggleCashierStatus({{ cashier.id }}, false)">
+                            <i class="bi bi-pause-circle"></i> Deactivate
+                          </button>
+                        {% else %}
+                          <button class="btn btn-sm btn-outline-success" onclick="toggleCashierStatus({{ cashier.id }}, true)">
+                            <i class="bi bi-play-circle"></i> Activate
+                          </button>
+                        {% endif %}
+                        <button class="btn btn-sm btn-outline-danger" onclick="removeCashier({{ cashier.id }})">
+                          <i class="bi bi-person-dash"></i> Remove
+                        </button>
+                      </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                      <td colspan="6" class="text-center text-muted">No cashiers assigned</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stock Transfers Tab -->
+        <div class="tab-pane fade" id="transfers" role="tabpanel">
+          <div class="row">
+            <!-- Outgoing Requests -->
+            <div class="col-md-6">
+              <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <h6 class="mb-0">My Requests</h6>
+                  <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#stockRequestModal">
+                    <i class="bi bi-plus-circle me-1"></i>New Request
+                  </button>
+                </div>
+                <div class="card-body">
+                  {% for request in outgoing_requests %}
+                  <div class="border-bottom pb-2 mb-2">
+                    <div class="d-flex justify-content-between">
+                      <strong>{{ request.product.name }}</strong>
+                      <span class="badge 
+                        {% if request.status == 'pending' %}bg-warning
+                        {% elif request.status == 'approved' %}bg-success
+                        {% elif request.status == 'declined' %}bg-danger
+                        {% else %}bg-secondary{% endif %}">
+                        {{ request.get_status_display }}
+                      </span>
+                    </div>
+                    <small class="text-muted">
+                      Qty: {{ request.quantity_requested }} | 
+                      {{ request.created_at|date:"M d, H:i" }}
+                    </small>
+                    {% if request.target_store %}
+                      <br><small>To: {{ request.target_store.name }}</small>
+                    {% else %}
+                      <br><small>To: Warehouse</small>
+                    {% endif %}
+                  </div>
+                  {% empty %}
+                  <p class="text-muted text-center">No outgoing requests</p>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+
+            <!-- Incoming Requests -->
+            <div class="col-md-6">
+              <div class="card">
+                <div class="card-header">
+                  <h6 class="mb-0">Incoming Requests</h6>
+                </div>
+                <div class="card-body">
+                  {% for request in incoming_requests %}
+                  <div class="border-bottom pb-2 mb-2">
+                    <div class="d-flex justify-content-between">
+                      <strong>{{ request.product.name }}</strong>
+                      <div>
+                        <button class="btn btn-sm btn-success" onclick="approveRequest({{ request.id }})">
+                          <i class="bi bi-check"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="declineRequest({{ request.id }})">
+                          <i class="bi bi-x"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <small class="text-muted">
+                      Qty: {{ request.quantity_requested }} | 
+                      From: {{ request.requesting_store.name }} |
+                      {{ request.created_at|date:"M d, H:i" }}
+                    </small>
+                    {% if request.reason %}
+                      <br><small class="text-info">{{ request.reason }}</small>
+                    {% endif %}
+                  </div>
+                  {% empty %}
+                  <p class="text-muted text-center">No pending requests</p>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Stock Request Modal -->
+<div class="modal fade" id="stockRequestModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Request Stock Transfer</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="stockRequestForm">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label for="productSelect" class="form-label">Product</label>
+            <select class="form-select" id="productSelect" name="product_id" required>
+              <option value="">Select a product...</option>
+              {% for stock in store_stock %}
+                <option value="{{ stock.product.id }}">{{ stock.product.name }} (Current: {{ stock.quantity }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="quantityInput" class="form-label">Quantity Needed</label>
+            <input type="number" class="form-control" id="quantityInput" name="quantity" min="1" required>
+          </div>
+          <div class="mb-3">
+            <label for="prioritySelect" class="form-label">Priority</label>
+            <select class="form-select" id="prioritySelect" name="priority">
+              <option value="low">Low</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="reasonInput" class="form-label">Reason</label>
+            <textarea class="form-control" id="reasonInput" name="reason" rows="3" required
+                      placeholder="Explain why you need this stock transfer..."></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="submitStockRequest()">Submit Request</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Assign Cashier Modal -->
+<div class="modal fade" id="assignCashierModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Assign Cashier to Store</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="assignCashierForm">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label for="cashierSelect" class="form-label">Available Cashiers</label>
+            <select class="form-select" id="cashierSelect" name="cashier_id" required>
+              <option value="">Loading available cashiers...</option>
+            </select>
+          </div>
+          <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            Only unassigned cashiers will be shown in the list.
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="assignCashier()">Assign Cashier</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Get CSRF token
+const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+// Submit stock request
+function submitStockRequest() {
+    const form = document.getElementById('stockRequestForm');
+    const formData = new FormData(form);
+
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    fetch('/stores/stock-transfer-request/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Stock transfer request submitted successfully!');
+            bootstrap.Modal.getInstance(document.getElementById('stockRequestModal')).hide();
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while submitting the request.');
+    });
+}
+
+// Toggle cashier status
+function toggleCashierStatus(cashierId, activate) {
+    const action = activate ? 'activate' : 'deactivate';
+
+    if (confirm(`Are you sure you want to ${action} this cashier?`)) {
+        fetch('/stores/toggle-cashier-status/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                cashier_id: cashierId,
+                activate: activate
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Cashier ${action}d successfully!`);
+                location.reload();
+            } else {
+                alert('Error: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred.');
+        });
+    }
+}
+
+// Remove cashier from store
+function removeCashier(cashierId) {
+    if (confirm('Are you sure you want to remove this cashier from your store?')) {
+        fetch('/stores/remove-cashier/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                cashier_id: cashierId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Cashier removed successfully!');
+                location.reload();
+            } else {
+                alert('Error: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred.');
+        });
+    }
+}
+
+// Approve stock transfer request
+function approveRequest(requestId) {
+    if (confirm('Are you sure you want to approve this stock transfer request?')) {
+        fetch('/stores/approve-stock-request/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                request_id: requestId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Request approved successfully!');
+                location.reload();
+            } else {
+                alert('Error: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred.');
+        });
+    }
+}
+
+// Decline stock transfer request
+function declineRequest(requestId) {
+    const reason = prompt('Please provide a reason for declining this request:');
+    if (reason !== null) {
+        fetch('/stores/decline-stock-request/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                request_id: requestId,
+                reason: reason
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Request declined successfully!');
+                location.reload();
+            } else {
+                alert('Error: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred.');
+        });
+    }
+}
+
+// Load available cashiers when modal opens
+document.getElementById('assignCashierModal').addEventListener('show.bs.modal', function() {
+    fetch('/stores/available-cashiers/')
+    .then(response => response.json())
+    .then(data => {
+        const select = document.getElementById('cashierSelect');
+        select.innerHTML = '<option value="">Select a cashier...</option>';
+
+        data.cashiers.forEach(cashier => {
+            const option = document.createElement('option');
+            option.value = cashier.id;
+            option.textContent = `${cashier.first_name} ${cashier.last_name} (${cashier.email})`;
+            select.appendChild(option);
+        });
+    })
+    .catch(error => {
+        console.error('Error loading cashiers:', error);
+        document.getElementById('cashierSelect').innerHTML = '<option value="">Error loading cashiers</option>';
+    });
+});
+
+// Assign cashier to store
+function assignCashier() {
+    const form = document.getElementById('assignCashierForm');
+    const formData = new FormData(form);
+
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    fetch('/stores/assign-cashier/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Cashier assigned successfully!');
+            bootstrap.Modal.getInstance(document.getElementById('assignCashierModal')).hide();
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while assigning the cashier.');
+    });
+}
+
+// Request stock transfer for specific product
+function requestStockTransfer(productId, productName) {
+    document.getElementById('productSelect').value = productId;
+    document.getElementById('reasonInput').value = `Need more stock for ${productName}`;
+    new bootstrap.Modal(document.getElementById('stockRequestModal')).show();
+}
+</script>
+{% endblock %}

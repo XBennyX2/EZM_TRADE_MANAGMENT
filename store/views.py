@@ -386,7 +386,7 @@ class ShowroomDeleteView(LoginRequiredMixin, StoreOwnerMixin, DeleteView):
 @login_required
 def cashier_dashboard(request):
     """
-    Enhanced cashier dashboard with products categorized by batch and expiry status
+    Enhanced cashier dashboard with FIFO-ordered products for optimal inventory rotation
     """
     if request.user.role != 'cashier':
         messages.error(request, "Access denied. Cashier role required.")
@@ -397,25 +397,59 @@ def cashier_dashboard(request):
         return redirect('cashier_page')
 
     from django.utils import timezone
-    from django.db import models
     from collections import defaultdict
 
-    # Get store's available products (not expired and in stock)
     current_date = timezone.now().date()
 
-    # Get all stock for this store - let's be more explicit about the query
-    available_products = Stock.objects.select_related('product').filter(
-        store=request.user.store
-    ).filter(
-        quantity__gt=0
-    ).filter(
-        models.Q(product__expiry_date__isnull=True) |
-        models.Q(product__expiry_date__gt=current_date)
-    ).order_by('product__batch_number', 'product__expiry_date', 'product__name')
+    # FIFO Implementation: Get all stock including expired items (as per requirement)
+    # Sort by: expiry_date (ascending), batch_number (ascending), product name
+    # Note: Advanced FIFO fields will be added in future migration
+    all_stock = Stock.objects.select_related('product').filter(
+        store=request.user.store,
+        quantity__gt=0  # Only show items in stock
+    ).order_by(
+        'product__expiry_date',  # Expiring items first (nulls last)
+        'product__batch_number',  # Batch order
+        'product__name'  # Product name for consistency
+    )
 
-    # Group products by batch number
+    # Categorize products for display
+    fifo_products = []
+    sell_first_products = []  # Expiring within 30 days
+    regular_products = []
+
+    for stock in all_stock:
+        # Add FIFO metadata to stock object
+        stock.is_expired = False
+        stock.days_until_expiry = None
+        stock.fifo_priority = 'normal'
+
+        # Add basic FIFO-specific attributes (without database fields)
+        stock.days_in_stock = 0  # Will be calculated when FIFO fields are available
+        stock.is_aging = False
+        stock.effective_received_date = None
+
+        if stock.product.expiry_date:
+            days_until_expiry = (stock.product.expiry_date - current_date).days
+            stock.days_until_expiry = days_until_expiry
+
+            if days_until_expiry <= 0:
+                stock.fifo_priority = 'expired'
+                stock.is_expired = True
+            elif days_until_expiry <= 30:
+                stock.fifo_priority = 'sell_first'
+                sell_first_products.append(stock)
+            else:
+                stock.fifo_priority = 'normal'
+                regular_products.append(stock)
+        else:
+            regular_products.append(stock)
+
+        fifo_products.append(stock)
+
+    # Group products by batch for organized display
     products_by_batch = defaultdict(list)
-    for stock in available_products:
+    for stock in fifo_products:
         batch_key = stock.product.batch_number or 'No Batch'
         products_by_batch[batch_key].append(stock)
 
@@ -425,24 +459,28 @@ def cashier_dashboard(request):
         transaction_type='sale'
     ).order_by('-timestamp')[:5]
 
-    # Add some debug information for troubleshooting
+    # Statistics for dashboard
     total_stock_items = Stock.objects.filter(store=request.user.store).count()
     out_of_stock_items = Stock.objects.filter(store=request.user.store, quantity=0).count()
     expired_items = Stock.objects.filter(
         store=request.user.store,
         product__expiry_date__lte=current_date
-    ).count() if current_date else 0
+    ).exclude(quantity=0).count()
 
     context = {
+        'fifo_products': fifo_products,
+        'sell_first_products': sell_first_products,
+        'regular_products': regular_products,
         'products_by_batch': dict(products_by_batch),
         'recent_transactions': recent_transactions,
         'store': request.user.store,
         'current_date': current_date,
         'debug_stats': {
             'total_stock_items': total_stock_items,
-            'available_products_count': len(available_products),
+            'available_products_count': len(fifo_products),
             'out_of_stock_items': out_of_stock_items,
             'expired_items': expired_items,
+            'sell_first_count': len(sell_first_products),
         }
     }
 
@@ -856,8 +894,11 @@ def generate_receipt_pdf(request, receipt_id):
         # Calculate breakdown
         subtotal_before_tax = sum(item.quantity * item.price_at_time_of_sale for item in order_items)
 
-        # Calculate tax (5% of total)
-        tax_amount = receipt.total_amount * 0.05 / 1.05  # Reverse calculate tax from total
+        # Calculate tax (5% of total) - convert to Decimal for proper calculation
+        from decimal import Decimal
+        tax_rate = Decimal('0.05')
+        tax_divisor = Decimal('1.05')
+        tax_amount = receipt.total_amount * tax_rate / tax_divisor  # Reverse calculate tax from total
         subtotal = receipt.total_amount - tax_amount
 
         # Add subtotal to each item for template
@@ -881,16 +922,68 @@ def generate_receipt_pdf(request, receipt_id):
         # Render HTML template
         receipt_html = render_to_string('store/receipt_pdf_template.html', context)
 
-        # Generate PDF using weasyprint
-        from weasyprint import HTML
-        pdf = HTML(string=receipt_html).write_pdf()
+        # Generate PDF using weasyprint with error handling
+        try:
+            from weasyprint import HTML, CSS
+            from weasyprint.text.fonts import FontConfiguration
 
-        response = HttpResponse(pdf, content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="receipt_{receipt_id}.pdf"'
-        return response
+            # Create font configuration for better PDF rendering
+            font_config = FontConfiguration()
+
+            # Add basic CSS for better PDF formatting
+            css = CSS(string='''
+                @page {
+                    size: A4;
+                    margin: 1cm;
+                }
+                body {
+                    font-family: Arial, sans-serif;
+                    font-size: 12px;
+                    line-height: 1.4;
+                }
+                .header {
+                    text-align: center;
+                    margin-bottom: 20px;
+                }
+                .store-name {
+                    font-size: 18px;
+                    font-weight: bold;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                }
+                th, td {
+                    padding: 8px;
+                    text-align: left;
+                    border-bottom: 1px solid #ddd;
+                }
+                .total-line {
+                    font-weight: bold;
+                }
+            ''', font_config=font_config)
+
+            # Generate PDF
+            html_doc = HTML(string=receipt_html)
+            pdf = html_doc.write_pdf(stylesheets=[css], font_config=font_config)
+
+            response = HttpResponse(pdf, content_type='application/pdf')
+            response['Content-Disposition'] = f'inline; filename="receipt_{receipt_id}.pdf"'
+            return response
+
+        except ImportError:
+            # Fallback: If weasyprint is not available, return HTML view
+            messages.warning(request, "PDF generation not available. Showing receipt in browser.")
+            return HttpResponse(receipt_html, content_type='text/html')
+
+        except Exception as pdf_error:
+            print(f"PDF Generation Error: {str(pdf_error)}")
+            # Fallback: Return HTML view if PDF generation fails
+            messages.warning(request, f"PDF generation failed: {str(pdf_error)}. Showing receipt in browser.")
+            return HttpResponse(receipt_html, content_type='text/html')
 
     except Exception as e:
-        print(f"PDF Generation Error: {str(e)}")  # Debug print
+        print(f"Receipt Generation Error: {str(e)}")  # Debug print
         import traceback
         traceback.print_exc()  # Print full traceback
         messages.error(request, f"Error generating receipt: {str(e)}")
@@ -1010,10 +1103,60 @@ def email_receipt(request, receipt_id):
             'payment_method': transaction_obj.payment_type,
         }
 
-        # Generate PDF
+        # Generate PDF with error handling
         receipt_html = render_to_string('store/receipt_pdf_template.html', context)
-        from weasyprint import HTML
-        pdf = HTML(string=receipt_html).write_pdf()
+        pdf = None
+
+        try:
+            from weasyprint import HTML, CSS
+            from weasyprint.text.fonts import FontConfiguration
+
+            # Create font configuration for better PDF rendering
+            font_config = FontConfiguration()
+
+            # Add basic CSS for email PDF
+            css = CSS(string='''
+                @page {
+                    size: A4;
+                    margin: 1cm;
+                }
+                body {
+                    font-family: Arial, sans-serif;
+                    font-size: 12px;
+                    line-height: 1.4;
+                }
+                .header {
+                    text-align: center;
+                    margin-bottom: 20px;
+                }
+                .store-name {
+                    font-size: 18px;
+                    font-weight: bold;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                }
+                th, td {
+                    padding: 8px;
+                    text-align: left;
+                    border-bottom: 1px solid #ddd;
+                }
+                .total-line {
+                    font-weight: bold;
+                }
+            ''', font_config=font_config)
+
+            # Generate PDF
+            html_doc = HTML(string=receipt_html)
+            pdf = html_doc.write_pdf(stylesheets=[css], font_config=font_config)
+
+        except ImportError:
+            print("WeasyPrint not available for PDF generation")
+            pdf = None
+        except Exception as pdf_error:
+            print(f"PDF generation failed: {pdf_error}")
+            pdf = None
 
         # Send email
         from django.core.mail import EmailMessage
@@ -1040,34 +1183,69 @@ Best regards,
 Phone: {transaction_obj.store.phone_number}
         """.strip()
 
+        # Create email message
         email = EmailMessage(
             subject=subject,
             body=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@store.com'),
             to=[customer_email],
         )
 
-        # Attach PDF
-        email.attach(
-            f'receipt_{receipt.id}.pdf',
-            pdf,
-            'application/pdf'
-        )
+        # Attach PDF if available, otherwise send HTML receipt
+        if pdf:
+            email.attach(
+                f'receipt_{receipt.id}.pdf',
+                pdf,
+                'application/pdf'
+            )
+        else:
+            # Fallback: attach HTML receipt if PDF generation failed
+            email.attach(
+                f'receipt_{receipt.id}.html',
+                receipt_html.encode('utf-8'),
+                'text/html'
+            )
 
-        # Send email in background thread
-        from threading import Thread
-        def send_email():
-            try:
-                email.send()
-            except Exception as e:
-                print(f"Failed to send email: {e}")
+        # Send email with comprehensive error handling
+        email_sent = False
+        error_message = None
 
-        Thread(target=send_email).start()
+        try:
+            # Check if email backend is configured
+            if not hasattr(settings, 'EMAIL_BACKEND') or not settings.EMAIL_BACKEND:
+                # Use console backend for development
+                from django.core.mail import get_connection
+                connection = get_connection('django.core.mail.backends.console.EmailBackend')
+                email.connection = connection
 
-        return JsonResponse({
-            'success': True,
-            'message': f'Receipt has been sent to {customer_email}'
-        })
+            # Send email synchronously for better error handling
+            email.send()
+            email_sent = True
+
+        except Exception as email_error:
+            error_message = str(email_error)
+            print(f"Failed to send email: {email_error}")
+
+            # Try alternative: save email content to session for manual sending
+            request.session[f'pending_email_{receipt.id}'] = {
+                'to': customer_email,
+                'subject': subject,
+                'body': message,
+                'receipt_html': receipt_html,
+                'timestamp': transaction_obj.timestamp.isoformat()
+            }
+
+        if email_sent:
+            return JsonResponse({
+                'success': True,
+                'message': f'Receipt has been sent to {customer_email}'
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'message': f'Email could not be sent: {error_message}. Receipt saved for manual sending.',
+                'fallback': True
+            })
 
     except Exception as e:
         return JsonResponse({'error': f'Failed to send email: {str(e)}'}, status=500)

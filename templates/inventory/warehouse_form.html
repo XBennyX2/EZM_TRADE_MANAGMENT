@@ -1,0 +1,254 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+{% block title %}
+{% if object %}Edit Warehouse{% else %}Add New Warehouse{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Header -->
+            <div class="d-flex align-items-center mb-4">
+                <a href="{% url 'warehouse_list' %}" class="btn btn-outline-secondary me-3">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                <div>
+                    <h2 class="mb-0">
+                        <i class="bi bi-building text-primary me-2"></i>
+                        {% if object %}Edit Warehouse{% else %}Add New Warehouse{% endif %}
+                    </h2>
+                    <p class="text-muted mb-0">
+                        {% if object %}
+                        Update warehouse information and settings
+                        {% else %}
+                        Add a new warehouse location to the system
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+
+            <form method="post" novalidate>
+                {% csrf_token %}
+                
+                <!-- Basic Information -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-info-circle me-2"></i>Basic Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.warehouse_id.id_for_label }}" class="form-label">
+                                    <i class="bi bi-hash me-1"></i>Warehouse ID *
+                                </label>
+                                {{ form.warehouse_id|add_class:"form-control" }}
+                                {% if form.warehouse_id.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.warehouse_id.errors.0 }}
+                                </div>
+                                {% endif %}
+                                <div class="form-text">Unique identifier for the warehouse</div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="{{ form.name.id_for_label }}" class="form-label">
+                                    <i class="bi bi-building me-1"></i>Warehouse Name *
+                                </label>
+                                {{ form.name|add_class:"form-control" }}
+                                {% if form.name.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.name.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-6">
+                                <label for="{{ form.manager.id_for_label }}" class="form-label">
+                                    <i class="bi bi-person me-1"></i>Warehouse Manager
+                                </label>
+                                {{ form.manager|add_class:"form-select" }}
+                                {% if form.manager.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.manager.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="{{ form.capacity.id_for_label }}" class="form-label">
+                                    <i class="bi bi-boxes me-1"></i>Storage Capacity
+                                </label>
+                                {{ form.capacity|add_class:"form-control" }}
+                                {% if form.capacity.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.capacity.errors.0 }}
+                                </div>
+                                {% endif %}
+                                <div class="form-text">Maximum storage capacity in units</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Location Information -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-geo-alt me-2"></i>Location Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label for="{{ form.address.id_for_label }}" class="form-label">
+                                    <i class="bi bi-house me-1"></i>Address *
+                                </label>
+                                {{ form.address|add_class:"form-control" }}
+                                {% if form.address.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.address.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-4">
+                                <label for="{{ form.city.id_for_label }}" class="form-label">
+                                    <i class="bi bi-building me-1"></i>City
+                                </label>
+                                {{ form.city|add_class:"form-control" }}
+                                {% if form.city.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.city.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="{{ form.state.id_for_label }}" class="form-label">
+                                    <i class="bi bi-map me-1"></i>State/Province
+                                </label>
+                                {{ form.state|add_class:"form-control" }}
+                                {% if form.state.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.state.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="{{ form.postal_code.id_for_label }}" class="form-label">
+                                    <i class="bi bi-mailbox me-1"></i>Postal Code
+                                </label>
+                                {{ form.postal_code|add_class:"form-control" }}
+                                {% if form.postal_code.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.postal_code.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contact Information -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-telephone me-2"></i>Contact Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.phone.id_for_label }}" class="form-label">
+                                    <i class="bi bi-telephone me-1"></i>Phone Number
+                                </label>
+                                {{ form.phone|add_class:"form-control" }}
+                                {% if form.phone.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.phone.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="{{ form.email.id_for_label }}" class="form-label">
+                                    <i class="bi bi-envelope me-1"></i>Email Address
+                                </label>
+                                {{ form.email|add_class:"form-control" }}
+                                {% if form.email.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.email.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Settings -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">
+                            <i class="bi bi-gear me-2"></i>Settings
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="form-check">
+                                    {{ form.is_active|add_class:"form-check-input" }}
+                                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                        <i class="bi bi-check-circle me-1"></i>Active Warehouse
+                                    </label>
+                                    {% if form.is_active.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.is_active.errors.0 }}
+                                    </div>
+                                    {% endif %}
+                                    <div class="form-text">Uncheck to temporarily disable this warehouse</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if form.description %}
+                        <div class="row g-3 mt-2">
+                            <div class="col-12">
+                                <label for="{{ form.description.id_for_label }}" class="form-label">
+                                    <i class="bi bi-chat-text me-1"></i>Description
+                                </label>
+                                {{ form.description|add_class:"form-control" }}
+                                {% if form.description.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.description.errors.0 }}
+                                </div>
+                                {% endif %}
+                                <div class="form-text">Additional notes about this warehouse</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'warehouse_list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle me-2"></i>Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle me-2"></i>
+                        {% if object %}Update Warehouse{% else %}Create Warehouse{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

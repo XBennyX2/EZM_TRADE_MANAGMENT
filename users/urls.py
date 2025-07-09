@@ -12,7 +12,7 @@ from .views import (
     manage_users, toggle_user_status, change_user_role, view_user_detail, create_user,
     admin_settings, admin_edit_profile, admin_change_password, head_manager_settings,
     head_manager_change_password, head_manager_edit_profile,
-    store_manager_settings, cashier_settings, cashier_edit_profile, cashier_change_password,
+    store_manager_settings, store_manager_change_password, cashier_settings, cashier_edit_profile, cashier_change_password,
     CustomPasswordChangeView
 )
 
@@ -39,6 +39,7 @@ urlpatterns = [
     path('head-manager/profile/edit/', head_manager_edit_profile, name='head_manager_edit_profile'),
     path('head-manager/profile/change-password/', head_manager_change_password, name='head_manager_change_password'),
     path('store-manager/settings/', store_manager_settings, name='store_manager_settings'),
+    path('store-manager/profile/change-password/', store_manager_change_password, name='store_manager_change_password'),
     path('cashier/settings/', cashier_settings, name='cashier_settings'),
     path('cashier/profile/edit/', cashier_edit_profile, name='cashier_edit_profile'),
     path('cashier/profile/change-password/', cashier_change_password, name='cashier_change_password'),

@@ -1,44 +1,254 @@
 <!-- templates/users/login.html -->
-{% extends 'base.html' %}
-{% load widget_tweaks %}
-{% block title %}Login{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
 
-{% block content %}
-<div class="form-container">
-  <h2 class="text-center mb-4 text-indigo">Welcome Back!</h2>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EZM Trade Management - Login</title>
 
-  <!-- Display flash messages -->
-  {% if messages %}
-  {% for message in messages %}
-  <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-    {{ message }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-  </div>
-  {% endfor %}
-  {% endif %}
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
-  <form method="POST" novalidate>
-    {% csrf_token %}
-    {% for field in form %}
-    <div class="mb-3">
-      <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-      {{ field|add_class:"form-control" }}
-      {% if field.errors %}
-      <div class="text-danger small mt-1">{{ field.errors|striptags }}</div>
-      {% endif %}
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
+  {% load widget_tweaks %}
+  {% load static %}
+
+  <style>
+    :root {
+      --primary-dark: #0B0C10;
+      --secondary-dark: #1F2833;
+      --light-gray: #C5C6C7;
+      --accent-cyan: #66FCF1;
+      --accent-teal: #45A29E;
+      --white: #ffffff;
+    }
+
+    body {
+      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--secondary-dark) 100%);
+      min-height: 100vh;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .login-container {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .login-card {
+      background: var(--white, #ffffff);
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+      max-width: 450px;
+      width: 100%;
+      position: relative;
+    }
+
+    .login-header {
+      background: linear-gradient(135deg, var(--accent-teal, #45A29E) 0%, var(--accent-cyan, #66FCF1) 100%);
+      color: var(--white, #ffffff);
+      padding: 3rem 2rem 2rem;
+      text-align: center;
+      position: relative;
+    }
+
+    .login-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+      opacity: 0.3;
+    }
+
+    .login-header h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .login-header p {
+      font-size: 1.1rem;
+      opacity: 0.9;
+      margin-bottom: 0;
+      position: relative;
+      z-index: 1;
+    }
+
+    .login-body {
+      padding: 2.5rem 2rem;
+    }
+
+    .form-label {
+      color: var(--secondary-dark, #1F2833);
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .form-control {
+      border: 2px solid var(--light-gray, #C5C6C7);
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      background-color: #f8f9fa;
+    }
+
+    .form-control:focus {
+      border-color: var(--accent-cyan, #66FCF1);
+      box-shadow: 0 0 0 0.2rem rgba(102, 252, 241, 0.25);
+      background-color: var(--white, #ffffff);
+    }
+
+    .btn-login {
+      background: linear-gradient(45deg, var(--accent-teal, #45A29E), var(--accent-cyan, #66FCF1));
+      border: none;
+      color: var(--white, #ffffff);
+      padding: 14px 20px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 1.1rem;
+      transition: all 0.3s ease;
+      width: 100%;
+      margin-top: 1rem;
+    }
+
+    .btn-login:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(69, 162, 158, 0.4);
+      color: var(--white, #ffffff);
+    }
+
+    .forgot-password {
+      color: var(--accent-teal, #45A29E);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.3s ease;
+    }
+
+    .forgot-password:hover {
+      color: var(--accent-cyan, #66FCF1);
+      text-decoration: none;
+    }
+
+    .alert {
+      border-radius: 10px;
+      border: none;
+      margin-bottom: 1.5rem;
+    }
+
+    .alert-danger {
+      background-color: rgba(220, 53, 69, 0.1);
+      color: #dc3545;
+      border-left: 4px solid #dc3545;
+    }
+
+    .alert-success {
+      background-color: rgba(40, 167, 69, 0.1);
+      color: #28a745;
+      border-left: 4px solid #28a745;
+    }
+
+    .alert-warning {
+      background-color: rgba(255, 193, 7, 0.1);
+      color: #856404;
+      border-left: 4px solid #ffc107;
+    }
+
+    .text-danger {
+      color: #dc3545 !important;
+      font-size: 0.875rem;
+    }
+
+    .admin-contact {
+      background: linear-gradient(90deg, var(--light-gray, #C5C6C7), rgba(197, 198, 199, 0.5));
+      color: var(--secondary-dark, #1F2833);
+      padding: 1rem;
+      border-radius: 10px;
+      text-align: center;
+      font-size: 0.9rem;
+      margin-top: 1.5rem;
+    }
+
+    @media (max-width: 576px) {
+      .login-header {
+        padding: 2rem 1.5rem 1.5rem;
+      }
+
+      .login-header h1 {
+        font-size: 2rem;
+      }
+
+      .login-body {
+        padding: 2rem 1.5rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-header">
+        <h1>EZM</h1>
+        <p>Trade Management System</p>
+      </div>
+
+      <div class="login-body">
+
+        <!-- Display flash messages -->
+        {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <form method="POST" novalidate>
+          {% csrf_token %}
+          {% for field in form %}
+          <div class="mb-3">
+            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+            {{ field|add_class:"form-control" }}
+            {% if field.errors %}
+            <div class="text-danger small mt-1">{{ field.errors|striptags }}</div>
+            {% endif %}
+          </div>
+          {% endfor %}
+          <button type="submit" class="btn-login">
+            <i class="bi bi-box-arrow-in-right me-2"></i>Login
+          </button>
+        </form>
+
+        <div class="text-center mt-4">
+          <a href="{% url 'password_reset' %}" class="forgot-password">
+            <i class="bi bi-key me-1"></i>Forgot your password?
+          </a>
+        </div>
+
+        <div class="admin-contact">
+          <i class="bi bi-person-badge me-2"></i>
+          <strong>Need an account?</strong><br>
+          Please contact your administrator to create an account.
+        </div>
+      </div>
     </div>
-    {% endfor %}
-    <button type="submit" class="btn btn-indigo w-100">Login</button>
-  </form>
-
-  <div class="text-center mt-3">
-    <a href="{% url 'password_reset' %}" class="text-decoration-none">
-      <small class="text-muted">Forgot your password?</small>
-    </a>
   </div>
 
-  <div class="text-center mt-2">
-    <small>Please contact your administrator to create an account.</small>
-  </div>
-</div>
-{% endblock %}
+  <!-- Bootstrap Bundle JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect
 from store.models import StoreCashier
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from .forms import CustomLoginForm, EditProfileForm, ChangePasswordForm
 from .models import CustomUser
@@ -83,7 +83,7 @@ def login_view(request):
 
             login(request, user)
             if user.is_first_login:
-                if user.role == 'admin':
+                if user.is_superuser or user.role == 'admin':
                     return redirect('admin_change_password')
                 elif user.role == 'head_manager':
                     return redirect('head_manager_settings')
@@ -92,7 +92,7 @@ def login_view(request):
                 elif user.role == 'cashier':
                     return redirect('cashier_settings')
             else:
-                if user.role == 'admin':
+                if user.is_superuser or user.role == 'admin':
                     return redirect('admin_dashboard')
                 elif user.role == 'head_manager':
                     return redirect('head_manager_page')
@@ -126,6 +126,11 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 @login_required
 def admin_dashboard(request):
+    # Check if user has admin privileges
+    if not (request.user.is_superuser or request.user.role == 'admin'):
+        messages.warning(request, "Access denied. Admin privileges required.")
+        return redirect('login')
+
     total_users = User.objects.count()
     active_users = User.objects.filter(is_active=True).count()
     inactive_users = User.objects.filter(is_active=False).count()
@@ -197,7 +202,7 @@ from .forms import ChangeUserRoleForm, CustomUserCreationFormAdmin
 from django.core.paginator import Paginator
 
 def is_admin(user):
-    return user.is_authenticated and user.role == 'admin'
+    return user.is_authenticated and (user.is_superuser or user.role == 'admin')
 
 @user_passes_test(is_admin)
 def manage_users(request):
@@ -266,6 +271,10 @@ def create_user(request):
             messages.error(request, "Username already exists. Please choose a different username.")
             return render(request, 'admin/create_user.html', context)
 
+        if User.objects.filter(email=email).exists():
+            messages.error(request, "A user with this email address already exists.")
+            return render(request, 'admin/create_user.html', context)
+
         try:
             user = User.objects.create_user(
                 username=username,
@@ -277,16 +286,42 @@ def create_user(request):
                 phone_number=phone_number,
             )
 
-            subject = "Account Created"
-            message = f"Your account has been created.\\n" \
-                      f"Username: {user.username}\\n" \
-                      f"Password: {password}\\n" \
-                      f"Phone Number: {user.phone_number}"
-            from_email = settings.DEFAULT_FROM_EMAIL
-            to_email = [user.email]
-            send_mail(subject, message, from_email, to_email, fail_silently=True)
+            # Send welcome email with credentials
+            try:
+                subject = "Welcome to EZM Trade Management - Account Created"
+                message = f"""Dear {user.first_name} {user.last_name},
 
-            messages.success(request, f"User {user.username} created successfully. Email sent with credentials.")
+Your account has been created for EZM Trade Management System.
+
+Login Details:
+- Username: {user.username}
+- Temporary Password: {password}
+- Role: {user.get_role_display()}
+
+Please login at: http://127.0.0.1:8000/users/login/
+
+IMPORTANT: You will be required to change your password on first login for security purposes.
+
+If you have any questions, please contact your administrator.
+
+Best regards,
+EZM Trade Management Team"""
+
+                from_email = settings.DEFAULT_FROM_EMAIL
+                to_email = [user.email]
+
+                send_mail(
+                    subject=subject,
+                    message=message,
+                    from_email=from_email,
+                    recipient_list=to_email,
+                    fail_silently=False
+                )
+
+                messages.success(request, f"User {user.username} created successfully. Welcome email sent to {user.email}.")
+            except Exception as email_error:
+                messages.warning(request, f"User {user.username} created successfully, but email could not be sent: {email_error}")
+
             return redirect('manage_users')
         except Exception as e:
             messages.error(request, f"Error creating user: {e}")
@@ -320,7 +355,7 @@ def change_user_role(request, user_id):
 
 @login_required
 def admin_settings(request):
-    if request.user.role == 'admin':
+    if request.user.is_superuser or request.user.role == 'admin':
         return render(request, 'admin/admin_settings.html')
     elif request.user.role == 'head_manager':
         return redirect('head_manager_settings')
@@ -334,6 +369,11 @@ def admin_settings(request):
 
 @login_required
 def admin_edit_profile(request):
+    # Check if user has admin privileges
+    if not (request.user.is_superuser or request.user.role == 'admin'):
+        messages.warning(request, "Access denied. Admin privileges required.")
+        return redirect('login')
+
     if request.method == 'POST':
         form = EditProfileForm(request.POST, instance=request.user)
         if form.is_valid():
@@ -348,6 +388,11 @@ def admin_edit_profile(request):
 
 @login_required
 def admin_change_password(request):
+    # Check if user has admin privileges
+    if not (request.user.is_superuser or request.user.role == 'admin'):
+        messages.warning(request, "Access denied. Admin privileges required.")
+        return redirect('login')
+
     if request.method == 'POST':
         form = ChangePasswordForm(request.POST)
         if form.is_valid():
@@ -355,10 +400,13 @@ def admin_change_password(request):
             new_password1 = form.cleaned_data['new_password1']
             if request.user.check_password(old_password):
                 request.user.set_password(new_password1)
+                # Mark user as no longer first login after password change
+                if request.user.is_first_login:
+                    request.user.is_first_login = False
                 request.user.save()
                 update_session_auth_hash(request, request.user)
                 messages.success(request, 'Password changed successfully!')
-                return redirect('admin_settings')
+                return redirect('admin_dashboard')  # Redirect to dashboard after first password change
             else:
                 messages.error(request, 'Incorrect old password.')
     else:
@@ -367,10 +415,13 @@ def admin_change_password(request):
 
 @login_required
 def head_manager_settings(request):
-    # Mark user as no longer first login after visiting settings
+    # Check if user has head manager privileges
+    if request.user.role != 'head_manager':
+        messages.warning(request, "Access denied. Head manager role required.")
+        return redirect('login')
+
+    # Show welcome message for first login users, but don't reset the flag yet
     if request.user.is_first_login:
-        request.user.is_first_login = False
-        request.user.save()
         messages.info(request, "Welcome! Please update your password and profile information.")
 
     return render(request, 'mainpages/head_manager_settings.html')
@@ -388,11 +439,20 @@ def head_manager_change_password(request):
             old_password = form.cleaned_data['old_password']
             new_password1 = form.cleaned_data['new_password1']
             if request.user.check_password(old_password):
+                # Check if this is first login before changing password
+                was_first_login = request.user.is_first_login
                 request.user.set_password(new_password1)
+                # Mark user as no longer first login after password change
+                if request.user.is_first_login:
+                    request.user.is_first_login = False
                 request.user.save()
                 update_session_auth_hash(request, request.user)
                 messages.success(request, 'Password changed successfully!')
-                return redirect('head_manager_settings')
+                # Redirect to dashboard if it was first login, otherwise back to settings
+                if was_first_login:
+                    return redirect('head_manager_page')
+                else:
+                    return redirect('head_manager_settings')
             else:
                 messages.error(request, 'Incorrect old password.')
     else:
@@ -418,14 +478,58 @@ def head_manager_edit_profile(request):
 
 @login_required
 def store_manager_settings(request):
+    # Check if user has store manager privileges
+    if request.user.role != 'store_manager':
+        messages.warning(request, "Access denied. Store manager role required.")
+        return redirect('login')
+
+    # Show welcome message for first login users, but don't reset the flag yet
+    if request.user.is_first_login:
+        messages.info(request, "Welcome! Please update your password and profile information.")
+
     return render(request, 'mainpages/store_manager_settings.html')
 
 @login_required
+def store_manager_change_password(request):
+    if request.user.role != 'store_manager':
+        messages.warning(request, "Access denied. You don't have permission to access this page.")
+        return redirect('login')
+
+    if request.method == 'POST':
+        form = ChangePasswordForm(request.POST)
+        if form.is_valid():
+            old_password = form.cleaned_data['old_password']
+            new_password1 = form.cleaned_data['new_password1']
+            if request.user.check_password(old_password):
+                # Check if this is first login before changing password
+                was_first_login = request.user.is_first_login
+                request.user.set_password(new_password1)
+                # Mark user as no longer first login after password change
+                if request.user.is_first_login:
+                    request.user.is_first_login = False
+                request.user.save()
+                update_session_auth_hash(request, request.user)
+                messages.success(request, 'Password changed successfully!')
+                # Redirect to dashboard if it was first login, otherwise back to settings
+                if was_first_login:
+                    return redirect('store_manager_page')
+                else:
+                    return redirect('store_manager_settings')
+            else:
+                messages.error(request, 'Incorrect old password.')
+    else:
+        form = ChangePasswordForm()
+    return render(request, 'users/change_password.html', {'form': form})
+
+@login_required
 def cashier_settings(request):
-    # Mark user as no longer first login after visiting settings
+    # Check if user has cashier privileges
+    if request.user.role != 'cashier':
+        messages.warning(request, "Access denied. Cashier role required.")
+        return redirect('login')
+
+    # Show welcome message for first login users, but don't reset the flag yet
     if request.user.is_first_login:
-        request.user.is_first_login = False
-        request.user.save()
         messages.info(request, "Welcome! Please update your password and profile information.")
 
     return render(request, 'mainpages/cashier_settings.html')
@@ -462,11 +566,20 @@ def cashier_change_password(request):
             old_password = form.cleaned_data['old_password']
             new_password1 = form.cleaned_data['new_password1']
             if request.user.check_password(old_password):
+                # Check if this is first login before changing password
+                was_first_login = request.user.is_first_login
                 request.user.set_password(new_password1)
+                # Mark user as no longer first login after password change
+                if request.user.is_first_login:
+                    request.user.is_first_login = False
                 request.user.save()
                 update_session_auth_hash(request, request.user)
                 messages.success(request, 'Password changed successfully!')
-                return redirect('cashier_settings')
+                # Redirect to dashboard if it was first login, otherwise back to settings
+                if was_first_login:
+                    return redirect('cashier_page')
+                else:
+                    return redirect('cashier_settings')
             else:
                 messages.error(request, 'Incorrect old password.')
     else:

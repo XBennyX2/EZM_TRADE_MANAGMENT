@@ -1,0 +1,222 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+{% block title %}
+{% if object %}Edit Purchase Order{% else %}Create Purchase Order{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-12">
+            <!-- Header Section -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <a href="{% url 'purchase_order_list' %}" class="btn btn-outline-secondary me-3">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                <div>
+                    <h2 class="mb-0">
+                        <i class="bi bi-cart-check text-primary me-2"></i>
+                        Purchase Order Form
+                    </h2>
+                    <p class="text-muted mb-0">
+                        {% if object %}
+                        Update purchase order details and items
+                        {% else %}
+                        Create a new purchase order with items
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+
+            <form method="post" novalidate>
+                {% csrf_token %}
+
+                <!-- Purchase Order Details Card -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">
+                            <i class="bi bi-info-circle me-2"></i>Purchase Order Details
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.supplier.id_for_label }}" class="form-label">
+                                    <i class="bi bi-truck me-1"></i>Supplier *
+                                </label>
+                                {{ form.supplier|add_class:"form-select" }}
+                                {% if form.supplier.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.supplier.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="{{ form.expected_delivery_date.id_for_label }}" class="form-label">
+                                    <i class="bi bi-calendar-event me-1"></i>Expected Delivery Date
+                                </label>
+                                {{ form.expected_delivery_date|add_class:"form-control" }}
+                                {% if form.expected_delivery_date.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.expected_delivery_date.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mt-2">
+                            <div class="col-12">
+                                <label for="{{ form.notes.id_for_label }}" class="form-label">
+                                    <i class="bi bi-chat-text me-1"></i>Notes
+                                </label>
+                                {{ form.notes|add_class:"form-control" }}
+                                {% if form.notes.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.notes.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Purchase Order Items Card -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-list-ul me-2"></i>Order Items
+                        </h5>
+                        <button type="button" id="add-form" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-plus-circle me-1"></i>Add Item
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        {{ formset.management_form }}
+
+                        <div id="formset-container">
+                            {% for form in formset %}
+                            <div class="formset-form border rounded p-3 mb-3"
+                                style="{% if form.DELETE.value %}display: none;{% endif %}">
+                                {% if form.non_field_errors %}
+                                <div class="alert alert-danger">
+                                    {{ form.non_field_errors }}
+                                </div>
+                                {% endif %}
+
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Product *</label>
+                                        {{ form.warehouse_product|add_class:"form-select" }}
+                                        {% if form.warehouse_product.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.warehouse_product.errors.0 }}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <label class="form-label">Quantity *</label>
+                                        {{ form.quantity_ordered|add_class:"form-control" }}
+                                        {% if form.quantity_ordered.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.quantity_ordered.errors.0 }}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <label class="form-label">Unit Price *</label>
+                                        {{ form.unit_price|add_class:"form-control" }}
+                                        {% if form.unit_price.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.unit_price.errors.0 }}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="col-md-2 d-flex align-items-end">
+                                        {% if form.DELETE %}
+                                        <div class="form-check">
+                                            {{ form.DELETE|add_class:"form-check-input" }}
+                                            <label class="form-check-label text-danger">
+                                                Delete
+                                            </label>
+                                        </div>
+                                        {% else %}
+                                        <button type="button" class="btn btn-outline-danger btn-sm remove-form">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <!-- Hidden fields -->
+                                {% for hidden in form.hidden_fields %}
+                                {{ hidden }}
+                                {% endfor %}
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <div id="empty-form" style="display: none;">
+                            <!-- This will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'purchase_order_list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle me-2"></i>Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle me-2"></i>
+                        {% if object %}Update Purchase Order{% else %}Create Purchase Order{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        let formCount = parseInt(document.querySelector('#id_items-TOTAL_FORMS').value);
+        const maxForms = parseInt(document.querySelector('#id_items-MAX_NUM_FORMS').value);
+        const formsetContainer = document.querySelector('#formset-container');
+        const addButton = document.querySelector('#add-form');
+
+        // Get the empty form template
+        const emptyFormTemplate = `{{ formset.empty_form|escapejs }}`;
+
+        addButton.addEventListener('click', function () {
+            if (formCount < maxForms) {
+                const newForm = emptyFormTemplate.replace(/__prefix__/g, formCount);
+                const formDiv = document.createElement('div');
+                formDiv.className = 'formset-form border rounded p-3 mb-3';
+                formDiv.innerHTML = newForm;
+                formsetContainer.appendChild(formDiv);
+                formCount++;
+                document.querySelector('#id_items-TOTAL_FORMS').value = formCount;
+            }
+        });
+
+        // Handle remove buttons
+        formsetContainer.addEventListener('click', function (e) {
+            if (e.target.classList.contains('remove-form') || e.target.closest('.remove-form')) {
+                const form = e.target.closest('.formset-form');
+                const deleteInput = form.querySelector('input[name$="-DELETE"]');
+                if (deleteInput) {
+                    deleteInput.checked = true;
+                    form.style.display = 'none';
+                } else {
+                    form.remove();
+                    formCount--;
+                    document.querySelector('#id_items-TOTAL_FORMS').value = formCount;
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

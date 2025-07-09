@@ -1,31 +1,41 @@
-{% extends 'base.html' %}
+{% extends 'base_sidebar.html' %}
 {% load store_extras %}
+{% load static %}
+
 {% block title %}Cashier Dashboard{% endblock %}
+{% block page_title %}Point of Sale System{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-  <!-- Header -->
+<div class="container-fluid">
   <div class="row mb-4">
     <div class="col-12">
-      <div class="d-flex justify-content-between align-items-center">
-        <div>
-          <h2 class="mb-1">Cashier Dashboard</h2>
-          <p class="text-muted mb-0">Welcome, {{ request.user.first_name|default:request.user.username }}! | Store: {{ store.name }}</p>
+      <div class="ezm-card">
+        <div class="ezm-card-header">
+          <i class="bi bi-cash-register me-2"></i>Point of Sale System
         </div>
-        <div>
-          <button class="btn btn-primary btn-lg" onclick="startNewSale()">
-            <i class="bi bi-plus-circle me-2"></i>New Sale
-          </button>
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <p class="text-muted mb-0">Welcome, {{ request.user.first_name|default:request.user.username }}! | Store: {{ store.name }}</p>
+            </div>
+            <div>
+              <button class="btn btn-primary btn-lg" onclick="startNewSale()">
+                <i class="bi bi-plus-circle me-2"></i>New Sale
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Main Content -->
   <div class="row">
-    <!-- FIFO-Ordered Products -->
     <div class="col-lg-8">
-      <!-- SELL FIRST Section (Expiring within 30 days) -->
+
       {% if sell_first_products %}
       <div class="card mb-4 border-warning">
         <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
@@ -43,10 +53,10 @@
             {% for stock in sell_first_products %}
             <div class="col-md-6 col-lg-4 mb-3">
               <div class="card h-100 border-warning product-card fifo-priority" data-product-id="{{ stock.product.id }}" data-stock-id="{{ stock.id }}">
-                <div class="card-body">
+                <div class="card-body d-flex flex-column">
                   <div class="d-flex justify-content-between align-items-start mb-2">
                     <h6 class="card-title mb-0">{{ stock.product.name }}</h6>
-                    <span class="badge bg-danger">SELL FIRST</span>
+                    <span class="badge bg-danger sell-first-badge">SELL FIRST</span>
                   </div>
                   <p class="card-text">
                     <small class="text-muted">{{ stock.product.category }}</small><br>
@@ -60,12 +70,12 @@
                     {% if stock.product.expiry_date %}
                       <strong class="text-danger">⚠️ Expires:</strong>
                       <span class="text-danger">{{ stock.product.expiry_date|date:"M d, Y" }}</span>
-                      {% if stock.days_until_expiry %}
+                      {% if stock.days_until_expiry is not None %}
                         <br><small class="text-danger">({{ stock.days_until_expiry }} days left)</small>
                       {% endif %}
                     {% endif %}
                   </p>
-                  <button class="btn btn-warning btn-sm select-product-btn w-100"
+                  <button class="btn btn-warning btn-sm select-product-btn w-100 mt-auto"
                           data-product-id="{{ stock.product.id }}"
                           data-product-name="{{ stock.product.name }}"
                           data-price="{{ stock.selling_price }}"
@@ -82,7 +92,6 @@
       </div>
       {% endif %}
 
-      <!-- Regular Products (FIFO Ordered) -->
       {% if regular_products %}
       <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -94,13 +103,13 @@
         <div class="card-body">
           <div class="alert alert-info mb-3">
             <i class="bi bi-info-circle me-2"></i>
-            <strong>FIFO Ordering:</strong> Products are sorted by expiry date, then by received date, then by batch number for optimal inventory rotation.
+            <strong>FIFO Ordering:</strong> Products are sorted by expiry date, received date, and batch number for optimal inventory rotation.
           </div>
           <div class="row">
             {% for stock in regular_products %}
             <div class="col-md-6 col-lg-4 mb-3">
               <div class="card h-100 product-card" data-product-id="{{ stock.product.id }}" data-stock-id="{{ stock.id }}">
-                <div class="card-body">
+                <div class="card-body d-flex flex-column">
                   <h6 class="card-title">{{ stock.product.name }}</h6>
                   <p class="card-text">
                     <small class="text-muted">{{ stock.product.category }}</small><br>
@@ -112,13 +121,13 @@
                       <small><strong>Batch:</strong> {{ stock.product.batch_number }}</small><br>
                     {% endif %}
                     {% if stock.product.expiry_date %}
-                      <small><strong>Expires:</strong> {{ stock.product.expiry_date|date:"M d, Y" }}</small><br>
-                      {% if stock.days_until_expiry %}
-                        <small class="text-muted">({{ stock.days_until_expiry }} days left)</small><br>
+                      <small><strong>Expires:</strong> {{ stock.product.expiry_date|date:"M d, Y" }}</small>
+                      {% if stock.days_until_expiry is not None %}
+                        <br><small class="text-muted">({{ stock.days_until_expiry }} days left)</small>
                       {% endif %}
                     {% endif %}
                   </p>
-                  <button class="btn btn-success btn-sm select-product-btn w-100"
+                  <button class="btn btn-success btn-sm select-product-btn w-100 mt-auto"
                           data-product-id="{{ stock.product.id }}"
                           data-product-name="{{ stock.product.name }}"
                           data-price="{{ stock.selling_price }}"
@@ -134,49 +143,44 @@
         </div>
       </div>
       {% endif %}
-      <!-- No Products Available -->
-      {% if not fifo_products %}
+
+      {% if not sell_first_products and not regular_products %}
       <div class="card">
         <div class="card-body text-center py-5">
           <i class="bi bi-box-seam fa-3x text-muted mb-3"></i>
-          <h4>No products available</h4>
+          <h4>No products available for sale</h4>
           <p class="text-muted">
-            No products are currently available for sale in your store.
+            There are no items that can be sold at this time.
           </p>
 
           {% if debug_stats %}
-          <div class="alert alert-info text-start">
-            <strong>Store Inventory Status (FIFO):</strong><br>
-            • Total stock items in store: {{ debug_stats.total_stock_items }}<br>
+          <div class="alert alert-info text-start mt-4">
+            <strong>Store Inventory Status:</strong><br>
+            • Total stock items: {{ debug_stats.total_stock_items }}<br>
             • Available for sale: {{ debug_stats.available_products_count }}<br>
             • Out of stock: {{ debug_stats.out_of_stock_items }}<br>
-            • Expired items: {{ debug_stats.expired_items }}<br>
-            • Items expiring soon (SELL FIRST): {{ debug_stats.sell_first_count }}
+            • Expired items: {{ debug_stats.expired_items }}
           </div>
-          {% endif %}
-
-          <p class="text-muted">
+          <p class="text-muted mt-3">
             {% if debug_stats.total_stock_items == 0 %}
               <strong>No stock items found.</strong> Your store manager needs to add products to inventory.
-            {% elif debug_stats.out_of_stock_items == debug_stats.total_stock_items %}
-              <strong>All items are out of stock.</strong> Your store manager needs to restock inventory.
-            {% elif debug_stats.expired_items > 0 %}
-              <strong>Some items may have expired.</strong> Contact your store manager to review inventory.
+            {% elif debug_stats.available_products_count == 0 %}
+              <strong>All items are either out of stock or have expired.</strong> Your store manager needs to review the inventory.
             {% else %}
               <strong>Contact your store manager</strong> to review inventory status.
             {% endif %}
           </p>
-          <p class="text-muted">
-            <strong>Contact your store manager</strong> to add products to inventory or restock existing items.
-          </p>
+          {% else %}
+            <p class="text-muted mt-3">
+              <strong>Contact your store manager</strong> to add products to inventory or restock existing items.
+            </p>
+          {% endif %}
         </div>
       </div>
       {% endif %}
     </div>
 
-    <!-- Sidebar -->
     <div class="col-lg-4">
-      <!-- Quick Actions -->
       <div class="card mb-4">
         <div class="card-header">
           <h5 class="mb-0">Quick Actions</h5>
@@ -193,7 +197,6 @@
         </div>
       </div>
 
-      <!-- Recent Transactions -->
       <div class="card">
         <div class="card-header">
           <h5 class="mb-0">Recent Sales</h5>
@@ -220,7 +223,6 @@
   </div>
 </div>
 
-<!-- Sale Modal -->
 <div class="modal fade" id="saleModal" tabindex="-1" aria-labelledby="saleModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
@@ -229,29 +231,24 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <form id="saleForm">
+        <form id="saleForm" novalidate>
           {% csrf_token %}
-          <!-- Selected Product Info -->
           <div id="selectedProductInfo" class="alert alert-info" style="display: none;">
             <h6 id="selectedProductName"></h6>
             <p class="mb-1">Price: $<span id="selectedProductPrice"></span></p>
             <p class="mb-0">Available Stock: <span id="selectedProductStock"></span></p>
           </div>
 
-          <!-- Quantity Input -->
           <div class="mb-3">
             <label for="quantity" class="form-label">Quantity</label>
             <input type="number" class="form-control" id="quantity" name="quantity" min="1" required>
           </div>
 
-          <!-- Customer Information -->
           <div class="row">
             <div class="col-md-6">
               <div class="mb-3">
                 <label for="customerName" class="form-label">Customer Name</label>
-                <input type="text" class="form-control" id="customerName" name="customer_name" required
-                       pattern="[A-Za-z\s]+" title="Name should only contain letters and spaces"
-                       placeholder="Enter customer's full name">
+                <input type="text" class="form-control" id="customerName" name="customer_name" required pattern="[A-Za-z\s]+" title="Name should only contain letters and spaces" placeholder="Enter customer's full name">
                 <div class="invalid-feedback">
                   Name should only contain letters and spaces.
                 </div>
@@ -260,17 +257,14 @@
             <div class="col-md-6">
               <div class="mb-3">
                 <label for="customerPhone" class="form-label">Customer Phone</label>
-                <input type="tel" class="form-control" id="customerPhone" name="customer_phone" required
-                       pattern="[\+]?[0-9\s\-\(\)]+" title="Phone should only contain numbers, +, spaces, hyphens, and parentheses"
-                       placeholder="e.g., +1234567890 or 0912345678">
+                <input type="tel" class="form-control" id="customerPhone" name="customer_phone" required pattern="[\+]?[0-9\s\-\(\)]+" title="Phone should only contain numbers, +, spaces, hyphens, and parentheses" placeholder="e.g., +1234567890 or 0912345678">
                 <div class="invalid-feedback">
-                  Phone should only contain numbers and + symbol.
+                  Please enter a valid phone number.
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Payment Type -->
           <div class="mb-3">
             <label for="paymentType" class="form-label">Payment Type</label>
             <select class="form-select" id="paymentType" name="payment_type" required>
@@ -280,13 +274,12 @@
             </select>
           </div>
 
-          <!-- Total Display -->
           <div class="alert alert-success">
             <h5>Total: $<span id="totalAmount">0.00</span></h5>
           </div>
 
           <input type="hidden" id="selectedProductId" name="product_id">
-        </form>
+          <input type="hidden" id="selectedStockId" name="stock_id"> </form>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -296,7 +289,6 @@
   </div>
 </div>
 
-<!-- Receipt Options Modal -->
 <div class="modal fade" id="receiptModal" tabindex="-1" aria-labelledby="receiptModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -322,7 +314,6 @@
   </div>
 </div>
 
-<!-- Email Receipt Modal -->
 <div class="modal fade" id="emailModal" tabindex="-1" aria-labelledby="emailModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -334,8 +325,7 @@
         <form id="emailForm">
           <div class="mb-3">
             <label for="customerEmail" class="form-label">Customer Email Address</label>
-            <input type="email" class="form-control" id="customerEmail" name="customer_email" required
-                   placeholder="Enter customer's email address">
+            <input type="email" class="form-control" id="customerEmail" name="customer_email" required placeholder="Enter customer's email address">
             <div class="form-text">The receipt will be sent to this email address as a PDF attachment.</div>
           </div>
         </form>
@@ -349,356 +339,259 @@
     </div>
   </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
-let selectedProduct = null;
-let lastReceiptId = null;
+  let selectedProduct = null;
+  let lastReceiptId = null;
 
-// Show validation error
-function showValidationError(fieldId, message) {
+  // Show validation error helper
+  function showValidationError(fieldId, message) {
     const field = document.getElementById(fieldId);
-    const feedback = field.parentNode.querySelector('.invalid-feedback');
-
     field.classList.add('is-invalid');
+    const feedback = field.parentNode.querySelector('.invalid-feedback');
     if (feedback) {
-        feedback.textContent = message;
+      feedback.textContent = message;
     }
-
     // Remove error styling after user starts typing
-    field.addEventListener('input', function() {
-        field.classList.remove('is-invalid');
-    }, { once: true });
-}
+    field.addEventListener('input', () => field.classList.remove('is-invalid'), { once: true });
+  }
 
-// Start new sale - show modal to select product first
-function startNewSale() {
-    // Check if there are products available
+  // Start new sale - guide user to select a product
+  function startNewSale() {
     if (document.querySelectorAll('.select-product-btn').length === 0) {
-        alert('No products available for sale. Contact your store manager.');
-        return;
+      alert('No products available for sale. Contact your store manager.');
+      return;
     }
+    // You could optionally flash the product section or show a more elegant notification
+    alert('Please select a product from the list to begin a new sale.');
+  }
 
-    // Show instruction to select a product
-    alert('Please select a product from the list below to start a sale.');
-}
-
-// Handle product selection
-document.addEventListener('DOMContentLoaded', function() {
+  // Handle product selection from the list
+  document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.select-product-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            selectedProduct = {
-                id: this.dataset.productId,
-                name: this.dataset.productName,
-                price: parseFloat(this.dataset.price),
-                stock: parseInt(this.dataset.availableStock),
-                batch: this.dataset.batch
-            };
-
-            // Show sale modal
-            showSaleModal();
-        });
+      button.addEventListener('click', function() {
+        selectedProduct = {
+          id: this.dataset.productId,
+          stockId: this.dataset.stockId, // Crucial for identifying the exact stock item
+          name: this.dataset.productName,
+          price: parseFloat(this.dataset.price),
+          stock: parseInt(this.dataset.availableStock),
+          batch: this.dataset.batch
+        };
+        showSaleModal();
+      });
     });
+  });
 
-    // Add real-time validation
-    const customerNameField = document.getElementById('customerName');
-    const customerPhoneField = document.getElementById('customerPhone');
-
-    if (customerNameField) {
-        customerNameField.addEventListener('input', function() {
-            const value = this.value;
-            const namePattern = /^[A-Za-z\s]*$/; // Allow empty for partial input
-
-            if (value && !namePattern.test(value)) {
-                this.classList.add('is-invalid');
-            } else {
-                this.classList.remove('is-invalid');
-            }
-        });
-    }
-
-    if (customerPhoneField) {
-        customerPhoneField.addEventListener('input', function() {
-            const value = this.value;
-            const phonePattern = /^[\+]?[0-9\s\-\(\)]*$/; // Allow empty for partial input
-
-            if (value && !phonePattern.test(value)) {
-                this.classList.add('is-invalid');
-            } else {
-                this.classList.remove('is-invalid');
-            }
-        });
-    }
-});
-
-function showSaleModal() {
+  // Populate and show the main sale modal
+  function showSaleModal() {
     if (!selectedProduct) return;
 
+    // Reset form from previous state
+    document.getElementById('saleForm').reset();
+    document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+    document.getElementById('selectedProductInfo').style.display = 'block';
+
     // Populate product info
-    document.getElementById('selectedProductName').textContent = selectedProduct.name;
+    document.getElementById('selectedProductName').textContent = `${selectedProduct.name} (Batch: ${selectedProduct.batch})`;
     document.getElementById('selectedProductPrice').textContent = selectedProduct.price.toFixed(2);
     document.getElementById('selectedProductStock').textContent = selectedProduct.stock;
     document.getElementById('selectedProductId').value = selectedProduct.id;
+    document.getElementById('selectedStockId').value = selectedProduct.stockId; // Pass the specific stock ID
 
-    // Set max quantity
-    document.getElementById('quantity').max = selectedProduct.stock;
-    document.getElementById('quantity').value = 1;
+    // Set max quantity and default to 1
+    const quantityInput = document.getElementById('quantity');
+    quantityInput.max = selectedProduct.stock;
+    quantityInput.value = 1;
 
-    // Show product info and calculate initial total
-    document.getElementById('selectedProductInfo').style.display = 'block';
     updateTotal();
 
-    // Show modal
     new bootstrap.Modal(document.getElementById('saleModal')).show();
-}
+  }
 
-// Update total when quantity changes
-document.getElementById('quantity').addEventListener('input', updateTotal);
+  // Update total amount when quantity changes
+  document.getElementById('quantity').addEventListener('input', updateTotal);
 
-function updateTotal() {
+  function updateTotal() {
     if (!selectedProduct) return;
-
     const quantity = parseInt(document.getElementById('quantity').value) || 0;
     const total = selectedProduct.price * quantity;
     document.getElementById('totalAmount').textContent = total.toFixed(2);
-}
+  }
 
-// Process the sale
-function processSale() {
+  // Process the sale via AJAX
+  function processSale() {
     const form = document.getElementById('saleForm');
-    const formData = new FormData(form);
-
-    // Custom validation
-    const customerName = formData.get('customer_name').trim();
-    const customerPhone = formData.get('customer_phone').trim();
-    const quantity = parseInt(formData.get('quantity'));
-
-    // Validate customer name (only letters and spaces)
-    const namePattern = /^[A-Za-z\s]+$/;
-    if (!namePattern.test(customerName)) {
-        showValidationError('customerName', 'Customer name should only contain letters and spaces.');
-        return;
-    }
-
-    // Validate phone number (only numbers, +, spaces, hyphens, parentheses)
-    const phonePattern = /^[\+]?[0-9\s\-\(\)]+$/;
-    if (!phonePattern.test(customerPhone)) {
-        showValidationError('customerPhone', 'Phone number should only contain numbers, +, spaces, hyphens, and parentheses.');
-        return;
-    }
-
-    // Validate form using HTML5 validation
     if (!form.checkValidity()) {
         form.reportValidity();
         return;
     }
 
-    // Check quantity
+    const formData = new FormData(form);
+    const quantity = parseInt(formData.get('quantity'));
+
+    // Final checks
     if (quantity > selectedProduct.stock) {
-        alert(`Only ${selectedProduct.stock} items available in stock.`);
-        return;
+      alert(`Error: Only ${selectedProduct.stock} items are available in stock.`);
+      return;
     }
 
-    // Show loading
-    const processBtn = document.querySelector('#saleModal .btn-primary');
+    const processBtn = document.querySelector('#saleModal .modal-footer .btn-primary');
     processBtn.disabled = true;
     processBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
 
-    // Submit sale (we'll create this endpoint)
-    fetch('/stores/process-single-sale/', {
+    fetch("{% url 'process_single_sale' %}", {
         method: 'POST',
         body: formData,
         headers: {
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            'X-CSRFToken': formData.get('csrfmiddlewaretoken')
         }
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
             lastReceiptId = data.receipt_id;
-            // Hide sale modal
             bootstrap.Modal.getInstance(document.getElementById('saleModal')).hide();
-            // Show receipt options
             new bootstrap.Modal(document.getElementById('receiptModal')).show();
         } else {
-            alert('Error: ' + (data.error || 'Failed to process sale'));
+            alert('Error: ' + (data.error || 'Failed to process sale. Please check the inputs.'));
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('An error occurred while processing the sale.');
+        alert('An unexpected error occurred while processing the sale.');
     })
     .finally(() => {
-        // Reset button
         processBtn.disabled = false;
         processBtn.innerHTML = 'Process Sale';
     });
-}
+  }
 
-// Print receipt
-function printReceipt() {
+  // Handle receipt options
+  function printReceipt() {
     if (lastReceiptId) {
-        window.open('/stores/receipt/' + lastReceiptId + '/pdf/', '_blank');
+      window.open(`/stores/receipt/${lastReceiptId}/pdf/`, '_blank');
     }
     finishSale();
-}
+  }
 
-// Show email form
-function showEmailForm() {
-    // Hide receipt options modal
+  function showEmailForm() {
     bootstrap.Modal.getInstance(document.getElementById('receiptModal')).hide();
-    // Show email modal
     new bootstrap.Modal(document.getElementById('emailModal')).show();
-}
+  }
 
-// Send email receipt
-function sendEmailReceipt() {
+  function sendEmailReceipt() {
     const emailForm = document.getElementById('emailForm');
-    const customerEmail = document.getElementById('customerEmail').value.trim();
-
-    // Validate email
     if (!emailForm.checkValidity()) {
         emailForm.reportValidity();
         return;
     }
 
-    if (!customerEmail) {
-        alert('Please enter a valid email address.');
-        return;
-    }
+    const customerEmail = document.getElementById('customerEmail').value.trim();
+    if (!lastReceiptId || !customerEmail) return;
 
-    if (lastReceiptId) {
-        // Show loading state
-        const sendBtn = document.querySelector('#emailModal .btn-primary');
-        const originalText = sendBtn.innerHTML;
-        sendBtn.disabled = true;
-        sendBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sending...';
+    const sendBtn = document.querySelector('#emailModal .modal-footer .btn-primary');
+    const originalText = sendBtn.innerHTML;
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sending...';
 
-        fetch('/stores/receipt/' + lastReceiptId + '/email/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            },
-            body: JSON.stringify({email: customerEmail})
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Show success message
-                const alertDiv = document.createElement('div');
-                alertDiv.className = 'alert alert-success alert-dismissible fade show';
-                alertDiv.innerHTML = `
-                    <i class="bi bi-check-circle me-2"></i>
-                    Receipt sent successfully to ${customerEmail}!
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                `;
-                document.querySelector('#emailModal .modal-body').prepend(alertDiv);
+    fetch(`/stores/receipt/${lastReceiptId}/email/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({ email: customerEmail })
+    })
+    .then(response => response.json())
+    .then(data => {
+        const modalBody = document.querySelector('#emailModal .modal-body');
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${data.success ? 'success' : 'danger'} alert-dismissible fade show`;
+        alertDiv.innerHTML = `<i class="bi bi-${data.success ? 'check-circle' : 'exclamation-triangle'} me-2"></i> ${data.message || (data.success ? `Receipt sent to ${customerEmail}!` : `Failed to send: ${data.error}`)} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+        modalBody.prepend(alertDiv);
 
-                // Auto-close after 2 seconds
-                setTimeout(() => {
-                    bootstrap.Modal.getInstance(document.getElementById('emailModal')).hide();
-                    finishSale();
-                }, 2000);
-            } else {
-                // Show error message
-                const alertDiv = document.createElement('div');
-                alertDiv.className = 'alert alert-danger alert-dismissible fade show';
-                alertDiv.innerHTML = `
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    Failed to send receipt: ${data.error || 'Unknown error'}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                `;
-                document.querySelector('#emailModal .modal-body').prepend(alertDiv);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'alert alert-danger alert-dismissible fade show';
-            alertDiv.innerHTML = `
-                <i class="bi bi-exclamation-triangle me-2"></i>
-                An error occurred while sending the receipt.
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
-            document.querySelector('#emailModal .modal-body').prepend(alertDiv);
-        })
-        .finally(() => {
-            // Reset button
-            sendBtn.disabled = false;
-            sendBtn.innerHTML = originalText;
-        });
-    }
-}
+        if (data.success) {
+            setTimeout(() => {
+                const emailModal = bootstrap.Modal.getInstance(document.getElementById('emailModal'));
+                if (emailModal) emailModal.hide();
+                finishSale();
+            }, 2500);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while sending the receipt.');
+    })
+    .finally(() => {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = originalText;
+    });
+  }
 
-// Finish sale and refresh page
-function finishSale() {
-    // Hide any open modals
-    const receiptModal = bootstrap.Modal.getInstance(document.getElementById('receiptModal'));
-    const emailModal = bootstrap.Modal.getInstance(document.getElementById('emailModal'));
-
-    if (receiptModal) receiptModal.hide();
-    if (emailModal) emailModal.hide();
+  // Finish the sale flow and reload the page to get updated stock
+  function finishSale() {
+    ['receiptModal', 'emailModal'].forEach(id => {
+        const modalInstance = bootstrap.Modal.getInstance(document.getElementById(id));
+        if (modalInstance) modalInstance.hide();
+    });
 
     selectedProduct = null;
     lastReceiptId = null;
 
-    // Reset forms
-    document.getElementById('saleForm').reset();
-    document.getElementById('selectedProductInfo').style.display = 'none';
-    document.getElementById('emailForm').reset();
-
-    // Remove any alert messages from email modal
-    const alerts = document.querySelectorAll('#emailModal .alert');
-    alerts.forEach(alert => alert.remove());
-
-    // Refresh page to update stock levels
+    // Reload the page to reflect stock changes
     setTimeout(() => {
         location.reload();
-    }, 1000);
-}
+    }, 500);
+  }
 
-// Reset email form when modal is hidden
-document.getElementById('emailModal').addEventListener('hidden.bs.modal', function () {
+  // Clean up modals when they are hidden to prevent stale data
+  document.getElementById('emailModal').addEventListener('hidden.bs.modal', function() {
     document.getElementById('emailForm').reset();
-    // Remove any alert messages
-    const alerts = document.querySelectorAll('#emailModal .alert');
-    alerts.forEach(alert => alert.remove());
-});
-</script>
+    document.querySelectorAll('#emailModal .alert').forEach(alert => alert.remove());
+  });
 
+  document.getElementById('saleModal').addEventListener('hidden.bs.modal', function() {
+    document.getElementById('saleForm').reset();
+    document.getElementById('selectedProductInfo').style.display = 'none';
+  });
+</script>
 {% endblock %}
+
 
 {% block extra_css %}
 <style>
 .product-card {
-    transition: transform 0.2s;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
     cursor: pointer;
 }
 
 .product-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transform: translateY(-4px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.1);
 }
 
 /* FIFO Priority Styling */
 .fifo-priority {
     border: 2px solid #ffc107 !important;
-    box-shadow: 0 0 10px rgba(255, 193, 7, 0.3);
+    box-shadow: 0 0 15px rgba(255, 193, 7, 0.4);
 }
 
 .fifo-priority:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 15px rgba(255, 193, 7, 0.4);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(255, 193, 7, 0.5);
 }
 
 .sell-first-badge {
-    animation: pulse 2s infinite;
+    animation: pulse-warning 1.5s infinite;
 }
 
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.7; }
-    100% { opacity: 1; }
+@keyframes pulse-warning {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+    50% { transform: scale(1.05); box-shadow: 0 0 5px 10px rgba(220, 53, 69, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
 }
 
 .select-product-btn {
@@ -707,25 +600,6 @@ document.getElementById('emailModal').addEventListener('hidden.bs.modal', functi
 
 .select-product-btn:hover {
     transform: scale(1.05);
-}
-
-/* FIFO Visual Indicators */
-.border-warning {
-    border-color: #ffc107 !important;
-}
-
-.bg-warning {
-    background-color: #ffc107 !important;
-}
-
-.badge.bg-danger {
-    background-color: #dc3545 !important;
-}
-
-.alert-warning {
-    background-color: #fff3cd;
-    border-color: #ffecb5;
-    color: #664d03;
 }
 </style>
 {% endblock %}

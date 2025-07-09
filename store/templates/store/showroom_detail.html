@@ -1,43 +1,53 @@
-{% extends 'base.html' %}
+{% extends 'base_sidebar.html' %}
+
 {% block title %}{{ store.name }} - Store Details{% endblock %}
+{% block page_title %}{{ store.name }} - Store Details{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
+<div class="content-area">
     <div class="row">
         <div class="col-12">
             <!-- Header Section -->
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div class="d-flex align-items-center">
-                    <a href="{% url 'showroom_list' %}" class="btn btn-outline-secondary me-3">
-                        <i class="bi bi-arrow-left"></i>
-                    </a>
-                    <div>
-                        <h2 class="mb-0">
-                            <i class="bi bi-shop text-primary me-2"></i>
-                            {{ store.name }}
-                        </h2>
-                        <p class="text-muted mb-0">Store Details and Management</p>
+            <div class="ezm-card mb-4">
+                <div class="ezm-card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <a href="{% url 'showroom_list' %}" class="btn btn-outline-light me-3">
+                                <i class="bi bi-arrow-left"></i>
+                            </a>
+                            <div>
+                                <i class="bi bi-shop me-2"></i>
+                                {{ store.name }}
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <a href="{% url 'showroom_update' store.pk %}" class="btn btn-outline-light">
+                                <i class="bi bi-pencil me-2"></i>Edit Store
+                            </a>
+                            <button type="button" class="btn btn-outline-light dropdown-toggle dropdown-toggle-split"
+                                data-bs-toggle="dropdown">
+                                <span class="visually-hidden">Toggle Dropdown</span>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'showroom_update' store.pk %}">
+                                        <i class="bi bi-pencil me-2"></i>Edit Information
+                                    </a></li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
+                                <li><a class="dropdown-item text-danger" href="{% url 'showroom_delete' store.pk %}">
+                                        <i class="bi bi-trash me-2"></i>Delete Store
+                                    </a></li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
-                <div class="btn-group">
-                    <a href="{% url 'showroom_update' store.pk %}" class="btn btn-primary">
-                        <i class="bi bi-pencil me-2"></i>Edit Store
-                    </a>
-                    <button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split"
-                        data-bs-toggle="dropdown">
-                        <span class="visually-hidden">Toggle Dropdown</span>
-                    </button>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{% url 'showroom_update' store.pk %}">
-                                <i class="bi bi-pencil me-2"></i>Edit Information
-                            </a></li>
-                        <li>
-                            <hr class="dropdown-divider">
-                        </li>
-                        <li><a class="dropdown-item text-danger" href="{% url 'showroom_delete' store.pk %}">
-                                <i class="bi bi-trash me-2"></i>Delete Store
-                            </a></li>
-                    </ul>
+                <div class="card-body">
+                    <p class="mb-0">Store Details and Management</p>
                 </div>
             </div>
 
@@ -45,11 +55,9 @@
             <div class="row mb-4">
                 <!-- Basic Information -->
                 <div class="col-lg-6">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header bg-primary text-white">
-                            <h5 class="mb-0">
-                                <i class="bi bi-info-circle me-2"></i>Store Information
-                            </h5>
+                    <div class="ezm-card h-100">
+                        <div class="ezm-card-header">
+                            <i class="bi bi-info-circle me-2"></i>Store Information
                         </div>
                         <div class="card-body">
                             <div class="row g-3">
@@ -73,7 +81,8 @@
                                         <i class="bi bi-telephone me-1"></i>Phone Number
                                     </h6>
                                     <p class="mb-3">
-                                        <a href="tel:{{ store.phone_number }}" class="text-decoration-none">
+                                        <a href="tel:{{ store.phone_number }}" class="text-decoration-none"
+                                            style="color: var(--accent-teal);">
                                             {{ store.phone_number }}
                                         </a>
                                     </p>
@@ -86,17 +95,15 @@
 
                 <!-- Manager Information -->
                 <div class="col-lg-6">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header bg-success text-white">
-                            <h5 class="mb-0">
-                                <i class="bi bi-person me-2"></i>Manager Information
-                            </h5>
+                    <div class="ezm-card h-100">
+                        <div class="ezm-card-header">
+                            <i class="bi bi-person me-2"></i>Manager Information
                         </div>
                         <div class="card-body">
                             {% if store.store_manager %}
                             <div class="d-flex align-items-center mb-3">
-                                <div class="bg-success rounded-circle d-flex align-items-center justify-content-center me-3"
-                                    style="width: 50px; height: 50px;">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center me-3"
+                                    style="width: 50px; height: 50px; background: linear-gradient(45deg, var(--accent-cyan), var(--accent-teal));">
                                     <i class="bi bi-person-fill text-white fs-4"></i>
                                 </div>
                                 <div>
@@ -112,7 +119,8 @@
                                         <i class="bi bi-envelope me-1"></i>Email
                                     </h6>
                                     <p class="mb-2">
-                                        <a href="mailto:{{ store.store_manager.email }}" class="text-decoration-none">
+                                        <a href="mailto:{{ store.store_manager.email }}" class="text-decoration-none"
+                                            style="color: var(--accent-teal);">
                                             {{ store.store_manager.email }}
                                         </a>
                                     </p>
@@ -125,7 +133,7 @@
                                     </h6>
                                     <p class="mb-2">
                                         <a href="tel:{{ store.store_manager.phone_number }}"
-                                            class="text-decoration-none">
+                                            class="text-decoration-none" style="color: var(--accent-teal);">
                                             {{ store.store_manager.phone_number }}
                                         </a>
                                     </p>
@@ -134,17 +142,18 @@
                             </div>
 
                             <div class="mt-3">
-                                <a href="{% url 'showroom_update' store.pk %}" class="btn btn-sm btn-outline-primary">
+                                <a href="{% url 'showroom_update' store.pk %}" class="btn btn-sm btn-ezm-secondary">
                                     <i class="bi bi-person-gear me-1"></i>Change Manager
                                 </a>
                             </div>
                             {% else %}
                             <div class="text-center py-4">
-                                <i class="bi bi-person-x display-4 text-muted"></i>
+                                <i class="bi bi-person-x display-4" style="color: var(--accent-cyan);"></i>
                                 <h6 class="mt-3">No Manager Assigned</h6>
                                 <p class="text-muted mb-3">This store currently has no manager assigned.</p>
                                 {% if available_managers %}
-                                <a href="{% url 'showroom_update' store.pk %}" class="btn btn-warning">
+                                <a href="{% url 'showroom_update' store.pk %}" class="btn"
+                                    style="background-color: var(--warning); color: white;">
                                     <i class="bi bi-person-plus me-2"></i>Assign Manager
                                 </a>
                                 {% else %}
@@ -160,60 +169,62 @@
             <!-- Statistics Cards -->
             <div class="row mb-4">
                 <div class="col-md-3">
-                    <div class="card bg-primary text-white shadow-sm">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
+                    <div class="ezm-card">
+                        <div class="card-body text-center">
+                            <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <h6 class="card-title">Products</h6>
-                                    <h3 class="mb-0">{{ total_products }}</h3>
+                                    <h6 class="text-muted mb-1">Products</h6>
+                                    <h3 class="mb-0" style="color: var(--accent-cyan);">{{ total_products }}</h3>
                                 </div>
                                 <div class="align-self-center">
-                                    <i class="bi bi-box fs-1"></i>
+                                    <i class="bi bi-box fs-1" style="color: var(--accent-cyan);"></i>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="card bg-warning text-white shadow-sm">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
+                    <div class="ezm-card">
+                        <div class="card-body text-center">
+                            <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <h6 class="card-title">Low Stock</h6>
-                                    <h3 class="mb-0">{{ low_stock_items }}</h3>
+                                    <h6 class="text-muted mb-1">Low Stock</h6>
+                                    <h3 class="mb-0" style="color: var(--warning);">{{ low_stock_items }}</h3>
                                 </div>
                                 <div class="align-self-center">
-                                    <i class="bi bi-exclamation-triangle fs-1"></i>
+                                    <i class="bi bi-exclamation-triangle fs-1" style="color: var(--warning);"></i>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="card bg-success text-white shadow-sm">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
+                    <div class="ezm-card">
+                        <div class="card-body text-center">
+                            <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <h6 class="card-title">Monthly Sales</h6>
-                                    <h3 class="mb-0">${{ monthly_sales|floatformat:0 }}</h3>
+                                    <h6 class="text-muted mb-1">Monthly Sales</h6>
+                                    <h3 class="mb-0" style="color: var(--success);">${{ monthly_sales|floatformat:0 }}
+                                    </h3>
                                 </div>
                                 <div class="align-self-center">
-                                    <i class="bi bi-graph-up fs-1"></i>
+                                    <i class="bi bi-graph-up fs-1" style="color: var(--success);"></i>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="card bg-info text-white shadow-sm">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
+                    <div class="ezm-card">
+                        <div class="card-body text-center">
+                            <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <h6 class="card-title">Transactions</h6>
-                                    <h3 class="mb-0">{{ recent_transactions.count }}</h3>
+                                    <h6 class="text-muted mb-1">Transactions</h6>
+                                    <h3 class="mb-0" style="color: var(--accent-teal);">{{ recent_transactions.count }}
+                                    </h3>
                                 </div>
                                 <div class="align-self-center">
-                                    <i class="bi bi-receipt fs-1"></i>
+                                    <i class="bi bi-receipt fs-1" style="color: var(--accent-teal);"></i>
                                 </div>
                             </div>
                         </div>
@@ -222,11 +233,9 @@
             </div>
 
             <!-- Recent Transactions -->
-            <div class="card shadow-sm">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0">
-                        <i class="bi bi-clock-history me-2"></i>Recent Transactions
-                    </h5>
+            <div class="ezm-card">
+                <div class="ezm-card-header">
+                    <i class="bi bi-clock-history me-2"></i>Recent Transactions
                 </div>
                 <div class="card-body">
                     {% if recent_transactions %}
@@ -264,7 +273,7 @@
                     </div>
                     {% else %}
                     <div class="text-center py-4">
-                        <i class="bi bi-receipt display-4 text-muted"></i>
+                        <i class="bi bi-receipt display-4" style="color: var(--accent-cyan);"></i>
                         <h6 class="mt-3">No Recent Transactions</h6>
                         <p class="text-muted">No transactions have been recorded for this store yet.</p>
                     </div>

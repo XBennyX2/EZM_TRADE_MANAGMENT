@@ -1,7 +1,155 @@
-{% extends 'base.html' %}
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
 {% block title %}Store Manager Settings{% endblock %}
+{% block page_title %}Store Manager Settings{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
 {% block content %}
-<div class="container">
-    <h1>Store Manager Settings</h1>
+<div class="container-fluid">
+    <!-- Welcome Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="ezm-card">
+                <div class="ezm-card-header">
+                    <i class="bi bi-gear me-2"></i>Store Manager Settings
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">Manage your store manager account settings and preferences.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Options -->
+    <div class="row g-4">
+        <div class="col-lg-6 col-md-6">
+            <a href="#" onclick="showComingSoon('Edit Profile')" class="text-decoration-none">
+                <div class="feature-card">
+                    <div class="card-body">
+                        <i class="bi bi-person-circle"></i>
+                        <h5>Edit Profile Information</h5>
+                        <p>Update your personal information and account details</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-lg-6 col-md-6">
+            <a href="{% url 'password_change' %}" class="text-decoration-none">
+                <div class="feature-card">
+                    <div class="card-body">
+                        <i class="bi bi-key"></i>
+                        <h5>Change Password</h5>
+                        <p>Update your account password for security</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-lg-6 col-md-6">
+            <a href="{% url 'manage_cashiers' %}" class="text-decoration-none">
+                <div class="feature-card">
+                    <div class="card-body">
+                        <i class="bi bi-people"></i>
+                        <h5>Manage Cashiers</h5>
+                        <p>Assign and manage cashiers for your store</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-lg-6 col-md-6">
+            <a href="{% url 'store_manager_page' %}" class="text-decoration-none">
+                <div class="feature-card">
+                    <div class="card-body">
+                        <i class="bi bi-speedometer2"></i>
+                        <h5>Back to Dashboard</h5>
+                        <p>Return to the store manager dashboard</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
 </div>
+
+<!-- Coming Soon Modal -->
+<div class="modal fade" id="comingSoonModal" tabindex="-1" aria-labelledby="comingSoonModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"
+                style="background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan)); color: white;">
+                <h5 class="modal-title" id="comingSoonModalLabel">
+                    <i class="bi bi-info-circle me-2"></i>Feature Coming Soon
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <i class="bi bi-tools" style="font-size: 3rem; color: var(--accent-teal); margin-bottom: 1rem;"></i>
+                <h6 id="featureName" class="mb-3"></h6>
+                <p class="text-muted">This feature is currently under development and will be available soon.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ezm-primary" data-bs-dismiss="modal">Got it</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_css %}
+<style>
+    .feature-card {
+        background: var(--white);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        border: none;
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 25px rgba(0, 0, 0, 0.12);
+    }
+
+    .feature-card .card-body {
+        padding: 2rem;
+        text-align: center;
+    }
+
+    .feature-card i {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .feature-card h5 {
+        color: var(--secondary-dark);
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .feature-card p {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function showComingSoon(featureName) {
+        document.getElementById('featureName').textContent = featureName;
+        const modal = new bootstrap.Modal(document.getElementById('comingSoonModal'));
+        modal.show();
+    }
+</script>
+{% endblock %}
 {% endblock %}

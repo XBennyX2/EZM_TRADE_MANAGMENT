@@ -1,262 +1,263 @@
-{% extends 'base.html' %}
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
 {% block title %}Showroom Management{% endblock %}
+{% block page_title %}Store Manager Assignment{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
-    <div class="row">
+<div class="content-area">
+    <!-- Header Section -->
+    <div class="row mb-4">
         <div class="col-12">
-            <!-- Header Section -->
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div class="d-flex align-items-center">
-                    <a href="{% url 'head_manager_page' %}" class="btn btn-outline-secondary me-3">
-                        <i class="bi bi-arrow-left"></i>
-                    </a>
-                    <div>
-                        <h2 class="mb-0">
-                            <i class="bi bi-shop text-primary me-2"></i>
-                            Showroom Management
-                        </h2>
-                        <p class="text-muted mb-0">Manage all store locations and assignments</p>
-                    </div>
+            <div class="ezm-card">
+                <div class="ezm-card-header">
+                    <i class="bi bi-shop me-2"></i>Store Manager Assignment
                 </div>
-                <a href="{% url 'showroom_create' %}" class="btn btn-primary">
-                    <i class="bi bi-plus-circle me-2"></i>Add New Store
-                </a>
-            </div>
-
-            <!-- Search and Filter Section -->
-            <div class="card shadow-sm mb-4">
                 <div class="card-body">
-                    <form method="get" class="row g-3">
-                        <div class="col-md-6">
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="bi bi-search"></i>
-                                </span>
-                                <input type="text" name="search" class="form-control" 
-                                       placeholder="Search stores..." value="{{ request.GET.search }}">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <select name="manager" class="form-select">
-                                <option value="">All Stores</option>
-                                <option value="assigned" {% if request.GET.manager == 'assigned' %}selected{% endif %}>With Manager</option>
-                                <option value="unassigned" {% if request.GET.manager == 'unassigned' %}selected{% endif %}>Without Manager</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <button type="submit" class="btn btn-outline-primary w-100">
-                                <i class="bi bi-funnel me-1"></i>Filter
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Statistics Cards -->
-            <div class="row mb-4">
-                <div class="col-md-3">
-                    <div class="card bg-primary text-white shadow-sm">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="card-title">Total Stores</h6>
-                                    <h3 class="mb-0">{{ total_stores }}</h3>
-                                </div>
-                                <div class="align-self-center">
-                                    <i class="bi bi-shop fs-1"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card bg-success text-white shadow-sm">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="card-title">With Managers</h6>
-                                    <h3 class="mb-0">{{ stores_with_managers }}</h3>
-                                </div>
-                                <div class="align-self-center">
-                                    <i class="bi bi-person-check fs-1"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card bg-warning text-white shadow-sm">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="card-title">Need Managers</h6>
-                                    <h3 class="mb-0">{{ stores_without_managers }}</h3>
-                                </div>
-                                <div class="align-self-center">
-                                    <i class="bi bi-person-x fs-1"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card bg-info text-white shadow-sm">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="card-title">Available Managers</h6>
-                                    <h3 class="mb-0">{{ available_managers.count }}</h3>
-                                </div>
-                                <div class="align-self-center">
-                                    <i class="bi bi-people fs-1"></i>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <p class="mb-0">Manage all store locations and assignments</p>
+                        <a href="{% url 'showroom_create' %}" class="btn btn-ezm-primary">
+                            <i class="bi bi-plus-circle me-2"></i>Add New Store
+                        </a>
                     </div>
                 </div>
             </div>
-
-            <!-- Stores Grid -->
-            {% if stores %}
-            <div class="row">
-                {% for store in stores %}
-                <div class="col-lg-4 col-md-6 mb-4">
-                    <div class="card shadow-sm h-100 hover-shadow transition">
-                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0 fw-bold">{{ store.name }}</h6>
-                            <div class="dropdown">
-                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" 
-                                        data-bs-toggle="dropdown">
-                                    <i class="bi bi-three-dots"></i>
-                                </button>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="{% url 'showroom_detail' store.pk %}">
-                                        <i class="bi bi-eye me-2"></i>View Details
-                                    </a></li>
-                                    <li><a class="dropdown-item" href="{% url 'showroom_update' store.pk %}">
-                                        <i class="bi bi-pencil me-2"></i>Edit Store
-                                    </a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item text-danger" href="{% url 'showroom_delete' store.pk %}">
-                                        <i class="bi bi-trash me-2"></i>Delete Store
-                                    </a></li>
-                                </ul>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <h6 class="text-muted mb-1">
-                                    <i class="bi bi-geo-alt me-1"></i>Location
-                                </h6>
-                                <p class="mb-0">{{ store.address|truncatechars:60 }}</p>
-                            </div>
-
-                            {% if store.phone_number %}
-                            <div class="mb-3">
-                                <h6 class="text-muted mb-1">
-                                    <i class="bi bi-telephone me-1"></i>Phone
-                                </h6>
-                                <p class="mb-0">{{ store.phone_number }}</p>
-                            </div>
-                            {% endif %}
-
-                            <div class="mb-3">
-                                <h6 class="text-muted mb-1">
-                                    <i class="bi bi-person me-1"></i>Store Manager
-                                </h6>
-                                {% if store.store_manager %}
-                                <div class="d-flex align-items-center">
-                                    <span class="badge bg-success me-2">Assigned</span>
-                                    <span>{{ store.store_manager.get_full_name|default:store.store_manager.username }}</span>
-                                </div>
-                                {% else %}
-                                <div class="d-flex align-items-center">
-                                    <span class="badge bg-warning me-2">Unassigned</span>
-                                    <span class="text-muted">No manager assigned</span>
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="card-footer bg-light">
-                            <div class="d-flex justify-content-between">
-                                <a href="{% url 'showroom_detail' store.pk %}" class="btn btn-sm btn-outline-primary">
-                                    <i class="bi bi-eye me-1"></i>View Details
-                                </a>
-                                {% if not store.store_manager and available_managers %}
-                                <a href="{% url 'showroom_update' store.pk %}" class="btn btn-sm btn-warning">
-                                    <i class="bi bi-person-plus me-1"></i>Assign Manager
-                                </a>
-                                {% else %}
-                                <a href="{% url 'showroom_update' store.pk %}" class="btn btn-sm btn-outline-secondary">
-                                    <i class="bi bi-pencil me-1"></i>Edit
-                                </a>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-
-            <!-- Pagination -->
-            {% if is_paginated %}
-            <div class="d-flex justify-content-between align-items-center mt-4">
-                <div class="text-muted">
-                    Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} stores
-                </div>
-                <nav>
-                    <ul class="pagination mb-0">
-                        {% if page_obj.has_previous %}
-                        <li class="page-item">
-                            <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.manager %}&manager={{ request.GET.manager }}{% endif %}">First</a>
-                        </li>
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.manager %}&manager={{ request.GET.manager }}{% endif %}">Previous</a>
-                        </li>
-                        {% endif %}
-
-                        <li class="page-item active">
-                            <span class="page-link">{{ page_obj.number }}</span>
-                        </li>
-
-                        {% if page_obj.has_next %}
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.manager %}&manager={{ request.GET.manager }}{% endif %}">Next</a>
-                        </li>
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.manager %}&manager={{ request.GET.manager }}{% endif %}">Last</a>
-                        </li>
-                        {% endif %}
-                    </ul>
-                </nav>
-            </div>
-            {% endif %}
-            {% else %}
-            <div class="text-center py-5">
-                <i class="bi bi-shop display-4 text-muted"></i>
-                <h5 class="mt-3">No Stores Found</h5>
-                <p class="text-muted">Start by adding your first store to the system.</p>
-                <a href="{% url 'showroom_create' %}" class="btn btn-primary">
-                    <i class="bi bi-plus-circle me-2"></i>Add First Store
-                </a>
-            </div>
-            {% endif %}
         </div>
     </div>
+
+    <!-- Search and Filter Section -->
+    <div class="ezm-card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" name="search" class="form-control" placeholder="Search stores..."
+                            value="{{ request.GET.search }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <select name="manager" class="form-select">
+                        <option value="">All Stores</option>
+                        <option value="assigned" {% if request.GET.manager == 'assigned' %} selected{% endif %}>With
+                            Manager</option>
+                        <option value="unassigned" {% if request.GET.manager == 'unassigned' %} selected{% endif %}>
+                            Without Manager</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-ezm-secondary w-100">
+                        <i class="bi bi-funnel me-1"></i>Filter
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="ezm-card">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Total Stores</h6>
+                            <h3 class="mb-0" style="color: var(--accent-cyan);">{{ total_stores }}</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-shop fs-1" style="color: var(--accent-cyan);"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="ezm-card">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">With Managers</h6>
+                            <h3 class="mb-0" style="color: var(--success);">{{ stores_with_managers }}</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-person-check fs-1" style="color: var(--success);"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="ezm-card">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Need Managers</h6>
+                            <h3 class="mb-0" style="color: var(--warning);">{{ stores_without_managers }}</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-person-x fs-1" style="color: var(--warning);"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="ezm-card">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Available Managers</h6>
+                            <h3 class="mb-0" style="color: var(--accent-teal);">{{ available_managers.count }}</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-people fs-1" style="color: var(--accent-teal);"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stores Grid -->
+    {% if stores %}
+    <div class="row">
+        {% for store in stores %}
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="ezm-card h-100">
+                <div class="ezm-card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-bold">{{ store.name }}</h6>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button"
+                            data-bs-toggle="dropdown">
+                            <i class="bi bi-three-dots"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'showroom_detail' store.pk %}">
+                                    <i class="bi bi-eye me-2"></i>View Details
+                                </a></li>
+                            <li><a class="dropdown-item" href="{% url 'showroom_update' store.pk %}">
+                                    <i class="bi bi-pencil me-2"></i>Edit Store
+                                </a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li><a class="dropdown-item text-danger" href="{% url 'showroom_delete' store.pk %}">
+                                    <i class="bi bi-trash me-2"></i>Delete Store
+                                </a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6 class="text-muted mb-1">
+                            <i class="bi bi-geo-alt me-1"></i>Location
+                        </h6>
+                        <p class="mb-0">{{ store.address|truncatechars:60 }}</p>
+                    </div>
+
+                    {% if store.phone_number %}
+                    <div class="mb-3">
+                        <h6 class="text-muted mb-1">
+                            <i class="bi bi-telephone me-1"></i>Phone
+                        </h6>
+                        <p class="mb-0">{{ store.phone_number }}</p>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <h6 class="text-muted mb-1">
+                            <i class="bi bi-person me-1"></i>Store Manager
+                        </h6>
+                        {% if store.store_manager %}
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-success me-2">Assigned</span>
+                            <span>{{ store.store_manager.get_full_name|default:store.store_manager.username }}</span>
+                        </div>
+                        {% else %}
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-warning me-2">Unassigned</span>
+                            <span class="text-muted">No manager assigned</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-footer" style="background-color: #f8f9fa; border-top: 1px solid rgba(0,0,0,0.125);">
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'showroom_detail' store.pk %}" class="btn btn-sm btn-ezm-secondary">
+                            <i class="bi bi-eye me-1"></i>View Details
+                        </a>
+                        {% if not store.store_manager and available_managers %}
+                        <a href="{% url 'showroom_update' store.pk %}" class="btn btn-sm"
+                            style="background-color: var(--warning); color: white;">
+                            <i class="bi bi-person-plus me-1"></i>Assign Manager
+                        </a>
+                        {% else %}
+                        <a href="{% url 'showroom_update' store.pk %}" class="btn btn-sm btn-ezm-secondary">
+                            <i class="bi bi-pencil me-1"></i>Edit
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <div class="d-flex justify-content-between align-items-center mt-4">
+        <div class="text-muted">
+            Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} stores
+        </div>
+        <nav>
+            <ul class="pagination mb-0">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link"
+                        href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.manager %}&manager={{ request.GET.manager }}{% endif %}">First</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link"
+                        href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.manager %}&manager={{ request.GET.manager }}{% endif %}">Previous</a>
+                </li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link">{{ page_obj.number }}</span>
+                </li>
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link"
+                        href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.manager %}&manager={{ request.GET.manager }}{% endif %}">Next</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link"
+                        href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.manager %}&manager={{ request.GET.manager }}{% endif %}">Last</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="ezm-card text-center py-5">
+        <div class="card-body">
+            <i class="bi bi-shop display-4" style="color: var(--accent-cyan);"></i>
+            <h5 class="mt-3">No Stores Found</h5>
+            <p class="text-muted">Start by adding your first store to the system.</p>
+            <a href="{% url 'showroom_create' %}" class="btn btn-ezm-primary">
+                <i class="bi bi-plus-circle me-2"></i>Add First Store
+            </a>
+        </div>
+    </div>
+    {% endif %}
 </div>
-
-<style>
-.hover-shadow {
-    transition: box-shadow 0.3s ease;
-}
-
-.hover-shadow:hover {
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
-}
-
-.transition {
-    transition: all 0.3s ease;
-}
-</style>
+{% endblock %}
 {% endblock %}

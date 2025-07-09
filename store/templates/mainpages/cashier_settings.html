@@ -1,89 +1,156 @@
-{% extends 'base.html' %}
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
 {% block title %}Cashier Settings{% endblock %}
+{% block page_title %}Cashier Settings{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
 {% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h3 class="mb-0"><i class="fas fa-user-cog"></i> Cashier Settings</h3>
+<div class="container-fluid">
+    <!-- Welcome Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="ezm-card">
+                <div class="ezm-card-header">
+                    <i class="bi bi-gear me-2"></i>Cashier Settings
                 </div>
                 <div class="card-body">
                     {% if user.is_first_login %}
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle"></i>
+                    <div class="alert alert-info border-0"
+                        style="background: rgba(102, 252, 241, 0.1); color: var(--accent-teal); border-left: 4px solid var(--accent-cyan) !important;">
+                        <i class="bi bi-info-circle me-2"></i>
                         <strong>Welcome!</strong> This is your first login. Please update your password and profile
                         information for security.
                     </div>
                     {% endif %}
+                    <p class="mb-0">Manage your cashier account settings and preferences.</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
-                    <div class="row">
-                        <!-- Profile Management -->
-                        <div class="col-md-6 mb-4">
-                            <div class="card h-100">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-user-edit fa-3x text-primary mb-3"></i>
-                                    <h5 class="card-title">Edit Profile</h5>
-                                    <p class="card-text">Update your personal information and contact details.</p>
-                                    <a href="{% url 'cashier_edit_profile' %}" class="btn btn-primary">
-                                        <i class="fas fa-edit"></i> Edit Profile
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Password Management -->
-                        <div class="col-md-6 mb-4">
-                            <div class="card h-100">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-key fa-3x text-warning mb-3"></i>
-                                    <h5 class="card-title">Change Password</h5>
-                                    <p class="card-text">Update your password for better security.</p>
-                                    <a href="{% url 'cashier_change_password' %}" class="btn btn-warning">
-                                        <i class="fas fa-lock"></i> Change Password
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
+    <!-- Settings Options -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6 col-md-6">
+            <a href="{% url 'cashier_edit_profile' %}" class="text-decoration-none">
+                <div class="feature-card">
+                    <div class="card-body">
+                        <i class="bi bi-person-circle"></i>
+                        <h5>Edit Profile</h5>
+                        <p>Update your personal information and contact details</p>
                     </div>
+                </div>
+            </a>
+        </div>
 
-                    <!-- Account Information -->
-                    <div class="card mt-4">
-                        <div class="card-header">
-                            <h5><i class="fas fa-info-circle"></i> Account Information</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <p><strong>Username:</strong> {{ user.username }}</p>
-                                    <p><strong>Email:</strong> {{ user.email }}</p>
-                                    <p><strong>Role:</strong> <span class="badge bg-info">{{ user.get_role_display
-                                            }}</span></p>
-                                </div>
-                                <div class="col-md-6">
-                                    <p><strong>First Name:</strong> {{ user.first_name|default:"Not set" }}</p>
-                                    <p><strong>Last Name:</strong> {{ user.last_name|default:"Not set" }}</p>
-                                    <p><strong>Account Status:</strong>
-                                        {% if user.is_active %}
-                                        <span class="badge bg-success">Active</span>
-                                        {% else %}
-                                        <span class="badge bg-danger">Inactive</span>
-                                        {% endif %}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
+        <div class="col-lg-6 col-md-6">
+            <a href="{% url 'cashier_change_password' %}" class="text-decoration-none">
+                <div class="feature-card">
+                    <div class="card-body">
+                        <i class="bi bi-key"></i>
+                        <h5>Change Password</h5>
+                        <p>Update your password for better security</p>
                     </div>
+                </div>
+            </a>
+        </div>
 
-                    <!-- Navigation -->
-                    <div class="text-center mt-4">
-                        <a href="{% url 'cashier_page' %}" class="btn btn-success btn-lg">
-                            <i class="fas fa-tachometer-alt"></i> Go to Dashboard
-                        </a>
+        <div class="col-lg-6 col-md-6">
+            <a href="{% url 'cashier_page' %}" class="text-decoration-none">
+                <div class="feature-card">
+                    <div class="card-body">
+                        <i class="bi bi-speedometer2"></i>
+                        <h5>Back to Dashboard</h5>
+                        <p>Return to the cashier dashboard</p>
                     </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-lg-6 col-md-6">
+            <a href="{% url 'cashier_dashboard' %}" class="text-decoration-none">
+                <div class="feature-card">
+                    <div class="card-body">
+                        <i class="bi bi-cash-register"></i>
+                        <h5>Point of Sale</h5>
+                        <p>Go to the point of sale system</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Account Information -->
+    <div class="ezm-card">
+        <div class="ezm-card-header">
+            <i class="bi bi-info-circle me-2"></i>Account Information
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Username:</strong> {{ user.username }}</p>
+                    <p><strong>Email:</strong> {{ user.email }}</p>
+                    <p><strong>Role:</strong> <span class="badge bg-info">{{ user.get_role_display }}</span></p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>First Name:</strong> {{ user.first_name|default:"Not set" }}</p>
+                    <p><strong>Last Name:</strong> {{ user.last_name|default:"Not set" }}</p>
+                    <p><strong>Account Status:</strong>
+                        {% if user.is_active %}
+                        <span class="badge bg-success">Active</span>
+                        {% else %}
+                        <span class="badge bg-danger">Inactive</span>
+                        {% endif %}
+                    </p>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+{% block extra_css %}
+<style>
+    .feature-card {
+        background: var(--white);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        border: none;
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 25px rgba(0, 0, 0, 0.12);
+    }
+
+    .feature-card .card-body {
+        padding: 2rem;
+        text-align: center;
+    }
+
+    .feature-card i {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .feature-card h5 {
+        color: var(--secondary-dark);
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .feature-card p {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
 {% endblock %}

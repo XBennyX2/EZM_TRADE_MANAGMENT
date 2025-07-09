@@ -8,6 +8,7 @@ class CustomUser(AbstractUser):
         ('head_manager', 'Head Manager'),
         ('store_manager', 'Store Manager'),
         ('cashier', 'Cashier'),
+        ('supplier', 'Supplier'),
     ]
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     store = models.ForeignKey('store.Store', on_delete=models.SET_NULL, null=True, blank=True) # Add this line

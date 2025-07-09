@@ -68,6 +68,8 @@ def login_view(request):
             return redirect('store_manager_page')
         elif user.role == 'cashier':
             return redirect('cashier_page')
+        elif user.role == 'supplier':
+            return redirect('supplier_dashboard')
         else:
             messages.warning(request, "No role assigned. Contact admin.")
             return redirect('login')
@@ -91,6 +93,8 @@ def login_view(request):
                     return redirect('store_manager_settings')
                 elif user.role == 'cashier':
                     return redirect('cashier_settings')
+                elif user.role == 'supplier':
+                    return redirect('supplier_settings')
             else:
                 if user.is_superuser or user.role == 'admin':
                     return redirect('admin_dashboard')
@@ -105,6 +109,8 @@ def login_view(request):
                         return redirect('login')
                 elif user.role == 'cashier':
                     return redirect('cashier_page')
+                elif user.role == 'supplier':
+                    return redirect('supplier_dashboard')
                 else:
                     messages.warning(request, "No role assigned. Contact admin.")
                     return redirect('login')
@@ -237,6 +243,7 @@ def manage_users(request):
         'is_head_manager': role_filter == 'head_manager',
         'is_store_manager': role_filter == 'store_manager',
         'is_cashier': role_filter == 'cashier',
+        'is_supplier': role_filter == 'supplier',
     }
     logger.debug(f"page_obj: {page_obj}")
     logger.debug(f"page_obj.paginator.page_range: {page_obj.paginator.page_range}")
@@ -244,6 +251,9 @@ def manage_users(request):
 
 @user_passes_test(is_admin)
 def create_user(request):
+    # Get role choices from the CustomUser model
+    role_choices = CustomUser.ROLE_CHOICES
+
     if request.method == 'POST':
         username = request.POST.get('username')
         first_name = request.POST.get('first_name')
@@ -259,7 +269,8 @@ def create_user(request):
             'last_name': last_name,
             'email': email,
             'phone_number': phone_number,
-            'role': role
+            'role': role,
+            'role_choices': role_choices
         }
 
         if not all([username, first_name, last_name, email, password, role]):
@@ -327,7 +338,7 @@ EZM Trade Management Team"""
             messages.error(request, f"Error creating user: {e}")
             return render(request, 'admin/create_user.html', context)
     else:
-        return render(request, 'admin/create_user.html')
+        return render(request, 'admin/create_user.html', {'role_choices': role_choices})
 
 @user_passes_test(is_admin)
 def toggle_user_status(request, user_id):
@@ -607,6 +618,8 @@ class CustomPasswordChangeView(PasswordChangeView):
             return reverse_lazy('store_manager_page')
         elif user.role == 'cashier':
             return reverse_lazy('cashier_page')
+        elif user.role == 'supplier':
+            return reverse_lazy('supplier_dashboard')
         else:
             # Default fallback
             return reverse_lazy('login')

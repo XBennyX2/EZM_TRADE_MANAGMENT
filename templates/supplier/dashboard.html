@@ -1,0 +1,206 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
+{% block title %}Supplier Dashboard{% endblock %}
+{% block page_title %}Supplier Dashboard{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="content-area">
+    <!-- Welcome Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="ezm-card">
+                <div class="ezm-card-header">
+                    <i class="bi bi-person-circle me-2"></i>Welcome, {{ user.get_full_name|default:user.username }}
+                </div>
+                <div class="card-body">
+                    {% if supplier %}
+                        <h5 class="mb-3" style="color: var(--primary-dark);">{{ supplier.name }}</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-2"><strong>Contact Person:</strong> {{ supplier.contact_person|default:"Not specified" }}</p>
+                                <p class="mb-2"><strong>Email:</strong> {{ supplier.email }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-2"><strong>Phone:</strong> {{ supplier.phone|default:"Not specified" }}</p>
+                                <p class="mb-2"><strong>Status:</strong> 
+                                    {% if supplier.is_active %}
+                                        <span class="badge" style="background-color: var(--success); color: white;">Active</span>
+                                    {% else %}
+                                        <span class="badge" style="background-color: var(--warning); color: white;">Inactive</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Supplier account not found. Please contact the administrator to set up your supplier profile.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="ezm-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-clipboard-check" style="font-size: 2rem; color: var(--accent-cyan);"></i>
+                    <h4 class="mt-2 mb-1">{{ pending_orders }}</h4>
+                    <p class="text-muted mb-0">Pending Orders</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="ezm-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-receipt" style="font-size: 2rem; color: var(--accent-teal);"></i>
+                    <h4 class="mt-2 mb-1">{{ pending_invoices }}</h4>
+                    <p class="text-muted mb-0">Pending Invoices</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="ezm-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-credit-card" style="font-size: 2rem; color: var(--success);"></i>
+                    <h4 class="mt-2 mb-1">${{ total_payments|floatformat:2 }}</h4>
+                    <p class="text-muted mb-0">Total Payments</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="ezm-card">
+                <div class="card-body text-center">
+                    {% if supplier_account %}
+                        <i class="bi bi-wallet2" style="font-size: 2rem; color: var(--primary-dark);"></i>
+                        <h4 class="mt-2 mb-1">${{ supplier_account.current_balance|floatformat:2 }}</h4>
+                        <p class="text-muted mb-0">Current Balance</p>
+                    {% else %}
+                        <i class="bi bi-exclamation-circle" style="font-size: 2rem; color: var(--warning);"></i>
+                        <h4 class="mt-2 mb-1">N/A</h4>
+                        <p class="text-muted mb-0">Account Not Set</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Transactions -->
+    <div class="row">
+        <div class="col-12">
+            <div class="ezm-card">
+                <div class="ezm-card-header">
+                    <i class="bi bi-clock-history me-2"></i>Recent Transactions
+                </div>
+                <div class="card-body">
+                    {% if recent_transactions %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Transaction #</th>
+                                        <th>Type</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for transaction in recent_transactions %}
+                                    <tr>
+                                        <td>{{ transaction.transaction_number }}</td>
+                                        <td>
+                                            <span class="badge" style="background-color: var(--accent-cyan); color: white;">
+                                                {{ transaction.get_transaction_type_display }}
+                                            </span>
+                                        </td>
+                                        <td>${{ transaction.amount|floatformat:2 }}</td>
+                                        <td>
+                                            {% if transaction.status == 'completed' %}
+                                                <span class="badge" style="background-color: var(--success); color: white;">{{ transaction.get_status_display }}</span>
+                                            {% elif transaction.status == 'pending' %}
+                                                <span class="badge" style="background-color: var(--warning); color: white;">{{ transaction.get_status_display }}</span>
+                                            {% elif transaction.status == 'cancelled' %}
+                                                <span class="badge" style="background-color: var(--danger); color: white;">{{ transaction.get_status_display }}</span>
+                                            {% else %}
+                                                <span class="badge" style="background-color: var(--secondary-dark); color: white;">{{ transaction.get_status_display }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ transaction.transaction_date|date:"M d, Y" }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="text-center mt-3">
+                            <a href="{% url 'supplier_transactions' %}" class="btn btn-ezm-primary">
+                                <i class="bi bi-eye me-2"></i>View All Transactions
+                            </a>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="bi bi-inbox" style="font-size: 3rem; color: var(--light-gray);"></i>
+                            <p class="text-muted mt-3">No recent transactions found.</p>
+                            {% if supplier_account %}
+                                <p class="text-muted">Your transaction history will appear here once you start doing business with us.</p>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="ezm-card">
+                <div class="ezm-card-header">
+                    <i class="bi bi-lightning me-2"></i>Quick Actions
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'supplier_purchase_orders' %}" class="btn btn-ezm-secondary w-100">
+                                <i class="bi bi-clipboard-check me-2"></i>View Purchase Orders
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'supplier_invoices' %}" class="btn btn-ezm-secondary w-100">
+                                <i class="bi bi-receipt me-2"></i>Manage Invoices
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'supplier_products' %}" class="btn btn-ezm-secondary w-100">
+                                <i class="bi bi-box-seam me-2"></i>Product Catalog
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'supplier_reports' %}" class="btn btn-ezm-secondary w-100">
+                                <i class="bi bi-graph-up me-2"></i>View Reports
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-refresh dashboard data every 5 minutes
+    setTimeout(function() {
+        location.reload();
+    }, 300000);
+</script>
+{% endblock %}

@@ -45,6 +45,7 @@
             <option value="head_manager" {% if is_head_manager %}selected{% endif %}>Head Manager</option>
             <option value="store_manager" {% if is_store_manager %}selected{% endif %}>Store Manager</option>
             <option value="cashier" {% if is_cashier %}selected{% endif %}>Cashier</option>
+            <option value="supplier" {% if role_filter == 'supplier' %} selected{% endif %}>Supplier</option>
           </select>
         </div>
         <div class="col-md-4">

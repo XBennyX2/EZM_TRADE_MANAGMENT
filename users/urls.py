@@ -15,6 +15,10 @@ from .views import (
     store_manager_settings, store_manager_change_password, cashier_settings, cashier_edit_profile, cashier_change_password,
     CustomPasswordChangeView
 )
+from .supplier_views import (
+    supplier_dashboard, supplier_account, supplier_purchase_orders, supplier_invoices,
+    supplier_payments, supplier_transactions, supplier_products, supplier_reports, supplier_settings
+)
 
 urlpatterns = [
     path('login/', login_view, name='login'),
@@ -67,4 +71,15 @@ urlpatterns = [
     path('password-reset-complete/', PasswordResetCompleteView.as_view(
         template_name='users/password_reset_complete.html'
     ), name='password_reset_complete'),
+
+    # Supplier URLs
+    path('supplier/dashboard/', supplier_dashboard, name='supplier_dashboard'),
+    path('supplier/account/', supplier_account, name='supplier_account'),
+    path('supplier/purchase-orders/', supplier_purchase_orders, name='supplier_purchase_orders'),
+    path('supplier/invoices/', supplier_invoices, name='supplier_invoices'),
+    path('supplier/payments/', supplier_payments, name='supplier_payments'),
+    path('supplier/transactions/', supplier_transactions, name='supplier_transactions'),
+    path('supplier/products/', supplier_products, name='supplier_products'),
+    path('supplier/reports/', supplier_reports, name='supplier_reports'),
+    path('supplier/settings/', supplier_settings, name='supplier_settings'),
 ]

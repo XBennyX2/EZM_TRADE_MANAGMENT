@@ -1,43 +1,101 @@
-{% extends 'base.html' %}
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
 {% block title %}Waiting for Assignment{% endblock %}
+{% block page_title %}Waiting for Store Assignment{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
+<div class="content-area">
   <div class="row justify-content-center">
-    <div class="col-md-8">
-      <div class="card text-center">
+    <div class="col-lg-8 col-md-10">
+      <div class="ezm-card text-center">
+        <div class="ezm-card-header">
+          <i class="bi bi-clock-history me-2"></i>Waiting for Store Assignment
+        </div>
         <div class="card-body py-5">
           <div class="mb-4">
-            <i class="fas fa-clock fa-4x text-warning"></i>
+            <i class="bi bi-hourglass-split" style="font-size: 4rem; color: var(--accent-cyan);"></i>
           </div>
-          <h2 class="card-title mb-3">Waiting for Store Assignment</h2>
-          <p class="card-text lead mb-4">
+          <h3 class="mb-3" style="color: var(--primary-dark);">Assignment Pending</h3>
+          <p class="lead mb-4" style="color: var(--secondary-dark);">
             {{ message }}
           </p>
           <p class="text-muted mb-4">
             Your store manager needs to assign you to a store before you can start processing sales.
             Please contact your store manager or wait for the assignment.
           </p>
-          
-          <div class="alert alert-info" role="alert">
-            <i class="fas fa-info-circle me-2"></i>
-            <strong>What happens next?</strong><br>
-            Once assigned to a store, you'll be able to:
-            <ul class="list-unstyled mt-2 mb-0">
-              <li><i class="fas fa-check text-success me-2"></i>View available products</li>
-              <li><i class="fas fa-check text-success me-2"></i>Process customer sales</li>
-              <li><i class="fas fa-check text-success me-2"></i>Generate receipts</li>
-              <li><i class="fas fa-check text-success me-2"></i>Manage transactions</li>
-            </ul>
+
+          <div class="ezm-card mt-4">
+            <div class="card-body"
+              style="background: linear-gradient(45deg, rgba(102, 252, 241, 0.1), rgba(69, 162, 158, 0.1)); border-radius: 8px;">
+              <h6 class="mb-3" style="color: var(--accent-teal);">
+                <i class="bi bi-info-circle me-2"></i>What happens next?
+              </h6>
+              <p class="mb-3">Once assigned to a store, you'll be able to:</p>
+              <ul class="list-unstyled mb-0">
+                <li class="mb-2"><i class="bi bi-check-circle-fill me-2" style="color: var(--success);"></i>View
+                  available products</li>
+                <li class="mb-2"><i class="bi bi-check-circle-fill me-2" style="color: var(--success);"></i>Process
+                  customer sales</li>
+                <li class="mb-2"><i class="bi bi-check-circle-fill me-2" style="color: var(--success);"></i>Generate
+                  receipts</li>
+                <li class="mb-0"><i class="bi bi-check-circle-fill me-2" style="color: var(--success);"></i>Manage
+                  transactions</li>
+              </ul>
+            </div>
           </div>
-          
+
+          <!-- Auto-refresh Status -->
+          <div class="mt-4 mb-3">
+            <div class="d-flex align-items-center justify-content-center">
+              <small class="text-muted me-2">
+                <i class="bi bi-arrow-clockwise me-1"></i>Auto-refreshing in
+              </small>
+              <span id="countdown" class="badge" style="background-color: var(--accent-teal); color: white;">30</span>
+              <small class="text-muted ms-1">seconds</small>
+            </div>
+          </div>
+
           <div class="mt-4">
-            <a href="{% url 'logout' %}" class="btn btn-outline-secondary me-2">
-              <i class="fas fa-sign-out-alt me-2"></i>Logout
+            <a href="{% url 'logout' %}" class="btn btn-ezm-secondary me-2">
+              <i class="bi bi-box-arrow-right me-2"></i>Logout
             </a>
-            <a href="{% url 'cashier_settings' %}" class="btn btn-primary">
-              <i class="fas fa-cog me-2"></i>Settings
+            <a href="{% url 'cashier_settings' %}" class="btn btn-ezm-primary">
+              <i class="bi bi-gear me-2"></i>Settings
             </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- User Status Card -->
+      <div class="ezm-card mt-4">
+        <div class="card-body">
+          <h6 class="mb-3" style="color: var(--primary-dark);">
+            <i class="bi bi-person-circle me-2"></i>Your Information
+          </h6>
+          <div class="row">
+            <div class="col-md-6">
+              <p class="mb-2">
+                <strong>Name:</strong> {{ request.user.get_full_name|default:request.user.username }}
+              </p>
+              <p class="mb-2">
+                <strong>Email:</strong> {{ request.user.email }}
+              </p>
+            </div>
+            <div class="col-md-6">
+              <p class="mb-2">
+                <strong>Role:</strong>
+                <span class="badge" style="background-color: var(--accent-cyan); color: white;">Cashier</span>
+              </p>
+              <p class="mb-2">
+                <strong>Status:</strong>
+                <span class="badge" style="background-color: var(--warning); color: white;">Awaiting Assignment</span>
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -45,10 +103,47 @@
   </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
 <script>
-// Auto-refresh every 30 seconds to check for assignment
-setTimeout(function() {
-    location.reload();
-}, 30000);
+  // Auto-refresh every 30 seconds to check for assignment
+  let refreshTimer;
+  let countdownTimer;
+  let secondsLeft = 30;
+
+  function startCountdown() {
+    const countdownElement = document.getElementById('countdown');
+    if (countdownElement) {
+      countdownTimer = setInterval(function () {
+        secondsLeft--;
+        countdownElement.textContent = secondsLeft;
+
+        if (secondsLeft <= 0) {
+          clearInterval(countdownTimer);
+          location.reload();
+        }
+      }, 1000);
+    }
+  }
+
+  function startRefreshTimer() {
+    refreshTimer = setTimeout(function () {
+      location.reload();
+    }, 30000);
+
+    startCountdown();
+  }
+
+  // Start the timer when page loads
+  document.addEventListener('DOMContentLoaded', function () {
+    startRefreshTimer();
+  });
+
+  // Clear timers if user navigates away
+  window.addEventListener('beforeunload', function () {
+    if (refreshTimer) clearTimeout(refreshTimer);
+    if (countdownTimer) clearInterval(countdownTimer);
+  });
 </script>
 {% endblock %}

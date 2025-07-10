@@ -1,0 +1,469 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
+{% block title %}Supplier Onboarding{% endblock %}
+{% block page_title %}Complete Your Supplier Profile{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Welcome Card -->
+            <div class="ezm-card mb-4">
+                <div class="ezm-card-header text-center"
+                    style="background: linear-gradient(90deg, var(--accent-teal), var(--accent-cyan)); color: white;">
+                    <i class="bi bi-person-check me-2"></i>Welcome to EZM Trade Management
+                </div>
+                <div class="card-body text-center">
+                    <h4 class="mb-3" style="color: var(--primary-dark);">Complete Your Supplier Profile</h4>
+                    <p class="text-muted mb-3">
+                        Welcome, <strong>{{ user.get_full_name|default:user.username }}</strong>!
+                        Please provide your business information to get started with our platform.
+                        This information helps us serve you better and enables all platform features.
+                    </p>
+
+                    <!-- Progress Indicator -->
+                    <div class="progress-container mb-3">
+                        <div class="progress" style="height: 8px; border-radius: 10px;">
+                            <div class="progress-bar" role="progressbar"
+                                style="width: 50%; background: linear-gradient(90deg, var(--accent-teal), var(--accent-cyan));"
+                                aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <small class="text-muted mt-2 d-block">Step 1 of 2: Complete Profile Setup</small>
+                    </div>
+
+                    <div class="alert alert-info border-0"
+                        style="background: rgba(102, 252, 241, 0.1); color: var(--primary-dark);">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Required fields are marked with an asterisk (*)</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Onboarding Form -->
+            <div class="ezm-card">
+                <div class="ezm-card-header">
+                    <i class="bi bi-building me-2"></i>Business Information
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+
+                        <!-- Business Information Section -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="section-title">Business Details</h5>
+                                <hr class="section-divider">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.business_name.id_for_label }}" class="form-label">
+                                    Business Name <span class="text-danger">*</span>
+                                </label>
+                                {{ form.business_name }}
+                                {% if form.business_name.help_text %}
+                                <div class="form-text">{{ form.business_name.help_text }}</div>
+                                {% endif %}
+                                {% if form.business_name.errors %}
+                                <div class="text-danger">{{ form.business_name.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.business_type.id_for_label }}" class="form-label">
+                                    Business Type <span class="text-danger">*</span>
+                                </label>
+                                {{ form.business_type }}
+                                {% if form.business_type.errors %}
+                                <div class="text-danger">{{ form.business_type.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.business_registration_number.id_for_label }}" class="form-label">
+                                    Business Registration Number
+                                </label>
+                                {{ form.business_registration_number }}
+                                {% if form.business_registration_number.errors %}
+                                <div class="text-danger">{{ form.business_registration_number.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.tax_id.id_for_label }}" class="form-label">
+                                    Tax ID / EIN
+                                </label>
+                                {{ form.tax_id }}
+                                {% if form.tax_id.errors %}
+                                <div class="text-danger">{{ form.tax_id.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Contact Information Section -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="section-title">Primary Contact Information</h5>
+                                <hr class="section-divider">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.primary_contact_name.id_for_label }}" class="form-label">
+                                    Contact Name <span class="text-danger">*</span>
+                                </label>
+                                {{ form.primary_contact_name }}
+                                {% if form.primary_contact_name.errors %}
+                                <div class="text-danger">{{ form.primary_contact_name.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.primary_contact_title.id_for_label }}" class="form-label">
+                                    Job Title
+                                </label>
+                                {{ form.primary_contact_title }}
+                                {% if form.primary_contact_title.errors %}
+                                <div class="text-danger">{{ form.primary_contact_title.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.primary_contact_phone.id_for_label }}" class="form-label">
+                                    Phone Number <span class="text-danger">*</span>
+                                </label>
+                                {{ form.primary_contact_phone }}
+                                {% if form.primary_contact_phone.errors %}
+                                <div class="text-danger">{{ form.primary_contact_phone.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.primary_contact_email.id_for_label }}" class="form-label">
+                                    Contact Email <span class="text-danger">*</span>
+                                </label>
+                                {{ form.primary_contact_email }}
+                                {% if form.primary_contact_email.errors %}
+                                <div class="text-danger">{{ form.primary_contact_email.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Business Address Section -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="section-title">Business Address</h5>
+                                <hr class="section-divider">
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label for="{{ form.business_address_line1.id_for_label }}" class="form-label">
+                                    Address Line 1 <span class="text-danger">*</span>
+                                </label>
+                                {{ form.business_address_line1 }}
+                                {% if form.business_address_line1.errors %}
+                                <div class="text-danger">{{ form.business_address_line1.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label for="{{ form.business_address_line2.id_for_label }}" class="form-label">
+                                    Address Line 2
+                                </label>
+                                {{ form.business_address_line2 }}
+                                {% if form.business_address_line2.errors %}
+                                <div class="text-danger">{{ form.business_address_line2.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.city.id_for_label }}" class="form-label">
+                                    City <span class="text-danger">*</span>
+                                </label>
+                                {{ form.city }}
+                                {% if form.city.errors %}
+                                <div class="text-danger">{{ form.city.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.state_province.id_for_label }}" class="form-label">
+                                    State/Province <span class="text-danger">*</span>
+                                </label>
+                                {{ form.state_province }}
+                                {% if form.state_province.errors %}
+                                <div class="text-danger">{{ form.state_province.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.postal_code.id_for_label }}" class="form-label">
+                                    Postal Code <span class="text-danger">*</span>
+                                </label>
+                                {{ form.postal_code }}
+                                {% if form.postal_code.errors %}
+                                <div class="text-danger">{{ form.postal_code.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label for="{{ form.country.id_for_label }}" class="form-label">
+                                    Country <span class="text-danger">*</span>
+                                </label>
+                                {{ form.country }}
+                                {% if form.country.errors %}
+                                <div class="text-danger">{{ form.country.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Business Operations Section -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="section-title">Business Operations</h5>
+                                <hr class="section-divider">
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label for="{{ form.product_categories.id_for_label }}" class="form-label">
+                                    Product Categories <span class="text-danger">*</span>
+                                </label>
+                                {{ form.product_categories }}
+                                {% if form.product_categories.help_text %}
+                                <div class="form-text">{{ form.product_categories.help_text }}</div>
+                                {% endif %}
+                                {% if form.product_categories.errors %}
+                                <div class="text-danger">{{ form.product_categories.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.estimated_delivery_timeframe.id_for_label }}" class="form-label">
+                                    Estimated Delivery Timeframe <span class="text-danger">*</span>
+                                </label>
+                                {{ form.estimated_delivery_timeframe }}
+                                {% if form.estimated_delivery_timeframe.errors %}
+                                <div class="text-danger">{{ form.estimated_delivery_timeframe.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.preferred_payment_terms.id_for_label }}" class="form-label">
+                                    Preferred Payment Terms <span class="text-danger">*</span>
+                                </label>
+                                {{ form.preferred_payment_terms }}
+                                {% if form.preferred_payment_terms.errors %}
+                                <div class="text-danger">{{ form.preferred_payment_terms.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.minimum_order_value.id_for_label }}" class="form-label">
+                                    Minimum Order Value (ETB) <span class="text-danger">*</span>
+                                </label>
+                                {{ form.minimum_order_value }}
+                                {% if form.minimum_order_value.help_text %}
+                                <div class="form-text">{{ form.minimum_order_value.help_text }}</div>
+                                {% endif %}
+                                {% if form.minimum_order_value.errors %}
+                                <div class="text-danger">{{ form.minimum_order_value.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="form-progress-info">
+                                        <small class="text-muted">
+                                            <i class="bi bi-shield-check me-1"></i>
+                                            Your information is secure and will only be used for business purposes
+                                        </small>
+                                    </div>
+                                    <div class="form-actions">
+                                        <button type="submit" class="btn btn-ezm-primary btn-lg me-2" id="submitBtn">
+                                            <i class="bi bi-check-circle me-2"></i>Complete Profile Setup
+                                        </button>
+                                        <a href="{% url 'supplier_dashboard' %}" class="btn btn-ezm-secondary">
+                                            <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+<style>
+    .ezm-card {
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        border: none;
+        border-radius: 15px;
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+
+    .ezm-card-header {
+        padding: 1.5rem;
+        font-weight: 600;
+        font-size: 1.1rem;
+        background: linear-gradient(45deg, var(--secondary-dark), var(--primary-dark));
+        color: white;
+    }
+
+    .section-title {
+        color: var(--primary-dark);
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .section-divider {
+        border-color: var(--accent-teal);
+        opacity: 0.3;
+        margin-bottom: 1.5rem;
+    }
+
+    .btn-ezm-primary {
+        background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        color: white;
+        transition: all 0.3s ease;
+    }
+
+    .btn-ezm-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 252, 241, 0.3);
+        color: white;
+    }
+
+    .btn-ezm-secondary {
+        background: linear-gradient(45deg, #6c757d, #5a6268);
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        color: white;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+
+    .btn-ezm-secondary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+        color: white;
+    }
+
+    .form-control:focus {
+        border-color: var(--accent-teal);
+        box-shadow: 0 0 0 0.2rem rgba(102, 252, 241, 0.25);
+    }
+
+    .text-danger {
+        color: #dc3545 !important;
+    }
+
+    .form-control.is-valid {
+        border-color: var(--accent-teal);
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%2345A29E' d='m2.3 6.73.94-.94 1.88 1.88 3.75-3.75.94.94-4.69 4.69z'/%3e%3c/svg%3e");
+    }
+
+    .form-control.is-invalid {
+        border-color: #dc3545;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath d='m5.8 4.6 1.4 1.4 1.4-1.4M8.6 6l-1.4 1.4 1.4 1.4'/%3e%3c/svg%3e");
+    }
+</style>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Form validation and user experience improvements
+        const form = document.querySelector('form');
+        const submitBtn = document.getElementById('submitBtn');
+        const requiredFields = document.querySelectorAll('input[required], select[required], textarea[required]');
+
+        // Add real-time validation feedback
+        requiredFields.forEach(field => {
+            field.addEventListener('blur', function () {
+                validateField(this);
+            });
+
+            field.addEventListener('input', function () {
+                if (this.classList.contains('is-invalid')) {
+                    validateField(this);
+                }
+            });
+        });
+
+        function validateField(field) {
+            const isValid = field.checkValidity();
+            field.classList.remove('is-valid', 'is-invalid');
+
+            if (field.value.trim() !== '') {
+                field.classList.add(isValid ? 'is-valid' : 'is-invalid');
+            }
+        }
+
+        // Form submission handling
+        form.addEventListener('submit', function (e) {
+            let isFormValid = true;
+
+            // Validate all required fields
+            requiredFields.forEach(field => {
+                if (!field.checkValidity() || field.value.trim() === '') {
+                    field.classList.add('is-invalid');
+                    isFormValid = false;
+                } else {
+                    field.classList.add('is-valid');
+                }
+            });
+
+            if (!isFormValid) {
+                e.preventDefault();
+                // Scroll to first invalid field
+                const firstInvalid = document.querySelector('.is-invalid');
+                if (firstInvalid) {
+                    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    firstInvalid.focus();
+                }
+
+                // Show error message
+                showAlert('Please fill in all required fields correctly.', 'danger');
+                return false;
+            }
+
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Processing...';
+        });
+
+        // Helper function to show alerts
+        function showAlert(message, type = 'info') {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
+                <i class="bi bi-${type === 'danger' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+
+            const container = document.querySelector('.container-fluid');
+            container.insertBefore(alertDiv, container.firstChild);
+
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 5000);
+        }
+
+        // Auto-format phone number
+        const phoneFields = document.querySelectorAll('input[name*="phone"]');
+        phoneFields.forEach(phoneField => {
+            phoneField.addEventListener('input', function () {
+                let value = this.value.replace(/\D/g, '');
+                if (value.length >= 6) {
+                    value = value.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
+                } else if (value.length >= 3) {
+                    value = value.replace(/(\d{3})(\d{0,3})/, '($1) $2');
+                }
+                this.value = value;
+            });
+        });
+    });
+</script>
+{% endblock %}

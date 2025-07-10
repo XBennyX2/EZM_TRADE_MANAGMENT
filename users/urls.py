@@ -1,5 +1,6 @@
 # users/urls.py
 from django.urls import path
+from django.shortcuts import render
 from django.contrib.auth.views import (
     PasswordChangeView,
     PasswordResetView,
@@ -9,7 +10,7 @@ from django.contrib.auth.views import (
 )
 from .views import (
     login_view, logout_view, admin_dashboard, store_manager_page, cashier_page, head_manager_page,
-    manage_users, toggle_user_status, change_user_role, view_user_detail, create_user,
+    manage_users, toggle_user_status, change_user_role, view_user_detail, create_user, delete_user,
     admin_settings, admin_edit_profile, admin_change_password, head_manager_settings,
     head_manager_change_password, head_manager_edit_profile,
     store_manager_settings, store_manager_change_password, cashier_settings, cashier_edit_profile, cashier_change_password,
@@ -17,7 +18,9 @@ from .views import (
 )
 from .supplier_views import (
     supplier_dashboard, supplier_account, supplier_purchase_orders, supplier_invoices,
-    supplier_payments, supplier_transactions, supplier_products, supplier_reports, supplier_settings
+    supplier_payments, supplier_transactions, supplier_products, supplier_reports, supplier_settings,
+    check_supplier_setup_status, supplier_onboarding, supplier_product_catalog,
+    supplier_add_product, supplier_edit_product, supplier_delete_product
 )
 
 urlpatterns = [
@@ -28,6 +31,7 @@ urlpatterns = [
      path('admin/manage-users/', manage_users, name='manage_users'),
     path('admin/user/<int:user_id>/toggle-status/', toggle_user_status, name='toggle_user_status'),
     path('admin/user/<int:user_id>/change-role/', change_user_role, name='change_user_role'),
+    path('admin/user/<int:user_id>/delete/', delete_user, name='delete_user'),
     path('admin/user/<int:user_id>/', view_user_detail, name='view_user_detail'),
     path('admin/create-user/', create_user, name='create_user'),
 
@@ -82,4 +86,11 @@ urlpatterns = [
     path('supplier/products/', supplier_products, name='supplier_products'),
     path('supplier/reports/', supplier_reports, name='supplier_reports'),
     path('supplier/settings/', supplier_settings, name='supplier_settings'),
+    path('supplier/onboarding/', supplier_onboarding, name='supplier_onboarding'),
+    path('supplier/catalog/', supplier_product_catalog, name='supplier_product_catalog'),
+    path('supplier/catalog/add/', supplier_add_product, name='supplier_add_product'),
+    path('supplier/catalog/<int:product_id>/edit/', supplier_edit_product, name='supplier_edit_product'),
+    path('supplier/catalog/<int:product_id>/delete/', supplier_delete_product, name='supplier_delete_product'),
+    path('supplier/setup-status/', check_supplier_setup_status, name='supplier_setup_status'),
+    path('supplier/dashboard-test/', lambda request: render(request, 'supplier/dashboard_test.html'), name='supplier_dashboard_test'),
 ]

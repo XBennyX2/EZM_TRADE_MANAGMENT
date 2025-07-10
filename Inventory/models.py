@@ -196,6 +196,307 @@ class Supplier(models.Model):
         return self.name
 
 
+class SupplierProfile(models.Model):
+    """
+    Extended supplier profile for onboarding and detailed business information.
+    """
+    BUSINESS_TYPE_CHOICES = [
+        ('manufacturer', 'Manufacturer'),
+        ('distributor', 'Distributor'),
+        ('wholesaler', 'Wholesaler'),
+        ('retailer', 'Retailer'),
+        ('service_provider', 'Service Provider'),
+        ('other', 'Other'),
+    ]
+
+    PAYMENT_TERMS_CHOICES = [
+        ('net_15', 'Net 15 Days'),
+        ('net_30', 'Net 30 Days'),
+        ('net_45', 'Net 45 Days'),
+        ('net_60', 'Net 60 Days'),
+        ('cod', 'Cash on Delivery'),
+        ('advance', 'Advance Payment'),
+        ('credit_card', 'Credit Card'),
+    ]
+
+    supplier = models.OneToOneField(
+        Supplier,
+        on_delete=models.CASCADE,
+        related_name='profile'
+    )
+
+    # Business Information
+    business_name = models.CharField(max_length=200)
+    business_type = models.CharField(max_length=20, choices=BUSINESS_TYPE_CHOICES)
+    business_registration_number = models.CharField(max_length=100, blank=True)
+    tax_id = models.CharField(max_length=50, blank=True)
+
+    # Contact Details
+    primary_contact_name = models.CharField(max_length=100)
+    primary_contact_title = models.CharField(max_length=100, blank=True)
+    primary_contact_phone = models.CharField(max_length=20)
+    primary_contact_email = models.EmailField()
+
+    # Business Address
+    business_address_line1 = models.CharField(max_length=200)
+    business_address_line2 = models.CharField(max_length=200, blank=True)
+    city = models.CharField(max_length=100)
+    state_province = models.CharField(max_length=100)
+    postal_code = models.CharField(max_length=20)
+    country = models.CharField(max_length=100)
+
+    # Business Operations
+    product_categories = models.TextField(
+        help_text="Comma-separated list of product categories supplied"
+    )
+    estimated_delivery_timeframe = models.CharField(
+        max_length=100,
+        help_text="e.g., '3-5 business days', '1-2 weeks'"
+    )
+    preferred_payment_terms = models.CharField(
+        max_length=20,
+        choices=PAYMENT_TERMS_CHOICES,
+        default='net_30'
+    )
+    minimum_order_value = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text="Minimum order value in USD"
+    )
+
+    # Certifications and Compliance
+    business_license = models.CharField(max_length=200, blank=True)
+    certifications = models.TextField(
+        blank=True,
+        help_text="List any relevant business certifications"
+    )
+    insurance_details = models.TextField(blank=True)
+
+    # Banking Information
+    bank_name = models.CharField(max_length=200, blank=True)
+    account_number = models.CharField(max_length=50, blank=True)
+    routing_number = models.CharField(max_length=20, blank=True)
+
+    # Profile Status
+    is_onboarding_complete = models.BooleanField(default=False)
+    onboarding_completed_date = models.DateTimeField(null=True, blank=True)
+    created_date = models.DateTimeField(auto_now_add=True)
+    updated_date = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['business_name']
+
+    def __str__(self):
+        return f"{self.business_name} - {self.supplier.name}"
+
+    def get_product_categories_list(self):
+        """Return product categories as a list"""
+        if self.product_categories:
+            return [cat.strip() for cat in self.product_categories.split(',')]
+        return []
+
+
+class SupplierProduct(models.Model):
+    """
+    Products offered by suppliers in their catalog.
+    """
+    AVAILABILITY_CHOICES = [
+        ('in_stock', 'In Stock'),
+        ('limited_stock', 'Limited Stock'),
+        ('out_of_stock', 'Out of Stock'),
+        ('discontinued', 'Discontinued'),
+        ('pre_order', 'Pre-Order'),
+    ]
+
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.CASCADE,
+        related_name='catalog_products'
+    )
+
+    # Product Information
+    product_name = models.CharField(max_length=200)
+    product_code = models.CharField(max_length=50, blank=True)
+    description = models.TextField()
+    category = models.CharField(max_length=100)
+    subcategory = models.CharField(max_length=100, blank=True)
+
+    # Pricing and Quantities
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=3, default='USD')
+    minimum_order_quantity = models.PositiveIntegerField(default=1)
+    maximum_order_quantity = models.PositiveIntegerField(null=True, blank=True)
+
+    # Product Specifications
+    specifications = models.TextField(
+        blank=True,
+        help_text="Detailed product specifications"
+    )
+    dimensions = models.CharField(max_length=100, blank=True)
+    weight = models.CharField(max_length=50, blank=True)
+    color_options = models.CharField(max_length=200, blank=True)
+    material = models.CharField(max_length=100, blank=True)
+
+    # Availability and Delivery
+    availability_status = models.CharField(
+        max_length=20,
+        choices=AVAILABILITY_CHOICES,
+        default='in_stock'
+    )
+    estimated_delivery_time = models.CharField(
+        max_length=100,
+        help_text="e.g., '2-3 business days', '1 week'"
+    )
+    stock_quantity = models.PositiveIntegerField(null=True, blank=True)
+
+    # Product Images
+    product_image = models.ImageField(
+        upload_to='supplier_products/',
+        blank=True,
+        null=True
+    )
+
+    # Status and Timestamps
+    is_active = models.BooleanField(default=True)
+    created_date = models.DateTimeField(auto_now_add=True)
+    updated_date = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['product_name']
+        unique_together = ['supplier', 'product_code']
+
+    def __str__(self):
+        return f"{self.product_name} - {self.supplier.name}"
+
+    def is_available(self):
+        """Check if product is available for ordering"""
+        return self.availability_status in ['in_stock', 'limited_stock', 'pre_order']
+
+
+class PurchaseRequest(models.Model):
+    """
+    Purchase requests from Head Managers to suppliers for specific products.
+    """
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('sent', 'Sent to Supplier'),
+        ('acknowledged', 'Acknowledged by Supplier'),
+        ('quoted', 'Quote Provided'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('converted', 'Converted to Purchase Order'),
+        ('cancelled', 'Cancelled'),
+    ]
+
+    request_number = models.CharField(max_length=50, unique=True)
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.CASCADE,
+        related_name='purchase_requests'
+    )
+    requested_by = models.ForeignKey(
+        'users.CustomUser',
+        on_delete=models.CASCADE,
+        related_name='purchase_requests'
+    )
+
+    # Request Details
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    required_delivery_date = models.DateField()
+    delivery_address = models.TextField()
+
+    # Status and Workflow
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    supplier_notes = models.TextField(blank=True)
+    internal_notes = models.TextField(blank=True)
+
+    # Financial Information
+    estimated_total = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0
+    )
+    quoted_total = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+
+    # Timestamps
+    created_date = models.DateTimeField(auto_now_add=True)
+    sent_date = models.DateTimeField(null=True, blank=True)
+    response_date = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_date']
+
+    def __str__(self):
+        return f"PR-{self.request_number} - {self.supplier.name}"
+
+    def save(self, *args, **kwargs):
+        if not self.request_number:
+            # Generate unique request number
+            from datetime import datetime
+            import uuid
+            self.request_number = f"{datetime.now().strftime('%Y%m%d')}{str(uuid.uuid4())[:8].upper()}"
+        super().save(*args, **kwargs)
+
+
+class PurchaseRequestItem(models.Model):
+    """
+    Individual items in a purchase request.
+    """
+    purchase_request = models.ForeignKey(
+        PurchaseRequest,
+        on_delete=models.CASCADE,
+        related_name='items'
+    )
+    supplier_product = models.ForeignKey(
+        SupplierProduct,
+        on_delete=models.CASCADE,
+        related_name='request_items'
+    )
+
+    # Requested Quantities and Specifications
+    requested_quantity = models.PositiveIntegerField()
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    total_price = models.DecimalField(max_digits=12, decimal_places=2)
+
+    # Supplier Response
+    quoted_unit_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    quoted_total_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    supplier_notes = models.TextField(blank=True)
+
+    # Special Requirements
+    special_requirements = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['id']
+
+    def __str__(self):
+        return f"{self.supplier_product.product_name} x {self.requested_quantity}"
+
+    def save(self, *args, **kwargs):
+        # Calculate total price
+        self.total_price = self.unit_price * self.requested_quantity
+        if self.quoted_unit_price:
+            self.quoted_total_price = self.quoted_unit_price * self.requested_quantity
+        super().save(*args, **kwargs)
+
+
 class WarehouseProduct(models.Model):
     """
     Represents products available in the warehouse with detailed information.

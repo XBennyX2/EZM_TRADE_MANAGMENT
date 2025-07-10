@@ -5,7 +5,10 @@ from .views import (
     SupplierListView, SupplierCreateView, SupplierUpdateView, SupplierDeleteView,
     WarehouseListView, WarehouseDetailView, WarehouseCreateView, WarehouseUpdateView, WarehouseDeleteView,
     SupplierProductListView, WarehouseProductCreateView, WarehouseProductUpdateView, WarehouseProductDeleteView,
-    PurchaseOrderListView, PurchaseOrderCreateView, PurchaseOrderDetailView, PurchaseOrderUpdateView
+    PurchaseOrderListView, PurchaseOrderCreateView, PurchaseOrderDetailView, PurchaseOrderUpdateView,
+    activate_supplier_account, supplier_account_status, supplier_profile_view, supplier_product_catalog_view,
+    purchase_request_list, purchase_request_create, purchase_request_detail, purchase_request_from_catalog,
+    convert_request_to_order
 )
 
 urlpatterns = [
@@ -28,6 +31,10 @@ urlpatterns = [
     path('suppliers/<int:pk>/delete/', SupplierDeleteView.as_view(), name='supplier_delete'),
     path('suppliers/<int:supplier_id>/products/', SupplierProductListView.as_view(), name='supplier_products'),
     path('suppliers/<int:supplier_id>/products/new/', WarehouseProductCreateView.as_view(), name='warehouse_product_create'),
+    path('suppliers/<int:supplier_id>/profile/', supplier_profile_view, name='supplier_profile_view'),
+    path('suppliers/<int:supplier_id>/catalog/', supplier_product_catalog_view, name='supplier_product_catalog_view'),
+    path('suppliers/<int:supplier_id>/activate/', activate_supplier_account, name='activate_supplier_account'),
+    path('suppliers/<int:supplier_id>/status/', supplier_account_status, name='supplier_account_status'),
     path('warehouse-products/<int:pk>/edit/', WarehouseProductUpdateView.as_view(), name='warehouse_product_update'),
     path('warehouse-products/<int:pk>/delete/', WarehouseProductDeleteView.as_view(), name='warehouse_product_delete'),
 
@@ -43,4 +50,11 @@ urlpatterns = [
     path('purchase-orders/new/', PurchaseOrderCreateView.as_view(), name='purchase_order_create'),
     path('purchase-orders/<int:pk>/', PurchaseOrderDetailView.as_view(), name='purchase_order_detail'),
     path('purchase-orders/<int:pk>/edit/', PurchaseOrderUpdateView.as_view(), name='purchase_order_update'),
+
+    # Purchase Requests
+    path('purchase-requests/', purchase_request_list, name='purchase_request_list'),
+    path('purchase-requests/create/', purchase_request_create, name='purchase_request_create'),
+    path('purchase-requests/<int:pk>/', purchase_request_detail, name='purchase_request_detail'),
+    path('purchase-requests/<int:pk>/convert/', convert_request_to_order, name='convert_request_to_order'),
+    path('suppliers/<int:supplier_id>/request/', purchase_request_from_catalog, name='purchase_request_from_catalog'),
 ]

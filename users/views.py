@@ -141,7 +141,8 @@ def admin_dashboard(request):
     active_users = User.objects.filter(is_active=True).count()
     inactive_users = User.objects.filter(is_active=False).count()
 
-    users = User.objects.order_by('-date_joined')[:10]
+    # Exclude current user from the displayed list but keep them in counts
+    users = User.objects.exclude(pk=request.user.pk).order_by('-date_joined')[:10]
 
     context = {
         'total_users': total_users,
@@ -216,9 +217,16 @@ def manage_users(request):
     role_filter = request.GET.get('role', '')
     page_number = request.GET.get('page')
 
-    users = User.objects.all()
+    # Get all users for accurate counts, but exclude current user from display
+    all_users = User.objects.all()
+    users = User.objects.exclude(pk=request.user.pk)
 
     if search_query:
+        all_users = all_users.filter(
+            Q(username__icontains=search_query) |
+            Q(first_name__icontains=search_query) |
+            Q(last_name__icontains=search_query)
+        )
         users = users.filter(
             Q(username__icontains=search_query) |
             Q(first_name__icontains=search_query) |
@@ -226,6 +234,7 @@ def manage_users(request):
         )
 
     if role_filter:
+        all_users = all_users.filter(role=role_filter)
         users = users.filter(role=role_filter)
 
     paginator = Paginator(users.order_by('username'), 5)
@@ -238,7 +247,7 @@ def manage_users(request):
         'is_paginated': page_obj.has_other_pages(),
         'search_query': search_query,
         'role_filter': role_filter,
-        'total_users': users.count(),
+        'total_users': all_users.count(),  # Use all_users for accurate count including current user
         'is_admin': role_filter == 'admin',
         'is_head_manager': role_filter == 'head_manager',
         'is_store_manager': role_filter == 'store_manager',
@@ -363,6 +372,28 @@ def change_user_role(request, user_id):
     else:
         form = ChangeUserRoleForm(instance=user)
     return render(request, 'admin/change_user_role.html', {'form': form, 'user': user})
+
+@user_passes_test(is_admin)
+def delete_user(request, user_id):
+    user = get_object_or_404(User, id=user_id)
+
+    # Prevent admin from deleting themselves
+    if user == request.user:
+        messages.error(request, "You cannot delete your own account.")
+        return redirect('manage_users')
+
+    # Prevent deletion of superusers by non-superusers
+    if user.is_superuser and not request.user.is_superuser:
+        messages.error(request, "You cannot delete a superuser account.")
+        return redirect('manage_users')
+
+    if request.method == 'POST':
+        username = user.username
+        user.delete()
+        messages.success(request, f"User '{username}' has been successfully deleted.")
+        return redirect('manage_users')
+
+    return render(request, 'admin/delete_user_confirm.html', {'user': user})
 
 @login_required
 def admin_settings(request):

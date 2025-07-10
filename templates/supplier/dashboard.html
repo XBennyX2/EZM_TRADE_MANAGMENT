@@ -8,6 +8,127 @@
 {% include 'sidebar_navigation.html' %}
 {% endblock %}
 
+{% block extra_css %}
+<style>
+    :root {
+        --primary-dark: #0B0C10;
+        --secondary-dark: #1F2833;
+        --light-gray: #C5C6C7;
+        --accent-cyan: #66FCF1;
+        --accent-teal: #45A29E;
+        --success: #28a745;
+        --warning: #ffc107;
+        --danger: #dc3545;
+        --info: #17a2b8;
+    }
+
+    .content-area {
+        padding: 2rem;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        min-height: 100vh;
+    }
+
+    .ezm-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        border: none;
+        overflow: hidden;
+        margin-bottom: 2rem;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .ezm-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+    }
+
+    .ezm-card-header {
+        background: linear-gradient(45deg, var(--secondary-dark), var(--primary-dark));
+        color: white;
+        padding: 1.5rem;
+        font-weight: 600;
+        font-size: 1.1rem;
+        border-bottom: none;
+    }
+
+    .stats-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        border: none;
+        margin-bottom: 1.5rem;
+        transition: transform 0.3s ease;
+        overflow: hidden;
+    }
+
+    .stats-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .stats-icon {
+        width: 70px;
+        height: 70px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        margin-right: 1rem;
+    }
+
+    .btn-ezm-primary {
+        background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        color: white;
+        transition: all 0.3s ease;
+        text-decoration: none;
+    }
+
+    .btn-ezm-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 252, 241, 0.3);
+        color: white;
+    }
+
+    .btn-ezm-secondary {
+        background: linear-gradient(45deg, #6c757d, #5a6268);
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        color: white;
+        transition: all 0.3s ease;
+        text-decoration: none;
+    }
+
+    .btn-ezm-secondary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+        color: white;
+    }
+
+    .alert-ezm-warning {
+        background: rgba(255, 193, 7, 0.1);
+        border: none;
+        border-left: 4px solid #ffc107;
+        border-radius: 10px;
+        padding: 1.5rem;
+    }
+
+    .badge-ezm {
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="content-area">
     <!-- Welcome Section -->
@@ -17,30 +138,69 @@
                 <div class="ezm-card-header">
                     <i class="bi bi-person-circle me-2"></i>Welcome, {{ user.get_full_name|default:user.username }}
                 </div>
-                <div class="card-body">
+                <div class="card-body p-4">
                     {% if supplier %}
-                        <h5 class="mb-3" style="color: var(--primary-dark);">{{ supplier.name }}</h5>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <p class="mb-2"><strong>Contact Person:</strong> {{ supplier.contact_person|default:"Not specified" }}</p>
-                                <p class="mb-2"><strong>Email:</strong> {{ supplier.email }}</p>
-                            </div>
-                            <div class="col-md-6">
-                                <p class="mb-2"><strong>Phone:</strong> {{ supplier.phone|default:"Not specified" }}</p>
-                                <p class="mb-2"><strong>Status:</strong> 
-                                    {% if supplier.is_active %}
-                                        <span class="badge" style="background-color: var(--success); color: white;">Active</span>
-                                    {% else %}
-                                        <span class="badge" style="background-color: var(--warning); color: white;">Inactive</span>
-                                    {% endif %}
-                                </p>
-                            </div>
+                    <h4 class="mb-3" style="color: var(--primary-dark);">{{ supplier.name }}</h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>Contact Person:</strong> {{ supplier.contact_person|default:"Not
+                                specified" }}</p>
+                            <p class="mb-2"><strong>Email:</strong> {{ supplier.email }}</p>
                         </div>
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>Phone:</strong> {{ supplier.phone|default:"Not specified" }}</p>
+                            <p class="mb-2"><strong>Status:</strong>
+                                {% if supplier.is_active %}
+                                <span class="badge badge-ezm"
+                                    style="background-color: var(--success); color: white;">Active</span>
+                                {% else %}
+                                <span class="badge badge-ezm"
+                                    style="background-color: var(--warning); color: white;">Inactive</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
                     {% else %}
-                        <div class="alert alert-warning">
-                            <i class="bi bi-exclamation-triangle me-2"></i>
-                            Supplier account not found. Please contact the administrator to set up your supplier profile.
+                    <div class="alert-ezm-warning">
+                        <div class="d-flex align-items-start">
+                            <i class="bi bi-exclamation-triangle me-3" style="font-size: 1.5rem; color: #ffc107;"></i>
+                            <div>
+                                <h5 class="alert-heading mb-2" style="color: var(--primary-dark);">Supplier Profile
+                                    Setup Required</h5>
+                                <p class="mb-2">Your supplier account is not yet configured in our system. To access all
+                                    supplier features, please contact the administrator.</p>
+
+                                <div class="mt-3">
+                                    <h6 style="color: var(--primary-dark);">Your current information:</h6>
+                                    <ul class="mb-2">
+                                        <li>Name: <strong>{{ user.get_full_name|default:user.username }}</strong></li>
+                                        <li>Email: <strong>{{ user.email }}</strong></li>
+                                        {% if user.phone_number %}
+                                        <li>Phone: <strong>{{ user.phone_number }}</strong></li>
+                                        {% endif %}
+                                    </ul>
+
+                                    <h6 style="color: var(--primary-dark);">Additional information needed:</h6>
+                                    <ul class="mb-3">
+                                        <li>Company/Supplier name</li>
+                                        <li>Business contact information</li>
+                                        <li>Business address</li>
+                                        <li>Payment terms preferences</li>
+                                    </ul>
+                                </div>
+
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <a href="mailto:admin@ezmtrade.com?subject=Supplier Account Setup Request&body=Hello,%0D%0A%0D%0AI am requesting to set up my supplier account.%0D%0A%0D%0AUser Email: {{ user.email }}%0D%0AUser Name: {{ user.get_full_name|default:user.username }}%0D%0A%0D%0APlease contact me to complete the setup process.%0D%0A%0D%0AThank you."
+                                        class="btn btn-warning">
+                                        <i class="bi bi-envelope me-2"></i>Contact Administrator
+                                    </a>
+                                    <a href="{% url 'supplier_settings' %}" class="btn btn-ezm-secondary">
+                                        <i class="bi bi-gear me-2"></i>Account Settings
+                                    </a>
+                                </div>
+                            </div>
                         </div>
+                    </div>
                     {% endif %}
                 </div>
             </div>
@@ -50,43 +210,68 @@
     <!-- Statistics Cards -->
     <div class="row mb-4">
         <div class="col-lg-3 col-md-6 mb-3">
-            <div class="ezm-card">
-                <div class="card-body text-center">
-                    <i class="bi bi-clipboard-check" style="font-size: 2rem; color: var(--accent-cyan);"></i>
-                    <h4 class="mt-2 mb-1">{{ pending_orders }}</h4>
-                    <p class="text-muted mb-0">Pending Orders</p>
+            <div class="stats-card">
+                <div class="card-body d-flex align-items-center p-4">
+                    <div class="stats-icon" style="background: rgba(102, 252, 241, 0.1); color: var(--accent-cyan);">
+                        <i class="bi bi-clipboard-check"></i>
+                    </div>
+                    <div>
+                        <p class="mb-1 text-muted">Pending Orders</p>
+                        <h3 class="fw-bold mb-0" style="color: var(--accent-cyan);">{{ pending_orders|default:0 }}</h3>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="col-lg-3 col-md-6 mb-3">
-            <div class="ezm-card">
-                <div class="card-body text-center">
-                    <i class="bi bi-receipt" style="font-size: 2rem; color: var(--accent-teal);"></i>
-                    <h4 class="mt-2 mb-1">{{ pending_invoices }}</h4>
-                    <p class="text-muted mb-0">Pending Invoices</p>
+            <div class="stats-card">
+                <div class="card-body d-flex align-items-center p-4">
+                    <div class="stats-icon" style="background: rgba(69, 162, 158, 0.1); color: var(--accent-teal);">
+                        <i class="bi bi-box-seam"></i>
+                    </div>
+                    <div>
+                        <p class="mb-1 text-muted">Total Products</p>
+                        <h3 class="fw-bold mb-0" style="color: var(--accent-teal);">{{ total_products|default:0 }}</h3>
+                        <a href="{% url 'supplier_product_catalog' %}" class="btn btn-sm btn-ezm-primary mt-2">
+                            <i class="bi bi-plus-circle me-1"></i>Manage
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="col-lg-3 col-md-6 mb-3">
-            <div class="ezm-card">
-                <div class="card-body text-center">
-                    <i class="bi bi-credit-card" style="font-size: 2rem; color: var(--success);"></i>
-                    <h4 class="mt-2 mb-1">${{ total_payments|floatformat:2 }}</h4>
-                    <p class="text-muted mb-0">Total Payments</p>
+            <div class="stats-card">
+                <div class="card-body d-flex align-items-center p-4">
+                    <div class="stats-icon" style="background: rgba(40, 167, 69, 0.1); color: var(--success);">
+                        <i class="bi bi-credit-card"></i>
+                    </div>
+                    <div>
+                        <p class="mb-1 text-muted">Total Payments</p>
+                        <h3 class="fw-bold mb-0" style="color: var(--success);">${{
+                            total_payments|floatformat:2|default:"0.00" }}</h3>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="col-lg-3 col-md-6 mb-3">
-            <div class="ezm-card">
-                <div class="card-body text-center">
+            <div class="stats-card">
+                <div class="card-body d-flex align-items-center p-4">
                     {% if supplier_account %}
-                        <i class="bi bi-wallet2" style="font-size: 2rem; color: var(--primary-dark);"></i>
-                        <h4 class="mt-2 mb-1">${{ supplier_account.current_balance|floatformat:2 }}</h4>
-                        <p class="text-muted mb-0">Current Balance</p>
+                    <div class="stats-icon" style="background: rgba(11, 12, 16, 0.1); color: var(--primary-dark);">
+                        <i class="bi bi-wallet2"></i>
+                    </div>
+                    <div>
+                        <p class="mb-1 text-muted">Current Balance</p>
+                        <h3 class="fw-bold mb-0" style="color: var(--primary-dark);">${{
+                            supplier_account.current_balance|floatformat:2 }}</h3>
+                    </div>
                     {% else %}
-                        <i class="bi bi-exclamation-circle" style="font-size: 2rem; color: var(--warning);"></i>
-                        <h4 class="mt-2 mb-1">N/A</h4>
-                        <p class="text-muted mb-0">Account Not Set</p>
+                    <div class="stats-icon" style="background: rgba(255, 193, 7, 0.1); color: var(--warning);">
+                        <i class="bi bi-exclamation-circle"></i>
+                    </div>
+                    <div>
+                        <p class="mb-1 text-muted">Account Not Set</p>
+                        <h3 class="fw-bold mb-0" style="color: var(--warning);">N/A</h3>
+                    </div>
                     {% endif %}
                 </div>
             </div>
@@ -102,57 +287,63 @@
                 </div>
                 <div class="card-body">
                     {% if recent_transactions %}
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Transaction #</th>
-                                        <th>Type</th>
-                                        <th>Amount</th>
-                                        <th>Status</th>
-                                        <th>Date</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for transaction in recent_transactions %}
-                                    <tr>
-                                        <td>{{ transaction.transaction_number }}</td>
-                                        <td>
-                                            <span class="badge" style="background-color: var(--accent-cyan); color: white;">
-                                                {{ transaction.get_transaction_type_display }}
-                                            </span>
-                                        </td>
-                                        <td>${{ transaction.amount|floatformat:2 }}</td>
-                                        <td>
-                                            {% if transaction.status == 'completed' %}
-                                                <span class="badge" style="background-color: var(--success); color: white;">{{ transaction.get_status_display }}</span>
-                                            {% elif transaction.status == 'pending' %}
-                                                <span class="badge" style="background-color: var(--warning); color: white;">{{ transaction.get_status_display }}</span>
-                                            {% elif transaction.status == 'cancelled' %}
-                                                <span class="badge" style="background-color: var(--danger); color: white;">{{ transaction.get_status_display }}</span>
-                                            {% else %}
-                                                <span class="badge" style="background-color: var(--secondary-dark); color: white;">{{ transaction.get_status_display }}</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>{{ transaction.transaction_date|date:"M d, Y" }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="text-center mt-3">
-                            <a href="{% url 'supplier_transactions' %}" class="btn btn-ezm-primary">
-                                <i class="bi bi-eye me-2"></i>View All Transactions
-                            </a>
-                        </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Transaction #</th>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transaction in recent_transactions %}
+                                <tr>
+                                    <td>{{ transaction.transaction_number }}</td>
+                                    <td>
+                                        <span class="badge" style="background-color: var(--accent-cyan); color: white;">
+                                            {{ transaction.get_transaction_type_display }}
+                                        </span>
+                                    </td>
+                                    <td>${{ transaction.amount|floatformat:2 }}</td>
+                                    <td>
+                                        {% if transaction.status == 'completed' %}
+                                        <span class="badge" style="background-color: var(--success); color: white;">{{
+                                            transaction.get_status_display }}</span>
+                                        {% elif transaction.status == 'pending' %}
+                                        <span class="badge" style="background-color: var(--warning); color: white;">{{
+                                            transaction.get_status_display }}</span>
+                                        {% elif transaction.status == 'cancelled' %}
+                                        <span class="badge" style="background-color: var(--danger); color: white;">{{
+                                            transaction.get_status_display }}</span>
+                                        {% else %}
+                                        <span class="badge"
+                                            style="background-color: var(--secondary-dark); color: white;">{{
+                                            transaction.get_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ transaction.transaction_date|date:"M d, Y" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{% url 'supplier_transactions' %}" class="btn btn-ezm-primary">
+                            <i class="bi bi-eye me-2"></i>View All Transactions
+                        </a>
+                    </div>
                     {% else %}
-                        <div class="text-center py-4">
-                            <i class="bi bi-inbox" style="font-size: 3rem; color: var(--light-gray);"></i>
-                            <p class="text-muted mt-3">No recent transactions found.</p>
-                            {% if supplier_account %}
-                                <p class="text-muted">Your transaction history will appear here once you start doing business with us.</p>
-                            {% endif %}
-                        </div>
+                    <div class="text-center py-4">
+                        <i class="bi bi-inbox" style="font-size: 3rem; color: var(--light-gray);"></i>
+                        <p class="text-muted mt-3">No recent transactions found.</p>
+                        {% if supplier_account %}
+                        <p class="text-muted">Your transaction history will appear here once you start doing business
+                            with us.</p>
+                        {% endif %}
+                    </div>
                     {% endif %}
                 </div>
             </div>
@@ -199,7 +390,7 @@
 {% block extra_js %}
 <script>
     // Auto-refresh dashboard data every 5 minutes
-    setTimeout(function() {
+    setTimeout(function () {
         location.reload();
     }, 300000);
 </script>

@@ -45,7 +45,7 @@
             <option value="head_manager" {% if is_head_manager %}selected{% endif %}>Head Manager</option>
             <option value="store_manager" {% if is_store_manager %}selected{% endif %}>Store Manager</option>
             <option value="cashier" {% if is_cashier %}selected{% endif %}>Cashier</option>
-            <option value="supplier" {% if role_filter == 'supplier' %} selected{% endif %}>Supplier</option>
+            <option value="supplier" {% if is_supplier %}selected{% endif %}>Supplier</option>
           </select>
         </div>
         <div class="col-md-4">
@@ -90,6 +90,11 @@
                 {% if user.is_active %}Deactivate{% else %}Activate{% endif %}
               </a>
               <a href="{% url 'change_user_role' user.id %}" class="btn btn-outline-secondary btn-sm">Change Role</a>
+              {% if request.user.is_superuser or not user.is_superuser %}
+              <a href="{% url 'delete_user' user.id %}" class="btn btn-outline-danger btn-sm">
+                <i class="bi bi-trash"></i> Delete
+              </a>
+              {% endif %}
             </td>
           </tr>
           {% empty %}

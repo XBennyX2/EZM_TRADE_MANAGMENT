@@ -1,0 +1,360 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
+{% block title %}{{ action }} Product{% endblock %}
+{% block page_title %}{{ action }} Product{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Header -->
+            <div class="d-flex align-items-center mb-4">
+                <a href="{% url 'supplier_product_catalog' %}" class="btn btn-outline-secondary me-3">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                <div>
+                    <h2 class="mb-1" style="color: var(--primary-dark);">{{ action }} Product</h2>
+                    <p class="text-muted mb-0">
+                        {% if action == 'Add' %}
+                            Add a new product to your catalog
+                        {% else %}
+                            Update product information
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Product Form -->
+            <div class="ezm-card">
+                <div class="ezm-card-header">
+                    <i class="bi bi-box me-2"></i>Product Information
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <!-- Basic Product Information -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="section-title">Basic Information</h5>
+                                <hr class="section-divider">
+                            </div>
+                            <div class="col-md-8 mb-3">
+                                <label for="{{ form.product_name.id_for_label }}" class="form-label">
+                                    Product Name <span class="text-danger">*</span>
+                                </label>
+                                {{ form.product_name }}
+                                {% if form.product_name.errors %}
+                                    <div class="text-danger">{{ form.product_name.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.product_code.id_for_label }}" class="form-label">
+                                    Product Code/SKU
+                                </label>
+                                {{ form.product_code }}
+                                {% if form.product_code.help_text %}
+                                    <div class="form-text">{{ form.product_code.help_text }}</div>
+                                {% endif %}
+                                {% if form.product_code.errors %}
+                                    <div class="text-danger">{{ form.product_code.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label for="{{ form.description.id_for_label }}" class="form-label">
+                                    Description <span class="text-danger">*</span>
+                                </label>
+                                {{ form.description }}
+                                {% if form.description.errors %}
+                                    <div class="text-danger">{{ form.description.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.category.id_for_label }}" class="form-label">
+                                    Category <span class="text-danger">*</span>
+                                </label>
+                                {{ form.category }}
+                                {% if form.category.errors %}
+                                    <div class="text-danger">{{ form.category.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.subcategory.id_for_label }}" class="form-label">
+                                    Subcategory
+                                </label>
+                                {{ form.subcategory }}
+                                {% if form.subcategory.errors %}
+                                    <div class="text-danger">{{ form.subcategory.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Pricing and Quantities -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="section-title">Pricing & Quantities</h5>
+                                <hr class="section-divider">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.unit_price.id_for_label }}" class="form-label">
+                                    Unit Price <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    {{ form.unit_price }}
+                                </div>
+                                {% if form.unit_price.errors %}
+                                    <div class="text-danger">{{ form.unit_price.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.minimum_order_quantity.id_for_label }}" class="form-label">
+                                    Minimum Order Quantity <span class="text-danger">*</span>
+                                </label>
+                                {{ form.minimum_order_quantity }}
+                                {% if form.minimum_order_quantity.help_text %}
+                                    <div class="form-text">{{ form.minimum_order_quantity.help_text }}</div>
+                                {% endif %}
+                                {% if form.minimum_order_quantity.errors %}
+                                    <div class="text-danger">{{ form.minimum_order_quantity.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.maximum_order_quantity.id_for_label }}" class="form-label">
+                                    Maximum Order Quantity
+                                </label>
+                                {{ form.maximum_order_quantity }}
+                                {% if form.maximum_order_quantity.help_text %}
+                                    <div class="form-text">{{ form.maximum_order_quantity.help_text }}</div>
+                                {% endif %}
+                                {% if form.maximum_order_quantity.errors %}
+                                    <div class="text-danger">{{ form.maximum_order_quantity.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Product Specifications -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="section-title">Product Specifications</h5>
+                                <hr class="section-divider">
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label for="{{ form.specifications.id_for_label }}" class="form-label">
+                                    Specifications
+                                </label>
+                                {{ form.specifications }}
+                                {% if form.specifications.errors %}
+                                    <div class="text-danger">{{ form.specifications.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.dimensions.id_for_label }}" class="form-label">
+                                    Dimensions
+                                </label>
+                                {{ form.dimensions }}
+                                {% if form.dimensions.errors %}
+                                    <div class="text-danger">{{ form.dimensions.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.weight.id_for_label }}" class="form-label">
+                                    Weight
+                                </label>
+                                {{ form.weight }}
+                                {% if form.weight.errors %}
+                                    <div class="text-danger">{{ form.weight.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.material.id_for_label }}" class="form-label">
+                                    Material
+                                </label>
+                                {{ form.material }}
+                                {% if form.material.errors %}
+                                    <div class="text-danger">{{ form.material.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.color_options.id_for_label }}" class="form-label">
+                                    Color Options
+                                </label>
+                                {{ form.color_options }}
+                                {% if form.color_options.errors %}
+                                    <div class="text-danger">{{ form.color_options.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Availability and Delivery -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="section-title">Availability & Delivery</h5>
+                                <hr class="section-divider">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.availability_status.id_for_label }}" class="form-label">
+                                    Availability Status <span class="text-danger">*</span>
+                                </label>
+                                {{ form.availability_status }}
+                                {% if form.availability_status.errors %}
+                                    <div class="text-danger">{{ form.availability_status.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.estimated_delivery_time.id_for_label }}" class="form-label">
+                                    Estimated Delivery Time <span class="text-danger">*</span>
+                                </label>
+                                {{ form.estimated_delivery_time }}
+                                {% if form.estimated_delivery_time.errors %}
+                                    <div class="text-danger">{{ form.estimated_delivery_time.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.stock_quantity.id_for_label }}" class="form-label">
+                                    Current Stock Quantity
+                                </label>
+                                {{ form.stock_quantity }}
+                                {% if form.stock_quantity.help_text %}
+                                    <div class="form-text">{{ form.stock_quantity.help_text }}</div>
+                                {% endif %}
+                                {% if form.stock_quantity.errors %}
+                                    <div class="text-danger">{{ form.stock_quantity.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Product Image -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="section-title">Product Image</h5>
+                                <hr class="section-divider">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.product_image.id_for_label }}" class="form-label">
+                                    Product Image
+                                </label>
+                                {{ form.product_image }}
+                                {% if form.product_image.errors %}
+                                    <div class="text-danger">{{ form.product_image.errors.0 }}</div>
+                                {% endif %}
+                                {% if product and product.product_image %}
+                                    <div class="mt-2">
+                                        <img src="{{ product.product_image.url }}" alt="{{ product.product_name }}" 
+                                             class="img-thumbnail" style="max-width: 200px;">
+                                        <p class="text-muted mt-1">Current image</p>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    {{ form.is_active }}
+                                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                        Product is active and available for ordering
+                                    </label>
+                                </div>
+                                {% if form.is_active.errors %}
+                                    <div class="text-danger">{{ form.is_active.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="row">
+                            <div class="col-12 text-center">
+                                <button type="submit" class="btn btn-ezm-primary btn-lg me-3">
+                                    <i class="bi bi-check-circle me-2"></i>{{ action }} Product
+                                </button>
+                                <a href="{% url 'supplier_product_catalog' %}" class="btn btn-ezm-secondary btn-lg">
+                                    <i class="bi bi-x-circle me-2"></i>Cancel
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.ezm-card {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    border: none;
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+.ezm-card-header {
+    padding: 1.5rem;
+    font-weight: 600;
+    font-size: 1.1rem;
+    background: linear-gradient(45deg, var(--secondary-dark), var(--primary-dark));
+    color: white;
+}
+
+.section-title {
+    color: var(--primary-dark);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.section-divider {
+    border-color: var(--accent-teal);
+    opacity: 0.3;
+    margin-bottom: 1.5rem;
+}
+
+.btn-ezm-primary {
+    background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    color: white;
+    transition: all 0.3s ease;
+}
+
+.btn-ezm-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(102, 252, 241, 0.3);
+    color: white;
+}
+
+.btn-ezm-secondary {
+    background: linear-gradient(45deg, #6c757d, #5a6268);
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    color: white;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.btn-ezm-secondary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+    color: white;
+}
+
+.form-control:focus {
+    border-color: var(--accent-teal);
+    box-shadow: 0 0 0 0.2rem rgba(102, 252, 241, 0.25);
+}
+
+.text-danger {
+    color: #dc3545 !important;
+}
+
+.input-group-text {
+    background-color: var(--light-gray);
+    border-color: #ced4da;
+}
+</style>
+{% endblock %}

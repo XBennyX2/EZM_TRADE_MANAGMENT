@@ -1,0 +1,358 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
+{% block title %}Product Catalog{% endblock %}
+{% block page_title %}My Product Catalog{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-box-seam me-3" style="font-size: 2rem; color: var(--accent-teal);"></i>
+                <div>
+                    <h2 class="mb-1" style="color: var(--primary-dark);">Product Catalog</h2>
+                    <p class="text-muted mb-0">Manage your product offerings</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'supplier_add_product' %}" class="btn btn-ezm-primary">
+                <i class="bi bi-plus-circle me-2"></i>Add New Product
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stats-icon" style="background: rgba(102, 252, 241, 0.1); color: var(--accent-teal);">
+                        <i class="bi bi-box"></i>
+                    </div>
+                    <div>
+                        <p class="mb-1 text-muted">Total Products</p>
+                        <h4 class="fw-bold mb-0" style="color: var(--accent-teal);">{{ total_products }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stats-icon" style="background: rgba(40, 167, 69, 0.1); color: #28a745;">
+                        <i class="bi bi-check-circle"></i>
+                    </div>
+                    <div>
+                        <p class="mb-1 text-muted">Active Products</p>
+                        <h4 class="fw-bold mb-0" style="color: #28a745;">{{ products|length }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stats-icon" style="background: rgba(255, 193, 7, 0.1); color: #ffc107;">
+                        <i class="bi bi-tags"></i>
+                    </div>
+                    <div>
+                        <p class="mb-1 text-muted">Categories</p>
+                        <h4 class="fw-bold mb-0" style="color: #ffc107;">{{ categories|length }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stats-icon" style="background: rgba(23, 162, 184, 0.1); color: #17a2b8;">
+                        <i class="bi bi-graph-up"></i>
+                    </div>
+                    <div>
+                        <p class="mb-1 text-muted">Avg. Price</p>
+                        <h4 class="fw-bold mb-0" style="color: #17a2b8;">$0.00</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter Section -->
+    <div class="ezm-card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-4">
+                    <label for="search" class="form-label">Search Products</label>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ search_query }}" placeholder="Search by name, description, or code...">
+                </div>
+                <div class="col-md-3">
+                    <label for="category" class="form-label">Category</label>
+                    <select class="form-control" id="category" name="category">
+                        <option value="">All Categories</option>
+                        {% for category in categories %}
+                            <option value="{{ category }}" {% if category_filter == category %}selected{% endif %}>
+                                {{ category }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="status" class="form-label">Status</label>
+                    <select class="form-control" id="status" name="status">
+                        <option value="">All Status</option>
+                        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                        <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                        <option value="in_stock" {% if status_filter == 'in_stock' %}selected{% endif %}>In Stock</option>
+                        <option value="out_of_stock" {% if status_filter == 'out_of_stock' %}selected{% endif %}>Out of Stock</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-ezm-primary me-2">
+                        <i class="bi bi-search"></i> Search
+                    </button>
+                    <a href="{% url 'supplier_product_catalog' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Products Table -->
+    <div class="ezm-card">
+        <div class="ezm-card-header">
+            <i class="bi bi-list-ul me-2"></i>Product List
+        </div>
+        <div class="card-body p-0">
+            {% if products %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col" class="ps-4">Product</th>
+                                <th scope="col">Category</th>
+                                <th scope="col">Price</th>
+                                <th scope="col">Stock</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for product in products %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center">
+                                            {% if product.product_image %}
+                                                <img src="{{ product.product_image.url }}" alt="{{ product.product_name }}" 
+                                                     class="product-thumbnail me-3">
+                                            {% else %}
+                                                <div class="product-placeholder me-3">
+                                                    <i class="bi bi-image"></i>
+                                                </div>
+                                            {% endif %}
+                                            <div>
+                                                <h6 class="mb-1 fw-semibold">{{ product.product_name }}</h6>
+                                                {% if product.product_code %}
+                                                    <small class="text-muted">SKU: {{ product.product_code }}</small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ product.category }}</span>
+                                        {% if product.subcategory %}
+                                            <br><small class="text-muted">{{ product.subcategory }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <strong>${{ product.unit_price }}</strong>
+                                        <br><small class="text-muted">{{ product.currency }}</small>
+                                    </td>
+                                    <td>
+                                        {% if product.stock_quantity %}
+                                            <span class="badge bg-info">{{ product.stock_quantity }} units</span>
+                                        {% else %}
+                                            <span class="text-muted">Not tracked</span>
+                                        {% endif %}
+                                        <br><small class="text-muted">Min: {{ product.minimum_order_quantity }}</small>
+                                    </td>
+                                    <td>
+                                        {% if product.is_active %}
+                                            {% if product.availability_status == 'in_stock' %}
+                                                <span class="badge bg-success">In Stock</span>
+                                            {% elif product.availability_status == 'limited_stock' %}
+                                                <span class="badge bg-warning">Limited Stock</span>
+                                            {% elif product.availability_status == 'out_of_stock' %}
+                                                <span class="badge bg-danger">Out of Stock</span>
+                                            {% elif product.availability_status == 'pre_order' %}
+                                                <span class="badge bg-info">Pre-Order</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ product.get_availability_status_display }}</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'supplier_edit_product' product.id %}" 
+                                               class="btn btn-sm btn-outline-primary" title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <a href="{% url 'supplier_delete_product' product.id %}" 
+                                               class="btn btn-sm btn-outline-danger" title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if products.has_other_pages %}
+                    <div class="card-footer">
+                        <nav aria-label="Product pagination">
+                            <ul class="pagination justify-content-center mb-0">
+                                {% if products.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ products.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                                            <i class="bi bi-chevron-left"></i>
+                                        </a>
+                                    </li>
+                                {% endif %}
+
+                                {% for num in products.paginator.page_range %}
+                                    {% if products.number == num %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ num }}</span>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">{{ num }}</a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+
+                                {% if products.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ products.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                                            <i class="bi bi-chevron-right"></i>
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                {% endif %}
+            {% else %}
+                <div class="text-center p-5">
+                    <i class="bi bi-box" style="font-size: 4rem; color: #dee2e6;"></i>
+                    <h4 class="mt-3 text-muted">No Products Found</h4>
+                    <p class="text-muted">
+                        {% if search_query or category_filter or status_filter %}
+                            No products match your current filters. Try adjusting your search criteria.
+                        {% else %}
+                            You haven't added any products to your catalog yet.
+                        {% endif %}
+                    </p>
+                    <a href="{% url 'supplier_add_product' %}" class="btn btn-ezm-primary">
+                        <i class="bi bi-plus-circle me-2"></i>Add Your First Product
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.stats-card {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    border: none;
+    margin-bottom: 1rem;
+    transition: transform 0.3s ease;
+}
+
+.stats-card:hover {
+    transform: translateY(-2px);
+}
+
+.stats-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-right: 1rem;
+}
+
+.product-thumbnail {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.product-placeholder {
+    width: 50px;
+    height: 50px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    font-size: 1.2rem;
+}
+
+.ezm-card {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    border: none;
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+.ezm-card-header {
+    padding: 1.5rem;
+    font-weight: 600;
+    font-size: 1.1rem;
+    background: linear-gradient(45deg, var(--secondary-dark), var(--primary-dark));
+    color: white;
+}
+
+.btn-ezm-primary {
+    background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+    color: white;
+    transition: all 0.3s ease;
+}
+
+.btn-ezm-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(102, 252, 241, 0.3);
+    color: white;
+}
+
+.form-control:focus {
+    border-color: var(--accent-teal);
+    box-shadow: 0 0 0 0.2rem rgba(102, 252, 241, 0.25);
+}
+</style>
+{% endblock %}

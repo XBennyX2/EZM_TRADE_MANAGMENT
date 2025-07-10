@@ -1,0 +1,239 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
+{% block title %}Supplier Dashboard Test{% endblock %}
+{% block page_title %}Supplier Dashboard Test{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+:root {
+    --primary-dark: #0B0C10;
+    --secondary-dark: #1F2833;
+    --light-gray: #C5C6C7;
+    --accent-cyan: #66FCF1;
+    --accent-teal: #45A29E;
+    --success: #28a745;
+    --warning: #ffc107;
+    --danger: #dc3545;
+    --info: #17a2b8;
+}
+
+.content-area {
+    padding: 2rem;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    min-height: 100vh;
+}
+
+.ezm-card {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    border: none;
+    overflow: hidden;
+    margin-bottom: 2rem;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.ezm-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+}
+
+.ezm-card-header {
+    background: linear-gradient(45deg, var(--secondary-dark), var(--primary-dark));
+    color: white;
+    padding: 1.5rem;
+    font-weight: 600;
+    font-size: 1.1rem;
+    border-bottom: none;
+}
+
+.stats-card {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    border: none;
+    margin-bottom: 1.5rem;
+    transition: transform 0.3s ease;
+    overflow: hidden;
+}
+
+.stats-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.stats-icon {
+    width: 70px;
+    height: 70px;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    margin-right: 1rem;
+}
+
+.btn-ezm-primary {
+    background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    color: white;
+    transition: all 0.3s ease;
+    text-decoration: none;
+}
+
+.btn-ezm-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(102, 252, 241, 0.3);
+    color: white;
+}
+
+.btn-ezm-secondary {
+    background: linear-gradient(45deg, #6c757d, #5a6268);
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    color: white;
+    transition: all 0.3s ease;
+    text-decoration: none;
+}
+
+.btn-ezm-secondary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+    color: white;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-area">
+    <!-- Welcome Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="ezm-card">
+                <div class="ezm-card-header">
+                    <i class="bi bi-person-circle me-2"></i>Welcome, Test User
+                </div>
+                <div class="card-body p-4">
+                    <h4 class="mb-3" style="color: var(--primary-dark);">Test Supplier</h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>Contact Person:</strong> John Doe</p>
+                            <p class="mb-2"><strong>Email:</strong> test@example.com</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>Phone:</strong> +1 234 567 8900</p>
+                            <p class="mb-2"><strong>Status:</strong>
+                                <span class="badge" style="background-color: var(--success); color: white; padding: 0.5rem 1rem; border-radius: 20px;">Active</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stats-card">
+                <div class="card-body d-flex align-items-center p-4">
+                    <div class="stats-icon" style="background: rgba(102, 252, 241, 0.1); color: var(--accent-cyan);">
+                        <i class="bi bi-clipboard-check"></i>
+                    </div>
+                    <div>
+                        <p class="mb-1 text-muted">Pending Orders</p>
+                        <h3 class="fw-bold mb-0" style="color: var(--accent-cyan);">5</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stats-card">
+                <div class="card-body d-flex align-items-center p-4">
+                    <div class="stats-icon" style="background: rgba(69, 162, 158, 0.1); color: var(--accent-teal);">
+                        <i class="bi bi-box-seam"></i>
+                    </div>
+                    <div>
+                        <p class="mb-1 text-muted">Total Products</p>
+                        <h3 class="fw-bold mb-0" style="color: var(--accent-teal);">25</h3>
+                        <a href="#" class="btn btn-sm btn-ezm-primary mt-2">
+                            <i class="bi bi-plus-circle me-1"></i>Manage
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stats-card">
+                <div class="card-body d-flex align-items-center p-4">
+                    <div class="stats-icon" style="background: rgba(40, 167, 69, 0.1); color: var(--success);">
+                        <i class="bi bi-credit-card"></i>
+                    </div>
+                    <div>
+                        <p class="mb-1 text-muted">Total Payments</p>
+                        <h3 class="fw-bold mb-0" style="color: var(--success);">$12,500.00</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stats-card">
+                <div class="card-body d-flex align-items-center p-4">
+                    <div class="stats-icon" style="background: rgba(11, 12, 16, 0.1); color: var(--primary-dark);">
+                        <i class="bi bi-wallet2"></i>
+                    </div>
+                    <div>
+                        <p class="mb-1 text-muted">Current Balance</p>
+                        <h3 class="fw-bold mb-0" style="color: var(--primary-dark);">$2,350.00</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="ezm-card">
+                <div class="ezm-card-header">
+                    <i class="bi bi-lightning me-2"></i>Quick Actions
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <a href="#" class="btn btn-ezm-secondary w-100">
+                                <i class="bi bi-clipboard-check me-2"></i>View Purchase Orders
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="#" class="btn btn-ezm-secondary w-100">
+                                <i class="bi bi-receipt me-2"></i>Manage Invoices
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="#" class="btn btn-ezm-secondary w-100">
+                                <i class="bi bi-box-seam me-2"></i>Product Catalog
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="#" class="btn btn-ezm-secondary w-100">
+                                <i class="bi bi-graph-up me-2"></i>View Reports
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

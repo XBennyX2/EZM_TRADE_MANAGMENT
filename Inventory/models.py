@@ -297,6 +297,23 @@ class SupplierProfile(models.Model):
         return []
 
 
+class ProductCategory(models.Model):
+    """
+    Product categories for supplier products.
+    """
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_date = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name_plural = "Product Categories"
+
+    def __str__(self):
+        return self.name
+
+
 class SupplierProduct(models.Model):
     """
     Products offered by suppliers in their catalog.

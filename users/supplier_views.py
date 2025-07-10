@@ -92,76 +92,58 @@ def supplier_dashboard(request):
         messages.info(request, "Please complete your supplier profile to access all features.")
         return redirect('supplier_onboarding')
 
+    # Get supplier account (create if doesn't exist)
     try:
         supplier_account = SupplierAccount.objects.get(supplier=supplier)
-
-        # Get recent transactions
-        recent_transactions = SupplierTransaction.objects.filter(
-            supplier_account=supplier_account
-        ).order_by('-transaction_date')[:10]
-
-        # Get pending purchase orders
-        pending_orders = PurchaseOrder.objects.filter(
+    except SupplierAccount.DoesNotExist:
+        # Create a basic supplier account if it doesn't exist
+        supplier_account = SupplierAccount.objects.create(
             supplier=supplier,
-            status__in=['pending', 'approved']
-        ).count()
+            payment_terms='net_30',
+            credit_limit=0.00,
+            is_active=True
+        )
 
-        # Get payment statistics
-        total_payments = SupplierPayment.objects.filter(
-            supplier_transaction__supplier_account=supplier_account,
-            status='completed'
-        ).aggregate(total=Sum('amount_paid'))['total'] or 0
+    # Get recent transactions
+    recent_transactions = SupplierTransaction.objects.filter(
+        supplier_account=supplier_account
+    ).order_by('-transaction_date')[:10]
 
-        # Get pending invoices
-        pending_invoices = SupplierInvoice.objects.filter(
-            supplier_transaction__supplier_account=supplier_account,
-            status__in=['received', 'verified']
-        ).count()
+    # Get pending purchase orders
+    pending_orders = PurchaseOrder.objects.filter(
+        supplier=supplier,
+        status__in=['pending', 'approved']
+    ).count()
 
-        # Get supplier product statistics
-        total_products = SupplierProduct.objects.filter(supplier=supplier).count()
-        active_products = SupplierProduct.objects.filter(supplier=supplier, is_active=True).count()
+    # Get payment statistics
+    total_payments = SupplierPayment.objects.filter(
+        supplier_transaction__supplier_account=supplier_account,
+        status='completed'
+    ).aggregate(total=Sum('amount_paid'))['total'] or 0
 
-        context = {
-            'supplier': supplier,
-            'supplier_profile': supplier_profile,
-            'supplier_account': supplier_account,
-            'recent_transactions': recent_transactions,
-            'pending_orders': pending_orders,
-            'total_payments': total_payments,
-            'pending_invoices': pending_invoices,
-            'total_products': total_products,
-            'active_products': active_products,
-            'onboarding_complete': onboarding_complete,
-        }
+    # Get pending invoices
+    pending_invoices = SupplierInvoice.objects.filter(
+        supplier_transaction__supplier_account=supplier_account,
+        status__in=['received', 'verified']
+    ).count()
 
-        return render(request, 'supplier/dashboard.html', context)
+    # Get supplier product statistics
+    total_products = SupplierProduct.objects.filter(supplier=supplier).count()
+    active_products = SupplierProduct.objects.filter(supplier=supplier, is_active=True).count()
 
-    except (Supplier.DoesNotExist, SupplierAccount.DoesNotExist) as e:
-        if isinstance(e, Supplier.DoesNotExist):
-            messages.warning(request,
-                "Supplier profile not found. Please contact the administrator to set up your supplier profile. "
-                f"Your registered email ({request.user.email}) needs to be linked to a supplier account."
-            )
-        else:
-            messages.warning(request,
-                "Supplier account not found. Please contact the administrator to set up your supplier account. "
-                "A supplier profile exists but the financial account needs to be created."
-            )
+    context = {
+        'supplier': supplier,
+        'supplier_profile': supplier_profile,
+        'supplier_account': supplier_account,
+        'recent_transactions': recent_transactions,
+        'pending_orders': pending_orders,
+        'total_payments': total_payments,
+        'pending_invoices': pending_invoices,
+        'total_products': total_products,
+        'active_products': active_products,
+        'onboarding_complete': onboarding_complete,
+    }
 
-        context = {
-            'supplier': None,
-            'supplier_account': None,
-            'recent_transactions': [],
-            'pending_orders': 0,
-            'total_payments': 0,
-            'pending_invoices': 0,
-            'user_email': request.user.email,
-            'setup_required': True,
-            'user_full_name': request.user.get_full_name() or request.user.username,
-            'user_phone': request.user.phone_number,
-        }
-    
     return render(request, 'supplier/dashboard.html', context)
 
 

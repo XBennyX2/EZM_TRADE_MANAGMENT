@@ -139,12 +139,11 @@
                     <i class="bi bi-person-circle me-2"></i>Welcome, {{ user.get_full_name|default:user.username }}
                 </div>
                 <div class="card-body p-4">
-                    {% if supplier %}
                     <h4 class="mb-3" style="color: var(--primary-dark);">{{ supplier.name }}</h4>
                     <div class="row">
                         <div class="col-md-6">
-                            <p class="mb-2"><strong>Contact Person:</strong> {{ supplier.contact_person|default:"Not
-                                specified" }}</p>
+                            <p class="mb-2"><strong>Contact Person:</strong>
+                                {{ supplier.contact_person|default:"Notspecified" }}</p>
                             <p class="mb-2"><strong>Email:</strong> {{ supplier.email }}</p>
                         </div>
                         <div class="col-md-6">
@@ -160,48 +159,6 @@
                             </p>
                         </div>
                     </div>
-                    {% else %}
-                    <div class="alert-ezm-warning">
-                        <div class="d-flex align-items-start">
-                            <i class="bi bi-exclamation-triangle me-3" style="font-size: 1.5rem; color: #ffc107;"></i>
-                            <div>
-                                <h5 class="alert-heading mb-2" style="color: var(--primary-dark);">Supplier Profile
-                                    Setup Required</h5>
-                                <p class="mb-2">Your supplier account is not yet configured in our system. To access all
-                                    supplier features, please contact the administrator.</p>
-
-                                <div class="mt-3">
-                                    <h6 style="color: var(--primary-dark);">Your current information:</h6>
-                                    <ul class="mb-2">
-                                        <li>Name: <strong>{{ user.get_full_name|default:user.username }}</strong></li>
-                                        <li>Email: <strong>{{ user.email }}</strong></li>
-                                        {% if user.phone_number %}
-                                        <li>Phone: <strong>{{ user.phone_number }}</strong></li>
-                                        {% endif %}
-                                    </ul>
-
-                                    <h6 style="color: var(--primary-dark);">Additional information needed:</h6>
-                                    <ul class="mb-3">
-                                        <li>Company/Supplier name</li>
-                                        <li>Business contact information</li>
-                                        <li>Business address</li>
-                                        <li>Payment terms preferences</li>
-                                    </ul>
-                                </div>
-
-                                <div class="d-flex gap-2 flex-wrap">
-                                    <a href="mailto:admin@ezmtrade.com?subject=Supplier Account Setup Request&body=Hello,%0D%0A%0D%0AI am requesting to set up my supplier account.%0D%0A%0D%0AUser Email: {{ user.email }}%0D%0AUser Name: {{ user.get_full_name|default:user.username }}%0D%0A%0D%0APlease contact me to complete the setup process.%0D%0A%0D%0AThank you."
-                                        class="btn btn-warning">
-                                        <i class="bi bi-envelope me-2"></i>Contact Administrator
-                                    </a>
-                                    <a href="{% url 'supplier_settings' %}" class="btn btn-ezm-secondary">
-                                        <i class="bi bi-gear me-2"></i>Account Settings
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
@@ -246,8 +203,8 @@
                     </div>
                     <div>
                         <p class="mb-1 text-muted">Total Payments</p>
-                        <h3 class="fw-bold mb-0" style="color: var(--success);">${{
-                            total_payments|floatformat:2|default:"0.00" }}</h3>
+                        <h3 class="fw-bold mb-0" style="color: var(--success);">
+                            ${{ total_payments|floatformat:2|default:"0.00" }}</h3>
                     </div>
                 </div>
             </div>
@@ -261,8 +218,8 @@
                     </div>
                     <div>
                         <p class="mb-1 text-muted">Current Balance</p>
-                        <h3 class="fw-bold mb-0" style="color: var(--primary-dark);">${{
-                            supplier_account.current_balance|floatformat:2 }}</h3>
+                        <h3 class="fw-bold mb-0" style="color: var(--primary-dark);">
+                            ${{supplier_account.current_balance|floatformat:2 }}</h3>
                     </div>
                     {% else %}
                     <div class="stats-icon" style="background: rgba(255, 193, 7, 0.1); color: var(--warning);">

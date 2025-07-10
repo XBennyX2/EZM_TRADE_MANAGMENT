@@ -21,9 +21,9 @@
                     <h2 class="mb-1" style="color: var(--primary-dark);">{{ action }} Product</h2>
                     <p class="text-muted mb-0">
                         {% if action == 'Add' %}
-                            Add a new product to your catalog
+                        Add a new product to your catalog
                         {% else %}
-                            Update product information
+                        Update product information
                         {% endif %}
                     </p>
                 </div>
@@ -37,7 +37,7 @@
                 <div class="card-body">
                     <form method="POST" enctype="multipart/form-data">
                         {% csrf_token %}
-                        
+
                         <!-- Basic Product Information -->
                         <div class="row mb-4">
                             <div class="col-12">
@@ -50,7 +50,7 @@
                                 </label>
                                 {{ form.product_name }}
                                 {% if form.product_name.errors %}
-                                    <div class="text-danger">{{ form.product_name.errors.0 }}</div>
+                                <div class="text-danger">{{ form.product_name.errors.0 }}</div>
                                 {% endif %}
                             </div>
                             <div class="col-md-4 mb-3">
@@ -59,10 +59,10 @@
                                 </label>
                                 {{ form.product_code }}
                                 {% if form.product_code.help_text %}
-                                    <div class="form-text">{{ form.product_code.help_text }}</div>
+                                <div class="form-text">{{ form.product_code.help_text }}</div>
                                 {% endif %}
                                 {% if form.product_code.errors %}
-                                    <div class="text-danger">{{ form.product_code.errors.0 }}</div>
+                                <div class="text-danger">{{ form.product_code.errors.0 }}</div>
                                 {% endif %}
                             </div>
                             <div class="col-12 mb-3">
@@ -71,17 +71,31 @@
                                 </label>
                                 {{ form.description }}
                                 {% if form.description.errors %}
-                                    <div class="text-danger">{{ form.description.errors.0 }}</div>
+                                <div class="text-danger">{{ form.description.errors.0 }}</div>
                                 {% endif %}
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label for="{{ form.category.id_for_label }}" class="form-label">
+                                <label for="{{ form.category_choice.id_for_label }}" class="form-label">
                                     Category <span class="text-danger">*</span>
                                 </label>
-                                {{ form.category }}
-                                {% if form.category.errors %}
-                                    <div class="text-danger">{{ form.category.errors.0 }}</div>
+                                {{ form.category_choice }}
+                                {% if form.category_choice.help_text %}
+                                <small class="form-text text-muted">{{ form.category_choice.help_text }}</small>
                                 {% endif %}
+                                {% if form.category_choice.errors %}
+                                <div class="text-danger">{{ form.category_choice.errors.0 }}</div>
+                                {% endif %}
+
+                                <!-- Custom category input (hidden by default) -->
+                                <div class="mt-2" id="custom_category_container" style="display: none;">
+                                    <label for="{{ form.custom_category.id_for_label }}" class="form-label">
+                                        Custom Category Name <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.custom_category }}
+                                    {% if form.custom_category.errors %}
+                                    <div class="text-danger">{{ form.custom_category.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="{{ form.subcategory.id_for_label }}" class="form-label">
@@ -89,7 +103,7 @@
                                 </label>
                                 {{ form.subcategory }}
                                 {% if form.subcategory.errors %}
-                                    <div class="text-danger">{{ form.subcategory.errors.0 }}</div>
+                                <div class="text-danger">{{ form.subcategory.errors.0 }}</div>
                                 {% endif %}
                             </div>
                         </div>
@@ -100,16 +114,22 @@
                                 <h5 class="section-title">Pricing & Quantities</h5>
                                 <hr class="section-divider">
                             </div>
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-3 mb-3">
                                 <label for="{{ form.unit_price.id_for_label }}" class="form-label">
                                     Unit Price <span class="text-danger">*</span>
                                 </label>
-                                <div class="input-group">
-                                    <span class="input-group-text">$</span>
-                                    {{ form.unit_price }}
-                                </div>
+                                {{ form.unit_price }}
                                 {% if form.unit_price.errors %}
-                                    <div class="text-danger">{{ form.unit_price.errors.0 }}</div>
+                                <div class="text-danger">{{ form.unit_price.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-1 mb-3">
+                                <label for="{{ form.currency.id_for_label }}" class="form-label">
+                                    Currency
+                                </label>
+                                {{ form.currency }}
+                                {% if form.currency.errors %}
+                                <div class="text-danger">{{ form.currency.errors.0 }}</div>
                                 {% endif %}
                             </div>
                             <div class="col-md-4 mb-3">
@@ -118,10 +138,10 @@
                                 </label>
                                 {{ form.minimum_order_quantity }}
                                 {% if form.minimum_order_quantity.help_text %}
-                                    <div class="form-text">{{ form.minimum_order_quantity.help_text }}</div>
+                                <div class="form-text">{{ form.minimum_order_quantity.help_text }}</div>
                                 {% endif %}
                                 {% if form.minimum_order_quantity.errors %}
-                                    <div class="text-danger">{{ form.minimum_order_quantity.errors.0 }}</div>
+                                <div class="text-danger">{{ form.minimum_order_quantity.errors.0 }}</div>
                                 {% endif %}
                             </div>
                             <div class="col-md-4 mb-3">
@@ -130,10 +150,10 @@
                                 </label>
                                 {{ form.maximum_order_quantity }}
                                 {% if form.maximum_order_quantity.help_text %}
-                                    <div class="form-text">{{ form.maximum_order_quantity.help_text }}</div>
+                                <div class="form-text">{{ form.maximum_order_quantity.help_text }}</div>
                                 {% endif %}
                                 {% if form.maximum_order_quantity.errors %}
-                                    <div class="text-danger">{{ form.maximum_order_quantity.errors.0 }}</div>
+                                <div class="text-danger">{{ form.maximum_order_quantity.errors.0 }}</div>
                                 {% endif %}
                             </div>
                         </div>
@@ -150,7 +170,7 @@
                                 </label>
                                 {{ form.specifications }}
                                 {% if form.specifications.errors %}
-                                    <div class="text-danger">{{ form.specifications.errors.0 }}</div>
+                                <div class="text-danger">{{ form.specifications.errors.0 }}</div>
                                 {% endif %}
                             </div>
                             <div class="col-md-4 mb-3">
@@ -159,7 +179,7 @@
                                 </label>
                                 {{ form.dimensions }}
                                 {% if form.dimensions.errors %}
-                                    <div class="text-danger">{{ form.dimensions.errors.0 }}</div>
+                                <div class="text-danger">{{ form.dimensions.errors.0 }}</div>
                                 {% endif %}
                             </div>
                             <div class="col-md-4 mb-3">
@@ -168,7 +188,7 @@
                                 </label>
                                 {{ form.weight }}
                                 {% if form.weight.errors %}
-                                    <div class="text-danger">{{ form.weight.errors.0 }}</div>
+                                <div class="text-danger">{{ form.weight.errors.0 }}</div>
                                 {% endif %}
                             </div>
                             <div class="col-md-4 mb-3">
@@ -177,7 +197,7 @@
                                 </label>
                                 {{ form.material }}
                                 {% if form.material.errors %}
-                                    <div class="text-danger">{{ form.material.errors.0 }}</div>
+                                <div class="text-danger">{{ form.material.errors.0 }}</div>
                                 {% endif %}
                             </div>
                             <div class="col-md-6 mb-3">
@@ -186,7 +206,7 @@
                                 </label>
                                 {{ form.color_options }}
                                 {% if form.color_options.errors %}
-                                    <div class="text-danger">{{ form.color_options.errors.0 }}</div>
+                                <div class="text-danger">{{ form.color_options.errors.0 }}</div>
                                 {% endif %}
                             </div>
                         </div>
@@ -203,7 +223,7 @@
                                 </label>
                                 {{ form.availability_status }}
                                 {% if form.availability_status.errors %}
-                                    <div class="text-danger">{{ form.availability_status.errors.0 }}</div>
+                                <div class="text-danger">{{ form.availability_status.errors.0 }}</div>
                                 {% endif %}
                             </div>
                             <div class="col-md-4 mb-3">
@@ -212,7 +232,7 @@
                                 </label>
                                 {{ form.estimated_delivery_time }}
                                 {% if form.estimated_delivery_time.errors %}
-                                    <div class="text-danger">{{ form.estimated_delivery_time.errors.0 }}</div>
+                                <div class="text-danger">{{ form.estimated_delivery_time.errors.0 }}</div>
                                 {% endif %}
                             </div>
                             <div class="col-md-4 mb-3">
@@ -221,10 +241,10 @@
                                 </label>
                                 {{ form.stock_quantity }}
                                 {% if form.stock_quantity.help_text %}
-                                    <div class="form-text">{{ form.stock_quantity.help_text }}</div>
+                                <div class="form-text">{{ form.stock_quantity.help_text }}</div>
                                 {% endif %}
                                 {% if form.stock_quantity.errors %}
-                                    <div class="text-danger">{{ form.stock_quantity.errors.0 }}</div>
+                                <div class="text-danger">{{ form.stock_quantity.errors.0 }}</div>
                                 {% endif %}
                             </div>
                         </div>
@@ -241,14 +261,14 @@
                                 </label>
                                 {{ form.product_image }}
                                 {% if form.product_image.errors %}
-                                    <div class="text-danger">{{ form.product_image.errors.0 }}</div>
+                                <div class="text-danger">{{ form.product_image.errors.0 }}</div>
                                 {% endif %}
                                 {% if product and product.product_image %}
-                                    <div class="mt-2">
-                                        <img src="{{ product.product_image.url }}" alt="{{ product.product_name }}" 
-                                             class="img-thumbnail" style="max-width: 200px;">
-                                        <p class="text-muted mt-1">Current image</p>
-                                    </div>
+                                <div class="mt-2">
+                                    <img src="{{ product.product_image.url }}" alt="{{ product.product_name }}"
+                                        class="img-thumbnail" style="max-width: 200px;">
+                                    <p class="text-muted mt-1">Current image</p>
+                                </div>
                                 {% endif %}
                             </div>
                             <div class="col-md-6 mb-3">
@@ -259,7 +279,7 @@
                                     </label>
                                 </div>
                                 {% if form.is_active.errors %}
-                                    <div class="text-danger">{{ form.is_active.errors.0 }}</div>
+                                <div class="text-danger">{{ form.is_active.errors.0 }}</div>
                                 {% endif %}
                             </div>
                         </div>
@@ -283,78 +303,124 @@
 </div>
 
 <style>
-.ezm-card {
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-    border: none;
-    border-radius: 15px;
-    overflow: hidden;
-}
+    .ezm-card {
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        border: none;
+        border-radius: 15px;
+        overflow: hidden;
+    }
 
-.ezm-card-header {
-    padding: 1.5rem;
-    font-weight: 600;
-    font-size: 1.1rem;
-    background: linear-gradient(45deg, var(--secondary-dark), var(--primary-dark));
-    color: white;
-}
+    .ezm-card-header {
+        padding: 1.5rem;
+        font-weight: 600;
+        font-size: 1.1rem;
+        background: linear-gradient(45deg, var(--secondary-dark), var(--primary-dark));
+        color: white;
+    }
 
-.section-title {
-    color: var(--primary-dark);
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-}
+    .section-title {
+        color: var(--primary-dark);
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
 
-.section-divider {
-    border-color: var(--accent-teal);
-    opacity: 0.3;
-    margin-bottom: 1.5rem;
-}
+    .section-divider {
+        border-color: var(--accent-teal);
+        opacity: 0.3;
+        margin-bottom: 1.5rem;
+    }
 
-.btn-ezm-primary {
-    background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
-    border: none;
-    border-radius: 8px;
-    padding: 0.75rem 2rem;
-    font-weight: 600;
-    color: white;
-    transition: all 0.3s ease;
-}
+    .btn-ezm-primary {
+        background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        color: white;
+        transition: all 0.3s ease;
+    }
 
-.btn-ezm-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(102, 252, 241, 0.3);
-    color: white;
-}
+    .btn-ezm-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 252, 241, 0.3);
+        color: white;
+    }
 
-.btn-ezm-secondary {
-    background: linear-gradient(45deg, #6c757d, #5a6268);
-    border: none;
-    border-radius: 8px;
-    padding: 0.75rem 2rem;
-    font-weight: 600;
-    color: white;
-    text-decoration: none;
-    transition: all 0.3s ease;
-}
+    .btn-ezm-secondary {
+        background: linear-gradient(45deg, #6c757d, #5a6268);
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        color: white;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
 
-.btn-ezm-secondary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
-    color: white;
-}
+    .btn-ezm-secondary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+        color: white;
+    }
 
-.form-control:focus {
-    border-color: var(--accent-teal);
-    box-shadow: 0 0 0 0.2rem rgba(102, 252, 241, 0.25);
-}
+    .form-control:focus {
+        border-color: var(--accent-teal);
+        box-shadow: 0 0 0 0.2rem rgba(102, 252, 241, 0.25);
+    }
 
-.text-danger {
-    color: #dc3545 !important;
-}
+    .text-danger {
+        color: #dc3545 !important;
+    }
 
-.input-group-text {
-    background-color: var(--light-gray);
-    border-color: #ced4da;
-}
+    .input-group-text {
+        background-color: var(--light-gray);
+        border-color: #ced4da;
+    }
 </style>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const categoryChoice = document.getElementById('category_choice');
+        const customCategoryContainer = document.getElementById('custom_category_container');
+        const customCategoryInput = document.getElementById('custom_category');
+
+        function toggleCustomCategory() {
+            if (categoryChoice.value === 'other') {
+                customCategoryContainer.style.display = 'block';
+                customCategoryInput.required = true;
+                customCategoryInput.style.display = 'block';
+            } else {
+                customCategoryContainer.style.display = 'none';
+                customCategoryInput.required = false;
+                customCategoryInput.value = '';
+            }
+        }
+
+        // Initial check
+        toggleCustomCategory();
+
+        // Listen for changes
+        categoryChoice.addEventListener('change', toggleCustomCategory);
+
+        // Form validation
+        const form = document.querySelector('form');
+        form.addEventListener('submit', function (e) {
+            if (categoryChoice.value === 'other' && !customCategoryInput.value.trim()) {
+                e.preventDefault();
+                alert('Please enter a custom category name.');
+                customCategoryInput.focus();
+                return false;
+            }
+
+            if (!categoryChoice.value) {
+                e.preventDefault();
+                alert('Please select a category.');
+                categoryChoice.focus();
+                return false;
+            }
+        });
+    });
+</script>
+{% endblock %}
 {% endblock %}

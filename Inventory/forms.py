@@ -1,7 +1,7 @@
 from django import forms
 from .models import (
     Product, Stock, Supplier, WarehouseProduct, Warehouse, PurchaseOrder, PurchaseOrderItem,
-    SupplierProfile, SupplierProduct, PurchaseRequest, PurchaseRequestItem
+    SupplierProfile, SupplierProduct, PurchaseRequest, PurchaseRequestItem, ProductCategory
 )
 
 class ProductForm(forms.ModelForm):
@@ -424,9 +424,25 @@ class SupplierProductForm(forms.ModelForm):
     """
     Form for suppliers to add/edit products in their catalog.
     """
+    category_choice = forms.ChoiceField(
+        choices=[],
+        required=True,
+        widget=forms.Select(attrs={'class': 'form-control', 'id': 'category_choice'})
+    )
+    custom_category = forms.CharField(
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter new category name',
+            'id': 'custom_category',
+            'style': 'display: none;'
+        })
+    )
+
     class Meta:
         model = SupplierProduct
-        exclude = ['supplier', 'created_date', 'updated_date']
+        exclude = ['supplier', 'created_date', 'updated_date', 'category']
 
         widgets = {
             # Product Information
@@ -518,11 +534,68 @@ class SupplierProductForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Populate category choices
+        categories = ProductCategory.objects.filter(is_active=True).order_by('name')
+        category_choices = [('', 'Select a category')]
+        category_choices.extend([(cat.name, cat.name) for cat in categories])
+        category_choices.append(('other', 'Other (specify below)'))
+
+        self.fields['category_choice'].choices = category_choices
+
+        # Set default currency to ETB
+        self.fields['currency'].initial = 'ETB'
+        self.fields['currency'].required = False
+
+        # Set initial value if editing existing product
+        if self.instance and self.instance.pk and hasattr(self.instance, 'category'):
+            if self.instance.category:
+                # Check if the category exists in our choices
+                existing_categories = [choice[0] for choice in category_choices[1:-1]]  # Exclude empty and 'other'
+                if self.instance.category in existing_categories:
+                    self.fields['category_choice'].initial = self.instance.category
+                else:
+                    self.fields['category_choice'].initial = 'other'
+                    self.fields['custom_category'].initial = self.instance.category
+                    self.fields['custom_category'].widget.attrs['style'] = ''
+
         # Add help text
         self.fields['product_code'].help_text = "Unique identifier for this product"
         self.fields['minimum_order_quantity'].help_text = "Minimum quantity customers must order"
         self.fields['maximum_order_quantity'].help_text = "Maximum quantity per order (leave blank for unlimited)"
         self.fields['stock_quantity'].help_text = "Current available stock (optional)"
+        self.fields['category_choice'].help_text = "Select an existing category or choose 'Other' to create a new one"
+
+    def clean(self):
+        cleaned_data = super().clean()
+        category_choice = cleaned_data.get('category_choice')
+        custom_category = cleaned_data.get('custom_category')
+
+        if category_choice == 'other':
+            if not custom_category:
+                raise forms.ValidationError("Please enter a custom category name when 'Other' is selected.")
+            # Create or get the category
+            category, created = ProductCategory.objects.get_or_create(
+                name=custom_category.strip(),
+                defaults={'is_active': True}
+            )
+            cleaned_data['category'] = category.name
+        elif category_choice:
+            cleaned_data['category'] = category_choice
+        else:
+            raise forms.ValidationError("Please select a category.")
+
+        return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        # Set the category from cleaned data
+        if hasattr(self, 'cleaned_data') and 'category' in self.cleaned_data:
+            instance.category = self.cleaned_data['category']
+
+        if commit:
+            instance.save()
+        return instance
 
 
 # --- Purchase Request Forms ---

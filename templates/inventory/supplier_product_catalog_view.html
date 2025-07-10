@@ -1,0 +1,302 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
+{% block title %}{{ supplier.name }} - Product Catalog{% endblock %}
+{% block page_title %}{{ supplier.name }} - Product Catalog{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="ezm-card">
+                <div class="ezm-card-header">
+                    <i class="bi bi-box-seam me-2"></i>{{ supplier.name }} - Product Catalog
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="mb-1"><strong>Supplier:</strong> {{ supplier.name }}</p>
+                            <p class="mb-0 text-muted">Total Products: {{ total_products }}</p>
+                        </div>
+                        <div>
+                            <a href="{% url 'supplier_list' %}" class="btn btn-ezm-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>Back to Suppliers
+                            </a>
+                            <a href="{% url 'supplier_profile_view' supplier.id %}" class="btn btn-ezm-primary">
+                                <i class="bi bi-person-badge me-2"></i>View Profile
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter Section -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" class="form-control" name="search" value="{{ search_query }}"
+                            placeholder="Search products...">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" name="category">
+                        <option value="">All Categories</option>
+                        {% for category in categories %}
+                        <option value="{{ category }}" {% if category == category_filter %}selected{% endif %}>
+                            {{ category }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" name="status">
+                        <option value="">All Status</option>
+                        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                        <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                        <option value="in_stock" {% if status_filter == 'in_stock' %}selected{% endif %}>In Stock</option>
+                        <option value="out_of_stock" {% if status_filter == 'out_of_stock' %}selected{% endif %}>Out of Stock</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-outline-primary">
+                            <i class="bi bi-search me-1"></i>Search
+                        </button>
+                        <a href="{% url 'supplier_product_catalog_view' supplier.id %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Reset
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Products Grid -->
+    <div class="row">
+        {% if products %}
+        {% for product in products %}
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card h-100 shadow-sm">
+                {% if product.product_image %}
+                <img src="{{ product.product_image.url }}" class="card-img-top" alt="{{ product.product_name }}" style="height: 200px; object-fit: cover;">
+                {% else %}
+                <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                    <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
+                </div>
+                {% endif %}
+                
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title">{{ product.product_name }}</h5>
+                    <p class="card-text text-muted small">{{ product.description|truncatechars:100 }}</p>
+                    
+                    <div class="mt-auto">
+                        <div class="row mb-2">
+                            <div class="col-6">
+                                <small class="text-muted">Price:</small>
+                                <div class="fw-bold text-success">${{ product.unit_price }}</div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Category:</small>
+                                <div class="fw-bold">{{ product.category }}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-2">
+                            <div class="col-6">
+                                <small class="text-muted">Status:</small>
+                                <div>
+                                    {% if product.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Availability:</small>
+                                <div>
+                                    {% if product.availability_status == 'in_stock' %}
+                                    <span class="badge bg-success">In Stock</span>
+                                    {% elif product.availability_status == 'limited_stock' %}
+                                    <span class="badge bg-warning">Limited</span>
+                                    {% elif product.availability_status == 'out_of_stock' %}
+                                    <span class="badge bg-danger">Out of Stock</span>
+                                    {% else %}
+                                    <span class="badge bg-info">{{ product.get_availability_status_display }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if product.stock_quantity %}
+                        <div class="row mb-2">
+                            <div class="col-12">
+                                <small class="text-muted">Stock Quantity:</small>
+                                <div class="fw-bold">{{ product.stock_quantity }} units</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="row">
+                            <div class="col-12">
+                                <small class="text-muted">Delivery Time:</small>
+                                <div>{{ product.estimated_delivery_time|default:"Not specified" }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-footer bg-transparent">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">Added: {{ product.created_date|date:"M d, Y" }}</small>
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                onclick="viewProductDetails({{ product.id }})" title="View Details">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <a href="{% url 'purchase_request_from_catalog' supplier.id %}?product={{ product.id }}" 
+                                class="btn btn-sm btn-outline-success" title="Create Purchase Request">
+                                <i class="bi bi-cart-plus"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        
+        <!-- Pagination -->
+        {% if products.has_other_pages %}
+        <div class="col-12">
+            <nav aria-label="Products pagination">
+                <ul class="pagination justify-content-center">
+                    {% if products.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">First</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ products.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Previous</a>
+                    </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">
+                            Page {{ products.number }} of {{ products.paginator.num_pages }}
+                        </span>
+                    </li>
+
+                    {% if products.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ products.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Next</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ products.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Last</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="bi bi-box-seam display-1 text-muted"></i>
+                <h4 class="mt-3">No Products Found</h4>
+                <p class="text-muted">
+                    {% if search_query or category_filter or status_filter %}
+                    No products match your search criteria.
+                    {% else %}
+                    This supplier hasn't added any products to their catalog yet.
+                    {% endif %}
+                </p>
+                <a href="{% url 'supplier_product_catalog_view' supplier.id %}" class="btn btn-primary">
+                    <i class="bi bi-arrow-clockwise me-2"></i>Reset Filters
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.ezm-card {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    border: none;
+    border-radius: 15px;
+    overflow: hidden;
+    margin-bottom: 2rem;
+}
+
+.ezm-card-header {
+    padding: 1.5rem;
+    font-weight: 600;
+    font-size: 1.1rem;
+    background: linear-gradient(45deg, var(--secondary-dark), var(--primary-dark));
+    color: white;
+}
+
+.btn-ezm-primary {
+    background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    color: white;
+    transition: all 0.3s ease;
+}
+
+.btn-ezm-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(102, 252, 241, 0.3);
+    color: white;
+}
+
+.btn-ezm-secondary {
+    background: linear-gradient(45deg, #6c757d, #5a6268);
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    color: white;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.btn-ezm-secondary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+    color: white;
+}
+
+.card {
+    transition: transform 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+</style>
+
+{% block extra_js %}
+<script>
+function viewProductDetails(productId) {
+    // You can implement a modal or redirect to a detailed view
+    alert('Product details view - Product ID: ' + productId);
+    // Example: window.location.href = '/inventory/products/' + productId + '/';
+}
+</script>
+{% endblock %}
+{% endblock %}

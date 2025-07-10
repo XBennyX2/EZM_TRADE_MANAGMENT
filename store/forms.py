@@ -13,17 +13,20 @@ from users.models import CustomUser
 
 class AssignManagerForm(forms.Form):
     manager = forms.ModelChoiceField(
-        queryset=CustomUser.objects.filter(role__in=['store_manager', '']),
+        queryset=CustomUser.objects.filter(role='store_manager'),
         label="Select Manager",
-        widget=forms.Select(attrs={'class': 'form-select'})
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        empty_label="Choose a store manager..."
     )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Further refine queryset if needed, e.g., only verified users
+        # Only show active store managers who are not already assigned to a store
         self.fields['manager'].queryset = CustomUser.objects.filter(
+            role='store_manager',
             is_active=True,
-        ).exclude(role__in=['store_owner', 'admin'])
+            managed_store__isnull=True  # Only show managers not already assigned to a store
+        )
 
 from django import forms
 from users.models import CustomUser

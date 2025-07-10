@@ -1,38 +1,173 @@
-{% extends 'base.html' %}
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
 {% block title %}User Details{% endblock %}
+{% block page_title %}User Details{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
 {% block content %}
-<div class="container py-5">
-  <div class="row justify-content-center">
-    <div class="col-md-7">
-      <div class="card shadow-lg border-0 rounded-4">
-        <div class="card-body p-4">
-          <h4 class="text-center text-primary mb-4"><i class="bi bi-person-circle"></i> User Profile</h4>
+<div class="content-area">
+  <!-- Header Section -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="ezm-card">
+        <div class="ezm-card-header">
+          <i class="bi bi-person-circle me-2"></i>User Profile - {{ user.username }}
+        </div>
+        <div class="card-body">
+          <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0">
+              <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}" style="color: var(--bright-cyan);">
+                  <i class="bi bi-house-door me-1"></i>Dashboard
+                </a>
+              </li>
+              <li class="breadcrumb-item">
+                <a href="{% url 'manage_users' %}" style="color: var(--bright-cyan);">
+                  <i class="bi bi-people me-1"></i>Manage Users
+                </a>
+              </li>
+              <li class="breadcrumb-item active" aria-current="page">User Details</li>
+            </ol>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </div>
 
-          <ul class="list-group list-group-flush fs-6">
-            <li class="list-group-item"><strong>Username:</strong> {{ user.username }}</li>
-            <li class="list-group-item"><strong>Email:</strong> {{ user.email }}</li>
-            <li class="list-group-item"><strong>Full Name:</strong> {{ user.first_name }} {{ user.last_name }}</li>
-            <li class="list-group-item"><strong>Role:</strong> <span class="badge bg-secondary">{{ user.get_role_display
-                }}</span></li>
-            <li class="list-group-item"><strong>Status:</strong>
-              {% if user.is_active %}
-              <span class="badge bg-success">Active</span>
-              {% else %}
-              <span class="badge bg-danger">Inactive</span>
-              {% endif %}
-            </li>
-          </ul>
+  <!-- User Information -->
+  <div class="row mb-4">
+    <div class="col-lg-8">
+      <div class="ezm-card">
+        <div class="ezm-card-header">
+          <i class="bi bi-info-circle me-2"></i>User Information
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label text-muted">Username</label>
+                <p class="fw-bold mb-2" style="color: var(--primary-dark);">{{ user.username }}</p>
+              </div>
+              <div class="mb-3">
+                <label class="form-label text-muted">Email Address</label>
+                <p class="fw-bold mb-2">
+                  <i class="bi bi-envelope me-2" style="color: var(--bright-cyan);"></i>
+                  {{ user.email }}
+                </p>
+              </div>
+              <div class="mb-3">
+                <label class="form-label text-muted">Full Name</label>
+                <p class="fw-bold mb-2">{{ user.first_name }} {{ user.last_name }}</p>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label text-muted">Role</label>
+                <p class="fw-bold mb-2">
+                  <span class="badge bg-info">{{ user.get_role_display }}</span>
+                </p>
+              </div>
+              <div class="mb-3">
+                <label class="form-label text-muted">Account Status</label>
+                <p class="fw-bold mb-2">
+                  {% if user.is_active %}
+                  <span class="badge bg-success">
+                    <i class="bi bi-check-circle me-1"></i>Active
+                  </span>
+                  {% else %}
+                  <span class="badge bg-danger">
+                    <i class="bi bi-x-circle me-1"></i>Inactive
+                  </span>
+                  {% endif %}
+                </p>
+              </div>
+              <div class="mb-3">
+                <label class="form-label text-muted">Phone Number</label>
+                <p class="fw-bold mb-2">
+                  <i class="bi bi-telephone me-2" style="color: var(--muted-teal);"></i>
+                  {{ user.phone_number|default:"Not provided" }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-          <div class="text-center mt-4">
-            <a href="{% url 'manage_users' %}" class="btn btn-outline-secondary me-2"><i
-                class="bi bi-arrow-left-circle"></i>
-              Back to User List</a>
-            <a href="{% url 'change_user_role' user.id %}" class="btn btn-outline-primary me-2"><i
-                class="bi bi-pencil"></i> Change Role</a>
-            {% if user != request.user and (request.user.is_superuser or not user.is_superuser) %}
-            <a href="{% url 'delete_user' user.id %}" class="btn btn-outline-danger"><i class="bi bi-trash"></i> Delete
-              User</a>
+    <!-- Quick Actions -->
+    <div class="col-lg-4">
+      <div class="ezm-card">
+        <div class="ezm-card-header">
+          <i class="bi bi-lightning me-2"></i>Quick Actions
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <a href="{% url 'manage_users' %}" class="btn btn-ezm-secondary">
+              <i class="bi bi-arrow-left me-2"></i>Back to User List
+            </a>
+            <a href="{% url 'change_user_role' user.id %}" class="btn btn-ezm-primary">
+              <i class="bi bi-pencil me-2"></i>Change Role
+            </a>
+            {% if user != request.user %}
+            {% if request.user.is_superuser or not user.is_superuser %}
+            <a href="{% url 'delete_user' user.id %}" class="btn btn-outline-danger">
+              <i class="bi bi-trash me-2"></i>Delete User
+            </a>
             {% endif %}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Additional Information -->
+  <div class="row">
+    <div class="col-12">
+      <div class="ezm-card">
+        <div class="ezm-card-header">
+          <i class="bi bi-clock-history me-2"></i>Account Information
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label text-muted">Date Joined</label>
+                <p class="fw-bold mb-2">{{ user.date_joined|date:"M d, Y g:i A" }}</p>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label text-muted">Last Login</label>
+                <p class="fw-bold mb-2">
+                  {% if user.last_login %}
+                  {{ user.last_login|date:"M d, Y g:i A" }}
+                  {% else %}
+                  <span class="text-muted">Never logged in</span>
+                  {% endif %}
+                </p>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label text-muted">First Login Status</label>
+                <p class="fw-bold mb-2">
+                  {% if user.is_first_login %}
+                  <span class="badge bg-warning">
+                    <i class="bi bi-exclamation-triangle me-1"></i>First Login Required
+                  </span>
+                  {% else %}
+                  <span class="badge bg-success">
+                    <i class="bi bi-check-circle me-1"></i>Setup Complete
+                  </span>
+                  {% endif %}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

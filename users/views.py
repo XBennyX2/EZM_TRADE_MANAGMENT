@@ -1,9 +1,10 @@
 from django.shortcuts import render, redirect
-from store.models import StoreCashier
+from store.models import StoreCashier, Store
 from django.contrib.auth import authenticate, login, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from .forms import CustomLoginForm, EditProfileForm, ChangePasswordForm
 from .models import CustomUser
+from transactions.models import Transaction, Order
 from django.utils.crypto import get_random_string
 from django.core.mail import send_mail
 from django.contrib import messages
@@ -154,35 +155,685 @@ def admin_dashboard(request):
 
 @login_required
 def head_manager_page(request):
+    """
+    Enhanced Head Manager dashboard with request management and analytics.
+    """
     if request.user.role != 'head_manager':
         messages.warning(request, "Access denied. You don't have permission to access this page.")
         return redirect('login')
 
+    from django.db.models import Count, Q
+    from Inventory.models import RestockRequest, StoreStockTransferRequest
+
     stores = Store.objects.all().select_related('store_manager')
 
-    return render(request, 'mainpages/head_manager_page.html', {
-        'stores': stores
-    })
+    # Request statistics
+    pending_restock_requests = RestockRequest.objects.filter(status='pending').count()
+    pending_transfer_requests = StoreStockTransferRequest.objects.filter(status='pending').count()
+
+    # Recent requests for quick overview
+    recent_restock_requests = RestockRequest.objects.filter(
+        status='pending'
+    ).select_related('store', 'product', 'requested_by').order_by('-requested_date')[:5]
+
+    recent_transfer_requests = StoreStockTransferRequest.objects.filter(
+        status='pending'
+    ).select_related('from_store', 'to_store', 'product', 'requested_by').order_by('-requested_date')[:5]
+
+    context = {
+        'stores': stores,
+        'pending_restock_requests': pending_restock_requests,
+        'pending_transfer_requests': pending_transfer_requests,
+        'recent_restock_requests': recent_restock_requests,
+        'recent_transfer_requests': recent_transfer_requests,
+    }
+
+    return render(request, 'mainpages/head_manager_page.html', context)
+
+
+@login_required
+def head_manager_restock_requests(request):
+    """
+    Head Manager view for managing restock requests.
+    """
+    if request.user.role != 'head_manager':
+        messages.error(request, "Access denied. Head Manager role required.")
+        return redirect('login')
+
+    from Inventory.models import RestockRequest
+    from django.core.paginator import Paginator
+
+    # Filter options
+    status_filter = request.GET.get('status', 'all')
+    store_filter = request.GET.get('store', 'all')
+    priority_filter = request.GET.get('priority', 'all')
+
+    # Build query
+    requests = RestockRequest.objects.select_related(
+        'store', 'product', 'requested_by', 'reviewed_by'
+    ).order_by('-requested_date')
+
+    if status_filter != 'all':
+        requests = requests.filter(status=status_filter)
+    if store_filter != 'all':
+        requests = requests.filter(store_id=store_filter)
+    if priority_filter != 'all':
+        requests = requests.filter(priority=priority_filter)
+
+    # Pagination
+    paginator = Paginator(requests, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Get filter options
+    stores = Store.objects.all().order_by('name')
+
+    context = {
+        'page_obj': page_obj,
+        'stores': stores,
+        'status_filter': status_filter,
+        'store_filter': store_filter,
+        'priority_filter': priority_filter,
+        'status_choices': RestockRequest.STATUS_CHOICES,
+        'priority_choices': RestockRequest.PRIORITY_CHOICES,
+    }
+
+    return render(request, 'mainpages/head_manager_restock_requests.html', context)
+
+
+@login_required
+def head_manager_transfer_requests(request):
+    """
+    Head Manager view for managing stock transfer requests.
+    """
+    if request.user.role != 'head_manager':
+        messages.error(request, "Access denied. Head Manager role required.")
+        return redirect('login')
+
+    from Inventory.models import StoreStockTransferRequest
+    from django.core.paginator import Paginator
+
+    # Filter options
+    status_filter = request.GET.get('status', 'all')
+    from_store_filter = request.GET.get('from_store', 'all')
+    to_store_filter = request.GET.get('to_store', 'all')
+    priority_filter = request.GET.get('priority', 'all')
+
+    # Build query
+    requests = StoreStockTransferRequest.objects.select_related(
+        'from_store', 'to_store', 'product', 'requested_by', 'reviewed_by'
+    ).order_by('-requested_date')
+
+    if status_filter != 'all':
+        requests = requests.filter(status=status_filter)
+    if from_store_filter != 'all':
+        requests = requests.filter(from_store_id=from_store_filter)
+    if to_store_filter != 'all':
+        requests = requests.filter(to_store_id=to_store_filter)
+    if priority_filter != 'all':
+        requests = requests.filter(priority=priority_filter)
+
+    # Pagination
+    paginator = Paginator(requests, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Get filter options
+    stores = Store.objects.all().order_by('name')
+
+    context = {
+        'page_obj': page_obj,
+        'stores': stores,
+        'status_filter': status_filter,
+        'from_store_filter': from_store_filter,
+        'to_store_filter': to_store_filter,
+        'priority_filter': priority_filter,
+        'status_choices': StoreStockTransferRequest.STATUS_CHOICES,
+        'priority_choices': StoreStockTransferRequest.PRIORITY_CHOICES,
+    }
+
+    return render(request, 'mainpages/head_manager_transfer_requests.html', context)
+
+@login_required
+def approve_restock_request(request, request_id):
+    """
+    Handle restock request approval by head manager.
+    """
+    if request.user.role != 'head_manager':
+        messages.error(request, "Access denied. Head Manager role required.")
+        return redirect('login')
+
+    if request.method == 'POST':
+        from Inventory.models import RestockRequest, Stock
+        from django.utils import timezone
+
+        try:
+            restock_request = RestockRequest.objects.get(id=request_id, status='pending')
+            approved_quantity = int(request.POST.get('approved_quantity', restock_request.requested_quantity))
+            review_notes = request.POST.get('review_notes', '')
+
+            if approved_quantity <= 0:
+                messages.error(request, "Approved quantity must be greater than 0.")
+                return redirect('head_manager_restock_requests')
+
+            # Update request status
+            restock_request.status = 'approved'
+            restock_request.reviewed_by = request.user
+            restock_request.reviewed_date = timezone.now()
+            restock_request.review_notes = review_notes
+            restock_request.approved_quantity = approved_quantity
+            restock_request.save()
+
+            # Update stock levels
+            stock, created = Stock.objects.get_or_create(
+                store=restock_request.store,
+                product=restock_request.product,
+                defaults={'quantity': 0, 'selling_price': restock_request.product.price}
+            )
+            stock.quantity += approved_quantity
+            stock.save()
+
+            # Mark as fulfilled
+            restock_request.status = 'fulfilled'
+            restock_request.fulfilled_quantity = approved_quantity
+            restock_request.fulfilled_date = timezone.now()
+            restock_request.save()
+
+            # Create notification for store manager
+            from .notifications import NotificationTriggers
+            NotificationTriggers.notify_request_status_change(restock_request, 'approved', request.user)
+
+            messages.success(request, f"Restock request {restock_request.request_number} approved and fulfilled.")
+
+        except (RestockRequest.DoesNotExist, ValueError) as e:
+            messages.error(request, "Invalid request or quantity specified.")
+        except Exception as e:
+            messages.error(request, f"Error processing request: {str(e)}")
+
+    return redirect('head_manager_restock_requests')
+
+
+@login_required
+def reject_restock_request(request, request_id):
+    """
+    Handle restock request rejection by head manager.
+    """
+    if request.user.role != 'head_manager':
+        messages.error(request, "Access denied. Head Manager role required.")
+        return redirect('login')
+
+    if request.method == 'POST':
+        from Inventory.models import RestockRequest
+        from django.utils import timezone
+
+        try:
+            restock_request = RestockRequest.objects.get(id=request_id, status='pending')
+            review_notes = request.POST.get('review_notes', '')
+
+            # Update request status
+            restock_request.status = 'rejected'
+            restock_request.reviewed_by = request.user
+            restock_request.reviewed_date = timezone.now()
+            restock_request.review_notes = review_notes
+            restock_request.save()
+
+            # Create notification for store manager
+            from .notifications import NotificationTriggers
+            NotificationTriggers.notify_request_status_change(restock_request, 'rejected', request.user)
+
+            messages.success(request, f"Restock request {restock_request.request_number} rejected.")
+
+        except RestockRequest.DoesNotExist:
+            messages.error(request, "Request not found or already processed.")
+        except Exception as e:
+            messages.error(request, f"Error processing request: {str(e)}")
+
+    return redirect('head_manager_restock_requests')
+
+
+@login_required
+def approve_transfer_request(request, request_id):
+    """
+    Handle stock transfer request approval by head manager.
+    """
+    if request.user.role != 'head_manager':
+        messages.error(request, "Access denied. Head Manager role required.")
+        return redirect('login')
+
+    if request.method == 'POST':
+        from Inventory.models import StoreStockTransferRequest, Stock
+        from django.utils import timezone
+
+        try:
+            transfer_request = StoreStockTransferRequest.objects.get(id=request_id, status='pending')
+            approved_quantity = int(request.POST.get('approved_quantity', transfer_request.requested_quantity))
+            review_notes = request.POST.get('review_notes', '')
+
+            if approved_quantity <= 0:
+                messages.error(request, "Approved quantity must be greater than 0.")
+                return redirect('head_manager_transfer_requests')
+
+            # Check if source store has enough stock
+            try:
+                source_stock = Stock.objects.get(
+                    store=transfer_request.from_store,
+                    product=transfer_request.product
+                )
+                if source_stock.quantity < approved_quantity:
+                    messages.error(request, f"Insufficient stock in {transfer_request.from_store.name}. Available: {source_stock.quantity}")
+                    return redirect('head_manager_transfer_requests')
+            except Stock.DoesNotExist:
+                messages.error(request, f"Product not found in {transfer_request.from_store.name} inventory.")
+                return redirect('head_manager_transfer_requests')
+
+            # Update request status
+            transfer_request.status = 'approved'
+            transfer_request.reviewed_by = request.user
+            transfer_request.reviewed_date = timezone.now()
+            transfer_request.review_notes = review_notes
+            transfer_request.approved_quantity = approved_quantity
+            transfer_request.save()
+
+            # Perform stock transfer
+            # Deduct from source store
+            source_stock.quantity -= approved_quantity
+            source_stock.save()
+
+            # Add to destination store
+            dest_stock, created = Stock.objects.get_or_create(
+                store=transfer_request.to_store,
+                product=transfer_request.product,
+                defaults={'quantity': 0, 'selling_price': transfer_request.product.price}
+            )
+            dest_stock.quantity += approved_quantity
+            dest_stock.save()
+
+            # Mark as completed
+            transfer_request.status = 'completed'
+            transfer_request.shipped_date = timezone.now()
+            transfer_request.received_date = timezone.now()
+            transfer_request.actual_quantity_transferred = approved_quantity
+            transfer_request.save()
+
+            # Create notification for requesting store manager
+            from .notifications import NotificationTriggers
+            NotificationTriggers.notify_request_status_change(transfer_request, 'approved', request.user)
+
+            messages.success(request, f"Transfer request {transfer_request.request_number} approved and completed.")
+
+        except (StoreStockTransferRequest.DoesNotExist, ValueError) as e:
+            messages.error(request, "Invalid request or quantity specified.")
+        except Exception as e:
+            messages.error(request, f"Error processing request: {str(e)}")
+
+    return redirect('head_manager_transfer_requests')
+
+
+@login_required
+def reject_transfer_request(request, request_id):
+    """
+    Handle stock transfer request rejection by head manager.
+    """
+    if request.user.role != 'head_manager':
+        messages.error(request, "Access denied. Head Manager role required.")
+        return redirect('login')
+
+    if request.method == 'POST':
+        from Inventory.models import StoreStockTransferRequest
+        from django.utils import timezone
+
+        try:
+            transfer_request = StoreStockTransferRequest.objects.get(id=request_id, status='pending')
+            review_notes = request.POST.get('review_notes', '')
+
+            # Update request status
+            transfer_request.status = 'rejected'
+            transfer_request.reviewed_by = request.user
+            transfer_request.reviewed_date = timezone.now()
+            transfer_request.review_notes = review_notes
+            transfer_request.save()
+
+            # Create notification for requesting store manager
+            from .notifications import NotificationTriggers
+            NotificationTriggers.notify_request_status_change(transfer_request, 'rejected', request.user)
+
+            messages.success(request, f"Transfer request {transfer_request.request_number} rejected.")
+
+        except StoreStockTransferRequest.DoesNotExist:
+            messages.error(request, "Request not found or already processed.")
+        except Exception as e:
+            messages.error(request, f"Error processing request: {str(e)}")
+
+    return redirect('head_manager_transfer_requests')
+
 
 @login_required
 def store_manager_page(request):
+    """
+    Enhanced Store Manager dashboard with analytics, stock management, and request functionality.
+    """
+    if request.user.role != 'store_manager':
+        messages.warning(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
     store = None
     try:
         store = Store.objects.get(store_manager=request.user)
     except Store.DoesNotExist:
-        messages.warning(request, "You are not assigned to manage any store.")
+        messages.error(request, "You are not assigned to manage any store. Please contact the administrator.")
+        # Render a simple error page instead of redirecting to avoid loops
+        return render(request, 'mainpages/store_manager_no_store.html', {
+            'user': request.user
+        })
+
+    # Get current date for filtering
+    from django.utils import timezone
+    from datetime import datetime, timedelta
+    from django.db.models import Sum, Count, Q, F
+    from Inventory.models import Stock, Product, RestockRequest, StoreStockTransferRequest
+
+    today = timezone.now().date()
+    last_30_days = today - timedelta(days=30)
+    last_7_days = today - timedelta(days=7)
+
+    # Recent sales and transactions (last 30 days)
+    recent_transactions = Transaction.objects.filter(
+        store=store,
+        transaction_type='sale',
+        timestamp__date__gte=last_30_days
+    ).order_by('-timestamp')[:10]
+
+    # Sales analytics
+    total_sales_30_days = Transaction.objects.filter(
+        store=store,
+        transaction_type='sale',
+        timestamp__date__gte=last_30_days
+    ).aggregate(
+        total_amount=Sum('total_amount'),
+        total_transactions=Count('id')
+    )
+
+    total_sales_7_days = Transaction.objects.filter(
+        store=store,
+        transaction_type='sale',
+        timestamp__date__gte=last_7_days
+    ).aggregate(
+        total_amount=Sum('total_amount'),
+        total_transactions=Count('id')
+    )
+
+    # Most sold product analytics (based on order quantities)
+    most_sold_products = Order.objects.filter(
+        transaction__store=store,
+        transaction__transaction_type='sale',
+        transaction__timestamp__date__gte=last_30_days
+    ).values(
+        'product__name',
+        'product__id'
+    ).annotate(
+        total_quantity=Sum('quantity'),
+        total_revenue=Sum(F('quantity') * F('price_at_time_of_sale'))
+    ).order_by('-total_quantity')[:5]
+
+    # Low stock alerts
+    low_stock_items = Stock.objects.filter(
+        store=store,
+        quantity__lte=F('low_stock_threshold')
+    ).select_related('product').order_by('quantity')
+
+    # Current stock levels
+    current_stock = Stock.objects.filter(store=store).select_related('product').order_by('product__name')
+
+    # Recent requests status
+    recent_restock_requests = RestockRequest.objects.filter(
+        store=store
+    ).order_by('-requested_date')[:5]
+
+    recent_transfer_requests = StoreStockTransferRequest.objects.filter(
+        Q(from_store=store) | Q(to_store=store)
+    ).order_by('-requested_date')[:5]
+
+    # Pending requests count
+    pending_restock_count = RestockRequest.objects.filter(
+        store=store,
+        status='pending'
+    ).count()
+
+    pending_transfer_count = StoreStockTransferRequest.objects.filter(
+        Q(from_store=store) | Q(to_store=store),
+        status='pending'
+    ).count()
+
+    # Cashier assignment
+    cashier_assignment = StoreCashier.objects.filter(store=store, is_active=True).first()
+
+    # Get all stores except current store for transfer requests
+    other_stores = Store.objects.exclude(id=store.id).order_by('name')
+
+    context = {
+        'store': store,
+        'cashier_assignment': cashier_assignment,
+        'recent_transactions': recent_transactions,
+        'total_sales_30_days': total_sales_30_days,
+        'total_sales_7_days': total_sales_7_days,
+        'most_sold_products': most_sold_products,
+        'low_stock_items': low_stock_items,
+        'current_stock': current_stock,
+        'recent_restock_requests': recent_restock_requests,
+        'recent_transfer_requests': recent_transfer_requests,
+        'pending_restock_count': pending_restock_count,
+        'pending_transfer_count': pending_transfer_count,
+        'other_stores': other_stores,
+    }
+
+    return render(request, 'mainpages/store_manager_page.html', context)
+
+
+@login_required
+def submit_restock_request(request):
+    """
+    Handle restock request submission by store managers.
+    """
+    if request.user.role != 'store_manager':
+        messages.error(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
+    try:
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, "You are not assigned to manage any store.")
         return redirect('admin_dashboard')
 
-    cashier_assignment = None
-    if store:
-        cashier_assignment = StoreCashier.objects.filter(store=store, is_active=True).first()
+    if request.method == 'POST':
+        from Inventory.models import Product, Stock, RestockRequest
 
-    return render(request, 'mainpages/store_manager_page.html', {
-        'store': store,
-        'cashier_assignment': cashier_assignment
-    })
-from store.models import Order
-from transactions.models import Transaction
+        product_id = request.POST.get('product_id')
+        requested_quantity = request.POST.get('requested_quantity')
+        priority = request.POST.get('priority', 'medium')
+        reason = request.POST.get('reason', '')
+
+        try:
+            product = Product.objects.get(id=product_id)
+            requested_quantity = int(requested_quantity)
+
+            if requested_quantity <= 0:
+                messages.error(request, "Requested quantity must be greater than 0.")
+                return redirect('store_manager_page')
+
+            # Check for existing pending requests
+            existing_request = RestockRequest.objects.filter(
+                store=store,
+                product=product,
+                status='pending'
+            ).first()
+
+            if existing_request:
+                messages.warning(request, f"You already have a pending restock request for {product.name}.")
+                return redirect('store_manager_page')
+
+            # Get current stock level
+            try:
+                stock = Stock.objects.get(store=store, product=product)
+                current_stock = stock.quantity
+            except Stock.DoesNotExist:
+                current_stock = 0
+
+            # Create restock request
+            restock_request = RestockRequest.objects.create(
+                store=store,
+                product=product,
+                requested_quantity=requested_quantity,
+                current_stock=current_stock,
+                priority=priority,
+                reason=reason,
+                requested_by=request.user
+            )
+
+            # Trigger notification for head managers
+            from .notifications import NotificationTriggers
+            NotificationTriggers.notify_pending_restock_request(restock_request)
+
+            messages.success(request, f"Restock request {restock_request.request_number} submitted successfully.")
+
+        except (Product.DoesNotExist, ValueError) as e:
+            messages.error(request, "Invalid product or quantity specified.")
+        except Exception as e:
+            messages.error(request, f"Error submitting restock request: {str(e)}")
+
+    return redirect('store_manager_page')
+
+
+@login_required
+def submit_transfer_request(request):
+    """
+    Handle stock transfer request submission by store managers.
+    """
+    if request.user.role != 'store_manager':
+        messages.error(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
+    try:
+        from_store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, "You are not assigned to manage any store.")
+        return redirect('admin_dashboard')
+
+    if request.method == 'POST':
+        from Inventory.models import Product, Stock, StoreStockTransferRequest
+
+        product_id = request.POST.get('product_id')
+        to_store_id = request.POST.get('to_store_id')
+        requested_quantity = request.POST.get('requested_quantity')
+        priority = request.POST.get('priority', 'medium')
+        reason = request.POST.get('reason', '')
+
+        try:
+            product = Product.objects.get(id=product_id)
+            to_store = Store.objects.get(id=to_store_id)
+            requested_quantity = int(requested_quantity)
+
+            if requested_quantity <= 0:
+                messages.error(request, "Requested quantity must be greater than 0.")
+                return redirect('store_manager_page')
+
+            if from_store == to_store:
+                messages.error(request, "Cannot transfer to the same store.")
+                return redirect('store_manager_page')
+
+            # Check for existing pending requests
+            existing_request = StoreStockTransferRequest.objects.filter(
+                from_store=from_store,
+                to_store=to_store,
+                product=product,
+                status='pending'
+            ).first()
+
+            if existing_request:
+                messages.warning(request, f"You already have a pending transfer request for {product.name} to {to_store.name}.")
+                return redirect('store_manager_page')
+
+            # Create transfer request
+            transfer_request = StoreStockTransferRequest.objects.create(
+                product=product,
+                from_store=from_store,
+                to_store=to_store,
+                requested_quantity=requested_quantity,
+                priority=priority,
+                reason=reason,
+                requested_by=request.user
+            )
+
+            # Trigger notification for head managers
+            from .notifications import NotificationTriggers
+            NotificationTriggers.notify_pending_transfer_request(transfer_request)
+
+            messages.success(request, f"Transfer request {transfer_request.request_number} submitted successfully.")
+
+        except (Product.DoesNotExist, Store.DoesNotExist, ValueError) as e:
+            messages.error(request, "Invalid product, store, or quantity specified.")
+        except Exception as e:
+            messages.error(request, f"Error submitting transfer request: {str(e)}")
+
+    return redirect('store_manager_page')
+
+
+@login_required
+def update_product_price(request):
+    """
+    Handle product price updates by store managers.
+    """
+    if request.user.role != 'store_manager':
+        messages.error(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
+    try:
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, "You are not assigned to manage any store.")
+        return redirect('admin_dashboard')
+
+    if request.method == 'POST':
+        from Inventory.models import Stock
+
+        stock_id = request.POST.get('stock_id')
+        new_price = request.POST.get('new_price')
+
+        try:
+            stock = Stock.objects.get(id=stock_id, store=store)
+            new_price = float(new_price)
+
+            if new_price <= 0:
+                messages.error(request, "Price must be greater than 0.")
+                return redirect('store_manager_page')
+
+            old_price = stock.selling_price
+            stock.selling_price = new_price
+            stock.save()
+
+            messages.success(request, f"Price for {stock.product.name} updated from ${old_price} to ${new_price}.")
+
+        except (Stock.DoesNotExist, ValueError) as e:
+            messages.error(request, "Invalid stock item or price specified.")
+        except Exception as e:
+            messages.error(request, f"Error updating price: {str(e)}")
+
+    return redirect('store_manager_page')
+
+
+def create_request_notification(notification_type, recipient, title, message, restock_request=None, transfer_request=None):
+    """
+    Create a notification for request status changes.
+    """
+    from Inventory.models import RequestNotification
+
+    RequestNotification.objects.create(
+        notification_type=notification_type,
+        recipient=recipient,
+        title=title,
+        message=message,
+        restock_request=restock_request,
+        transfer_request=transfer_request
+    )
 
 @login_required
 def cashier_page(request):

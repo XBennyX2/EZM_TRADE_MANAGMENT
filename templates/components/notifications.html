@@ -1,0 +1,343 @@
+<!-- Notification System Component for EZM Trade Management -->
+{% load static %}
+
+<!-- Notification Bell Icon and Dropdown -->
+<div class="notification-container position-relative">
+    <!-- Notification Bell Button -->
+    <button class="btn notification-bell-btn position-relative" id="notificationBell" data-bs-toggle="dropdown"
+        aria-expanded="false" title="Notifications">
+        <i class="bi bi-bell notification-icon"></i>
+        <!-- Notification Badge -->
+        <span class="notification-badge position-absolute top-0 start-100 translate-middle badge rounded-pill"
+            id="notificationBadge" style="display: none;">
+            0
+        </span>
+    </button>
+
+    <!-- Notification Dropdown Menu -->
+    <div class="dropdown-menu notification-dropdown" aria-labelledby="notificationBell">
+        <!-- Dropdown Header -->
+        <div class="notification-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="notification-title mb-0">
+                    <i class="bi bi-bell me-2"></i>
+                    Notifications
+                </h6>
+                <div class="notification-actions">
+                    <button class="btn btn-sm btn-link text-muted" id="markAllReadBtn" title="Mark all as read">
+                        <i class="bi bi-check2-all"></i>
+                    </button>
+                    <button class="btn btn-sm btn-link text-muted" id="refreshNotificationsBtn" title="Refresh">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notification Content -->
+        <div class="notification-content" id="notificationContent">
+            <!-- Loading State -->
+            <div class="notification-loading text-center py-4" id="notificationLoading">
+                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="mt-2 text-muted small">Loading notifications...</div>
+            </div>
+
+            <!-- Empty State -->
+            <div class="notification-empty text-center py-4" id="notificationEmpty" style="display: none;">
+                <i class="bi bi-bell-slash text-muted" style="font-size: 2rem;"></i>
+                <div class="mt-2 text-muted">No new notifications</div>
+                <small class="text-muted">You're all caught up!</small>
+            </div>
+
+            <!-- Notifications List -->
+            <div class="notification-list" id="notificationList">
+                <!-- Notifications will be populated here via AJAX -->
+            </div>
+        </div>
+
+        <!-- Dropdown Footer -->
+        <div class="notification-footer">
+            <a href="#" class="btn btn-sm btn-ezm-primary w-100" id="viewAllNotificationsBtn">
+                <i class="bi bi-list-ul me-2"></i>
+                View All Notifications
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Notification Item Template (Hidden) -->
+<template id="notificationItemTemplate">
+    <div class="notification-item" data-notification-id="">
+        <div class="notification-item-content">
+            <div class="d-flex align-items-start">
+                <div class="notification-icon-wrapper me-3">
+                    <i class="notification-item-icon"></i>
+                </div>
+                <div class="notification-text flex-grow-1">
+                    <div class="notification-item-title fw-semibold"></div>
+                    <div class="notification-item-message text-muted small"></div>
+                    <div class="notification-item-meta d-flex justify-content-between align-items-center mt-1">
+                        <span class="notification-item-time text-muted small"></span>
+                        <div class="notification-item-actions">
+                            <button class="btn btn-sm btn-link text-muted mark-read-btn" title="Mark as read">
+                                <i class="bi bi-check2"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="notification-unread-indicator"></div>
+            </div>
+            <div class="notification-item-action mt-2" style="display: none;">
+                <a href="#" class="btn btn-sm btn-outline-primary notification-action-btn">
+                    <span class="notification-action-text">View</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</template>
+
+<!-- Notification Styles -->
+<style>
+    .notification-container {
+        margin-right: 1rem;
+    }
+
+    .notification-bell-btn {
+        background: none;
+        border: none;
+        color: var(--light-gray);
+        font-size: 1.2rem;
+        padding: 0.5rem;
+        border-radius: 50%;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .notification-bell-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--accent-cyan);
+        transform: scale(1.1);
+    }
+
+    .notification-bell-btn:focus {
+        box-shadow: 0 0 0 2px rgba(102, 252, 241, 0.3);
+        outline: none;
+    }
+
+    .notification-icon {
+        transition: all 0.3s ease;
+    }
+
+    .notification-bell-btn:hover .notification-icon {
+        animation: bellRing 0.5s ease-in-out;
+    }
+
+    @keyframes bellRing {
+
+        0%,
+        100% {
+            transform: rotate(0deg);
+        }
+
+        25% {
+            transform: rotate(10deg);
+        }
+
+        75% {
+            transform: rotate(-10deg);
+        }
+    }
+
+    .notification-badge {
+        background: linear-gradient(45deg, #dc3545, #e74c3c) !important;
+        color: white;
+        font-size: 0.7rem;
+        font-weight: 600;
+        min-width: 18px;
+        height: 18px;
+        line-height: 18px;
+        border: 2px solid var(--primary-dark);
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        50% {
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+
+        100% {
+            transform: translate(-50%, -50%) scale(1);
+        }
+    }
+
+    .badge-pulse {
+        animation: badgePulse 0.6s ease-in-out 2;
+    }
+
+    @keyframes badgePulse {
+        0% {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        50% {
+            transform: translate(-50%, -50%) scale(1.3);
+        }
+
+        100% {
+            transform: translate(-50%, -50%) scale(1);
+        }
+    }
+
+    .notification-dropdown {
+        width: 380px;
+        max-height: 500px;
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        background: var(--white);
+        padding: 0;
+        margin-top: 0.5rem;
+        right: 0;
+        left: auto;
+    }
+
+    .notification-header {
+        background: linear-gradient(135deg, var(--primary-dark), var(--secondary-dark));
+        color: white;
+        padding: 1rem;
+        border-radius: 12px 12px 0 0;
+    }
+
+    .notification-title {
+        font-weight: 600;
+        font-size: 1rem;
+    }
+
+    .notification-content {
+        max-height: 350px;
+        overflow-y: auto;
+    }
+
+    .notification-list {
+        padding: 0;
+    }
+
+    .notification-item {
+        padding: 1rem;
+        border-bottom: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
+    }
+
+    .notification-item:hover {
+        background: #f8f9fa;
+    }
+
+    .notification-item.unread {
+        background: linear-gradient(90deg, rgba(102, 252, 241, 0.05), rgba(255, 255, 255, 1));
+        border-left: 4px solid var(--accent-teal);
+    }
+
+    .notification-icon-wrapper {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
+        color: white;
+        font-size: 1.1rem;
+    }
+
+    .notification-item-title {
+        color: var(--primary-dark);
+        font-size: 0.9rem;
+        line-height: 1.3;
+    }
+
+    .notification-item-message {
+        font-size: 0.8rem;
+        line-height: 1.4;
+        margin-top: 0.25rem;
+    }
+
+    .notification-item-time {
+        font-size: 0.75rem;
+    }
+
+    .notification-unread-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--accent-teal);
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+    }
+
+    .notification-item.read .notification-unread-indicator {
+        display: none;
+    }
+
+    .notification-footer {
+        padding: 0.75rem;
+        border-top: 1px solid #e9ecef;
+        background: #f8f9fa;
+        border-radius: 0 0 12px 12px;
+    }
+
+    .btn-ezm-primary {
+        background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+        border: none;
+        color: white;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-ezm-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 15px rgba(102, 252, 241, 0.4);
+        color: white;
+    }
+
+    .mark-read-btn {
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .notification-item:hover .mark-read-btn {
+        opacity: 1;
+    }
+
+    .notification-loading,
+    .notification-empty {
+        color: var(--text-muted);
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+        .notification-dropdown {
+            width: 320px;
+            max-height: 400px;
+        }
+
+        .notification-container {
+            margin-right: 0.5rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .notification-dropdown {
+            width: 280px;
+            right: -50px;
+        }
+    }
+</style>

@@ -727,3 +727,367 @@ class Warehouse(models.Model):
         if self.capacity > 0:
             return (self.current_utilization / self.capacity) * 100
         return 0
+
+
+# ============================================================================
+# STORE MANAGER REQUEST MODELS
+# ============================================================================
+
+class RestockRequest(models.Model):
+    """
+    Handles restock requests from store managers to head manager.
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('fulfilled', 'Fulfilled'),
+    ]
+
+    PRIORITY_CHOICES = [
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('urgent', 'Urgent'),
+    ]
+
+    request_number = models.CharField(max_length=50, unique=True, editable=False)
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='restock_requests')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='restock_requests')
+    requested_quantity = models.PositiveIntegerField(help_text="Quantity requested for restock")
+    current_stock = models.PositiveIntegerField(help_text="Current stock level at time of request")
+    priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='medium')
+    reason = models.TextField(help_text="Reason for restock request")
+
+    # Request tracking
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    requested_by = models.ForeignKey(
+        'users.CustomUser',
+        on_delete=models.CASCADE,
+        related_name='submitted_restock_requests',
+        limit_choices_to={'role': 'store_manager'}
+    )
+    requested_date = models.DateTimeField(auto_now_add=True)
+
+    # Approval tracking
+    reviewed_by = models.ForeignKey(
+        'users.CustomUser',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_restock_requests',
+        limit_choices_to={'role': 'head_manager'}
+    )
+    reviewed_date = models.DateTimeField(null=True, blank=True)
+    review_notes = models.TextField(blank=True, help_text="Notes from head manager review")
+
+    # Fulfillment tracking
+    approved_quantity = models.PositiveIntegerField(null=True, blank=True, help_text="Quantity approved by head manager")
+    fulfilled_quantity = models.PositiveIntegerField(null=True, blank=True, help_text="Actual quantity fulfilled")
+    fulfilled_date = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-requested_date']
+        indexes = [
+            models.Index(fields=['request_number']),
+            models.Index(fields=['store', 'status']),
+            models.Index(fields=['product', 'status']),
+            models.Index(fields=['requested_date']),
+            models.Index(fields=['status']),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self.request_number:
+            from datetime import datetime
+            import uuid
+            self.request_number = f"RR{datetime.now().strftime('%Y%m%d')}{str(uuid.uuid4())[:8].upper()}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Restock Request {self.request_number} - {self.product.name} for {self.store.name}"
+
+    def can_submit_duplicate(self):
+        """Check if store can submit another request for same product while this is pending"""
+        return not RestockRequest.objects.filter(
+            store=self.store,
+            product=self.product,
+            status='pending'
+        ).exclude(pk=self.pk).exists()
+
+
+class StoreStockTransferRequest(models.Model):
+    """
+    Handles stock transfer requests between stores via head manager approval.
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('in_transit', 'In Transit'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    ]
+
+    PRIORITY_CHOICES = [
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('urgent', 'Urgent'),
+    ]
+
+    request_number = models.CharField(max_length=50, unique=True, editable=False)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='transfer_requests')
+    from_store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='outgoing_transfer_requests')
+    to_store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='incoming_transfer_requests')
+    requested_quantity = models.PositiveIntegerField(help_text="Quantity requested for transfer")
+    priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='medium')
+    reason = models.TextField(help_text="Reason for stock transfer request")
+
+    # Request tracking
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    requested_by = models.ForeignKey(
+        'users.CustomUser',
+        on_delete=models.CASCADE,
+        related_name='submitted_transfer_requests',
+        limit_choices_to={'role': 'store_manager'}
+    )
+    requested_date = models.DateTimeField(auto_now_add=True)
+
+    # Approval tracking
+    reviewed_by = models.ForeignKey(
+        'users.CustomUser',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_transfer_requests',
+        limit_choices_to={'role': 'head_manager'}
+    )
+    reviewed_date = models.DateTimeField(null=True, blank=True)
+    review_notes = models.TextField(blank=True, help_text="Notes from head manager review")
+
+    # Transfer tracking
+    approved_quantity = models.PositiveIntegerField(null=True, blank=True, help_text="Quantity approved for transfer")
+    shipped_date = models.DateTimeField(null=True, blank=True)
+    received_date = models.DateTimeField(null=True, blank=True)
+    actual_quantity_transferred = models.PositiveIntegerField(null=True, blank=True, help_text="Actual quantity transferred")
+
+    class Meta:
+        ordering = ['-requested_date']
+        indexes = [
+            models.Index(fields=['request_number']),
+            models.Index(fields=['from_store', 'status']),
+            models.Index(fields=['to_store', 'status']),
+            models.Index(fields=['product', 'status']),
+            models.Index(fields=['requested_date']),
+            models.Index(fields=['status']),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self.request_number:
+            from datetime import datetime
+            import uuid
+            self.request_number = f"TR{datetime.now().strftime('%Y%m%d')}{str(uuid.uuid4())[:8].upper()}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Transfer Request {self.request_number} - {self.product.name} from {self.from_store.name} to {self.to_store.name}"
+
+    def can_submit_duplicate(self):
+        """Check if store can submit another transfer request for same product while this is pending"""
+        return not StoreStockTransferRequest.objects.filter(
+            from_store=self.from_store,
+            to_store=self.to_store,
+            product=self.product,
+            status='pending'
+        ).exclude(pk=self.pk).exists()
+
+    def clean(self):
+        """Validate that from_store and to_store are different"""
+        from django.core.exceptions import ValidationError
+        if self.from_store == self.to_store:
+            raise ValidationError("Source and destination stores must be different.")
+
+
+class RequestNotification(models.Model):
+    """
+    Handles notifications for request status changes.
+    """
+    NOTIFICATION_TYPES = [
+        ('restock_submitted', 'Restock Request Submitted'),
+        ('restock_approved', 'Restock Request Approved'),
+        ('restock_rejected', 'Restock Request Rejected'),
+        ('restock_fulfilled', 'Restock Request Fulfilled'),
+        ('transfer_submitted', 'Transfer Request Submitted'),
+        ('transfer_approved', 'Transfer Request Approved'),
+        ('transfer_rejected', 'Transfer Request Rejected'),
+        ('transfer_completed', 'Transfer Request Completed'),
+    ]
+
+    notification_type = models.CharField(max_length=30, choices=NOTIFICATION_TYPES)
+    recipient = models.ForeignKey('users.CustomUser', on_delete=models.CASCADE, related_name='request_notifications')
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_date = models.DateTimeField(auto_now_add=True)
+
+    # Optional references to related requests
+    restock_request = models.ForeignKey(RestockRequest, on_delete=models.CASCADE, null=True, blank=True)
+    transfer_request = models.ForeignKey(StoreStockTransferRequest, on_delete=models.CASCADE, null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_date']
+        indexes = [
+            models.Index(fields=['recipient', 'is_read']),
+            models.Index(fields=['created_date']),
+            models.Index(fields=['notification_type']),
+        ]
+
+    def __str__(self):
+        return f"{self.notification_type} - {self.recipient.username}"
+
+
+# ============================================================================
+# REAL-TIME NOTIFICATION SYSTEM MODELS
+# ============================================================================
+
+class NotificationCategory(models.Model):
+    """
+    Categories for organizing notifications in the system.
+    """
+    name = models.CharField(max_length=50, unique=True)
+    display_name = models.CharField(max_length=100)
+    icon = models.CharField(max_length=50, default='bi-bell')
+    color = models.CharField(max_length=20, default='primary')
+    priority = models.PositiveIntegerField(default=1, help_text="Lower numbers = higher priority")
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['priority', 'display_name']
+        verbose_name_plural = "Notification Categories"
+
+    def __str__(self):
+        return self.display_name
+
+
+class SystemNotification(models.Model):
+    """
+    System-wide notifications for real-time updates.
+    """
+    NOTIFICATION_TYPES = [
+        ('unassigned_store_manager', 'Unassigned Store Manager'),
+        ('empty_store', 'Empty Store'),
+        ('pending_restock_request', 'Pending Restock Request'),
+        ('pending_transfer_request', 'Pending Transfer Request'),
+        ('new_supplier_registration', 'New Supplier Registration'),
+        ('request_approved', 'Request Approved'),
+        ('request_rejected', 'Request Rejected'),
+        ('low_stock_alert', 'Low Stock Alert'),
+        ('system_announcement', 'System Announcement'),
+    ]
+
+    PRIORITY_LEVELS = [
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('urgent', 'Urgent'),
+    ]
+
+    notification_type = models.CharField(max_length=50, choices=NOTIFICATION_TYPES)
+    category = models.ForeignKey(NotificationCategory, on_delete=models.CASCADE, related_name='notifications')
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    priority = models.CharField(max_length=10, choices=PRIORITY_LEVELS, default='medium')
+
+    # Target audience
+    target_roles = models.JSONField(default=list, help_text="List of roles that should see this notification")
+    target_users = models.ManyToManyField('users.CustomUser', blank=True, related_name='targeted_notifications')
+
+    # Related objects (optional)
+    related_user_id = models.PositiveIntegerField(null=True, blank=True, help_text="ID of related user")
+    related_object_type = models.CharField(max_length=50, null=True, blank=True)
+    related_object_id = models.PositiveIntegerField(null=True, blank=True)
+
+    # Action links
+    action_url = models.CharField(max_length=500, blank=True, help_text="URL for primary action")
+    action_text = models.CharField(max_length=100, blank=True, help_text="Text for action button")
+
+    # Metadata
+    is_active = models.BooleanField(default=True)
+    expires_at = models.DateTimeField(null=True, blank=True, help_text="When notification should expire")
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey('users.CustomUser', on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['notification_type']),
+            models.Index(fields=['is_active', 'created_at']),
+            models.Index(fields=['expires_at']),
+            models.Index(fields=['priority']),
+        ]
+
+    def __str__(self):
+        return f"{self.get_notification_type_display()}: {self.title}"
+
+    def is_expired(self):
+        """Check if notification has expired"""
+        if self.expires_at:
+            from django.utils import timezone
+            return timezone.now() > self.expires_at
+        return False
+
+    def get_target_users(self):
+        """Get all users who should see this notification"""
+        from users.models import CustomUser
+
+        users = set()
+
+        # Add specifically targeted users
+        users.update(self.target_users.all())
+
+        # Add users based on roles
+        if self.target_roles:
+            role_users = CustomUser.objects.filter(role__in=self.target_roles, is_active=True)
+            users.update(role_users)
+
+        return list(users)
+
+
+class UserNotificationStatus(models.Model):
+    """
+    Tracks read/unread status of notifications for each user.
+    """
+    user = models.ForeignKey('users.CustomUser', on_delete=models.CASCADE, related_name='notification_statuses')
+    notification = models.ForeignKey(SystemNotification, on_delete=models.CASCADE, related_name='user_statuses')
+    is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
+    is_dismissed = models.BooleanField(default=False)
+    dismissed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ['user', 'notification']
+        indexes = [
+            models.Index(fields=['user', 'is_read']),
+            models.Index(fields=['user', 'is_dismissed']),
+            models.Index(fields=['notification', 'is_read']),
+        ]
+
+    def __str__(self):
+        status = "Read" if self.is_read else "Unread"
+        return f"{self.user.username} - {self.notification.title} ({status})"
+
+    def mark_as_read(self):
+        """Mark notification as read"""
+        if not self.is_read:
+            from django.utils import timezone
+            self.is_read = True
+            self.read_at = timezone.now()
+            self.save()
+
+    def mark_as_dismissed(self):
+        """Mark notification as dismissed"""
+        if not self.is_dismissed:
+            from django.utils import timezone
+            self.is_dismissed = True
+            self.dismissed_at = timezone.now()
+            self.save()

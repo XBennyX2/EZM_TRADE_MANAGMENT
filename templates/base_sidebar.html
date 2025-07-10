@@ -51,50 +51,57 @@
                 <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
             </div>
 
-            <div class="profile-section">
+            <div class="navbar-right d-flex align-items-center">
+                <!-- Notification System -->
                 {% if user.is_authenticated %}
-                <div class="profile-dropdown" id="profileDropdown" onclick="toggleProfileMenu()">
-                    <div class="profile-avatar">
-                        {{ user.first_name|first|default:user.username|first|upper }}
-                    </div>
-                    <div class="profile-info">
-                        <div class="profile-name">{{ user.first_name|default:user.username }}</div>
-                        <div class="profile-role">{{ user.role|default:"User" }}</div>
-                    </div>
-                    <i class="bi bi-chevron-down dropdown-arrow"></i>
-                </div>
-
-                <div class="profile-menu" id="profileMenu">
-                    <ul>
-                        <li>
-                            <a
-                                href="{% if user.role == 'admin' %}{% url 'admin_settings' %}{% elif user.role == 'head_manager' %}{% url 'head_manager_settings' %}{% elif user.role == 'store_manager' %}{% url 'store_manager_settings' %}{% elif user.role == 'cashier' %}{% url 'cashier_settings' %}{% else %}#{% endif %}">
-                                <i class="bi bi-gear"></i>
-                                Settings
-                            </a>
-                        </li>
-                        <li>
-                            <a
-                                href="{% if user.role == 'admin' %}{% url 'admin_edit_profile' %}{% elif user.role == 'head_manager' %}{% url 'head_manager_edit_profile' %}{% elif user.role == 'store_manager' %}{% url 'store_manager_settings' %}{% elif user.role == 'cashier' %}{% url 'cashier_edit_profile' %}{% else %}#{% endif %}">
-                                <i class="bi bi-person"></i>
-                                Edit Profile
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'password_change' %}">
-                                <i class="bi bi-key"></i>
-                                Change Password
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'logout' %}" class="logout-link">
-                                <i class="bi bi-box-arrow-left"></i>
-                                Logout
-                            </a>
-                        </li>
-                    </ul>
-                </div>
+                {% include 'components/notifications.html' %}
                 {% endif %}
+
+                <div class="profile-section">
+                    {% if user.is_authenticated %}
+                    <div class="profile-dropdown" id="profileDropdown" onclick="toggleProfileMenu()">
+                        <div class="profile-avatar">
+                            {{ user.first_name|first|default:user.username|first|upper }}
+                        </div>
+                        <div class="profile-info">
+                            <div class="profile-name">{{ user.first_name|default:user.username }}</div>
+                            <div class="profile-role">{{ user.role|default:"User" }}</div>
+                        </div>
+                        <i class="bi bi-chevron-down dropdown-arrow"></i>
+                    </div>
+
+                    <div class="profile-menu" id="profileMenu">
+                        <ul>
+                            <li>
+                                <a
+                                    href="{% if user.role == 'admin' %}{% url 'admin_settings' %}{% elif user.role == 'head_manager' %}{% url 'head_manager_settings' %}{% elif user.role == 'store_manager' %}{% url 'store_manager_settings' %}{% elif user.role == 'cashier' %}{% url 'cashier_settings' %}{% else %}#{% endif %}">
+                                    <i class="bi bi-gear"></i>
+                                    Settings
+                                </a>
+                            </li>
+                            <li>
+                                <a
+                                    href="{% if user.role == 'admin' %}{% url 'admin_edit_profile' %}{% elif user.role == 'head_manager' %}{% url 'head_manager_edit_profile' %}{% elif user.role == 'store_manager' %}{% url 'store_manager_settings' %}{% elif user.role == 'cashier' %}{% url 'cashier_edit_profile' %}{% else %}#{% endif %}">
+                                    <i class="bi bi-person"></i>
+                                    Edit Profile
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{% url 'password_change' %}">
+                                    <i class="bi bi-key"></i>
+                                    Change Password
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{% url 'logout' %}" class="logout-link">
+                                    <i class="bi bi-box-arrow-left"></i>
+                                    Logout
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
         </nav>
 
@@ -156,6 +163,11 @@
             });
         });
     </script>
+
+    <!-- Notification System JS -->
+    {% if user.is_authenticated %}
+    <script src="{% static 'js/notifications.js' %}"></script>
+    {% endif %}
 
     {% block extra_js %}{% endblock %}
 </body>

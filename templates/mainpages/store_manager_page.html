@@ -1,0 +1,516 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
+{% block title %}Store Manager Dashboard{% endblock %}
+{% block page_title %}Store Manager Dashboard{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-card {
+        background: var(--white);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        border: none;
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+
+    .dashboard-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    .stat-card {
+        background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
+        color: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .stat-card h3 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-card p {
+        margin: 0;
+        opacity: 0.9;
+    }
+
+    .low-stock-alert {
+        background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+        color: white;
+        border-radius: 8px;
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .request-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+    }
+
+    .badge-pending {
+        background-color: #ffc107;
+        color: #000;
+    }
+
+    .badge-approved {
+        background-color: #28a745;
+        color: white;
+    }
+
+    .badge-rejected {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .btn-ezm-primary {
+        background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+        border: none;
+        color: white;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-ezm-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 252, 241, 0.4);
+        color: white;
+    }
+
+    .btn-ezm-secondary {
+        background: var(--secondary-dark);
+        border: none;
+        color: white;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 500;
+    }
+
+    .table-responsive {
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .table th {
+        background: var(--secondary-dark);
+        color: white;
+        border: none;
+        font-weight: 600;
+    }
+
+    .modal-header {
+        background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+        color: white;
+        border-bottom: none;
+    }
+
+    .modal-header .btn-close {
+        filter: invert(1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 mb-0 text-gray-800">Store Manager Dashboard</h1>
+            <p class="text-muted">Managing {{ store.name }}</p>
+        </div>
+    </div>
+
+    <!-- Sales Analytics Row -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <h3>${{ total_sales_30_days.total_amount|default:0|floatformat:2 }}</h3>
+                <p>Sales (30 Days)</p>
+                <small>{{ total_sales_30_days.total_transactions|default:0 }} transactions</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <h3>${{ total_sales_7_days.total_amount|default:0|floatformat:2 }}</h3>
+                <p>Sales (7 Days)</p>
+                <small>{{ total_sales_7_days.total_transactions|default:0 }} transactions</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <h3>{{ low_stock_items|length }}</h3>
+                <p>Low Stock Alerts</p>
+                <small>Items below threshold</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <h3>{{ pending_restock_count|add:pending_transfer_count }}</h3>
+                <p>Pending Requests</p>
+                <small>{{ pending_restock_count }} restock, {{ pending_transfer_count }} transfer</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Row -->
+    <div class="row">
+        <!-- Left Column -->
+        <div class="col-lg-8">
+            <!-- Most Sold Products -->
+            <div class="dashboard-card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="bi bi-graph-up text-success me-2"></i>
+                        Most Sold Products (30 Days)
+                    </h5>
+                    {% if most_sold_products %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Quantity Sold</th>
+                                    <th>Revenue</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in most_sold_products %}
+                                <tr>
+                                    <td>{{ product.product__name }}</td>
+                                    <td>{{ product.total_quantity }}</td>
+                                    <td>${{ product.total_revenue|floatformat:2 }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No sales data available for the last 30 days.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Transactions -->
+            <div class="dashboard-card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="bi bi-clock-history text-primary me-2"></i>
+                        Recent Transactions
+                    </h5>
+                    {% if recent_transactions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                    <th>Payment Method</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transaction in recent_transactions %}
+                                <tr>
+                                    <td>{{ transaction.timestamp|date:"M d, Y H:i" }}</td>
+                                    <td>
+                                        <span class="badge bg-success">{{ transaction.get_transaction_type_display
+                                            }}</span>
+                                    </td>
+                                    <td>${{ transaction.total_amount|floatformat:2 }}</td>
+                                    <td>{{ transaction.get_payment_type_display }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No recent transactions.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-lg-4">
+            <!-- Low Stock Alerts -->
+            <div class="dashboard-card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="bi bi-exclamation-triangle text-warning me-2"></i>
+                        Low Stock Alerts
+                    </h5>
+                    {% if low_stock_items %}
+                    {% for stock in low_stock_items %}
+                    <div class="low-stock-alert">
+                        <strong>{{ stock.product.name }}</strong>
+                        <br>
+                        <small>Current: {{ stock.quantity }} | Threshold: {{ stock.low_stock_threshold }}</small>
+                        <button class="btn btn-sm btn-light float-end"
+                            onclick="openRestockModal({{ stock.product.id }}, '{{ stock.product.name }}', {{ stock.quantity }})">
+                            Request Restock
+                        </button>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted">All products are adequately stocked.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="dashboard-card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="bi bi-lightning text-warning me-2"></i>
+                        Quick Actions
+                    </h5>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-ezm-primary" data-bs-toggle="modal" data-bs-target="#restockModal">
+                            <i class="bi bi-box-seam me-2"></i>Request Restock
+                        </button>
+                        <button class="btn btn-ezm-secondary" data-bs-toggle="modal" data-bs-target="#transferModal">
+                            <i class="bi bi-arrow-left-right me-2"></i>Request Transfer
+                        </button>
+                        <button class="btn btn-outline-primary" data-bs-toggle="modal"
+                            data-bs-target="#priceUpdateModal">
+                            <i class="bi bi-tag me-2"></i>Update Prices
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Requests -->
+            <div class="dashboard-card">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="bi bi-list-check text-info me-2"></i>
+                        Recent Requests
+                    </h5>
+                    {% if recent_restock_requests or recent_transfer_requests %}
+                    <div class="list-group list-group-flush">
+                        {% for request in recent_restock_requests %}
+                        <div class="list-group-item border-0 px-0">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>Restock: {{ request.product.name }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ request.requested_date|date:"M d, Y" }}</small>
+                                </div>
+                                <span class="request-badge badge-{{ request.status }}">{{ request.get_status_display
+                                    }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% for request in recent_transfer_requests %}
+                        <div class="list-group-item border-0 px-0">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>Transfer: {{ request.product.name }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ request.requested_date|date:"M d, Y" }}</small>
+                                </div>
+                                <span class="request-badge badge-{{ request.status }}">{{ request.get_status_display
+                                    }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No recent requests.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Restock Request Modal -->
+<div class="modal fade" id="restockModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Request Restock</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'submit_restock_request' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="product_id" class="form-label">Product</label>
+                        <select class="form-select" id="product_id" name="product_id" required>
+                            <option value="">Select a product</option>
+                            {% for stock in current_stock %}
+                            <option value="{{ stock.product.id }}">{{ stock.product.name }} (Current: {{ stock.quantity
+                                }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="requested_quantity" class="form-label">Requested Quantity</label>
+                        <input type="number" class="form-control" id="requested_quantity" name="requested_quantity"
+                            min="1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="priority" class="form-label">Priority</label>
+                        <select class="form-select" id="priority" name="priority">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="reason" class="form-label">Reason</label>
+                        <textarea class="form-control" id="reason" name="reason" rows="3"
+                            placeholder="Explain why this restock is needed..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-ezm-primary">Submit Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Transfer Request Modal -->
+<div class="modal fade" id="transferModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Request Stock Transfer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'submit_transfer_request' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="transfer_product_id" class="form-label">Product</label>
+                        <select class="form-select" id="transfer_product_id" name="product_id" required>
+                            <option value="">Select a product</option>
+                            {% for stock in current_stock %}
+                            <option value="{{ stock.product.id }}">{{ stock.product.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="to_store_id" class="form-label">Destination Store</label>
+                        <select class="form-select" id="to_store_id" name="to_store_id" required>
+                            <option value="">Select destination store</option>
+                            {% for other_store in other_stores %}
+                            <option value="{{ other_store.id }}">{{ other_store.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="transfer_quantity" class="form-label">Requested Quantity</label>
+                        <input type="number" class="form-control" id="transfer_quantity" name="requested_quantity"
+                            min="1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="transfer_priority" class="form-label">Priority</label>
+                        <select class="form-select" id="transfer_priority" name="priority">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="transfer_reason" class="form-label">Reason</label>
+                        <textarea class="form-control" id="transfer_reason" name="reason" rows="3"
+                            placeholder="Explain why this transfer is needed..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-ezm-primary">Submit Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Price Update Modal -->
+<div class="modal fade" id="priceUpdateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Product Price</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'update_product_price' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="stock_id" class="form-label">Product</label>
+                        <select class="form-select" id="stock_id" name="stock_id" required
+                            onchange="updateCurrentPrice()">
+                            <option value="">Select a product</option>
+                            {% for stock in current_stock %}
+                            <option value="{{ stock.id }}" data-price="{{ stock.selling_price }}">{{ stock.product.name
+                                }} (Current: ${{ stock.selling_price }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="current_price_display" class="form-label">Current Price</label>
+                        <input type="text" class="form-control" id="current_price_display" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_price" class="form-label">New Price</label>
+                        <input type="number" class="form-control" id="new_price" name="new_price" step="0.01" min="0.01"
+                            required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-ezm-primary">Update Price</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function openRestockModal(productId, productName, currentStock) {
+        document.getElementById('product_id').value = productId;
+        document.getElementById('requested_quantity').focus();
+        var modal = new bootstrap.Modal(document.getElementById('restockModal'));
+        modal.show();
+    }
+
+    function updateCurrentPrice() {
+        const select = document.getElementById('stock_id');
+        const currentPriceDisplay = document.getElementById('current_price_display');
+        const selectedOption = select.options[select.selectedIndex];
+
+        if (selectedOption.value) {
+            const currentPrice = selectedOption.getAttribute('data-price');
+            currentPriceDisplay.value = '$' + currentPrice;
+        } else {
+            currentPriceDisplay.value = '';
+        }
+    }
+
+    // Load stores for transfer modal
+    document.addEventListener('DOMContentLoaded', function () {
+        // This would typically be loaded via AJAX
+        // For now, we'll populate it server-side in the view
+    });
+</script>
+{% endblock %}

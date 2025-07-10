@@ -14,8 +14,17 @@ from .views import (
     admin_settings, admin_edit_profile, admin_change_password, head_manager_settings,
     head_manager_change_password, head_manager_edit_profile,
     store_manager_settings, store_manager_change_password, cashier_settings, cashier_edit_profile, cashier_change_password,
-    CustomPasswordChangeView
+    CustomPasswordChangeView,
+    # Store Manager request views
+    submit_restock_request, submit_transfer_request, update_product_price,
+    # Head Manager request management views
+    head_manager_restock_requests, head_manager_transfer_requests,
+    approve_restock_request, reject_restock_request,
+    approve_transfer_request, reject_transfer_request
 )
+
+# Import API views
+from . import api_views
 from .supplier_views import (
     supplier_dashboard, supplier_account, supplier_purchase_orders, supplier_invoices,
     supplier_payments, supplier_transactions, supplier_products, supplier_reports, supplier_settings,
@@ -40,6 +49,21 @@ urlpatterns = [
     path('head-manager/', head_manager_page, name='head_manager_page'),
     path('store-manager/', store_manager_page, name='store_manager_page'),
     path('cashier/', cashier_page, name='cashier_page'),
+
+    # Store Manager request URLs
+    path('store-manager/submit-restock-request/', submit_restock_request, name='submit_restock_request'),
+    path('store-manager/submit-transfer-request/', submit_transfer_request, name='submit_transfer_request'),
+    path('store-manager/update-product-price/', update_product_price, name='update_product_price'),
+
+    # Head Manager request management URLs
+    path('head-manager/restock-requests/', head_manager_restock_requests, name='head_manager_restock_requests'),
+    path('head-manager/transfer-requests/', head_manager_transfer_requests, name='head_manager_transfer_requests'),
+    path('head-manager/restock-requests/<int:request_id>/approve/', approve_restock_request, name='approve_restock_request'),
+    path('head-manager/restock-requests/<int:request_id>/reject/', reject_restock_request, name='reject_restock_request'),
+    path('head-manager/transfer-requests/<int:request_id>/approve/', approve_transfer_request, name='approve_transfer_request'),
+    path('head-manager/transfer-requests/<int:request_id>/reject/', reject_transfer_request, name='reject_transfer_request'),
+
+
     path('admin/settings/', admin_settings, name='admin_settings'),
     path('admin/profile/edit/', admin_edit_profile, name='admin_edit_profile'),
     path('admin/profile/change-password/', admin_change_password, name='admin_change_password'),

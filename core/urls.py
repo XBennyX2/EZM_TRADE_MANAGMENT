@@ -16,6 +16,8 @@ urlpatterns = [
     path('users/', include('users.urls')),
     path('stores/', include('store.urls')),
     path('inventory/', include('Inventory.urls')),
+    # API endpoints
+    path('api/', include('users.api_urls')),
 ]
 
 if settings.DEBUG:

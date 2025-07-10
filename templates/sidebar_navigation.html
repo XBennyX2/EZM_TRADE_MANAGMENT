@@ -64,9 +64,15 @@
         </a>
     </li>
     <li class="sidebar-menu-item">
-        <a href="#" data-tooltip="Stock Transfer Approvals">
+        <a href="{% url 'head_manager_restock_requests' %}" data-tooltip="Restock Requests">
+            <i class="bi bi-box-arrow-up"></i>
+            <span>Restock Requests</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'head_manager_transfer_requests' %}" data-tooltip="Transfer Requests">
             <i class="bi bi-arrow-left-right"></i>
-            <span>Stock Transfer Approvals</span>
+            <span>Transfer Requests</span>
         </a>
     </li>
     <li class="sidebar-menu-item">
@@ -111,9 +117,9 @@
         </a>
     </li>
     <li class="sidebar-menu-item">
-        <a href="#" data-tooltip="Stock Requests">
-            <i class="bi bi-arrow-up-right"></i>
-            <span>Stock Requests</span>
+        <a href="#" data-tooltip="Request History" onclick="showRequestHistory()">
+            <i class="bi bi-clock-history"></i>
+            <span>Request History</span>
         </a>
     </li>
     <li class="sidebar-menu-item">

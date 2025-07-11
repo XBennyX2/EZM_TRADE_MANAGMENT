@@ -872,14 +872,45 @@ def store_manager_restock_requests(request):
     # Get current stock for the modal
     current_stock = Stock.objects.filter(store=store).select_related('product')
 
+    # Prepare status choices with selection flags
+    status_choices_with_selection = []
+    for value, label in RestockRequest.STATUS_CHOICES:
+        status_choices_with_selection.append({
+            'value': value,
+            'label': label,
+            'selected': status_filter == value
+        })
+
+    # Prepare priority choices with selection flags
+    priority_choices_with_selection = []
+    for value, label in RestockRequest.PRIORITY_CHOICES:
+        priority_choices_with_selection.append({
+            'value': value,
+            'label': label,
+            'selected': priority_filter == value
+        })
+
+    # Prepare pagination data with current page info
+    pagination_data = []
+    if page_obj.has_other_pages:
+        for num in page_obj.paginator.page_range:
+            pagination_data.append({
+                'number': num,
+                'is_current': page_obj.number == num,
+                'in_range': num > page_obj.number - 3 and num < page_obj.number + 3
+            })
+
     context = {
         'page_obj': page_obj,
+        'pagination_data': pagination_data,
         'status_filter': status_filter,
         'priority_filter': priority_filter,
         'product_filter': product_filter,
-        'status_choices': RestockRequest.STATUS_CHOICES,
-        'priority_choices': RestockRequest.PRIORITY_CHOICES,
+        'status_choices': status_choices_with_selection,
+        'priority_choices': priority_choices_with_selection,
         'current_stock': current_stock,
+        'status_all_selected': status_filter == 'all' or not status_filter,
+        'priority_all_selected': priority_filter == 'all' or not priority_filter,
         **stats
     }
 

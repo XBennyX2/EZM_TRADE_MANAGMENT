@@ -207,9 +207,9 @@
             <div class="col-md-3">
                 <label for="status" class="form-label">Status</label>
                 <select class="form-select" id="status" name="status">
-                    <option value="all" {% if status_filter  ==  "all" %}selected{% endif %}>All Statuses</option>
-                    {% for value, label in status_choices %}
-                    <option value="{{ value }}" {% if status_filter  ==  value %}selected{% endif %}>{{ label }}
+                    <option value="all" {% if status_all_selected %}selected{% endif %}>All Statuses</option>
+                    {% for choice in status_choices %}
+                    <option value="{{ choice.value }}" {% if choice.selected %}selected{% endif %}>{{ choice.label }}
                     </option>
                     {% endfor %}
                 </select>
@@ -217,10 +217,9 @@
             <div class="col-md-3">
                 <label for="priority" class="form-label">Priority</label>
                 <select class="form-select" id="priority" name="priority">
-                    <option value="all" {% if priority_filter  ==  "all" %}selected{% endif %}>All Priorities
-                    </option>
-                    {% for value, label in priority_choices %}
-                    <option value="{{ value }}" {% if priority_filter  ==  value %}selected{% endif %}>{{ label }}
+                    <option value="all" {% if priority_all_selected %}selected{% endif %}>All Priorities</option>
+                    {% for choice in priority_choices %}
+                    <option value="{{ choice.value }}" {% if choice.selected %}selected{% endif %}>{{ choice.label }}
                     </option>
                     {% endfor %}
                 </select>
@@ -297,35 +296,33 @@
                 <ul class="pagination justify-content-center">
                     {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if status_filter   !=   "
-                            all" %}&status={{ status_filter }}{% endif %}{% if priority_filter   !=  "all" %}&priority={{
-                            priority_filter }}{% endif %}{% if product_filter %}&product={{ product_filter }}{% endif
-                            %}">Previous</a>
+                        <a class="page-link"
+                            href="?page={{ page_obj.previous_page_number }}{% if not status_all_selected %}&status={{ status_filter }}{% endif %}{% if not priority_all_selected %}&priority={{ priority_filter }}{% endif %}{% if product_filter %}&product={{ product_filter }}{% endif %}">Previous</a>
                     </li>
                     {% endif %}
 
-                    {% for num in page_obj.paginator.page_range %}
-                    {% if page_obj.number   ==   num %}
+                    {% for page_data in pagination_data %}
+                    {% if page_data.is_current %}
                     <li class="page-item active">
-                        <span class="page-link">{{ num }}</span>
+                        <span class="page-link">{{ page_data.number }}</span>
                     </li>
-                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %} <li class="page-item">
-                        <a class="page-link" href="?page={{ num }}{% if status_filter   !=   " all" %}&status={{
-                            status_filter }}{% endif %}{% if priority_filter   !=  "all" %}&priority={{ priority_filter }}{%
-                            endif %}{% if product_filter %}&product={{ product_filter }}{% endif %}">{{
-                            num }}</a>
-                        </li>
-                        {% endif %}
-                        {% endfor %}
+                    {% else %}
+                    {% if page_data.in_range %}
+                    <li class="page-item">
+                        <a class="page-link"
+                            href="?page={{ page_data.number }}{% if not status_all_selected %}&status={{ status_filter }}{% endif %}{% if not priority_all_selected %}&priority={{ priority_filter }}{% endif %}{% if product_filter %}&product={{ product_filter }}{% endif %}">{{
+                            page_data.number }}</a>
+                    </li>
+                    {% endif %}
+                    {% endif %}
+                    {% endfor %}
 
-                        {% if page_obj.has_next %}
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if status_filter   !=   "
-                                all" %}&status={{ status_filter }}{% endif %}{% if priority_filter   !=  "all"
-                                %}&priority={{ priority_filter }}{% endif %}{% if product_filter %}&product={{
-                                product_filter }}{% endif %}">Next</a>
-                        </li>
-                        {% endif %}
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link"
+                            href="?page={{ page_obj.next_page_number }}{% if not status_all_selected %}&status={{ status_filter }}{% endif %}{% if not priority_all_selected %}&priority={{ priority_filter }}{% endif %}{% if product_filter %}&product={{ product_filter }}{% endif %}">Next</a>
+                    </li>
+                    {% endif %}
                 </ul>
             </nav>
             {% endif %}

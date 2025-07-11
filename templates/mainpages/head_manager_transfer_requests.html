@@ -171,38 +171,40 @@
             <div class="col-md-2">
                 <label for="status" class="form-label">Status</label>
                 <select class="form-select" id="status" name="status">
-                    <option value="all" {% if status_filter=='all' %}selected{% endif %}>All Statuses</option>
+                    <option value="all" {% if status_filter  ==  "all" %}selected{% endif %}>All Statuses</option>
                     {% for value, label in status_choices %}
-                    <option value="{{ value }}" {% if status_filter==value %}selected{% endif %}>{{ label }}</option>
+                    <option value="{{ value }}" {% if status_filter  ==  value %}selected{% endif %}>{{ label }}
+                    </option>
                     {% endfor %}
                 </select>
             </div>
             <div class="col-md-2">
                 <label for="from_store" class="form-label">From Store</label>
                 <select class="form-select" id="from_store" name="from_store">
-                    <option value="all" {% if from_store_filter=='all' %}selected{% endif %}>All Stores</option>
+                    <option value="all" {% if from_store_filter  ==  "all" %}selected{% endif %}>All Stores
+                    </option>
                     {% for store in stores %}
-                    <option value="{{ store.id }}" {% if from_store_filter==store.id|stringformat:"s" %}selected{% endif
-                        %}>{{ store.name }}</option>
+                    <option value="{{ store.id }}" {% if from_store_filter  ==  store.id|stringformat:"s" %}selected{% endif %}>{{ store.name }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div class="col-md-2">
                 <label for="to_store" class="form-label">To Store</label>
                 <select class="form-select" id="to_store" name="to_store">
-                    <option value="all" {% if to_store_filter=='all' %}selected{% endif %}>All Stores</option>
+                    <option value="all" {% if to_store_filter  ==  "all" %}selected{% endif %}>All Stores</option>
                     {% for store in stores %}
-                    <option value="{{ store.id }}" {% if to_store_filter==store.id|stringformat:"s" %}selected{% endif
-                        %}>{{ store.name }}</option>
+                    <option value="{{ store.id }}" {% if to_store_filter  ==  store.id|stringformat:"s" %}selected{% endif %}>{{ store.name }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div class="col-md-2">
                 <label for="priority" class="form-label">Priority</label>
                 <select class="form-select" id="priority" name="priority">
-                    <option value="all" {% if priority_filter=='all' %}selected{% endif %}>All Priorities</option>
+                    <option value="all" {% if priority_filter  ==  "all" %}selected{% endif %}>All Priorities
+                    </option>
                     {% for value, label in priority_choices %}
-                    <option value="{{ value }}" {% if priority_filter==value %}selected{% endif %}>{{ label }}</option>
+                    <option value="{{ value }}" {% if priority_filter  ==  value %}selected{% endif %}>{{ label }}
+                    </option>
                     {% endfor %}
                 </select>
             </div>
@@ -264,7 +266,7 @@
                             </td>
                             <td>{{ request.requested_date|date:"M d, Y H:i" }}</td>
                             <td>
-                                {% if request.status == 'pending' %}
+                                {% if request.status  ==  "pending" %}
                                 <button class="btn btn-approve btn-sm me-1"
                                     onclick="openTransferApprovalModal({{ request.id }}, '{{ request.request_number }}', '{{ request.product.name }}', {{ request.requested_quantity }}, '{{ request.from_store.name }}', '{{ request.to_store.name }}')">
                                     <i class="bi bi-check-lg"></i> Approve
@@ -292,19 +294,24 @@
                 <ul class="pagination justify-content-center">
                     {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link"
-                            href="?page={{ page_obj.previous_page_number }}{% if status_filter != 'all' %}&status={{ status_filter }}{% endif %}{% if from_store_filter != 'all' %}&from_store={{ from_store_filter }}{% endif %}{% if to_store_filter != 'all' %}&to_store={{ to_store_filter }}{% endif %}{% if priority_filter != 'all' %}&priority={{ priority_filter }}{% endif %}">Previous</a>
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if status_filter   !=   "
+                            all" %}&status={{ status_filter }}{% endif %}{% if from_store_filter   !=  "all"
+                            %}&from_store={{ from_store_filter }}{% endif %}{% if to_store_filter   !=  "all" %}&to_store={{
+                            to_store_filter }}{% endif %}{% if priority_filter   !=  "all" %}&priority={{ priority_filter
+                            }}{% endif %}">Previous</a>
                     </li>
                     {% endif %}
 
                     {% for num in page_obj.paginator.page_range %}
-                    {% if page_obj.number == num %}
+                    {% if page_obj.number   ==   num %}
                     <li class="page-item active">
                         <span class="page-link">{{ num }}</span>
                     </li>
                     {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %} <li class="page-item">
-                        <a class="page-link"
-                            href="?page={{ num }}{% if status_filter != 'all' %}&status={{ status_filter }}{% endif %}{% if from_store_filter != 'all' %}&from_store={{ from_store_filter }}{% endif %}{% if to_store_filter != 'all' %}&to_store={{ to_store_filter }}{% endif %}{% if priority_filter != 'all' %}&priority={{ priority_filter }}{% endif %}">{{
+                        <a class="page-link" href="?page={{ num }}{% if status_filter   !=   " all" %}&status={{
+                            status_filter }}{% endif %}{% if from_store_filter   !=  "all" %}&from_store={{
+                            from_store_filter }}{% endif %}{% if to_store_filter   !=  "all" %}&to_store={{ to_store_filter
+                            }}{% endif %}{% if priority_filter   !=  "all" %}&priority={{ priority_filter }}{% endif %}">{{
                             num }}</a>
                         </li>
                         {% endif %}
@@ -312,8 +319,11 @@
 
                         {% if page_obj.has_next %}
                         <li class="page-item">
-                            <a class="page-link"
-                                href="?page={{ page_obj.next_page_number }}{% if status_filter != 'all' %}&status={{ status_filter }}{% endif %}{% if from_store_filter != 'all' %}&from_store={{ from_store_filter }}{% endif %}{% if to_store_filter != 'all' %}&to_store={{ to_store_filter }}{% endif %}{% if priority_filter != 'all' %}&priority={{ priority_filter }}{% endif %}">Next</a>
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if status_filter   !=   "
+                                all" %}&status={{ status_filter }}{% endif %}{% if from_store_filter   !=  "all"
+                                %}&from_store={{ from_store_filter }}{% endif %}{% if to_store_filter   !=  "all"
+                                %}&to_store={{ to_store_filter }}{% endif %}{% if priority_filter   !=  "all" %}&priority={{
+                                priority_filter }}{% endif %}">Next</a>
                         </li>
                         {% endif %}
                 </ul>

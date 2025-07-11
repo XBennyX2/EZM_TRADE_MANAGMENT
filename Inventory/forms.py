@@ -1,7 +1,8 @@
 from django import forms
 from .models import (
     Product, Stock, Supplier, WarehouseProduct, Warehouse, PurchaseOrder, PurchaseOrderItem,
-    SupplierProfile, SupplierProduct, PurchaseRequest, PurchaseRequestItem, ProductCategory
+    SupplierProfile, SupplierProduct, PurchaseRequest, PurchaseRequestItem, ProductCategory,
+    RestockRequest, StoreStockTransferRequest
 )
 
 class ProductForm(forms.ModelForm):
@@ -700,6 +701,177 @@ PurchaseRequestItemFormSet = forms.inlineformset_factory(
     validate_min=True,
     can_delete=True
 )
+
+
+# --- Store Manager Request Forms ---
+
+class RestockRequestForm(forms.ModelForm):
+    """
+    Form for Store Managers to submit restock requests to Head Manager.
+    """
+    class Meta:
+        model = RestockRequest
+        fields = ['product', 'requested_quantity', 'priority', 'reason']
+
+        widgets = {
+            'product': forms.Select(attrs={
+                'class': 'form-control',
+                'required': True
+            }),
+            'requested_quantity': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '1',
+                'placeholder': 'Enter quantity needed',
+                'required': True
+            }),
+            'priority': forms.Select(attrs={
+                'class': 'form-control',
+                'required': True
+            }),
+            'reason': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Explain why this restock is needed...',
+                'required': True
+            }),
+        }
+
+        labels = {
+            'product': 'Product *',
+            'requested_quantity': 'Requested Quantity *',
+            'priority': 'Priority Level *',
+            'reason': 'Justification *',
+        }
+
+    def __init__(self, *args, **kwargs):
+        store = kwargs.pop('store', None)
+        super().__init__(*args, **kwargs)
+
+        if store:
+            # Only show products that are available in this store
+            from .models import Stock
+            available_products = Stock.objects.filter(store=store).values_list('product', flat=True)
+            self.fields['product'].queryset = Product.objects.filter(id__in=available_products)
+        else:
+            self.fields['product'].queryset = Product.objects.none()
+
+    def clean_requested_quantity(self):
+        """Validate requested quantity is positive"""
+        quantity = self.cleaned_data.get('requested_quantity')
+        if quantity and quantity <= 0:
+            raise forms.ValidationError("Requested quantity must be greater than 0.")
+        return quantity
+
+    def clean_reason(self):
+        """Validate reason is not empty and has minimum length"""
+        reason = self.cleaned_data.get('reason', '').strip()
+        if not reason:
+            raise forms.ValidationError("Please provide a reason for this restock request.")
+        if len(reason) < 10:
+            raise forms.ValidationError("Please provide a more detailed reason (at least 10 characters).")
+        return reason
+
+
+class StoreStockTransferRequestForm(forms.ModelForm):
+    """
+    Form for Store Managers to submit stock transfer requests to other stores.
+    """
+    class Meta:
+        model = StoreStockTransferRequest
+        fields = ['product', 'to_store', 'requested_quantity', 'priority', 'reason']
+
+        widgets = {
+            'product': forms.Select(attrs={
+                'class': 'form-control',
+                'required': True
+            }),
+            'to_store': forms.Select(attrs={
+                'class': 'form-control',
+                'required': True
+            }),
+            'requested_quantity': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '1',
+                'placeholder': 'Enter quantity to transfer',
+                'required': True
+            }),
+            'priority': forms.Select(attrs={
+                'class': 'form-control',
+                'required': True
+            }),
+            'reason': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Explain why this transfer is needed...',
+                'required': True
+            }),
+        }
+
+        labels = {
+            'product': 'Product *',
+            'to_store': 'Destination Store *',
+            'requested_quantity': 'Quantity to Transfer *',
+            'priority': 'Priority Level *',
+            'reason': 'Transfer Justification *',
+        }
+
+    def __init__(self, *args, **kwargs):
+        from_store = kwargs.pop('from_store', None)
+        super().__init__(*args, **kwargs)
+
+        if from_store:
+            # Only show products that are available in the source store
+            from .models import Stock
+            from store.models import Store
+
+            available_products = Stock.objects.filter(
+                store=from_store,
+                quantity__gt=0  # Only products with stock > 0
+            ).values_list('product', flat=True)
+            self.fields['product'].queryset = Product.objects.filter(id__in=available_products)
+
+            # Only show other stores (exclude the current store)
+            self.fields['to_store'].queryset = Store.objects.exclude(id=from_store.id)
+        else:
+            self.fields['product'].queryset = Product.objects.none()
+            self.fields['to_store'].queryset = Store.objects.none()
+
+    def clean_requested_quantity(self):
+        """Validate requested quantity is positive and available"""
+        quantity = self.cleaned_data.get('requested_quantity')
+        if quantity and quantity <= 0:
+            raise forms.ValidationError("Transfer quantity must be greater than 0.")
+        return quantity
+
+    def clean_reason(self):
+        """Validate reason is not empty and has minimum length"""
+        reason = self.cleaned_data.get('reason', '').strip()
+        if not reason:
+            raise forms.ValidationError("Please provide a reason for this transfer request.")
+        if len(reason) < 10:
+            raise forms.ValidationError("Please provide a more detailed reason (at least 10 characters).")
+        return reason
+
+    def clean(self):
+        """Additional validation for the entire form"""
+        cleaned_data = super().clean()
+        product = cleaned_data.get('product')
+        to_store = cleaned_data.get('to_store')
+        requested_quantity = cleaned_data.get('requested_quantity')
+
+        if product and to_store and requested_quantity:
+            # Check if there's sufficient stock in the source store
+            from .models import Stock
+            try:
+                stock = Stock.objects.get(product=product, store=self.initial.get('from_store'))
+                if requested_quantity > stock.quantity:
+                    raise forms.ValidationError(
+                        f"Cannot transfer {requested_quantity} units. Only {stock.quantity} units available in stock."
+                    )
+            except Stock.DoesNotExist:
+                raise forms.ValidationError("Selected product is not available in your store.")
+
+        return cleaned_data
 
 
 # --- Supplier Product Search and Filter Forms ---

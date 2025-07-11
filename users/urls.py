@@ -17,6 +17,7 @@ from .views import (
     CustomPasswordChangeView,
     # Store Manager request views
     submit_restock_request, submit_transfer_request, update_product_price,
+    store_manager_restock_requests, store_manager_transfer_requests,
     # Head Manager request management views
     head_manager_restock_requests, head_manager_transfer_requests,
     approve_restock_request, reject_restock_request,
@@ -54,6 +55,8 @@ urlpatterns = [
     path('store-manager/submit-restock-request/', submit_restock_request, name='submit_restock_request'),
     path('store-manager/submit-transfer-request/', submit_transfer_request, name='submit_transfer_request'),
     path('store-manager/update-product-price/', update_product_price, name='update_product_price'),
+    path('store-manager/restock-requests/', store_manager_restock_requests, name='store_manager_restock_requests'),
+    path('store-manager/transfer-requests/', store_manager_transfer_requests, name='store_manager_transfer_requests'),
 
     # Head Manager request management URLs
     path('head-manager/restock-requests/', head_manager_restock_requests, name='head_manager_restock_requests'),

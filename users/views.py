@@ -820,6 +820,168 @@ def update_product_price(request):
     return redirect('store_manager_page')
 
 
+@login_required
+def store_manager_restock_requests(request):
+    """
+    Store Manager view for managing their restock requests.
+    """
+    if request.user.role != 'store_manager':
+        messages.error(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
+    try:
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, "You are not assigned to manage any store.")
+        return redirect('store_manager_page')
+
+    from Inventory.models import RestockRequest, Stock
+    from django.core.paginator import Paginator
+
+    # Filter options
+    status_filter = request.GET.get('status', 'all')
+    priority_filter = request.GET.get('priority', 'all')
+    product_filter = request.GET.get('product', '')
+
+    # Build query
+    requests = RestockRequest.objects.filter(store=store).select_related(
+        'product', 'requested_by', 'reviewed_by'
+    ).order_by('-requested_date')
+
+    if status_filter != 'all':
+        requests = requests.filter(status=status_filter)
+    if priority_filter != 'all':
+        requests = requests.filter(priority=priority_filter)
+    if product_filter:
+        requests = requests.filter(product__name__icontains=product_filter)
+
+    # Pagination
+    paginator = Paginator(requests, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Statistics
+    all_requests = RestockRequest.objects.filter(store=store)
+    stats = {
+        'pending_count': all_requests.filter(status='pending').count(),
+        'approved_count': all_requests.filter(status='approved').count(),
+        'fulfilled_count': all_requests.filter(status='fulfilled').count(),
+        'rejected_count': all_requests.filter(status='rejected').count(),
+    }
+
+    # Get current stock for the modal
+    current_stock = Stock.objects.filter(store=store).select_related('product')
+
+    context = {
+        'page_obj': page_obj,
+        'status_filter': status_filter,
+        'priority_filter': priority_filter,
+        'product_filter': product_filter,
+        'status_choices': RestockRequest.STATUS_CHOICES,
+        'priority_choices': RestockRequest.PRIORITY_CHOICES,
+        'current_stock': current_stock,
+        **stats
+    }
+
+    return render(request, 'mainpages/store_manager_restock_requests.html', context)
+
+
+@login_required
+def store_manager_transfer_requests(request):
+    """
+    Store Manager view for managing their stock transfer requests.
+    """
+    if request.user.role != 'store_manager':
+        messages.error(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
+    try:
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, "You are not assigned to manage any store.")
+        return redirect('store_manager_page')
+
+    from Inventory.models import StoreStockTransferRequest, Stock
+    from django.core.paginator import Paginator
+
+    # Filter options
+    status_filter = request.GET.get('status', 'all')
+    priority_filter = request.GET.get('priority', 'all')
+    to_store_filter = request.GET.get('to_store', 'all')
+
+    # Build query - only show requests from this store
+    requests = StoreStockTransferRequest.objects.filter(from_store=store).select_related(
+        'product', 'from_store', 'to_store', 'requested_by', 'reviewed_by'
+    ).order_by('-requested_date')
+
+    if status_filter != 'all':
+        requests = requests.filter(status=status_filter)
+    if priority_filter != 'all':
+        requests = requests.filter(priority=priority_filter)
+    if to_store_filter != 'all':
+        requests = requests.filter(to_store_id=to_store_filter)
+
+    # Pagination
+    paginator = Paginator(requests, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Statistics
+    all_requests = StoreStockTransferRequest.objects.filter(from_store=store)
+    stats = {
+        'pending_count': all_requests.filter(status='pending').count(),
+        'approved_count': all_requests.filter(status='approved').count(),
+        'completed_count': all_requests.filter(status='completed').count(),
+        'rejected_count': all_requests.filter(status='rejected').count(),
+    }
+
+    # Get current stock and other stores for the modal
+    current_stock = Stock.objects.filter(store=store, quantity__gt=0).select_related('product')
+    other_stores = Store.objects.exclude(id=store.id)
+
+    # Prepare choices with selected flags
+    status_choices_with_selected = []
+    for value, label in StoreStockTransferRequest.STATUS_CHOICES:
+        status_choices_with_selected.append({
+            'value': value,
+            'label': label,
+            'selected': status_filter == value
+        })
+
+    priority_choices_with_selected = []
+    for value, label in StoreStockTransferRequest.PRIORITY_CHOICES:
+        priority_choices_with_selected.append({
+            'value': value,
+            'label': label,
+            'selected': priority_filter == value
+        })
+
+    other_stores_with_selected = []
+    for store in other_stores:
+        other_stores_with_selected.append({
+            'id': store.id,
+            'name': store.name,
+            'selected': str(to_store_filter) == str(store.id)
+        })
+
+    context = {
+        'page_obj': page_obj,
+        'status_filter': status_filter,
+        'priority_filter': priority_filter,
+        'to_store_filter': to_store_filter,
+        'status_choices': status_choices_with_selected,
+        'priority_choices': priority_choices_with_selected,
+        'current_stock': current_stock,
+        'other_stores': other_stores_with_selected,
+        'status_all_selected': status_filter == 'all',
+        'priority_all_selected': priority_filter == 'all',
+        'to_store_all_selected': to_store_filter == 'all',
+        **stats
+    }
+
+    return render(request, 'mainpages/store_manager_transfer_requests.html', context)
+
+
 def create_request_notification(notification_type, recipient, title, message, restock_request=None, transfer_request=None):
     """
     Create a notification for request status changes.

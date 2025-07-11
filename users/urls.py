@@ -17,11 +17,10 @@ from .views import (
     CustomPasswordChangeView,
     # Store Manager request views
     submit_restock_request, submit_transfer_request, update_product_price,
-    store_manager_restock_requests, store_manager_transfer_requests,
+    store_manager_restock_requests, store_manager_transfer_requests, store_manager_stock_management,
     # Head Manager request management views
-    head_manager_restock_requests, head_manager_transfer_requests,
-    approve_restock_request, reject_restock_request,
-    approve_transfer_request, reject_transfer_request
+    head_manager_restock_requests,
+    approve_restock_request, reject_restock_request
 )
 
 # Import API views
@@ -57,14 +56,12 @@ urlpatterns = [
     path('store-manager/update-product-price/', update_product_price, name='update_product_price'),
     path('store-manager/restock-requests/', store_manager_restock_requests, name='store_manager_restock_requests'),
     path('store-manager/transfer-requests/', store_manager_transfer_requests, name='store_manager_transfer_requests'),
+    path('store-manager/stock-management/', store_manager_stock_management, name='store_manager_stock_management'),
 
     # Head Manager request management URLs
     path('head-manager/restock-requests/', head_manager_restock_requests, name='head_manager_restock_requests'),
-    path('head-manager/transfer-requests/', head_manager_transfer_requests, name='head_manager_transfer_requests'),
     path('head-manager/restock-requests/<int:request_id>/approve/', approve_restock_request, name='approve_restock_request'),
     path('head-manager/restock-requests/<int:request_id>/reject/', reject_restock_request, name='reject_restock_request'),
-    path('head-manager/transfer-requests/<int:request_id>/approve/', approve_transfer_request, name='approve_transfer_request'),
-    path('head-manager/transfer-requests/<int:request_id>/reject/', reject_transfer_request, name='reject_transfer_request'),
 
 
     path('admin/settings/', admin_settings, name='admin_settings'),

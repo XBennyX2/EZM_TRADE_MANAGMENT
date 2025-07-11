@@ -1,0 +1,599 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+{% load dict_extras %}
+
+{% block title %}Stock Management - Store Manager{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stock-status-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.375rem;
+        font-weight: 500;
+    }
+
+    .stock-out {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .stock-low {
+        background-color: #fd7e14;
+        color: white;
+    }
+
+    .stock-medium {
+        background-color: #ffc107;
+        color: #000;
+    }
+
+    .stock-good {
+        background-color: #198754;
+        color: white;
+    }
+
+    .stats-card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s ease;
+    }
+
+    .stats-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .product-card {
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+    }
+
+    .product-card:hover {
+        border-color: var(--accent-teal);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .filter-section {
+        background: linear-gradient(135deg, var(--dark-primary), var(--dark-secondary));
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .search-box {
+        border-radius: 25px;
+        border: 2px solid var(--accent-teal);
+        padding: 0.75rem 1.5rem;
+    }
+
+    .search-box:focus {
+        border-color: var(--accent-cyan);
+        box-shadow: 0 0 0 0.2rem rgba(102, 252, 241, 0.25);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">
+                <i class="bi bi-boxes text-primary me-2"></i>
+                Stock Management
+            </h1>
+            <p class="text-muted mb-0">Monitor and manage your store inventory</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-ezm-secondary" data-bs-toggle="modal" data-bs-target="#restockModal">
+                <i class="bi bi-arrow-up-circle me-1"></i>Request Restock
+            </button>
+            <button class="btn btn-ezm-primary" data-bs-toggle="modal" data-bs-target="#transferModal">
+                <i class="bi bi-arrow-left-right me-1"></i>Request Transfer
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="ezm-card stats-card h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Total Products
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_products }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-box-seam fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="ezm-card stats-card h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Good Stock
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.good_stock_count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-check-circle fa-2x text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="ezm-card stats-card h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Low Stock
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.low_stock_count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-exclamation-triangle fa-2x text-warning"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="ezm-card stats-card h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                Out of Stock
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.out_of_stock_count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-x-circle fa-2x text-danger"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Search -->
+    <div class="filter-section">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label for="search" class="form-label text-white">Search Products</label>
+                <input type="text" class="form-control search-box" id="search" name="search" value="{{ search_query }}"
+                    placeholder="Search by name, description, or batch...">
+            </div>
+            <div class="col-md-3">
+                <label for="category" class="form-label text-white">Category</label>
+                <select class="form-select" id="category" name="category">
+                    <option value="all" {% if category_all_selected %}selected{% endif %}>All Categories</option>
+                    {% for choice in category_choices %}
+                    <option value="{{ choice.value }}" {% if choice.selected %}selected{% endif %}>{{ choice.label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="stock_level" class="form-label text-white">Stock Level</label>
+                <select class="form-select" id="stock_level" name="stock_level">
+                    <option value="all" {% if stock_level_all_selected %}selected{% endif %}>All Levels</option>
+                    {% for choice in stock_level_choices %}
+                    <option value="{{ choice.value }}" {% if choice.selected %}selected{% endif %}>{{ choice.label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-ezm-primary w-100">
+                    <i class="bi bi-search me-1"></i>Filter
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Stock Items -->
+    <div class="ezm-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="bi bi-list-ul me-2"></i>
+                Stock Items
+            </h5>
+            <small class="text-muted">{{ page_obj.paginator.count }} items found</small>
+        </div>
+        <div class="card-body p-0">
+            {% if page_obj %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Product</th>
+                            <th>Category</th>
+                            <th>Current Stock</th>
+                            <th>Status</th>
+                            <th>Selling Price</th>
+                            <th>Supplier</th>
+                            <th>Last Updated</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stock_item in page_obj %}
+                        <tr>
+                            <td>
+                                <div>
+                                    <strong>{{ stock_item.product.name }}</strong>
+                                    {% if stock_item.product.variation %}
+                                    <br><small class="text-muted">{{ stock_item.product.variation }}</small>
+                                    {% endif %}
+                                    {% if stock_item.product.size %}
+                                    <br><small class="text-muted">Size: {{ stock_item.product.size }}</small>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ stock_item.product.category|title }}</span>
+                            </td>
+                            <td>
+                                <strong>{{ stock_item.quantity }}</strong>
+                                <br><small class="text-muted">Threshold: {{ stock_item.low_stock_threshold }}</small>
+                            </td>
+                            <td>
+                                {% if stock_item.quantity == 0 %}
+                                <span class="stock-status-badge stock-out">Out of Stock</span>
+                                {% elif stock_item.quantity <= stock_item.low_stock_threshold %} <span
+                                    class="stock-status-badge stock-low">Low Stock</span>
+                                    {% elif stock_item.quantity <= stock_item.low_stock_threshold|multiply:2 %} <span
+                                        class="stock-status-badge stock-medium">Medium Stock</span>
+                                        {% else %}
+                                        <span class="stock-status-badge stock-good">Good Stock</span>
+                                        {% endif %}
+                            </td>
+                            <td>
+                                <strong>${{ stock_item.selling_price }}</strong>
+                                {% with warehouse_product_map|get_item:stock_item.product.name as wp %}
+                                {% if wp %}
+                                <br><small class="text-muted">Cost: ${{ wp.unit_price }}</small>
+                                {% endif %}
+                                {% endwith %}
+                            </td>
+                            <td>
+                                {% if stock_item.product.supplier_company %}
+                                {{ stock_item.product.supplier_company.name }}
+                                {% else %}
+                                <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ stock_item.last_updated|date:"M d, Y" }}
+                                <br><small class="text-muted">{{ stock_item.last_updated|time:"H:i" }}</small>
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    {% if stock_item.quantity <= stock_item.low_stock_threshold %} <button
+                                        class="btn btn-sm btn-outline-warning"
+                                        onclick="requestRestock({{ stock_item.product.id }}, '{{ stock_item.product.name }}', {{ stock_item.quantity }})"
+                                        title="Request Restock">
+                                        <i class="bi bi-arrow-up-circle"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% if stock_item.quantity > 0 %}
+                                        <button class="btn btn-sm btn-outline-info"
+                                            onclick="requestTransfer({{ stock_item.product.id }}, '{{ stock_item.product.name }}', {{ stock_item.quantity }})"
+                                            title="Request Transfer">
+                                            <i class="bi bi-arrow-left-right"></i>
+                                        </button>
+                                        {% endif %}
+                                        <button class="btn btn-sm btn-outline-primary"
+                                            onclick="updatePrice({{ stock_item.id }}, '{{ stock_item.product.name }}', {{ stock_item.selling_price }})"
+                                            title="Update Price">
+                                            <i class="bi bi-tag"></i>
+                                        </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+            <div class="d-flex justify-content-between align-items-center p-3 border-top">
+                <div>
+                    <small class="text-muted">
+                        Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }}
+                        entries
+                    </small>
+                </div>
+                <nav aria-label="Stock pagination">
+                    <ul class="pagination pagination-sm mb-0">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link"
+                                href="?page={{ page_obj.previous_page_number }}{% if not category_all_selected %}&category={{ category_filter }}{% endif %}{% if not stock_level_all_selected %}&stock_level={{ stock_level_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">Previous</a>
+                        </li>
+                        {% endif %}
+
+                        {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %} <li
+                            class="page-item">
+                            <a class="page-link"
+                                href="?page={{ num }}{% if not category_all_selected %}&category={{ category_filter }}{% endif %}{% if not stock_level_all_selected %}&stock_level={{ stock_level_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">{{
+                                num }}</a>
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+
+                            {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link"
+                                    href="?page={{ page_obj.next_page_number }}{% if not category_all_selected %}&category={{ category_filter }}{% endif %}{% if not stock_level_all_selected %}&stock_level={{ stock_level_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">Next</a>
+                            </li>
+                            {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-box-seam display-1 text-muted"></i>
+                <h4 class="mt-3">No Stock Items Found</h4>
+                <p class="text-muted">Try adjusting your search criteria or filters.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Restock Request Modal -->
+<div class="modal fade" id="restockModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Request Restock</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'submit_restock_request' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="restock_product_id" class="form-label">Product *</label>
+                        <select class="form-select" id="restock_product_id" name="product_id" required>
+                            <option value="">Select a product</option>
+                            {% for stock_item in page_obj %}
+                            <option value="{{ stock_item.product.id }}" data-current-stock="{{ stock_item.quantity }}">
+                                {{ stock_item.product.name }} (Current: {{ stock_item.quantity }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="restock_quantity" class="form-label">Requested Quantity *</label>
+                        <input type="number" class="form-control" id="restock_quantity" name="requested_quantity"
+                            min="1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="restock_priority" class="form-label">Priority Level *</label>
+                        <select class="form-select" id="restock_priority" name="priority" required>
+                            <option value="low">Low - Can wait</option>
+                            <option value="medium" selected>Medium - Normal priority</option>
+                            <option value="high">High - Needed soon</option>
+                            <option value="urgent">Urgent - Critical need</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="restock_reason" class="form-label">Justification *</label>
+                        <textarea class="form-control" id="restock_reason" name="reason" rows="3" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-ezm-primary">Submit Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Transfer Request Modal -->
+<div class="modal fade" id="transferModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Request Transfer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'submit_transfer_request' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="transfer_product_id" class="form-label">Product *</label>
+                        <select class="form-select" id="transfer_product_id" name="product_id" required>
+                            <option value="">Select a product</option>
+                            {% for stock_item in page_obj %}
+                            {% if stock_item.quantity > 0 %}
+                            <option value="{{ stock_item.product.id }}" data-current-stock="{{ stock_item.quantity }}">
+                                {{ stock_item.product.name }} (Available: {{ stock_item.quantity }})
+                            </option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="transfer_to_store" class="form-label">Transfer To *</label>
+                        <select class="form-select" id="transfer_to_store" name="to_store_id" required>
+                            <option value="">Select destination store</option>
+                            {% for other_store in other_stores %}
+                            <option value="{{ other_store.id }}">{{ other_store.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="transfer_quantity" class="form-label">Transfer Quantity *</label>
+                        <input type="number" class="form-control" id="transfer_quantity" name="requested_quantity"
+                            min="1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="transfer_priority" class="form-label">Priority Level *</label>
+                        <select class="form-select" id="transfer_priority" name="priority" required>
+                            <option value="low">Low - Can wait</option>
+                            <option value="medium" selected>Medium - Normal priority</option>
+                            <option value="high">High - Needed soon</option>
+                            <option value="urgent">Urgent - Critical need</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="transfer_reason" class="form-label">Justification *</label>
+                        <textarea class="form-control" id="transfer_reason" name="reason" rows="3" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-ezm-primary">Submit Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Price Update Modal -->
+<div class="modal fade" id="priceUpdateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Product Price</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'update_product_price' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="hidden" id="price_stock_id" name="stock_id">
+                    <div class="mb-3">
+                        <label class="form-label">Product</label>
+                        <input type="text" class="form-control" id="price_product_name" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_price" class="form-label">New Selling Price *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="new_price" name="new_price" step="0.01"
+                                min="0.01" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-ezm-primary">Update Price</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Helper function to get dictionary value by key
+    function getDictValue(dict, key) {
+        return dict[key] || null;
+    }
+
+    // Request restock for specific product
+    function requestRestock(productId, productName, currentStock) {
+        document.getElementById('restock_product_id').value = productId;
+        document.getElementById('restock_quantity').value = '';
+        document.getElementById('restock_reason').value = `Low stock alert: ${productName} has only ${currentStock} units remaining.`;
+
+        const modal = new bootstrap.Modal(document.getElementById('restockModal'));
+        modal.show();
+    }
+
+    // Request transfer for specific product
+    function requestTransfer(productId, productName, currentStock) {
+        document.getElementById('transfer_product_id').value = productId;
+        document.getElementById('transfer_quantity').value = '';
+        document.getElementById('transfer_quantity').max = currentStock;
+        document.getElementById('transfer_reason').value = `Transfer request for ${productName}.`;
+
+        const modal = new bootstrap.Modal(document.getElementById('transferModal'));
+        modal.show();
+    }
+
+    // Update price for specific product
+    function updatePrice(stockId, productName, currentPrice) {
+        document.getElementById('price_stock_id').value = stockId;
+        document.getElementById('price_product_name').value = productName;
+        document.getElementById('new_price').value = currentPrice;
+
+        const modal = new bootstrap.Modal(document.getElementById('priceUpdateModal'));
+        modal.show();
+    }
+
+    // Auto-submit form when filters change
+    document.addEventListener('DOMContentLoaded', function () {
+        const categorySelect = document.getElementById('category');
+        const stockLevelSelect = document.getElementById('stock_level');
+
+        if (categorySelect) {
+            categorySelect.addEventListener('change', function () {
+                this.form.submit();
+            });
+        }
+
+        if (stockLevelSelect) {
+            stockLevelSelect.addEventListener('change', function () {
+                this.form.submit();
+            });
+        }
+
+        // Load other stores for transfer modal
+        loadOtherStores();
+    });
+
+    // Load other stores for transfer dropdown
+    function loadOtherStores() {
+        // This would typically be loaded via AJAX
+        // For now, we'll add a simple placeholder
+        const transferToStore = document.getElementById('transfer_to_store');
+        if (transferToStore) {
+            // Add placeholder options - in real implementation, load via AJAX
+            transferToStore.innerHTML = '<option value="">Select destination store</option>';
+        }
+    }
+
+    // Validate transfer quantity
+    document.getElementById('transfer_quantity').addEventListener('input', function () {
+        const maxQuantity = parseInt(this.max);
+        const currentValue = parseInt(this.value);
+
+        if (currentValue > maxQuantity) {
+            this.value = maxQuantity;
+            alert(`Maximum available quantity is ${maxQuantity}`);
+        }
+    });
+</script>
+{% endblock %}

@@ -1,8 +1,7 @@
 {% extends 'base_sidebar.html' %}
 {% load static %}
 
-{% block title %}Restock Requests Management{% endblock %}
-{% block page_title %}Restock Requests Management{% endblock %}
+{% block title %}Restock Requests Management - Head Manager{% endblock %}
 
 {% block sidebar_menu %}
 {% include 'sidebar_navigation.html' %}
@@ -142,51 +141,128 @@
 {% block content %}
 <div class="container-fluid">
     <!-- Page Header -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <h1 class="h3 mb-0 text-gray-800">Restock Requests Management</h1>
-            <p class="text-muted">Review and manage store restock requests</p>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">
+                <i class="bi bi-arrow-up-circle text-primary me-2"></i>
+                Restock Requests Management
+            </h1>
+            <p class="text-muted mb-0">Central hub for managing inventory replenishment requests from all stores</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-ezm-secondary" onclick="exportRequests()">
+                <i class="bi bi-download me-1"></i>Export
+            </button>
+            <button class="btn btn-ezm-primary" onclick="refreshData()">
+                <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+            </button>
         </div>
     </div>
 
-    <!-- Filters -->
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="ezm-card h-100">
+                <div class="card-body text-center">
+                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Requests</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_requests }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="ezm-card h-100">
+                <div class="card-body text-center">
+                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Pending</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.pending_requests }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="ezm-card h-100">
+                <div class="card-body text-center">
+                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Approved</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.approved_requests }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="ezm-card h-100">
+                <div class="card-body text-center">
+                    <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Rejected</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.rejected_requests }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="ezm-card h-100">
+                <div class="card-body text-center">
+                    <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Urgent</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.urgent_requests }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="ezm-card h-100">
+                <div class="card-body text-center">
+                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">High Priority</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.high_priority_requests }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Filters -->
     <div class="filter-card">
         <form method="get" class="row g-3">
-            <div class="col-md-3">
+            <div class="col-md-2">
+                <label for="search" class="form-label">Search</label>
+                <input type="text" class="form-control" id="search" name="search" value="{{ search_query }}"
+                    placeholder="Product, store, reason...">
+            </div>
+            <div class="col-md-2">
                 <label for="status" class="form-label">Status</label>
                 <select class="form-select" id="status" name="status">
-                    <option value="all" {% if status_filter=='all' %}selected{% endif %}>All Statuses</option>
-                    {% for value, label in status_choices %}
-                    <option value="{{ value }}" {% if status_filter==value %}selected{% endif %}>{{ label }}</option>
+                    <option value="all" {% if status_all_selected %}selected{% endif %}>All Status</option>
+                    {% for choice in status_choices %}
+                    <option value="{{ choice.value }}" {% if choice.selected %}selected{% endif %}>{{ choice.label }}
+                    </option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label for="store" class="form-label">Store</label>
                 <select class="form-select" id="store" name="store">
-                    <option value="all" {% if store_filter=='all' %}selected{% endif %}>All Stores</option>
-                    {% for store in stores %}
-                    <option value="{{ store.id }}" {% if store_filter==store.id|stringformat:"s" %}selected{% endif %}>
-                        {{ store.name }}</option>
+                    <option value="all" {% if store_all_selected %}selected{% endif %}>All Stores</option>
+                    {% for choice in store_choices %}
+                    <option value="{{ choice.id }}" {% if choice.selected %}selected{% endif %}>{{ choice.name }}
+                    </option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label for="priority" class="form-label">Priority</label>
                 <select class="form-select" id="priority" name="priority">
-                    <option value="all" {% if priority_filter=='all' %}selected{% endif %}>All Priorities</option>
-                    {% for value, label in priority_choices %}
-                    <option value="{{ value }}" {% if priority_filter==value %}selected{% endif %}>{{ label }}</option>
+                    <option value="all" {% if priority_all_selected %}selected{% endif %}>All Priorities</option>
+                    {% for choice in priority_choices %}
+                    <option value="{{ choice.value }}" {% if choice.selected %}selected{% endif %}>{{ choice.label }}
+                    </option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3 d-flex align-items-end">
-                <button type="submit" class="btn btn-ezm-primary me-2">
-                    <i class="bi bi-funnel me-1"></i>Filter
+            <div class="col-md-2">
+                <label for="category" class="form-label">Category</label>
+                <select class="form-select" id="category" name="category">
+                    <option value="all" {% if category_all_selected %}selected{% endif %}>All Categories</option>
+                    {% for choice in category_choices %}
+                    <option value="{{ choice.value }}" {% if choice.selected %}selected{% endif %}>{{ choice.label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-ezm-primary w-100">
+                    <i class="bi bi-search me-1"></i>Filter
                 </button>
-                <a href="{% url 'head_manager_restock_requests' %}" class="btn btn-outline-light">
-                    <i class="bi bi-arrow-clockwise me-1"></i>Reset
-                </a>
             </div>
         </form>
     </div>
@@ -236,16 +312,16 @@
                             <td>
                                 {% if request.status == 'pending' %}
                                 <button class="btn btn-approve btn-sm me-1"
-                                    onclick="openApprovalModal({{ request.id }}, '{{ request.request_number }}', '{{ request.product.name }}', {{ request.requested_quantity }})">
+                                    onclick="approveRequest({{ request.id }}, '{{ request.request_number }}', '{{ request.product.name|escapejs }}', {{ request.requested_quantity }}, '{{ request.store.name|escapejs }}')">
                                     <i class="bi bi-check-lg"></i> Approve
                                 </button>
                                 <button class="btn btn-reject btn-sm"
-                                    onclick="openRejectionModal({{ request.id }}, '{{ request.request_number }}')">
+                                    onclick="rejectRequest({{ request.id }}, '{{ request.request_number }}', '{{ request.product.name|escapejs }}', '{{ request.store.name|escapejs }}')">
                                     <i class="bi bi-x-lg"></i> Reject
                                 </button>
                                 {% else %}
                                 <button class="btn btn-outline-secondary btn-sm"
-                                    onclick="viewRequestDetails({{ request.id }})">
+                                    onclick="viewDetails({{ request.id }}, '{{ request.request_number }}', '{{ request.product.name|escapejs }}', '{{ request.store.name|escapejs }}', '{{ request.reason|escapejs|default:"" }}', '{{ request.requested_by.get_full_name|default:request.requested_by.username|escapejs }}')">
                                     <i class="bi bi-eye"></i> View
                                 </button>
                                 {% endif %}
@@ -302,36 +378,54 @@
 
 <!-- Approval Modal -->
 <div class="modal fade" id="approvalModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Approve Restock Request</h5>
+                <h5 class="modal-title">
+                    <i class="bi bi-check-circle me-2"></i>
+                    Approve Restock Request
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="post" id="approvalForm">
+            <form id="approvalForm" method="post">
                 {% csrf_token %}
                 <div class="modal-body">
-                    <div class="alert alert-info">
-                        <strong>Request:</strong> <span id="approval-request-number"></span><br>
-                        <strong>Product:</strong> <span id="approval-product-name"></span><br>
-                        <strong>Requested Quantity:</strong> <span id="approval-requested-qty"></span>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Request Number</label>
+                            <input type="text" class="form-control" id="approval-request-number" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Store</label>
+                            <input type="text" class="form-control" id="approval-store-name" readonly>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label">Product</label>
+                            <input type="text" class="form-control" id="approval-product-name" readonly>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Requested Quantity</label>
+                            <input type="text" class="form-control" id="approval-requested-qty" readonly>
+                        </div>
                     </div>
                     <div class="mb-3">
-                        <label for="approved_quantity" class="form-label">Approved Quantity</label>
+                        <label for="approved_quantity" class="form-label">Approved Quantity *</label>
                         <input type="number" class="form-control" id="approved_quantity" name="approved_quantity"
                             min="1" required>
-                        <div class="form-text">You can approve a different quantity than requested.</div>
+                        <div class="form-text">You can approve a different quantity than requested if needed.</div>
                     </div>
                     <div class="mb-3">
-                        <label for="review_notes" class="form-label">Review Notes</label>
-                        <textarea class="form-control" id="review_notes" name="review_notes" rows="3"
-                            placeholder="Add any notes about this approval..."></textarea>
+                        <label for="approval_review_notes" class="form-label">Review Notes</label>
+                        <textarea class="form-control" id="approval_review_notes" name="review_notes" rows="3"
+                            placeholder="Optional notes about this approval decision..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-approve">
-                        <i class="bi bi-check-lg me-1"></i>Approve Request
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle me-1"></i>Approve Request
                     </button>
                 </div>
             </form>
@@ -341,67 +435,253 @@
 
 <!-- Rejection Modal -->
 <div class="modal fade" id="rejectionModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-danger">
-                <h5 class="modal-title">Reject Restock Request</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title text-white">
+                    <i class="bi bi-x-circle me-2"></i>
+                    Reject Restock Request
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form method="post" id="rejectionForm">
+            <form id="rejectionForm" method="post">
                 {% csrf_token %}
                 <div class="modal-body">
-                    <div class="alert alert-warning">
-                        <strong>Request:</strong> <span id="rejection-request-number"></span>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Request Number</label>
+                            <input type="text" class="form-control" id="rejection-request-number" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Store</label>
+                            <input type="text" class="form-control" id="rejection-store-name" readonly>
+                        </div>
                     </div>
                     <div class="mb-3">
-                        <label for="rejection_notes" class="form-label">Rejection Reason <span
-                                class="text-danger">*</span></label>
-                        <textarea class="form-control" id="rejection_notes" name="review_notes" rows="4"
-                            placeholder="Please provide a reason for rejecting this request..." required></textarea>
-                        <div class="form-text">This reason will be visible to the store manager.</div>
+                        <label class="form-label">Product</label>
+                        <input type="text" class="form-control" id="rejection-product-name" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="rejection_reason" class="form-label">Rejection Reason *</label>
+                        <select class="form-select" id="rejection_reason" name="rejection_reason" required>
+                            <option value="">Select a reason...</option>
+                            <option value="Insufficient budget">Insufficient budget</option>
+                            <option value="Product discontinued">Product discontinued</option>
+                            <option value="Alternative solution available">Alternative solution available</option>
+                            <option value="Excessive quantity requested">Excessive quantity requested</option>
+                            <option value="Supplier unavailable">Supplier unavailable</option>
+                            <option value="Seasonal restriction">Seasonal restriction</option>
+                            <option value="Other">Other (specify in notes)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="rejection_review_notes" class="form-label">Detailed Feedback *</label>
+                        <textarea class="form-control" id="rejection_review_notes" name="review_notes" rows="4" required
+                            placeholder="Please provide detailed feedback to help the Store Manager understand the decision and any alternative actions they can take..."></textarea>
+                        <div class="form-text text-danger">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Detailed feedback is required to help Store Managers improve future requests.
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-reject">
-                        <i class="bi bi-x-lg me-1"></i>Reject Request
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-x-circle me-1"></i>Reject Request
                     </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+<!-- Details Modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-eye me-2"></i>
+                    Request Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Request Number</label>
+                        <input type="text" class="form-control" id="details-request-number" readonly>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Store & Manager</label>
+                        <input type="text" class="form-control" id="details-store-manager" readonly>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Product</label>
+                    <input type="text" class="form-control" id="details-product-name" readonly>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Justification</label>
+                    <textarea class="form-control" id="details-reason" rows="4" readonly></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    function openApprovalModal(requestId, requestNumber, productName, requestedQty) {
-        document.getElementById('approval-request-number').textContent = requestNumber;
-        document.getElementById('approval-product-name').textContent = productName;
-        document.getElementById('approval-requested-qty').textContent = requestedQty;
-        document.getElementById('approved_quantity').value = requestedQty;
+    // Ensure DOM is fully loaded before any function calls
+    document.addEventListener('DOMContentLoaded', function () {
+        console.log('DOM fully loaded - Head Manager Restock Requests page ready');
+    });
 
-        const form = document.getElementById('approvalForm');
-        form.action = '{% url "approve_restock_request" 0 %}'.replace('0', requestId);
+    // Approve request function
+    function approveRequest(requestId, requestNumber, productName, requestedQty, storeName) {
+        console.log('approveRequest called with:', { requestId, requestNumber, productName, requestedQty, storeName });
 
-        const modal = new bootstrap.Modal(document.getElementById('approvalModal'));
-        modal.show();
+        try {
+            // Check if all required elements exist
+            const elements = {
+                'approval-request-number': document.getElementById('approval-request-number'),
+                'approval-store-name': document.getElementById('approval-store-name'),
+                'approval-product-name': document.getElementById('approval-product-name'),
+                'approval-requested-qty': document.getElementById('approval-requested-qty'),
+                'approved_quantity': document.getElementById('approved_quantity'),
+                'approvalForm': document.getElementById('approvalForm'),
+                'approvalModal': document.getElementById('approvalModal')
+            };
+
+            // Check for missing elements
+            for (const [name, element] of Object.entries(elements)) {
+                if (!element) {
+                    throw new Error(`Element with ID '${name}' not found`);
+                }
+            }
+
+            // Set values
+            elements['approval-request-number'].value = requestNumber;
+            elements['approval-store-name'].value = storeName;
+            elements['approval-product-name'].value = productName;
+            elements['approval-requested-qty'].value = requestedQty;
+            elements['approved_quantity'].value = requestedQty;
+
+            // Set form action
+            elements['approvalForm'].action = '{% url "approve_restock_request" 0 %}'.replace('0', requestId);
+
+            // Show modal
+            const modal = new bootstrap.Modal(elements['approvalModal']);
+            modal.show();
+        } catch (error) {
+            console.error('Error in approveRequest:', error);
+            alert('Error opening approval modal: ' + error.message);
+        }
     }
 
-    function openRejectionModal(requestId, requestNumber) {
-        document.getElementById('rejection-request-number').textContent = requestNumber;
+    // Reject request function
+    function rejectRequest(requestId, requestNumber, productName, storeName) {
+        console.log('rejectRequest called with:', { requestId, requestNumber, productName, storeName });
 
-        const form = document.getElementById('rejectionForm');
-        form.action = '{% url "reject_restock_request" 0 %}'.replace('0', requestId);
+        try {
+            // Check if all required elements exist
+            const elements = {
+                'rejection-request-number': document.getElementById('rejection-request-number'),
+                'rejection-store-name': document.getElementById('rejection-store-name'),
+                'rejection-product-name': document.getElementById('rejection-product-name'),
+                'rejectionForm': document.getElementById('rejectionForm'),
+                'rejectionModal': document.getElementById('rejectionModal')
+            };
 
-        const modal = new bootstrap.Modal(document.getElementById('rejectionModal'));
-        modal.show();
+            // Check for missing elements
+            for (const [name, element] of Object.entries(elements)) {
+                if (!element) {
+                    throw new Error(`Element with ID '${name}' not found`);
+                }
+            }
+
+            // Set values
+            elements['rejection-request-number'].value = requestNumber;
+            elements['rejection-store-name'].value = storeName;
+            elements['rejection-product-name'].value = productName;
+
+            // Set form action
+            elements['rejectionForm'].action = '{% url "reject_restock_request" 0 %}'.replace('0', requestId);
+
+            // Show modal
+            const modal = new bootstrap.Modal(elements['rejectionModal']);
+            modal.show();
+        } catch (error) {
+            console.error('Error in rejectRequest:', error);
+            alert('Error opening rejection modal: ' + error.message);
+        }
     }
 
-    function viewRequestDetails(requestId) {
-        // This could open a detailed view modal or navigate to a detail page
-        // For now, we'll just show an alert
-        alert('Request details view - to be implemented');
+    // View details function
+    function viewDetails(requestId, requestNumber, productName, storeName, reason, managerName) {
+        console.log('viewDetails called with:', { requestId, requestNumber, productName, storeName, reason, managerName });
+
+        try {
+            // Check if all required elements exist
+            const elements = {
+                'details-request-number': document.getElementById('details-request-number'),
+                'details-store-manager': document.getElementById('details-store-manager'),
+                'details-product-name': document.getElementById('details-product-name'),
+                'details-reason': document.getElementById('details-reason'),
+                'detailsModal': document.getElementById('detailsModal')
+            };
+
+            // Check for missing elements
+            for (const [name, element] of Object.entries(elements)) {
+                if (!element) {
+                    throw new Error(`Element with ID '${name}' not found`);
+                }
+            }
+
+            // Set values
+            elements['details-request-number'].value = requestNumber;
+            elements['details-store-manager'].value = storeName + ' - ' + managerName;
+            elements['details-product-name'].value = productName;
+            elements['details-reason'].value = reason;
+
+            // Show modal
+            const modal = new bootstrap.Modal(elements['detailsModal']);
+            modal.show();
+        } catch (error) {
+            console.error('Error in viewDetails:', error);
+            alert('Error opening details modal: ' + error.message);
+        }
     }
+
+    // Utility functions
+    function exportRequests() {
+        // Export functionality - to be implemented
+        alert('Export functionality will be implemented');
+    }
+
+    function refreshData() {
+        window.location.reload();
+    }
+
+    // Auto-submit form when filters change
+    document.addEventListener('DOMContentLoaded', function () {
+        const statusSelect = document.getElementById('status');
+        const storeSelect = document.getElementById('store');
+        const prioritySelect = document.getElementById('priority');
+        const categorySelect = document.getElementById('category');
+
+        [statusSelect, storeSelect, prioritySelect, categorySelect].forEach(select => {
+            if (select) {
+                select.addEventListener('change', function () {
+                    this.form.submit();
+                });
+            }
+        });
+    });
 </script>
 {% endblock %}

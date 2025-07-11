@@ -57,12 +57,7 @@
             <span>Restock Requests</span>
         </a>
     </li>
-    <li class="sidebar-menu-item">
-        <a href="{% url 'head_manager_transfer_requests' %}" data-tooltip="Transfer Requests">
-            <i class="bi bi-arrow-left-right"></i>
-            <span>Transfer Requests</span>
-        </a>
-    </li>
+
     <li class="sidebar-menu-item">
         <a href="{% url 'showroom_list' %}" data-tooltip="Store Manager Assignment">
             <i class="bi bi-shop"></i>
@@ -81,12 +76,7 @@
             <span>Restock Requests</span>
         </a>
     </li>
-    <li class="sidebar-menu-item">
-        <a href="{% url 'head_manager_transfer_requests' %}" data-tooltip="Transfer Requests">
-            <i class="bi bi-arrow-left-right"></i>
-            <span>Transfer Requests</span>
-        </a>
-    </li>
+
     <li class="sidebar-menu-item">
         <a href="#" data-tooltip="Reports & Analytics">
             <i class="bi bi-graph-up-arrow"></i>
@@ -111,7 +101,7 @@
         </a>
     </li>
     <li class="sidebar-menu-item">
-        <a href="#" data-tooltip="Stock Management">
+        <a href="{% url 'store_manager_stock_management' %}" data-tooltip="Stock Management">
             <i class="bi bi-boxes"></i>
             <span>Stock Management</span>
         </a>

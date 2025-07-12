@@ -683,6 +683,54 @@ def get_transfer_products(request):
 
 
 @login_required
+def get_stores_with_product(request):
+    """
+    API endpoint to get stores that have a specific product in stock.
+    Used for transfer requests - shows which stores can provide the selected product.
+    """
+    if request.user.role != 'store_manager':
+        return JsonResponse({'error': 'Access denied'}, status=403)
+
+    try:
+        requesting_store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        return JsonResponse({'error': 'Store not found'}, status=404)
+
+    product_id = request.GET.get('product_id')
+    if not product_id:
+        return JsonResponse({'error': 'Product ID required'}, status=400)
+
+    from Inventory.models import Stock, Product
+
+    try:
+        product = Product.objects.get(id=product_id)
+    except Product.DoesNotExist:
+        return JsonResponse({'error': 'Product not found'}, status=404)
+
+    # Get stores that have this product in stock (excluding the requesting store)
+    stores_with_product = Stock.objects.filter(
+        product=product,
+        quantity__gt=0
+    ).exclude(store=requesting_store).select_related('store')
+
+    # Format the response with store info and available quantity
+    available_stores = []
+    for stock in stores_with_product:
+        available_stores.append({
+            'id': stock.store.id,
+            'name': stock.store.name,
+            'address': stock.store.address,
+            'available_quantity': stock.quantity,
+            'product_name': product.name
+        })
+
+    return JsonResponse({
+        'stores': available_stores,
+        'product_name': product.name
+    })
+
+
+@login_required
 def submit_restock_request(request):
     """
     Handle restock request submission by store managers.

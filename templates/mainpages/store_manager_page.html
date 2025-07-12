@@ -396,22 +396,18 @@
                 {% csrf_token %}
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="transfer_product_id" class="form-label">Product</label>
+                        <label for="transfer_product_id" class="form-label">Product to Request *</label>
                         <select class="form-select" id="transfer_product_id" name="product_id" required>
-                            <option value="">Select a product</option>
-                            {% for stock in current_stock %}
-                            <option value="{{ stock.product.id }}">{{ stock.product.name }}</option>
-                            {% endfor %}
+                            <option value="">Select a product you want to receive</option>
                         </select>
+                        <div class="form-text">Choose the product you want to transfer to your store</div>
                     </div>
                     <div class="mb-3">
-                        <label for="to_store_id" class="form-label">Destination Store</label>
-                        <select class="form-select" id="to_store_id" name="to_store_id" required>
-                            <option value="">Select destination store</option>
-                            {% for other_store in other_stores %}
-                            <option value="{{ other_store.id }}">{{ other_store.name }}</option>
-                            {% endfor %}
+                        <label for="to_store_id" class="form-label">Transfer From *</label>
+                        <select class="form-select" id="to_store_id" name="to_store_id" required disabled>
+                            <option value="">First select a product</option>
                         </select>
+                        <div class="form-text" id="store-availability-text">Select a product to see which stores have it in stock</div>
                     </div>
                     <div class="mb-3">
                         <label for="transfer_quantity" class="form-label">Requested Quantity</label>
@@ -506,10 +502,102 @@
         }
     }
 
-    // Load stores for transfer modal
-    document.addEventListener('DOMContentLoaded', function () {
-        // This would typically be loaded via AJAX
-        // For now, we'll populate it server-side in the view
+    // Enhanced Transfer Request Logic
+    document.addEventListener('DOMContentLoaded', function() {
+        const transferProductSelect = document.getElementById('transfer_product_id');
+        const transferStoreSelect = document.getElementById('to_store_id');
+        const storeAvailabilityText = document.getElementById('store-availability-text');
+        const transferQuantityInput = document.getElementById('transfer_quantity');
+
+        // Load available products when modal opens
+        document.getElementById('transferModal').addEventListener('show.bs.modal', function() {
+            loadTransferProducts();
+        });
+
+        // Load products available for transfer
+        function loadTransferProducts() {
+            fetch('{% url "get_transfer_products" %}')
+                .then(response => response.json())
+                .then(data => {
+                    transferProductSelect.innerHTML = '<option value="">Select a product you want to receive</option>';
+
+                    if (data.products && data.products.length > 0) {
+                        data.products.forEach(product => {
+                            const option = document.createElement('option');
+                            option.value = product.id;
+                            option.textContent = `${product.name} - ${product.category}`;
+                            transferProductSelect.appendChild(option);
+                        });
+                    } else {
+                        transferProductSelect.innerHTML = '<option value="">No products available for transfer</option>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading transfer products:', error);
+                    transferProductSelect.innerHTML = '<option value="">Error loading products</option>';
+                });
+        }
+
+        // When product is selected, load stores that have it
+        transferProductSelect.addEventListener('change', function() {
+            const productId = this.value;
+
+            if (productId) {
+                // Reset and disable store select while loading
+                transferStoreSelect.innerHTML = '<option value="">Loading stores...</option>';
+                transferStoreSelect.disabled = true;
+                storeAvailabilityText.textContent = 'Loading available stores...';
+
+                // Fetch stores that have this product
+                fetch(`{% url "get_stores_with_product" %}?product_id=${productId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        transferStoreSelect.innerHTML = '<option value="">Select source store</option>';
+
+                        if (data.stores && data.stores.length > 0) {
+                            data.stores.forEach(store => {
+                                const option = document.createElement('option');
+                                option.value = store.id;
+                                option.textContent = `${store.name} (${store.available_quantity} available)`;
+                                option.setAttribute('data-available-quantity', store.available_quantity);
+                                transferStoreSelect.appendChild(option);
+                            });
+
+                            transferStoreSelect.disabled = false;
+                            storeAvailabilityText.innerHTML = `<strong>${data.product_name}</strong> is available in ${data.stores.length} store(s)`;
+                        } else {
+                            transferStoreSelect.innerHTML = '<option value="">No stores have this product</option>';
+                            storeAvailabilityText.textContent = 'This product is not available in any other stores';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading stores:', error);
+                        transferStoreSelect.innerHTML = '<option value="">Error loading stores</option>';
+                        transferStoreSelect.disabled = false;
+                        storeAvailabilityText.textContent = 'Error loading store availability';
+                    });
+            } else {
+                // Reset when no product selected
+                transferStoreSelect.innerHTML = '<option value="">First select a product</option>';
+                transferStoreSelect.disabled = true;
+                storeAvailabilityText.textContent = 'Select a product to see which stores have it in stock';
+                if (transferQuantityInput) transferQuantityInput.removeAttribute('max');
+            }
+        });
+
+        // When store is selected, set max quantity
+        transferStoreSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+
+            if (selectedOption.value && transferQuantityInput) {
+                const availableQuantity = selectedOption.getAttribute('data-available-quantity');
+                transferQuantityInput.max = availableQuantity;
+                transferQuantityInput.focus();
+                storeAvailabilityText.innerHTML = `Maximum available: <strong>${availableQuantity}</strong> units`;
+            } else if (transferQuantityInput) {
+                transferQuantityInput.removeAttribute('max');
+            }
+        });
     });
 </script>
 {% endblock %}

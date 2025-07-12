@@ -22,7 +22,7 @@ from .views import (
     head_manager_restock_requests,
     approve_restock_request, reject_restock_request,
     # API endpoints for product dropdowns
-    get_restock_products, get_transfer_products,
+    get_restock_products, get_transfer_products, get_stores_with_product,
     # Analytics views
     analytics_dashboard, financial_reports, analytics_api, export_analytics_pdf, export_financial_pdf
 )
@@ -65,6 +65,7 @@ urlpatterns = [
     # API endpoints for product dropdowns
     path('api/restock-products/', get_restock_products, name='get_restock_products'),
     path('api/transfer-products/', get_transfer_products, name='get_transfer_products'),
+    path('api/stores-with-product/', get_stores_with_product, name='get_stores_with_product'),
 
     # Head Manager request management URLs
     path('head-manager/restock-requests/', head_manager_restock_requests, name='head_manager_restock_requests'),

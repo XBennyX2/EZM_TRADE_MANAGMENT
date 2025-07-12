@@ -16,6 +16,7 @@ urlpatterns = [
     path('users/', include('users.urls')),
     path('stores/', include('store.urls')),
     path('inventory/', include('Inventory.urls')),
+    path('cart/', include('utils.cart_urls')),
     # API endpoints
     path('api/', include('users.api_urls')),
 ]

@@ -61,6 +61,12 @@
                                 {% if form.product_code.help_text %}
                                 <div class="form-text">{{ form.product_code.help_text }}</div>
                                 {% endif %}
+                                <div class="form-text">
+                                    <small class="text-muted">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        Leave blank to auto-generate a unique code
+                                    </small>
+                                </div>
                                 {% if form.product_code.errors %}
                                 <div class="text-danger">{{ form.product_code.errors.0 }}</div>
                                 {% endif %}

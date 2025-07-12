@@ -504,10 +504,18 @@ class SupplierProductListView(LoginRequiredMixin, StoreOwnerMixin, ListView):
         return context
 
 
-class WarehouseProductCreateView(LoginRequiredMixin, StoreOwnerMixin, CreateView):
+class WarehouseProductCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = WarehouseProduct
     form_class = WarehouseProductForm
     template_name = 'inventory/warehouse_product_form.html'
+
+    def test_func(self):
+        # Only allow admin users, not Head Managers
+        return self.request.user.is_superuser or self.request.user.role == 'admin'
+
+    def handle_no_permission(self):
+        messages.error(self.request, "You don't have permission to create products. Only administrators can add products to supplier catalogs.")
+        return redirect('supplier_list')
 
     def get_initial(self):
         initial = super().get_initial()
@@ -527,10 +535,18 @@ class WarehouseProductCreateView(LoginRequiredMixin, StoreOwnerMixin, CreateView
         return super().form_valid(form)
 
 
-class WarehouseProductUpdateView(LoginRequiredMixin, StoreOwnerMixin, UpdateView):
+class WarehouseProductUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = WarehouseProduct
     form_class = WarehouseProductForm
     template_name = 'inventory/warehouse_product_form.html'
+
+    def test_func(self):
+        # Only allow admin users, not Head Managers
+        return self.request.user.is_superuser or self.request.user.role == 'admin'
+
+    def handle_no_permission(self):
+        messages.error(self.request, "You don't have permission to edit products. Only administrators can modify supplier catalogs.")
+        return redirect('supplier_list')
 
     def get_success_url(self):
         return reverse_lazy('supplier_products', kwargs={'supplier_id': self.object.supplier.pk})
@@ -540,17 +556,25 @@ class WarehouseProductUpdateView(LoginRequiredMixin, StoreOwnerMixin, UpdateView
         return super().form_valid(form)
 
 
-class WarehouseProductDeleteView(LoginRequiredMixin, StoreOwnerMixin, DeleteView):
+class WarehouseProductDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     model = WarehouseProduct
     template_name = 'inventory/confirm_delete_template.html'
     success_url = reverse_lazy('warehouse_list')
+
+    def test_func(self):
+        # Only allow admin users, not Head Managers
+        return self.request.user.is_superuser or self.request.user.role == 'admin'
+
+    def handle_no_permission(self):
+        messages.error(self.request, "You don't have permission to delete products. Only administrators can modify supplier catalogs.")
+        return redirect('supplier_list')
 
     def form_valid(self, form):
         product = self.get_object()
         try:
             messages.success(self.request, f"Product '{product.product_name}' deleted successfully!")
             return super().form_valid(form)
-        except ProtectedError as e:
+        except ProtectedError:
             # Handle the case where the product cannot be deleted due to foreign key constraints
             messages.error(
                 self.request,

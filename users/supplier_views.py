@@ -481,7 +481,7 @@ def supplier_add_product(request):
         return redirect('supplier_dashboard')
 
     if request.method == 'POST':
-        form = SupplierProductForm(request.POST, request.FILES)
+        form = SupplierProductForm(request.POST, request.FILES, supplier=supplier)
         if form.is_valid():
             product = form.save(commit=False)
             product.supplier = supplier
@@ -489,7 +489,7 @@ def supplier_add_product(request):
             messages.success(request, f"Product '{product.product_name}' added successfully!")
             return redirect('supplier_product_catalog')
     else:
-        form = SupplierProductForm()
+        form = SupplierProductForm(supplier=supplier)
 
     context = {
         'form': form,
@@ -511,13 +511,13 @@ def supplier_edit_product(request, product_id):
         return redirect('supplier_product_catalog')
 
     if request.method == 'POST':
-        form = SupplierProductForm(request.POST, request.FILES, instance=product)
+        form = SupplierProductForm(request.POST, request.FILES, instance=product, supplier=supplier)
         if form.is_valid():
             form.save()
             messages.success(request, f"Product '{product.product_name}' updated successfully!")
             return redirect('supplier_product_catalog')
     else:
-        form = SupplierProductForm(instance=product)
+        form = SupplierProductForm(instance=product, supplier=supplier)
 
     context = {
         'form': form,

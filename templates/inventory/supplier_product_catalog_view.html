@@ -9,6 +9,7 @@
 {% endblock %}
 
 {% block content %}
+{% csrf_token %}
 <div class="container-fluid">
     <!-- Header Section -->
     <div class="row mb-4">
@@ -54,19 +55,37 @@
                     <select class="form-select" name="category">
                         <option value="">All Categories</option>
                         {% for category in categories %}
-                        <option value="{{ category }}" {% if category == category_filter %}selected{% endif %}>
-                            {{ category }}
-                        </option>
+                        {% if category == category_filter %}
+                        <option value="{{ category }}" selected>{{ category }}</option>
+                        {% else %}
+                        <option value="{{ category }}">{{ category }}</option>
+                        {% endif %}
                         {% endfor %}
                     </select>
                 </div>
                 <div class="col-md-3">
                     <select class="form-select" name="status">
                         <option value="">All Status</option>
-                        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
-                        <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
-                        <option value="in_stock" {% if status_filter == 'in_stock' %}selected{% endif %}>In Stock</option>
-                        <option value="out_of_stock" {% if status_filter == 'out_of_stock' %}selected{% endif %}>Out of Stock</option>
+                        {% if status_filter == 'active' %}
+                        <option value="active" selected>Active</option>
+                        {% else %}
+                        <option value="active">Active</option>
+                        {% endif %}
+                        {% if status_filter == 'inactive' %}
+                        <option value="inactive" selected>Inactive</option>
+                        {% else %}
+                        <option value="inactive">Inactive</option>
+                        {% endif %}
+                        {% if status_filter == 'in_stock' %}
+                        <option value="in_stock" selected>In Stock</option>
+                        {% else %}
+                        <option value="in_stock">In Stock</option>
+                        {% endif %}
+                        {% if status_filter == 'out_of_stock' %}
+                        <option value="out_of_stock" selected>Out of Stock</option>
+                        {% else %}
+                        <option value="out_of_stock">Out of Stock</option>
+                        {% endif %}
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -74,7 +93,8 @@
                         <button type="submit" class="btn btn-outline-primary">
                             <i class="bi bi-search me-1"></i>Search
                         </button>
-                        <a href="{% url 'supplier_product_catalog_view' supplier.id %}" class="btn btn-outline-secondary">
+                        <a href="{% url 'supplier_product_catalog_view' supplier.id %}"
+                            class="btn btn-outline-secondary">
                             <i class="bi bi-arrow-clockwise me-1"></i>Reset
                         </a>
                     </div>
@@ -90,17 +110,19 @@
         <div class="col-lg-4 col-md-6 mb-4">
             <div class="card h-100 shadow-sm">
                 {% if product.product_image %}
-                <img src="{{ product.product_image.url }}" class="card-img-top" alt="{{ product.product_name }}" style="height: 200px; object-fit: cover;">
+                <img src="{{ product.product_image.url }}" class="card-img-top" alt="{{ product.product_name }}"
+                    style="height: 200px; object-fit: cover;">
                 {% else %}
-                <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                <div class="card-img-top bg-light d-flex align-items-center justify-content-center"
+                    style="height: 200px;">
                     <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
                 </div>
                 {% endif %}
-                
+
                 <div class="card-body d-flex flex-column">
                     <h5 class="card-title">{{ product.product_name }}</h5>
                     <p class="card-text text-muted small">{{ product.description|truncatechars:100 }}</p>
-                    
+
                     <div class="mt-auto">
                         <div class="row mb-2">
                             <div class="col-6">
@@ -112,7 +134,7 @@
                                 <div class="fw-bold">{{ product.category }}</div>
                             </div>
                         </div>
-                        
+
                         <div class="row mb-2">
                             <div class="col-6">
                                 <small class="text-muted">Status:</small>
@@ -139,7 +161,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         {% if product.stock_quantity %}
                         <div class="row mb-2">
                             <div class="col-12">
@@ -148,7 +170,7 @@
                             </div>
                         </div>
                         {% endif %}
-                        
+
                         <div class="row">
                             <div class="col-12">
                                 <small class="text-muted">Delivery Time:</small>
@@ -157,18 +179,26 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="card-footer bg-transparent">
                     <div class="d-flex justify-content-between align-items-center">
                         <small class="text-muted">Added: {{ product.created_date|date:"M d, Y" }}</small>
                         <div class="btn-group" role="group">
-                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                            <button type="button" class="btn btn-sm btn-outline-primary"
                                 onclick="viewProductDetails({{ product.id }})" title="View Details">
                                 <i class="bi bi-eye"></i>
                             </button>
-                            <a href="{% url 'purchase_request_from_catalog' supplier.id %}?product={{ product.id }}" 
-                                class="btn btn-sm btn-outline-success" title="Create Purchase Request">
+                            {% if user.role == 'head_manager' %}
+                            <button class="btn btn-sm btn-outline-info add-to-cart-btn"
+                                data-product-id="{{ product.id }}" data-product-name="{{ product.product_name }}"
+                                data-min-quantity="{{ product.minimum_order_quantity }}"
+                                data-unit-price="{{ product.unit_price }}" title="Add to Cart">
                                 <i class="bi bi-cart-plus"></i>
+                            </button>
+                            {% endif %}
+                            <a href="{% url 'purchase_request_from_catalog' supplier.id %}?product={{ product.id }}"
+                                class="btn btn-sm btn-outline-success" title="Create Purchase Request">
+                                <i class="bi bi-shopping-bag"></i>
                             </a>
                         </div>
                     </div>
@@ -176,7 +206,7 @@
             </div>
         </div>
         {% endfor %}
-        
+
         <!-- Pagination -->
         {% if products.has_other_pages %}
         <div class="col-12">
@@ -184,10 +214,12 @@
                 <ul class="pagination justify-content-center">
                     {% if products.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">First</a>
+                        <a class="page-link"
+                            href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">First</a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ products.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Previous</a>
+                        <a class="page-link"
+                            href="?page={{ products.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Previous</a>
                     </li>
                     {% endif %}
 
@@ -199,17 +231,19 @@
 
                     {% if products.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ products.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Next</a>
+                        <a class="page-link"
+                            href="?page={{ products.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Next</a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ products.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Last</a>
+                        <a class="page-link"
+                            href="?page={{ products.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Last</a>
                     </li>
                     {% endif %}
                 </ul>
             </nav>
         </div>
         {% endif %}
-        
+
         {% else %}
         <div class="col-12">
             <div class="text-center py-5">
@@ -232,71 +266,255 @@
 </div>
 
 <style>
-.ezm-card {
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-    border: none;
-    border-radius: 15px;
-    overflow: hidden;
-    margin-bottom: 2rem;
-}
+    .ezm-card {
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        border: none;
+        border-radius: 15px;
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
 
-.ezm-card-header {
-    padding: 1.5rem;
-    font-weight: 600;
-    font-size: 1.1rem;
-    background: linear-gradient(45deg, var(--secondary-dark), var(--primary-dark));
-    color: white;
-}
+    .ezm-card-header {
+        padding: 1.5rem;
+        font-weight: 600;
+        font-size: 1.1rem;
+        background: linear-gradient(45deg, var(--secondary-dark), var(--primary-dark));
+        color: white;
+    }
 
-.btn-ezm-primary {
-    background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
-    border: none;
-    border-radius: 8px;
-    padding: 0.75rem 1.5rem;
-    font-weight: 600;
-    color: white;
-    transition: all 0.3s ease;
-}
+    .btn-ezm-primary {
+        background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        color: white;
+        transition: all 0.3s ease;
+    }
 
-.btn-ezm-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(102, 252, 241, 0.3);
-    color: white;
-}
+    .btn-ezm-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 252, 241, 0.3);
+        color: white;
+    }
 
-.btn-ezm-secondary {
-    background: linear-gradient(45deg, #6c757d, #5a6268);
-    border: none;
-    border-radius: 8px;
-    padding: 0.75rem 1.5rem;
-    font-weight: 600;
-    color: white;
-    text-decoration: none;
-    transition: all 0.3s ease;
-}
+    .btn-ezm-secondary {
+        background: linear-gradient(45deg, #6c757d, #5a6268);
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        color: white;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
 
-.btn-ezm-secondary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
-    color: white;
-}
+    .btn-ezm-secondary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+        color: white;
+    }
 
-.card {
-    transition: transform 0.2s ease-in-out;
-}
+    .card {
+        transition: transform 0.2s ease-in-out;
+    }
 
-.card:hover {
-    transform: translateY(-5px);
-}
+    .card:hover {
+        transform: translateY(-5px);
+    }
 </style>
 
 {% block extra_js %}
 <script>
-function viewProductDetails(productId) {
-    // You can implement a modal or redirect to a detailed view
-    alert('Product details view - Product ID: ' + productId);
-    // Example: window.location.href = '/inventory/products/' + productId + '/';
-}
+    function viewProductDetails(productId) {
+        // You can implement a modal or redirect to a detailed view
+        alert('Product details view - Product ID: ' + productId);
+        // Example: window.location.href = '/inventory/products/' + productId + '/';
+    }
+
+    // CSRF Token function
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function getCSRFToken() {
+        // Try to get from cookie first
+        let token = getCookie('csrftoken');
+        if (!token) {
+            // Try to get from form
+            token = $('[name=csrfmiddlewaretoken]').val();
+        }
+        if (!token) {
+            // Try to get from meta tag
+            token = $('meta[name=csrf-token]').attr('content');
+        }
+        return token;
+    }
+
+    // Cart functionality
+    $(document).ready(function () {
+        // Add to cart functionality
+        $('.add-to-cart-btn').click(function () {
+            const productId = $(this).data('product-id');
+            const productName = $(this).data('product-name');
+            const minQuantity = $(this).data('min-quantity');
+            const unitPrice = $(this).data('unit-price');
+
+            // Show quantity input modal
+            showQuantityModal(productId, productName, minQuantity, unitPrice);
+        });
+
+        // Update cart counter on page load
+        updateCartCounter();
+    });
+
+    function showQuantityModal(productId, productName, minQuantity, unitPrice) {
+        const modalHtml = `
+            <div class="modal fade" id="quantityModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title">
+                                <i class="bi bi-cart-plus me-2"></i>Add to Cart
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="text-center mb-3">
+                                <h6>${productName}</h6>
+                                <p class="text-muted">Price: $${unitPrice} per unit</p>
+                            </div>
+                            <div class="mb-3">
+                                <label for="quantity" class="form-label">Quantity</label>
+                                <input type="number" class="form-control" id="quantity"
+                                       value="${minQuantity}" min="${minQuantity}" step="1">
+                                <div class="form-text">Minimum order quantity: ${minQuantity}</div>
+                            </div>
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-2"></i>
+                                Total: $<span id="totalPrice">${(unitPrice * minQuantity).toFixed(2)}</span>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" onclick="addToCart(${productId})">
+                                <i class="bi bi-cart-plus me-2"></i>Add to Cart
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remove existing modal if any
+        $('#quantityModal').remove();
+
+        // Add modal to body and show
+        $('body').append(modalHtml);
+        $('#quantityModal').modal('show');
+
+        // Update total price when quantity changes
+        $('#quantity').on('input', function () {
+            const quantity = parseInt($(this).val()) || minQuantity;
+            const total = (unitPrice * quantity).toFixed(2);
+            $('#totalPrice').text(total);
+        });
+    }
+
+    function addToCart(productId) {
+        const quantity = parseInt($('#quantity').val()) || 1;
+        const button = $(`.add-to-cart-btn[data-product-id="${productId}"]`);
+
+        // Show loading state
+        button.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i>');
+
+        $.ajax({
+            url: '/cart/add/',
+            type: 'POST',
+            data: {
+                'product_id': productId,
+                'quantity': quantity
+            },
+            success: function (response) {
+                if (response.success) {
+                    // Show success message
+                    showToast('success', response.message);
+
+                    // Update cart counter
+                    updateCartCounter();
+
+                    // Close modal
+                    $('#quantityModal').modal('hide');
+                } else {
+                    showToast('error', response.message);
+                }
+            },
+            error: function () {
+                showToast('error', 'Error adding product to cart');
+            },
+            complete: function () {
+                // Reset button state
+                button.prop('disabled', false).html('<i class="bi bi-cart-plus"></i>');
+            }
+        });
+    }
+
+    function updateCartCounter() {
+        $.ajax({
+            url: '/cart/count/',
+            type: 'GET',
+            success: function (response) {
+                $('#cart-counter').text(response.cart_total_items);
+                if (response.cart_total_items > 0) {
+                    $('#cart-counter').show();
+                } else {
+                    $('#cart-counter').hide();
+                }
+            }
+        });
+    }
+
+    function showToast(type, message) {
+        const toastClass = type === 'success' ? 'bg-success' : 'bg-danger';
+        const toastHtml = `
+            <div class="toast align-items-center text-white ${toastClass} border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+
+        // Add toast container if it doesn't exist
+        if ($('#toast-container').length === 0) {
+            $('body').append('<div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3"></div>');
+        }
+
+        const $toast = $(toastHtml);
+        $('#toast-container').append($toast);
+
+        const toast = new bootstrap.Toast($toast[0]);
+        toast.show();
+
+        // Remove toast element after it's hidden
+        $toast.on('hidden.bs.toast', function () {
+            $(this).remove();
+        });
+    }
 </script>
 {% endblock %}
 {% endblock %}

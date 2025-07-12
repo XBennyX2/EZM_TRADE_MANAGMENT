@@ -57,6 +57,16 @@
                 {% include 'components/notifications.html' %}
                 {% endif %}
 
+                <!-- Shopping Cart (Head Manager Only) -->
+                {% if user.is_authenticated and user.role == 'head_manager' %}
+                <div class="cart-section me-3">
+                    <a href="/cart/" class="cart-link" title="Shopping Cart">
+                        <i class="bi bi-cart3"></i>
+                        <span class="cart-counter" id="cart-counter" style="display: none;">0</span>
+                    </a>
+                </div>
+                {% endif %}
+
                 <div class="profile-section">
                     {% if user.is_authenticated %}
                     <div class="profile-dropdown" id="profileDropdown" onclick="toggleProfileMenu()">
@@ -123,6 +133,37 @@
     <!-- Bootstrap Bundle JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- CSRF Token Setup -->
+    <script>
+        // Setup CSRF token for all AJAX requests
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Setup CSRF for all AJAX requests
+        $.ajaxSetup({
+            beforeSend: function (xhr, settings) {
+                if (!(/^http:.*/.test(settings.url) || /^https:.*/.test(settings.url))) {
+                    xhr.setRequestHeader("X-CSRFToken", getCookie('csrftoken'));
+                }
+            }
+        });
+    </script>
+
     <!-- Custom JavaScript -->
     <script>
         const sidebar = document.getElementById('sidebar');
@@ -167,6 +208,33 @@
     <!-- Notification System JS -->
     {% if user.is_authenticated %}
     <script src="{% static 'js/notifications.js' %}"></script>
+    {% endif %}
+
+    <!-- Cart Counter Update Script for Head Managers -->
+    {% if user.is_authenticated and user.role == 'head_manager' %}
+    <script>
+        $(document).ready(function () {
+            updateCartCounter();
+        });
+
+        function updateCartCounter() {
+            $.ajax({
+                url: '/cart/count/',
+                type: 'GET',
+                success: function (response) {
+                    $('#cart-counter').text(response.cart_total_items);
+                    if (response.cart_total_items > 0) {
+                        $('#cart-counter').show();
+                    } else {
+                        $('#cart-counter').hide();
+                    }
+                },
+                error: function () {
+                    // Silently fail - cart counter is not critical
+                }
+            });
+        }
+    </script>
     {% endif %}
 
     {% block extra_js %}{% endblock %}

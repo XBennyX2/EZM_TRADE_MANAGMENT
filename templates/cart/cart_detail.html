@@ -1,0 +1,378 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
+{% block title %}Shopping Cart - EZM Trade Management{% endblock %}
+{% block page_title %}Shopping Cart{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .cart-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .cart-item {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        margin-bottom: 1rem;
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .cart-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .product-image {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: #6c757d;
+    }
+
+    .quantity-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .quantity-btn {
+        width: 32px;
+        height: 32px;
+        border: none;
+        border-radius: 50%;
+        background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .quantity-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 4px 10px rgba(102, 252, 241, 0.4);
+    }
+
+    .quantity-input {
+        width: 60px;
+        text-align: center;
+        border: 2px solid #e9ecef;
+        border-radius: 6px;
+        padding: 0.25rem;
+    }
+
+    .cart-summary {
+        background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
+        color: white;
+        border-radius: 15px;
+        padding: 2rem;
+        position: sticky;
+        top: 2rem;
+    }
+
+    .btn-ezm-primary {
+        background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+        border: none;
+        color: white;
+        border-radius: 10px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-ezm-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 252, 241, 0.4);
+        color: white;
+    }
+
+    .btn-ezm-danger {
+        background: linear-gradient(45deg, #dc3545, #c82333);
+        border: none;
+        color: white;
+        border-radius: 10px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-ezm-danger:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
+        color: white;
+    }
+
+    .empty-cart {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .empty-cart i {
+        font-size: 4rem;
+        color: #6c757d;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<div class="container-fluid cart-container">
+    {% if cart_items %}
+    <div class="row">
+        <!-- Cart Items -->
+        <div class="col-lg-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="mb-0">
+                    <i class="bi bi-cart3 me-2"></i>
+                    Cart Items ({{ total_items }})
+                </h4>
+                <a href="{% url 'cart_clear' %}" class="btn btn-ezm-danger btn-sm"
+                    onclick="return confirm('Are you sure you want to clear your cart?')">
+                    <i class="bi bi-trash me-2"></i>Clear Cart
+                </a>
+            </div>
+
+            {% for item in cart_items %}
+            <div class="cart-item" data-product-id="{{ item.product.id }}">
+                <div class="row align-items-center">
+                    <div class="col-md-2">
+                        <div class="product-image">
+                            <i class="bi bi-box"></i>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="mb-1">{{ item.product.product_name }}</h6>
+                        <p class="text-muted mb-1">
+                            <i class="bi bi-building me-1"></i>{{ item.supplier_name }}
+                        </p>
+                        <p class="text-muted mb-0">
+                            <small>Code: {{ item.product.product_code }}</small>
+                        </p>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="text-center">
+                            <strong>${{ item.price }}</strong>
+                            <br>
+                            <small class="text-muted">per unit</small>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="quantity-controls">
+                            <button class="quantity-btn"
+                                onclick="updateQuantity({{ item.product.id }}, {{ item.quantity|add:'-1' }})">
+                                <i class="bi bi-dash"></i>
+                            </button>
+                            <input type="number" class="quantity-input" value="{{ item.quantity }}"
+                                min="{{ item.product.minimum_order_quantity }}"
+                                onchange="updateQuantity({{ item.product.id }}, this.value)">
+                            <button class="quantity-btn"
+                                onclick="updateQuantity({{ item.product.id }}, {{ item.quantity|add:'1' }})">
+                                <i class="bi bi-plus"></i>
+                            </button>
+                        </div>
+                        <small class="text-muted d-block text-center mt-1">
+                            Min: {{ item.product.minimum_order_quantity }}
+                        </small>
+                    </div>
+                    <div class="col-md-1">
+                        <div class="text-center">
+                            <strong>${{ item.total_price }}</strong>
+                        </div>
+                    </div>
+                    <div class="col-md-1">
+                        <button class="btn btn-sm btn-outline-danger" onclick="removeFromCart({{ item.product.id }})"
+                            title="Remove from cart">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Cart Summary -->
+        <div class="col-lg-4">
+            <div class="cart-summary">
+                <h5 class="mb-3">
+                    <i class="bi bi-receipt me-2"></i>Order Summary
+                </h5>
+
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Total Items:</span>
+                    <strong>{{ total_items }}</strong>
+                </div>
+
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Suppliers:</span>
+                    <strong>{{ suppliers_cart|length }}</strong>
+                </div>
+
+                <hr class="my-3" style="border-color: rgba(255,255,255,0.3);">
+
+                <div class="d-flex justify-content-between mb-3">
+                    <span class="h6">Total Amount:</span>
+                    <strong class="h5">${{ total_price }}</strong>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <a href="{% url 'order_confirmation' %}" class="btn btn-light btn-lg">
+                        <i class="bi bi-check-circle me-2"></i>Proceed to Order
+                    </a>
+                    <a href="{% url 'supplier_list' %}" class="btn btn-outline-light">
+                        <i class="bi bi-arrow-left me-2"></i>Continue Shopping
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Empty Cart -->
+    <div class="empty-cart">
+        <i class="bi bi-cart-x"></i>
+        <h4>Your cart is empty</h4>
+        <p class="text-muted mb-4">Start adding products from supplier catalogs to create your order.</p>
+        <a href="{% url 'supplier_list' %}" class="btn btn-ezm-primary btn-lg">
+            <i class="bi bi-shop me-2"></i>Browse Suppliers
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function updateQuantity(productId, newQuantity) {
+        if (newQuantity < 1) return;
+
+        $.ajax({
+            url: '{% url "cart_update_quantity" %}',
+            type: 'POST',
+            data: {
+                'product_id': productId,
+                'quantity': newQuantity
+            },
+            success: function (response) {
+                if (response.success) {
+                    // Update the item total price
+                    const cartItem = $(`.cart-item[data-product-id="${productId}"]`);
+                    cartItem.find('.quantity-input').val(response.item_quantity);
+                    cartItem.find('.col-md-1:nth-last-child(2) strong').text('$' + response.item_total_price);
+
+                    // Update cart summary
+                    updateCartSummary();
+
+                    showToast('success', response.message);
+                } else {
+                    showToast('error', response.message);
+                }
+            },
+            error: function () {
+                showToast('error', 'Error updating quantity');
+            }
+        });
+    }
+
+    function removeFromCart(productId) {
+        if (!confirm('Remove this item from your cart?')) return;
+
+        $.ajax({
+            url: '{% url "cart_remove" %}',
+            type: 'POST',
+            data: {
+                'product_id': productId
+            },
+            success: function (response) {
+                if (response.success) {
+                    // Remove the item from the page
+                    $(`.cart-item[data-product-id="${productId}"]`).fadeOut(300, function () {
+                        $(this).remove();
+
+                        // Check if cart is empty
+                        if ($('.cart-item').length === 0) {
+                            location.reload();
+                        } else {
+                            updateCartSummary();
+                        }
+                    });
+
+                    showToast('success', response.message);
+                } else {
+                    showToast('error', response.message);
+                }
+            },
+            error: function () {
+                showToast('error', 'Error removing item from cart');
+            }
+        });
+    }
+
+    function updateCartSummary() {
+        // Recalculate totals
+        let totalItems = 0;
+        let totalPrice = 0;
+
+        $('.cart-item').each(function () {
+            const quantity = parseInt($(this).find('.quantity-input').val());
+            const itemTotal = parseFloat($(this).find('.col-md-1:nth-last-child(2) strong').text().replace('$', ''));
+
+            totalItems += quantity;
+            totalPrice += itemTotal;
+        });
+
+        // Update summary display
+        $('.cart-summary .d-flex:first-child strong').text(totalItems);
+        $('.cart-summary .h5').text('$' + totalPrice.toFixed(2));
+
+        // Update cart counter in navigation
+        $('#cart-counter').text(totalItems);
+    }
+
+    function showToast(type, message) {
+        const toastClass = type === 'success' ? 'bg-success' : 'bg-danger';
+        const toastHtml = `
+            <div class="toast align-items-center text-white ${toastClass} border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+
+        // Add toast container if it doesn't exist
+        if ($('#toast-container').length === 0) {
+            $('body').append('<div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3"></div>');
+        }
+
+        const $toast = $(toastHtml);
+        $('#toast-container').append($toast);
+
+        const toast = new bootstrap.Toast($toast[0]);
+        toast.show();
+
+        // Remove toast element after it's hidden
+        $toast.on('hidden.bs.toast', function () {
+            $(this).remove();
+        });
+    }
+</script>
+{% endblock %}

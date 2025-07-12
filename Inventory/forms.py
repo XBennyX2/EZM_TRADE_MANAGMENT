@@ -441,6 +441,41 @@ class SupplierProductForm(forms.ModelForm):
         })
     )
 
+    def __init__(self, *args, **kwargs):
+        self.supplier = kwargs.pop('supplier', None)
+        super().__init__(*args, **kwargs)
+
+        # Populate category choices
+        categories = ProductCategory.objects.filter(is_active=True).order_by('name')
+        category_choices = [('', 'Select a category')]
+        category_choices.extend([(cat.name, cat.name) for cat in categories])
+        category_choices.append(('other', 'Other (specify below)'))
+
+        self.fields['category_choice'].choices = category_choices
+
+        # Set default currency to ETB
+        self.fields['currency'].initial = 'ETB'
+        self.fields['currency'].required = False
+
+        # Set initial value if editing existing product
+        if self.instance and self.instance.pk and hasattr(self.instance, 'category'):
+            if self.instance.category:
+                # Check if the category exists in our choices
+                existing_categories = [choice[0] for choice in category_choices[1:-1]]  # Exclude empty and 'other'
+                if self.instance.category in existing_categories:
+                    self.fields['category_choice'].initial = self.instance.category
+                else:
+                    self.fields['category_choice'].initial = 'other'
+                    self.fields['custom_category'].initial = self.instance.category
+                    self.fields['custom_category'].widget.attrs['style'] = ''
+
+        # Add help text
+        self.fields['product_code'].help_text = "Unique identifier for this product"
+        self.fields['minimum_order_quantity'].help_text = "Minimum quantity customers must order"
+        self.fields['maximum_order_quantity'].help_text = "Maximum quantity per order (leave blank for unlimited)"
+        self.fields['stock_quantity'].help_text = "Current available stock (optional)"
+        self.fields['category_choice'].help_text = "Select an existing category or choose 'Other' to create a new one"
+
     class Meta:
         model = SupplierProduct
         exclude = ['supplier', 'created_date', 'updated_date', 'category']
@@ -533,45 +568,15 @@ class SupplierProductForm(forms.ModelForm):
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
-        # Populate category choices
-        categories = ProductCategory.objects.filter(is_active=True).order_by('name')
-        category_choices = [('', 'Select a category')]
-        category_choices.extend([(cat.name, cat.name) for cat in categories])
-        category_choices.append(('other', 'Other (specify below)'))
-
-        self.fields['category_choice'].choices = category_choices
-
-        # Set default currency to ETB
-        self.fields['currency'].initial = 'ETB'
-        self.fields['currency'].required = False
-
-        # Set initial value if editing existing product
-        if self.instance and self.instance.pk and hasattr(self.instance, 'category'):
-            if self.instance.category:
-                # Check if the category exists in our choices
-                existing_categories = [choice[0] for choice in category_choices[1:-1]]  # Exclude empty and 'other'
-                if self.instance.category in existing_categories:
-                    self.fields['category_choice'].initial = self.instance.category
-                else:
-                    self.fields['category_choice'].initial = 'other'
-                    self.fields['custom_category'].initial = self.instance.category
-                    self.fields['custom_category'].widget.attrs['style'] = ''
-
-        # Add help text
-        self.fields['product_code'].help_text = "Unique identifier for this product"
-        self.fields['minimum_order_quantity'].help_text = "Minimum quantity customers must order"
-        self.fields['maximum_order_quantity'].help_text = "Maximum quantity per order (leave blank for unlimited)"
-        self.fields['stock_quantity'].help_text = "Current available stock (optional)"
-        self.fields['category_choice'].help_text = "Select an existing category or choose 'Other' to create a new one"
 
     def clean(self):
         cleaned_data = super().clean()
         category_choice = cleaned_data.get('category_choice')
         custom_category = cleaned_data.get('custom_category')
+        product_code = cleaned_data.get('product_code')
 
+        # Handle category validation
         if category_choice == 'other':
             if not custom_category:
                 raise forms.ValidationError("Please enter a custom category name when 'Other' is selected.")
@@ -586,6 +591,34 @@ class SupplierProductForm(forms.ModelForm):
         else:
             raise forms.ValidationError("Please select a category.")
 
+        # Handle product code validation
+        if self.supplier:
+            if product_code:
+                # Check if product code already exists for this supplier
+                existing_product = SupplierProduct.objects.filter(
+                    supplier=self.supplier,
+                    product_code=product_code
+                ).exclude(pk=self.instance.pk if self.instance else None)
+
+                if existing_product.exists():
+                    raise forms.ValidationError(
+                        f"A product with code '{product_code}' already exists in your catalog. "
+                        "Please use a different product code."
+                    )
+            else:
+                # Auto-generate product code if not provided
+                import uuid
+                import time
+                base_code = f"SP{int(time.time())}"
+                counter = 1
+                while SupplierProduct.objects.filter(
+                    supplier=self.supplier,
+                    product_code=base_code
+                ).exists():
+                    base_code = f"SP{int(time.time())}{counter}"
+                    counter += 1
+                cleaned_data['product_code'] = base_code
+
         return cleaned_data
 
     def save(self, commit=True):
@@ -593,6 +626,10 @@ class SupplierProductForm(forms.ModelForm):
         # Set the category from cleaned data
         if hasattr(self, 'cleaned_data') and 'category' in self.cleaned_data:
             instance.category = self.cleaned_data['category']
+
+        # Set the product code from cleaned data
+        if hasattr(self, 'cleaned_data') and 'product_code' in self.cleaned_data:
+            instance.product_code = self.cleaned_data['product_code']
 
         if commit:
             instance.save()

@@ -19,9 +19,11 @@
                         <p class="text-muted mb-0">Products available from this supplier</p>
                     </div>
                 </div>
+                {% if user.role == 'admin' or user.is_superuser %}
                 <a href="{% url 'warehouse_product_create' supplier.pk %}" class="btn btn-primary">
                     <i class="bi bi-plus-circle me-2"></i>Add New Product
                 </a>
+                {% endif %}
             </div>
 
             <!-- Supplier Info Card -->
@@ -118,15 +120,15 @@
                                 <span class="input-group-text">
                                     <i class="bi bi-search"></i>
                                 </span>
-                                <input type="text" class="form-control" name="search" 
-                                       value="{{ search_query }}" placeholder="Search products...">
+                                <input type="text" class="form-control" name="search" value="{{ search_query }}"
+                                    placeholder="Search products...">
                             </div>
                         </div>
                         <div class="col-md-4">
                             <select name="category" class="form-select">
                                 <option value="">All Categories</option>
                                 {% for value, label in categories %}
-                                <option value="{{ value }}" {% if value == selected_category %}selected{% endif %}>
+                                <option value="{{ value }}" {% if value==selected_category %}selected{% endif %}>
                                     {{ label }}
                                 </option>
                                 {% endfor %}
@@ -184,11 +186,11 @@
                                     </td>
                                     <td>
                                         <div class="fw-bold">{{ product.quantity_in_stock }}</div>
-                                        {% if product.quantity_in_stock <= product.minimum_stock_level %}
-                                        <small class="text-danger">
+                                        {% if product.quantity_in_stock <= product.minimum_stock_level %} <small
+                                            class="text-danger">
                                             <i class="bi bi-exclamation-triangle"></i> Low Stock
-                                        </small>
-                                        {% endif %}
+                                            </small>
+                                            {% endif %}
                                     </td>
                                     <td>
                                         <div class="fw-bold">${{ product.unit_price }}</div>
@@ -210,13 +212,16 @@
                                     </td>
                                     <td>
                                         <div class="btn-group" role="group">
-                                            <a href="{% url 'warehouse_product_update' product.pk %}" 
-                                               class="btn btn-sm btn-outline-primary" title="Edit">
+                                            {% if user.role == 'admin' or user.is_superuser %}
+                                            <a href="{% url 'warehouse_product_update' product.pk %}"
+                                                class="btn btn-sm btn-outline-primary" title="Edit">
                                                 <i class="bi bi-pencil"></i>
                                             </a>
-                                            <button class="btn btn-sm btn-outline-success" title="Create Purchase Order">
+                                            {% endif %}
+                                            <a href="{% url 'purchase_request_from_catalog' supplier.pk %}?product={{ product.pk }}"
+                                                class="btn btn-sm btn-outline-success" title="Create Purchase Request">
                                                 <i class="bi bi-cart-plus"></i>
-                                            </button>
+                                            </a>
                                         </div>
                                     </td>
                                 </tr>
@@ -232,10 +237,12 @@
                             <ul class="pagination justify-content-center mb-0">
                                 {% if page_obj.has_previous %}
                                 <li class="page-item">
-                                    <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}">First</a>
+                                    <a class="page-link"
+                                        href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}">First</a>
                                 </li>
                                 <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}">Previous</a>
+                                    <a class="page-link"
+                                        href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}">Previous</a>
                                 </li>
                                 {% endif %}
 
@@ -247,10 +254,12 @@
 
                                 {% if page_obj.has_next %}
                                 <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}">Next</a>
+                                    <a class="page-link"
+                                        href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}">Next</a>
                                 </li>
                                 <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}">Last</a>
+                                    <a class="page-link"
+                                        href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}">Last</a>
                                 </li>
                                 {% endif %}
                             </ul>
@@ -266,12 +275,18 @@
                             {% if search_query or selected_category %}
                             No products match your search criteria.
                             {% else %}
+                            {% if user.role == 'head_manager' %}
+                            This supplier doesn't have any products available yet.
+                            {% else %}
                             This supplier doesn't have any products yet.
                             {% endif %}
+                            {% endif %}
                         </p>
+                        {% if user.role == 'admin' or user.is_superuser %}
                         <a href="{% url 'warehouse_product_create' supplier.pk %}" class="btn btn-primary">
                             <i class="bi bi-plus-circle me-2"></i>Add First Product
                         </a>
+                        {% endif %}
                     </div>
                     {% endif %}
                 </div>

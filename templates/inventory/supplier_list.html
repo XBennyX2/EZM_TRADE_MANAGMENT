@@ -133,29 +133,40 @@
                             <td>{{ supplier_data.supplier.created_date|date:"M d, Y" }}</td>
                             <td>
                                 <div class="btn-group" role="group">
+                                    {% if user.role == 'admin' or user.is_superuser %}
                                     <a href="{% url 'supplier_update' supplier_data.supplier.pk %}"
                                         class="btn btn-sm btn-outline-primary" title="Edit">
                                         <i class="bi bi-pencil"></i>
                                     </a>
+                                    {% endif %}
                                     {% if supplier_data.onboarding_complete %}
                                     <a href="{% url 'supplier_profile_view' supplier_data.supplier.pk %}"
                                         class="btn btn-sm btn-outline-info" title="View Profile">
                                         <i class="bi bi-person-badge"></i>
                                     </a>
                                     {% endif %}
+                                    {% if user.role == 'head_manager' %}
+                                    <a href="{% url 'supplier_product_catalog_view' supplier_data.supplier.pk %}"
+                                        class="btn btn-sm btn-outline-info" title="View Products">
+                                        <i class="bi bi-box"></i>
+                                    </a>
+                                    {% else %}
                                     <a href="{% url 'supplier_products' supplier_data.supplier.pk %}"
                                         class="btn btn-sm btn-outline-info" title="View Products">
                                         <i class="bi bi-box"></i>
                                     </a>
+                                    {% endif %}
                                     <button type="button" class="btn btn-sm btn-outline-success"
                                         onclick="checkSupplierStatus({{ supplier_data.supplier.pk }})"
                                         title="Account Status">
                                         <i class="bi bi-shield-check"></i>
                                     </button>
+                                    {% if user.role == 'admin' or user.is_superuser %}
                                     <a href="{% url 'supplier_delete' supplier_data.supplier.pk %}"
                                         class="btn btn-sm btn-outline-danger" title="Delete">
                                         <i class="bi bi-trash"></i>
                                     </a>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>

@@ -4,10 +4,30 @@ from django.contrib.auth import authenticate, login, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from .forms import CustomLoginForm, EditProfileForm, ChangePasswordForm
 from .models import CustomUser
-from transactions.models import Transaction, Order
+from transactions.models import Transaction, Order, FinancialRecord
 from django.utils.crypto import get_random_string
 from django.core.mail import send_mail
 from django.contrib import messages
+from django.http import JsonResponse
+from Inventory.models import Product, Stock, WarehouseProduct
+from django.db import models
+from django.db.models import Sum, Count, Avg, F, Q
+from django.utils import timezone
+from datetime import datetime, timedelta
+from decimal import Decimal
+import json
+from django.http import HttpResponse
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+from reportlab.graphics.shapes import Drawing
+from reportlab.graphics.charts.linecharts import HorizontalLineChart
+from reportlab.graphics.charts.piecharts import Pie
+from reportlab.graphics.charts.barcharts import VerticalBarChart
+from reportlab.lib.colors import HexColor
+import io
 import logging
 logger = logging.getLogger(__name__)
 try:
@@ -553,6 +573,26 @@ def store_manager_page(request):
     # Get all stores except current store for transfer requests
     other_stores = Store.objects.exclude(id=store.id).order_by('name')
 
+    # Get products available for restock (from warehouse and other stores)
+    from Inventory.models import WarehouseProduct, Product
+    from django.db import models
+
+    # Get products available in warehouse
+    warehouse_product_names = WarehouseProduct.objects.filter(
+        quantity_in_stock__gt=0,
+        is_active=True
+    ).values_list('product_name', flat=True)
+
+    # Get products available in other stores
+    other_stores_products = Stock.objects.filter(
+        quantity__gt=0
+    ).exclude(store=store).values_list('product', flat=True)
+
+    # For restock requests, include ALL products in the system
+    # This allows store managers to request any product, whether it's currently
+    # in warehouse, other stores, or needs to be ordered from suppliers
+    restock_available_products = Product.objects.all().order_by('name')
+
     context = {
         'store': store,
         'cashier_assignment': cashier_assignment,
@@ -562,6 +602,7 @@ def store_manager_page(request):
         'most_sold_products': most_sold_products,
         'low_stock_items': low_stock_items,
         'current_stock': current_stock,
+        'restock_available_products': restock_available_products,  # Products for restock dropdown
         'recent_restock_requests': recent_restock_requests,
         'recent_transfer_requests': recent_transfer_requests,
         'pending_restock_count': pending_restock_count,
@@ -570,6 +611,75 @@ def store_manager_page(request):
     }
 
     return render(request, 'mainpages/store_manager_page.html', context)
+
+
+@login_required
+def get_restock_products(request):
+    """
+    API endpoint to get products available for restock requests.
+    Returns products from warehouse and other stores.
+    """
+    if request.user.role != 'store_manager':
+        return JsonResponse({'error': 'Access denied'}, status=403)
+
+    try:
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        return JsonResponse({'error': 'Store not found'}, status=404)
+
+    from Inventory.models import Product, Stock, WarehouseProduct
+    from django.db import models
+
+    # Get products available in warehouse
+    warehouse_product_names = WarehouseProduct.objects.filter(
+        quantity_in_stock__gt=0,
+        is_active=True
+    ).values_list('product_name', flat=True)
+
+    # Get products available in other stores
+    other_stores_products = Stock.objects.filter(
+        quantity__gt=0
+    ).exclude(store=store).values_list('product', flat=True)
+
+    # For restock requests, include ALL products in the system
+    # This allows store managers to request any product
+    available_products = Product.objects.all().order_by('name').values('id', 'name', 'category', 'price')
+
+    return JsonResponse({
+        'products': list(available_products)
+    })
+
+
+@login_required
+def get_transfer_products(request):
+    """
+    API endpoint to get products available for transfer requests.
+    Returns products from OTHER stores (excluding warehouse and current store).
+    """
+    if request.user.role != 'store_manager':
+        return JsonResponse({'error': 'Access denied'}, status=403)
+
+    try:
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        return JsonResponse({'error': 'Store not found'}, status=404)
+
+    from Inventory.models import Stock, Product
+
+    # Get products available in OTHER stores (excluding current store)
+    # This shows products that can be transferred FROM other stores TO current store
+    other_stores_products = Stock.objects.filter(
+        quantity__gt=0
+    ).exclude(store=store).values_list('product', flat=True).distinct()
+
+    # Get the actual products that are available in other stores
+    available_products = Product.objects.filter(
+        id__in=other_stores_products
+    ).order_by('name').values('id', 'name', 'category', 'price')
+
+    return JsonResponse({
+        'products': list(available_products)
+    })
 
 
 @login_required
@@ -656,7 +766,7 @@ def submit_transfer_request(request):
         return redirect('login')
 
     try:
-        from_store = Store.objects.get(store_manager=request.user)
+        requesting_store = Store.objects.get(store_manager=request.user)
     except Store.DoesNotExist:
         messages.error(request, "You are not assigned to manage any store.")
         return redirect('admin_dashboard')
@@ -665,41 +775,51 @@ def submit_transfer_request(request):
         from Inventory.models import Product, Stock, StoreStockTransferRequest
 
         product_id = request.POST.get('product_id')
-        to_store_id = request.POST.get('to_store_id')
+        from_store_id = request.POST.get('to_store_id')  # This is actually the source store
         requested_quantity = request.POST.get('requested_quantity')
         priority = request.POST.get('priority', 'medium')
         reason = request.POST.get('reason', '')
 
         try:
             product = Product.objects.get(id=product_id)
-            to_store = Store.objects.get(id=to_store_id)
+            from_store = Store.objects.get(id=from_store_id)  # Store that has the product
             requested_quantity = int(requested_quantity)
 
             if requested_quantity <= 0:
                 messages.error(request, "Requested quantity must be greater than 0.")
                 return redirect('store_manager_page')
 
-            if from_store == to_store:
-                messages.error(request, "Cannot transfer to the same store.")
+            if requesting_store == from_store:
+                messages.error(request, "Cannot transfer from the same store.")
+                return redirect('store_manager_page')
+
+            # Check if the source store has the product in stock
+            try:
+                source_stock = Stock.objects.get(product=product, store=from_store)
+                if source_stock.quantity < requested_quantity:
+                    messages.error(request, f"Insufficient stock. {from_store.name} only has {source_stock.quantity} units of {product.name}.")
+                    return redirect('store_manager_page')
+            except Stock.DoesNotExist:
+                messages.error(request, f"{product.name} is not available in {from_store.name}.")
                 return redirect('store_manager_page')
 
             # Check for existing pending requests
             existing_request = StoreStockTransferRequest.objects.filter(
                 from_store=from_store,
-                to_store=to_store,
+                to_store=requesting_store,
                 product=product,
                 status='pending'
             ).first()
 
             if existing_request:
-                messages.warning(request, f"You already have a pending transfer request for {product.name} to {to_store.name}.")
+                messages.warning(request, f"You already have a pending transfer request for {product.name} from {from_store.name}.")
                 return redirect('store_manager_page')
 
-            # Create transfer request
+            # Create transfer request (FROM other store TO current store)
             transfer_request = StoreStockTransferRequest.objects.create(
                 product=product,
-                from_store=from_store,
-                to_store=to_store,
+                from_store=from_store,  # Store that has the product
+                to_store=requesting_store,  # Current store (requesting)
                 requested_quantity=requested_quantity,
                 priority=priority,
                 reason=reason,
@@ -815,6 +935,26 @@ def store_manager_restock_requests(request):
     # Get current stock for the modal
     current_stock = Stock.objects.filter(store=store).select_related('product')
 
+    # Get products available for restock (from warehouse and other stores)
+    from Inventory.models import WarehouseProduct, Product
+    from django.db import models
+
+    # Get products available in warehouse
+    warehouse_product_names = WarehouseProduct.objects.filter(
+        quantity_in_stock__gt=0,
+        is_active=True
+    ).values_list('product_name', flat=True)
+
+    # Get products available in other stores
+    other_stores_products = Stock.objects.filter(
+        quantity__gt=0
+    ).exclude(store=store).values_list('product', flat=True)
+
+    # For restock requests, include ALL products in the system
+    # This allows store managers to request any product, whether it's currently
+    # in warehouse, other stores, or needs to be ordered from suppliers
+    restock_available_products = Product.objects.all().order_by('name')
+
     # Prepare status choices with selection flags
     status_choices_with_selection = []
     for value, label in RestockRequest.STATUS_CHOICES:
@@ -852,6 +992,7 @@ def store_manager_restock_requests(request):
         'status_choices': status_choices_with_selection,
         'priority_choices': priority_choices_with_selection,
         'current_stock': current_stock,
+        'restock_available_products': restock_available_products,  # Products for restock dropdown
         'status_all_selected': status_filter == 'all' or not status_filter,
         'priority_all_selected': priority_filter == 'all' or not priority_filter,
         **stats
@@ -909,8 +1050,16 @@ def store_manager_transfer_requests(request):
         'rejected_count': all_requests.filter(status='rejected').count(),
     }
 
-    # Get current stock and other stores for the modal
-    current_stock = Stock.objects.filter(store=store, quantity__gt=0).select_related('product')
+    # Get products available in other stores for transfer requests
+    # (excluding warehouse and current store)
+    other_stores_products = Stock.objects.filter(
+        quantity__gt=0
+    ).exclude(store=store).values_list('product', flat=True).distinct()
+
+    transfer_available_products = Product.objects.filter(
+        id__in=other_stores_products
+    ).order_by('name')
+
     other_stores = Store.objects.exclude(id=store.id)
 
     # Prepare choices with selected flags
@@ -945,7 +1094,7 @@ def store_manager_transfer_requests(request):
         'to_store_filter': to_store_filter,
         'status_choices': status_choices_with_selected,
         'priority_choices': priority_choices_with_selected,
-        'current_stock': current_stock,
+        'transfer_available_products': transfer_available_products,  # Products from other stores
         'other_stores': other_stores_with_selected,
         'status_all_selected': status_filter == 'all',
         'priority_all_selected': priority_filter == 'all',
@@ -1064,6 +1213,32 @@ def store_manager_stock_management(request):
     # Get other stores for transfer modal
     other_stores = Store.objects.exclude(id=store.id).filter(store_manager__isnull=False)
 
+    # Get products available for restock (from warehouse and other stores)
+    from Inventory.models import Product
+    from django.db import models
+
+    # Get products available in warehouse
+    warehouse_product_names = WarehouseProduct.objects.filter(
+        quantity_in_stock__gt=0,
+        is_active=True
+    ).values_list('product_name', flat=True)
+
+    # Get products available in other stores
+    other_stores_products = Stock.objects.filter(
+        quantity__gt=0
+    ).exclude(store=store).values_list('product', flat=True)
+
+    # For restock requests, include ALL products in the system
+    # This allows store managers to request any product, whether it's currently
+    # in warehouse, other stores, or needs to be ordered from suppliers
+    restock_available_products = Product.objects.all().order_by('name')
+
+    # For transfer requests, show products available in OTHER stores only
+    # (excluding warehouse and current store)
+    transfer_available_products = Product.objects.filter(
+        id__in=other_stores_products
+    ).order_by('name')
+
     context = {
         'page_obj': page_obj,
         'store': store,
@@ -1074,6 +1249,8 @@ def store_manager_stock_management(request):
         'stock_level_choices': stock_level_choices,
         'warehouse_product_map': warehouse_product_map,
         'other_stores': other_stores,
+        'restock_available_products': restock_available_products,  # Products for restock dropdown
+        'transfer_available_products': transfer_available_products,  # Products for transfer dropdown
         'category_all_selected': category_filter == 'all' or not category_filter,
         'stock_level_all_selected': stock_level_filter == 'all' or not stock_level_filter,
         'stats': {
@@ -1572,3 +1749,816 @@ class CustomPasswordChangeView(PasswordChangeView):
         else:
             # Default fallback
             return reverse_lazy('login')
+
+
+# Analytics and Reports Views for Head Manager
+
+@login_required
+def analytics_dashboard(request):
+    """
+    Analytics dashboard showing store performance, top products, and best sellers.
+    """
+    if request.user.role != 'head_manager':
+        messages.error(request, 'Access denied. Head manager role required.')
+        return redirect('login')
+
+    # Get time period filter
+    period = request.GET.get('period', '30')
+    end_date = timezone.now()
+
+    if period == '7':
+        start_date = end_date - timedelta(days=7)
+    elif period == '90':
+        start_date = end_date - timedelta(days=90)
+    elif period == '365':
+        start_date = end_date - timedelta(days=365)
+    else:
+        start_date = end_date - timedelta(days=30)
+
+    # Store Performance Analysis
+    stores = Store.objects.all()
+    store_performance = []
+
+    for store in stores:
+        # Get sales data for the store
+        sales_data = Transaction.objects.filter(
+            store=store,
+            transaction_type='sale',
+            timestamp__gte=start_date,
+            timestamp__lte=end_date
+        ).aggregate(
+            total_sales=Sum('total_amount'),
+            total_transactions=Count('id'),
+            avg_transaction=Avg('total_amount')
+        )
+
+        # Handle None values from aggregation
+        total_sales = sales_data['total_sales'] or Decimal('0')
+        total_transactions = sales_data['total_transactions'] or 0
+        avg_transaction = sales_data['avg_transaction'] or Decimal('0')
+
+        # Get product count in store
+        product_count = Stock.objects.filter(store=store, quantity__gt=0).count()
+
+        # Calculate performance score (weighted combination of metrics)
+        performance_score = float(total_sales)
+
+        store_performance.append({
+            'store': store,
+            'total_sales': total_sales,
+            'total_transactions': total_transactions,
+            'avg_transaction': avg_transaction,
+            'product_count': product_count,
+            'performance_score': performance_score
+        })
+
+    # Sort stores by performance score
+    store_performance.sort(key=lambda x: x['performance_score'], reverse=True)
+
+    # Top Products Per Store
+    top_products_per_store = {}
+    for store in stores:
+        # Get top products based on stock levels and recent transactions
+        top_products = Stock.objects.filter(
+            store=store,
+            quantity__gt=0
+        ).select_related('product').order_by('-quantity')[:5]
+
+        products_data = []
+        for stock in top_products:
+            # Calculate sales for this product in this store
+            product_sales = Transaction.objects.filter(
+                store=store,
+                transaction_type='sale',
+                timestamp__gte=start_date,
+                timestamp__lte=end_date
+            ).aggregate(
+                total_sold=Sum('quantity'),
+                revenue=Sum('total_amount')
+            )
+
+            # Handle None values from aggregation
+            total_sold = product_sales['total_sold'] or 0
+            revenue = product_sales['revenue'] or Decimal('0')
+
+            products_data.append({
+                'name': stock.product.name,
+                'category': stock.product.category,
+                'quantity_in_stock': stock.quantity,
+                'total_sold': total_sold,
+                'revenue': revenue
+            })
+
+        top_products_per_store[store.id] = products_data
+
+    # Overall Best Sellers (across all stores)
+    best_sellers = []
+    all_products = Product.objects.all()
+
+    for product in all_products:
+        total_sales = Transaction.objects.filter(
+            transaction_type='sale',
+            timestamp__gte=start_date,
+            timestamp__lte=end_date
+        ).aggregate(
+            total_sold=Sum('quantity'),
+            revenue=Sum('total_amount')
+        )
+
+        # Handle None values from aggregation
+        total_sold = total_sales['total_sold'] or 0
+        total_revenue = total_sales['revenue'] or Decimal('0')
+
+        if total_sold > 0:
+            best_sellers.append({
+                'name': product.name,
+                'category': product.category,
+                'total_sold': total_sold,
+                'revenue': total_revenue
+            })
+
+    # Sort best sellers by quantity sold and add performance metrics
+    best_sellers.sort(key=lambda x: x['total_sold'], reverse=True)
+    best_sellers = best_sellers[:10]  # Top 10
+
+    # Calculate performance percentages for best sellers
+    max_sold = max([p['total_sold'] for p in best_sellers]) if best_sellers else 1
+    for product in best_sellers:
+        product['performance_percentage'] = (product['total_sold'] / max_sold * 100) if max_sold > 0 else 0
+
+    # Enhanced KPIs and Overall Statistics
+    total_revenue = sum(sp['total_sales'] for sp in store_performance)
+    total_transactions = sum(sp['total_transactions'] for sp in store_performance)
+    active_stores = len([sp for sp in store_performance if sp['total_sales'] > 0])
+
+    # Calculate additional KPIs
+    avg_revenue_per_store = total_revenue / stores.count() if stores.count() > 0 else 0
+    avg_transaction_value = total_revenue / total_transactions if total_transactions > 0 else 0
+
+    # Store performance ranking with detailed metrics
+    for i, store_data in enumerate(store_performance):
+        store_data['rank'] = i + 1
+        store_data['revenue_percentage'] = (float(store_data['total_sales']) / float(total_revenue) * 100) if total_revenue > 0 else 0
+
+    overall_stats = {
+        'total_stores': stores.count(),
+        'active_stores': active_stores,
+        'total_revenue': total_revenue,
+        'total_transactions': total_transactions,
+        'avg_revenue_per_store': avg_revenue_per_store,
+        'avg_transaction_value': avg_transaction_value,
+        'period_days': (end_date - start_date).days,
+        'best_performing_store': store_performance[0] if store_performance else None,
+        'growth_rate': 0  # Placeholder for growth calculation
+    }
+
+    # Sales trend data for charts
+    daily_sales = []
+    current_date = start_date.date()
+    while current_date <= end_date.date():
+        day_sales = Transaction.objects.filter(
+            transaction_type='sale',
+            timestamp__date=current_date
+        ).aggregate(total=Sum('total_amount'))
+
+        # Handle None values from aggregation
+        total_sales = day_sales['total'] or Decimal('0')
+
+        daily_sales.append({
+            'date': current_date.strftime('%Y-%m-%d'),
+            'sales': float(total_sales)
+        })
+        current_date += timedelta(days=1)
+
+    # Calculate additional analytics metrics
+    peak_sales_day = max(daily_sales, key=lambda x: x['sales'])['date'] if daily_sales else None
+    avg_daily_sales = sum(d['sales'] for d in daily_sales) / len(daily_sales) if daily_sales else 0
+    top_store_percentage = (float(store_performance[0]['total_sales']) / float(total_revenue) * 100) if store_performance and total_revenue > 0 else 0
+    total_best_seller_revenue = sum(p['revenue'] for p in best_sellers) if best_sellers else 0
+
+    context = {
+        'store_performance': store_performance,
+        'top_products_per_store': top_products_per_store,
+        'best_sellers': best_sellers,
+        'overall_stats': overall_stats,
+        'daily_sales': daily_sales,
+        'period': period,
+        'start_date': start_date,
+        'end_date': end_date,
+        'peak_sales_day': peak_sales_day,
+        'avg_daily_sales': avg_daily_sales,
+        'top_store_percentage': top_store_percentage,
+        'total_best_seller_revenue': total_best_seller_revenue,
+        'period_days': (end_date - start_date).days,
+    }
+
+    return render(request, 'analytics/dashboard.html', context)
+
+
+@login_required
+def financial_reports(request):
+    """
+    Financial reports page with P&L statements and financial metrics.
+    """
+    if request.user.role != 'head_manager':
+        messages.error(request, 'Access denied. Head manager role required.')
+        return redirect('login')
+
+    # Get time period filter
+    period = request.GET.get('period', '30')
+    end_date = timezone.now()
+
+    if period == '7':
+        start_date = end_date - timedelta(days=7)
+    elif period == '90':
+        start_date = end_date - timedelta(days=90)
+    elif period == '365':
+        start_date = end_date - timedelta(days=365)
+    else:
+        start_date = end_date - timedelta(days=30)
+
+    # Financial data per store
+    stores = Store.objects.all()
+    financial_data = []
+
+    for store in stores:
+        # Revenue from sales
+        revenue = Transaction.objects.filter(
+            store=store,
+            transaction_type='sale',
+            timestamp__gte=start_date,
+            timestamp__lte=end_date
+        ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+
+        # Expenses from financial records
+        expenses = FinancialRecord.objects.filter(
+            store=store,
+            record_type='expense',
+            timestamp__gte=start_date,
+            timestamp__lte=end_date
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        # Calculate profit/loss and margin
+        profit_loss = revenue - expenses
+        profit_margin = (profit_loss / revenue * 100) if revenue > 0 else 0
+
+        financial_data.append({
+            'store': store,
+            'revenue': revenue,
+            'expenses': expenses,
+            'profit_loss': profit_loss,
+            'profit_margin': profit_margin
+        })
+
+    # Sort by profit/loss
+    financial_data.sort(key=lambda x: x['profit_loss'], reverse=True)
+
+    # Overall financial summary
+    total_revenue = sum(fd['revenue'] for fd in financial_data)
+    total_expenses = sum(fd['expenses'] for fd in financial_data)
+    total_profit = total_revenue - total_expenses
+    overall_margin = (total_profit / total_revenue * 100) if total_revenue > 0 else 0
+
+    # Monthly financial trend
+    monthly_trend = []
+    current_month = start_date.replace(day=1)
+
+    while current_month <= end_date:
+        next_month = (current_month.replace(day=28) + timedelta(days=4)).replace(day=1)
+
+        month_revenue = Transaction.objects.filter(
+            transaction_type='sale',
+            timestamp__gte=current_month,
+            timestamp__lt=next_month
+        ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+
+        month_expenses = FinancialRecord.objects.filter(
+            record_type='expense',
+            timestamp__gte=current_month,
+            timestamp__lt=next_month
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        monthly_trend.append({
+            'month': current_month.strftime('%Y-%m'),
+            'revenue': float(month_revenue),
+            'expenses': float(month_expenses),
+            'profit': float(month_revenue - month_expenses)
+        })
+
+        current_month = next_month
+
+    # Key financial metrics
+    financial_metrics = {
+        'total_revenue': total_revenue,
+        'total_expenses': total_expenses,
+        'total_profit': total_profit,
+        'overall_margin': overall_margin,
+        'best_performing_store': financial_data[0] if financial_data else None,
+        'stores_count': stores.count(),
+        'profitable_stores': len([fd for fd in financial_data if fd['profit_loss'] > 0])
+    }
+
+    context = {
+        'financial_data': financial_data,
+        'financial_metrics': financial_metrics,
+        'monthly_trend': monthly_trend,
+        'period': period,
+        'start_date': start_date,
+        'end_date': end_date,
+    }
+
+    return render(request, 'analytics/financial_reports.html', context)
+
+
+@login_required
+def analytics_api(request):
+    """
+    API endpoint for chart data.
+    """
+    if request.user.role != 'head_manager':
+        return JsonResponse({'error': 'Access denied'}, status=403)
+
+    chart_type = request.GET.get('type', 'sales_trend')
+    period = request.GET.get('period', '30')
+
+    end_date = timezone.now()
+    if period == '7':
+        start_date = end_date - timedelta(days=7)
+    elif period == '90':
+        start_date = end_date - timedelta(days=90)
+    elif period == '365':
+        start_date = end_date - timedelta(days=365)
+    else:
+        start_date = end_date - timedelta(days=30)
+
+    if chart_type == 'sales_trend':
+        # Daily sales trend
+        daily_sales = []
+        current_date = start_date.date()
+
+        while current_date <= end_date.date():
+            day_sales = Transaction.objects.filter(
+                transaction_type='sale',
+                timestamp__date=current_date
+            ).aggregate(total=Sum('total_amount') or Decimal('0'))
+
+            daily_sales.append({
+                'date': current_date.strftime('%Y-%m-%d'),
+                'sales': float(day_sales['total'])
+            })
+            current_date += timedelta(days=1)
+
+        return JsonResponse({
+            'labels': [item['date'] for item in daily_sales],
+            'data': [item['sales'] for item in daily_sales]
+        })
+
+    elif chart_type == 'store_comparison':
+        # Store performance comparison
+        stores = Store.objects.all()
+        store_data = []
+
+        for store in stores:
+            total_sales = Transaction.objects.filter(
+                store=store,
+                transaction_type='sale',
+                timestamp__gte=start_date,
+                timestamp__lte=end_date
+            ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+
+            store_data.append({
+                'store': store.name,
+                'sales': float(total_sales)
+            })
+
+        return JsonResponse({
+            'labels': [item['store'] for item in store_data],
+            'data': [item['sales'] for item in store_data]
+        })
+
+    return JsonResponse({'error': 'Invalid chart type'}, status=400)
+
+
+@login_required
+def export_analytics_pdf(request):
+    """
+    Export analytics report as PDF with ReportLab graphs.
+    """
+    if request.user.role != 'head_manager':
+        return JsonResponse({'error': 'Access denied'}, status=403)
+
+    # Get the same data as analytics dashboard
+    period = request.GET.get('period', '30')
+    end_date = timezone.now()
+
+    if period == '7':
+        start_date = end_date - timedelta(days=7)
+    elif period == '90':
+        start_date = end_date - timedelta(days=90)
+    elif period == '365':
+        start_date = end_date - timedelta(days=365)
+    else:
+        start_date = end_date - timedelta(days=30)
+
+    # Get analytics data (reusing logic from analytics_dashboard)
+    stores = Store.objects.all()
+    store_performance = []
+
+    for store in stores:
+        sales_data = Transaction.objects.filter(
+            store=store,
+            transaction_type='sale',
+            timestamp__gte=start_date,
+            timestamp__lte=end_date
+        ).aggregate(
+            total_sales=Sum('total_amount'),
+            total_transactions=Count('id'),
+            avg_transaction=Avg('total_amount')
+        )
+
+        total_sales = sales_data['total_sales'] or Decimal('0')
+        total_transactions = sales_data['total_transactions'] or 0
+        avg_transaction = sales_data['avg_transaction'] or Decimal('0')
+
+        product_count = Stock.objects.filter(store=store, quantity__gt=0).count()
+        performance_score = float(total_sales)
+
+        store_performance.append({
+            'store': store,
+            'total_sales': total_sales,
+            'total_transactions': total_transactions,
+            'avg_transaction': avg_transaction,
+            'product_count': product_count,
+            'performance_score': performance_score
+        })
+
+    store_performance.sort(key=lambda x: x['performance_score'], reverse=True)
+
+    # Calculate KPIs
+    total_revenue = sum(sp['total_sales'] for sp in store_performance)
+    total_transactions = sum(sp['total_transactions'] for sp in store_performance)
+    active_stores = len([sp for sp in store_performance if sp['total_sales'] > 0])
+
+    # Create PDF
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+
+    # Container for the 'Flowable' objects
+    elements = []
+
+    # Define styles
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        spaceAfter=30,
+        textColor=HexColor('#2c3e50'),
+        alignment=1  # Center alignment
+    )
+
+    heading_style = ParagraphStyle(
+        'CustomHeading',
+        parent=styles['Heading2'],
+        fontSize=16,
+        spaceAfter=12,
+        textColor=HexColor('#34495e')
+    )
+
+    # Title
+    title = Paragraph("Analytics Dashboard Report", title_style)
+    elements.append(title)
+
+    # Report period
+    period_text = f"Report Period: {start_date.strftime('%B %d, %Y')} - {end_date.strftime('%B %d, %Y')}"
+    elements.append(Paragraph(period_text, styles['Normal']))
+    elements.append(Spacer(1, 20))
+
+    # Executive Summary
+    elements.append(Paragraph("Executive Summary", heading_style))
+    summary_data = [
+        ['Metric', 'Value'],
+        ['Total Revenue', f'${total_revenue:,.2f}'],
+        ['Active Stores', f'{active_stores}/{stores.count()}'],
+        ['Total Transactions', f'{total_transactions:,}'],
+        ['Average Transaction', f'${total_revenue/total_transactions:.2f}' if total_transactions > 0 else '$0.00'],
+        ['Report Period', f'{(end_date - start_date).days} days']
+    ]
+
+    summary_table = Table(summary_data, colWidths=[2*inch, 2*inch])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), HexColor('#3498db')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), HexColor('#ecf0f1')),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+
+    elements.append(summary_table)
+    elements.append(Spacer(1, 30))
+
+    # Store Performance Chart
+    elements.append(Paragraph("Store Performance Analysis", heading_style))
+
+    # Create pie chart for store revenue distribution
+    if store_performance:
+        drawing = Drawing(400, 200)
+        pie = Pie()
+        pie.x = 50
+        pie.y = 50
+        pie.width = 150
+        pie.height = 150
+
+        # Prepare data for pie chart
+        pie_data = []
+        pie_labels = []
+        colors_list = [HexColor('#3498db'), HexColor('#e74c3c'), HexColor('#2ecc71'),
+                      HexColor('#f39c12'), HexColor('#9b59b6'), HexColor('#1abc9c')]
+
+        for i, sp in enumerate(store_performance[:6]):  # Top 6 stores
+            pie_data.append(float(sp['total_sales']))
+            pie_labels.append(sp['store'].name)
+
+        pie.data = pie_data
+        pie.labels = pie_labels
+        pie.slices.strokeWidth = 0.5
+
+        for i, color in enumerate(colors_list[:len(pie_data)]):
+            pie.slices[i].fillColor = color
+
+        drawing.add(pie)
+        elements.append(drawing)
+        elements.append(Spacer(1, 20))
+
+    # Store Performance Table
+    store_data = [['Rank', 'Store Name', 'Revenue', 'Transactions', 'Avg Transaction']]
+    for i, sp in enumerate(store_performance[:10]):  # Top 10 stores
+        store_data.append([
+            f'#{i+1}',
+            sp['store'].name,
+            f'${sp["total_sales"]:,.2f}',
+            f'{sp["total_transactions"]:,}',
+            f'${sp["avg_transaction"]:.2f}'
+        ])
+
+    store_table = Table(store_data, colWidths=[0.8*inch, 2*inch, 1.5*inch, 1.2*inch, 1.2*inch])
+    store_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), HexColor('#2ecc71')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), HexColor('#f8f9fa')),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('FONTSIZE', (0, 1), (-1, -1), 9)
+    ]))
+
+    elements.append(store_table)
+    elements.append(PageBreak())
+
+    # Sales Trend Chart
+    elements.append(Paragraph("Sales Trend Analysis", heading_style))
+
+    # Get daily sales data
+    daily_sales = []
+    current_date = start_date.date()
+    while current_date <= end_date.date():
+        day_sales = Transaction.objects.filter(
+            transaction_type='sale',
+            timestamp__date=current_date
+        ).aggregate(total=Sum('total_amount'))
+
+        total_sales = day_sales['total'] or Decimal('0')
+        daily_sales.append({
+            'date': current_date.strftime('%m/%d'),
+            'sales': float(total_sales)
+        })
+        current_date += timedelta(days=1)
+
+    # Create line chart for sales trend
+    if daily_sales:
+        drawing = Drawing(500, 250)
+        chart = HorizontalLineChart()
+        chart.x = 50
+        chart.y = 50
+        chart.height = 150
+        chart.width = 400
+
+        # Prepare data
+        chart.data = [tuple(d['sales'] for d in daily_sales)]
+        chart.categoryAxis.categoryNames = [d['date'] for d in daily_sales]
+        chart.lines[0].strokeColor = HexColor('#3498db')
+        chart.lines[0].strokeWidth = 2
+
+        drawing.add(chart)
+        elements.append(drawing)
+
+    elements.append(Spacer(1, 20))
+
+    # Footer
+    footer_text = f"Generated on {timezone.now().strftime('%B %d, %Y at %I:%M %p')}"
+    elements.append(Paragraph(footer_text, styles['Normal']))
+
+    # Build PDF
+    doc.build(elements)
+
+    # Get the value of the BytesIO buffer and write it to the response
+    pdf = buffer.getvalue()
+    buffer.close()
+
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="analytics_report_{period}_days.pdf"'
+    response.write(pdf)
+
+    return response
+
+
+@login_required
+def export_financial_pdf(request):
+    """
+    Export financial reports as PDF with ReportLab graphs.
+    """
+    if request.user.role != 'head_manager':
+        return JsonResponse({'error': 'Access denied'}, status=403)
+
+    # Get financial data (reusing logic from financial_reports)
+    period = request.GET.get('period', '30')
+    end_date = timezone.now()
+
+    if period == '7':
+        start_date = end_date - timedelta(days=7)
+    elif period == '90':
+        start_date = end_date - timedelta(days=90)
+    elif period == '365':
+        start_date = end_date - timedelta(days=365)
+    else:
+        start_date = end_date - timedelta(days=30)
+
+    # Financial data per store
+    stores = Store.objects.all()
+    financial_data = []
+
+    for store in stores:
+        revenue = Transaction.objects.filter(
+            store=store,
+            transaction_type='sale',
+            timestamp__gte=start_date,
+            timestamp__lte=end_date
+        ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+
+        expenses = FinancialRecord.objects.filter(
+            store=store,
+            record_type='expense',
+            timestamp__gte=start_date,
+            timestamp__lte=end_date
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        profit_loss = revenue - expenses
+        profit_margin = (profit_loss / revenue * 100) if revenue > 0 else 0
+
+        financial_data.append({
+            'store': store,
+            'revenue': revenue,
+            'expenses': expenses,
+            'profit_loss': profit_loss,
+            'profit_margin': profit_margin
+        })
+
+    financial_data.sort(key=lambda x: x['profit_loss'], reverse=True)
+
+    # Calculate totals
+    total_revenue = sum(fd['revenue'] for fd in financial_data)
+    total_expenses = sum(fd['expenses'] for fd in financial_data)
+    total_profit = total_revenue - total_expenses
+    overall_margin = (total_profit / total_revenue * 100) if total_revenue > 0 else 0
+
+    # Create PDF
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+
+    elements = []
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        spaceAfter=30,
+        textColor=HexColor('#2c3e50'),
+        alignment=1
+    )
+
+    heading_style = ParagraphStyle(
+        'CustomHeading',
+        parent=styles['Heading2'],
+        fontSize=16,
+        spaceAfter=12,
+        textColor=HexColor('#34495e')
+    )
+
+    # Title
+    title = Paragraph("Financial Reports & P&L Analysis", title_style)
+    elements.append(title)
+
+    period_text = f"Report Period: {start_date.strftime('%B %d, %Y')} - {end_date.strftime('%B %d, %Y')}"
+    elements.append(Paragraph(period_text, styles['Normal']))
+    elements.append(Spacer(1, 20))
+
+    # Financial Summary
+    elements.append(Paragraph("Financial Summary", heading_style))
+    summary_data = [
+        ['Metric', 'Amount', 'Percentage'],
+        ['Total Revenue', f'${total_revenue:,.2f}', '100%'],
+        ['Total Expenses', f'${total_expenses:,.2f}', f'{(total_expenses/total_revenue*100):.1f}%' if total_revenue > 0 else '0%'],
+        ['Net Profit/Loss', f'${total_profit:,.2f}', f'{overall_margin:.1f}%'],
+        ['Profit Margin', f'{overall_margin:.1f}%', 'Overall Performance']
+    ]
+
+    summary_table = Table(summary_data, colWidths=[2*inch, 1.5*inch, 1.5*inch])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), HexColor('#e74c3c')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), HexColor('#f8f9fa')),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+
+    elements.append(summary_table)
+    elements.append(Spacer(1, 30))
+
+    # Profit/Loss Chart
+    elements.append(Paragraph("Store Profitability Analysis", heading_style))
+
+    if financial_data:
+        drawing = Drawing(500, 250)
+        chart = VerticalBarChart()
+        chart.x = 50
+        chart.y = 50
+        chart.height = 150
+        chart.width = 400
+
+        # Prepare data for bar chart
+        chart.data = [tuple(float(fd['profit_loss']) for fd in financial_data[:8])]  # Top 8 stores
+        chart.categoryAxis.categoryNames = [fd['store'].name[:10] for fd in financial_data[:8]]
+        chart.bars[0].fillColor = HexColor('#2ecc71')
+
+        # Color bars based on profit/loss
+        for i, fd in enumerate(financial_data[:8]):
+            if fd['profit_loss'] < 0:
+                chart.bars[0][i].fillColor = HexColor('#e74c3c')
+            else:
+                chart.bars[0][i].fillColor = HexColor('#2ecc71')
+
+        drawing.add(chart)
+        elements.append(drawing)
+        elements.append(Spacer(1, 20))
+
+    # Store Financial Performance Table
+    financial_table_data = [['Store', 'Revenue', 'Expenses', 'Profit/Loss', 'Margin']]
+    for fd in financial_data:
+        financial_table_data.append([
+            fd['store'].name,
+            f'${fd["revenue"]:,.2f}',
+            f'${fd["expenses"]:,.2f}',
+            f'${fd["profit_loss"]:,.2f}',
+            f'{fd["profit_margin"]:.1f}%'
+        ])
+
+    financial_table = Table(financial_table_data, colWidths=[1.5*inch, 1.3*inch, 1.3*inch, 1.3*inch, 1*inch])
+    financial_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), HexColor('#f39c12')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), HexColor('#f8f9fa')),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('FONTSIZE', (0, 1), (-1, -1), 9)
+    ]))
+
+    elements.append(financial_table)
+    elements.append(Spacer(1, 20))
+
+    # Footer
+    footer_text = f"Generated on {timezone.now().strftime('%B %d, %Y at %I:%M %p')}"
+    elements.append(Paragraph(footer_text, styles['Normal']))
+
+    # Build PDF
+    doc.build(elements)
+
+    pdf = buffer.getvalue()
+    buffer.close()
+
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="financial_report_{period}_days.pdf"'
+    response.write(pdf)
+
+    return response

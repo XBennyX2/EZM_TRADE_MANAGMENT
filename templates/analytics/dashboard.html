@@ -1,0 +1,661 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+{% load analytics_extras %}
+
+{% block title %}Analytics Dashboard{% endblock %}
+{% block page_title %}Analytics Dashboard{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .analytics-card {
+        background: var(--white);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        border: none;
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+
+    .analytics-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    .stat-card {
+        background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
+        color: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+
+    .stat-card h3 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-card p {
+        margin: 0;
+        opacity: 0.9;
+    }
+
+    .performance-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .performance-excellent {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .performance-good {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+
+    .performance-average {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .performance-poor {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin: 1rem 0;
+    }
+
+    .period-selector {
+        background: var(--light-gray);
+        border-radius: 8px;
+        padding: 0.25rem;
+        display: inline-flex;
+    }
+
+    .period-btn {
+        background: transparent;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        color: var(--secondary-dark);
+        font-weight: 500;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .period-btn.active {
+        background: var(--accent-teal);
+        color: white;
+    }
+
+    .period-btn:hover {
+        background: var(--accent-cyan);
+        color: white;
+    }
+
+    .top-product-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem;
+        border-bottom: 1px solid var(--light-gray);
+    }
+
+    .top-product-item:last-child {
+        border-bottom: none;
+    }
+
+    .product-rank {
+        background: var(--accent-teal);
+        color: white;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        margin-right: 1rem;
+    }
+
+    .store-performance-item {
+        background: var(--white);
+        border: 1px solid var(--light-gray);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .store-performance-item:hover {
+        border-color: var(--accent-teal);
+        transform: translateY(-2px);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: var(--text-muted);
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    .rank-badge {
+        background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
+        color: white;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.9rem;
+        margin: 0 auto;
+    }
+
+    .progress {
+        background-color: rgba(0, 0, 0, 0.1);
+    }
+
+    .kpi-highlight {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border-left: 4px solid var(--accent-teal);
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+
+    .trend-indicator {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .trend-up {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .trend-down {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .trend-stable {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">Analytics Dashboard</h2>
+                    <p class="text-muted mb-0">Store performance, sales analytics, and business insights</p>
+                </div>
+                <div class="d-flex gap-3 align-items-center">
+                    <div class="period-selector">
+                        <button class="period-btn {% if period == '7' %}active{% endif %}" onclick="changePeriod('7')">7 Days</button>
+                        <button class="period-btn {% if period == '30' %}active{% endif %}" onclick="changePeriod('30')">30 Days</button>
+                        <button class="period-btn {% if period == '90' %}active{% endif %}" onclick="changePeriod('90')">90 Days</button>
+                        <button class="period-btn {% if period == '365' %}active{% endif %}" onclick="changePeriod('365')">1 Year</button>
+                    </div>
+                    <button class="btn btn-success" onclick="exportToPDF()">
+                        <i class="bi bi-file-earmark-pdf"></i> Export PDF Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced KPIs and Overall Statistics -->
+    <div class="row mb-4 g-3">
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <h3>${{ overall_stats.total_revenue|floatformat:0 }}</h3>
+                <p>Total Revenue</p>
+                <small class="text-light">{{ period_days }} days period</small>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <h3>{{ overall_stats.active_stores }}/{{ overall_stats.total_stores }}</h3>
+                <p>Active Stores</p>
+                <small class="text-light">{{ overall_stats.active_stores|floatformat:0 }} generating revenue</small>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <h3>{{ overall_stats.total_transactions }}</h3>
+                <p>Total Transactions</p>
+                <small class="text-light">Across all stores</small>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <h3>${{ overall_stats.avg_transaction_value|floatformat:0 }}</h3>
+                <p>Avg Transaction Value</p>
+                <small class="text-light">Per transaction</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional KPIs Row -->
+    <div class="row mb-4 g-3">
+        <div class="col-lg-3 col-md-6">
+            <div class="analytics-card">
+                <div class="card-body text-center">
+                    <h4 class="text-primary">${{ overall_stats.avg_revenue_per_store|floatformat:0 }}</h4>
+                    <p class="mb-0">Avg Revenue per Store</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="analytics-card">
+                <div class="card-body text-center">
+                    {% if overall_stats.best_performing_store %}
+                    <h4 class="text-success">{{ overall_stats.best_performing_store.store.name }}</h4>
+                    <p class="mb-0">Top Performing Store</p>
+                    {% else %}
+                    <h4 class="text-muted">No Data</h4>
+                    <p class="mb-0">Top Performing Store</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="analytics-card">
+                <div class="card-body text-center">
+                    <h4 class="text-info">{{ best_sellers|length }}</h4>
+                    <p class="mb-0">Best Selling Products</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="analytics-card">
+                <div class="card-body text-center">
+                    <h4 class="text-warning">{{ overall_stats.period_days }}</h4>
+                    <p class="mb-0">Days Analyzed</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced Charts Row with Time Analysis -->
+    <div class="row mb-4 g-4">
+        <div class="col-lg-8">
+            <div class="analytics-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Sales Trend Analysis</h5>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-primary" onclick="updateChart('daily')">Daily</button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="updateChart('weekly')">Weekly</button>
+                        <button class="btn btn-sm btn-primary" onclick="updateChart('monthly')">Monthly</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="kpi-highlight mb-3">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <strong>Peak Sales Day:</strong>
+                                <span class="text-primary">{{ peak_sales_day|default:"N/A" }}</span>
+                            </div>
+                            <div class="col-md-4">
+                                <strong>Avg Daily Sales:</strong>
+                                <span class="text-success">${{ avg_daily_sales|floatformat:0|default:"0" }}</span>
+                            </div>
+                            <div class="col-md-4">
+                                <strong>Trend:</strong>
+                                <span class="trend-indicator trend-up">
+                                    <i class="bi bi-arrow-up"></i> Growing
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="salesTrendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="mb-0">Store Revenue Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="storeComparisonChart"></canvas>
+                    </div>
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <strong>Market Share Analysis:</strong><br>
+                            Top store contributes {{ top_store_percentage|floatformat:1|default:"0" }}% of total revenue
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Store Performance Details -->
+    <div class="row mb-4 g-4">
+        <div class="col-lg-8">
+            <div class="analytics-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Store Performance Ranking & KPI Comparison</h5>
+                    <small class="text-muted">Quantitative performance analysis</small>
+                </div>
+                <div class="card-body">
+                    {% for store_data in store_performance %}
+                    <div class="store-performance-item">
+                        <div class="row align-items-center">
+                            <div class="col-md-1 text-center">
+                                <div class="rank-badge">
+                                    <strong>#{{ store_data.rank }}</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <h6 class="mb-1">{{ store_data.store.name }}</h6>
+                                <small class="text-muted">{{ store_data.store.address }}</small>
+                                <div class="progress mt-1" style="height: 4px;">
+                                    <div class="progress-bar bg-primary" style="width: {{ store_data.revenue_percentage|floatformat:0 }}%"></div>
+                                </div>
+                                <small class="text-muted">{{ store_data.revenue_percentage|floatformat:1 }}% of total revenue</small>
+                            </div>
+                            <div class="col-md-2 text-center">
+                                <strong class="text-primary">${{ store_data.total_sales|floatformat:0 }}</strong>
+                                <br><small class="text-muted">Revenue</small>
+                            </div>
+                            <div class="col-md-2 text-center">
+                                <strong class="text-info">{{ store_data.total_transactions }}</strong>
+                                <br><small class="text-muted">Transactions</small>
+                            </div>
+                            <div class="col-md-2 text-center">
+                                <strong class="text-success">${{ store_data.avg_transaction|floatformat:0 }}</strong>
+                                <br><small class="text-muted">Avg Transaction</small>
+                            </div>
+                            <div class="col-md-1 text-center">
+                                <strong class="text-warning">{{ store_data.product_count }}</strong>
+                                <br><small class="text-muted">Products</small>
+                            </div>
+                            <div class="col-md-1 text-center">
+                                {% if store_data.performance_score > 10000 %}
+                                    <span class="performance-badge performance-excellent">Excellent</span>
+                                {% elif store_data.performance_score > 5000 %}
+                                    <span class="performance-badge performance-good">Good</span>
+                                {% elif store_data.performance_score > 1000 %}
+                                    <span class="performance-badge performance-average">Average</span>
+                                {% else %}
+                                    <span class="performance-badge performance-poor">Needs Attention</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="empty-state">
+                        <i class="bi bi-graph-up"></i>
+                        <p>No store performance data available for the selected period.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="analytics-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Top Selling Products</h5>
+                    <span class="badge bg-primary">Real-time Insights</span>
+                </div>
+                <div class="card-body">
+                    <div class="kpi-highlight mb-3">
+                        <strong>Product Performance KPIs:</strong><br>
+                        <small class="text-muted">
+                            {{ best_sellers|length }} products driving {{ total_best_seller_revenue|floatformat:0|default:"0" }}% of sales
+                        </small>
+                    </div>
+                    {% for product in best_sellers %}
+                    <div class="top-product-item">
+                        <div class="product-rank">{{ forloop.counter }}</div>
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">{{ product.name }}</h6>
+                            <small class="text-muted">{{ product.category }}</small>
+                            <div class="progress mt-1" style="height: 3px;">
+                                <div class="progress-bar bg-success" style="width: {{ product.performance_percentage|default:0 }}%"></div>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <strong class="text-success">{{ product.total_sold }} sold</strong>
+                            <br><small class="text-muted">${{ product.revenue|floatformat:0 }}</small>
+                            {% if forloop.counter <= 3 %}
+                                <br><span class="badge bg-warning">Hot</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="empty-state">
+                        <i class="bi bi-trophy"></i>
+                        <p>No sales data available for the selected period.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Products Per Store -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="mb-0">Top Products by Store</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for store_data in store_performance %}
+                        <div class="col-lg-6 mb-4">
+                            <h6 class="mb-3">{{ store_data.store.name }}</h6>
+                            {% for product in top_products_per_store|lookup:store_data.store.id %}
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    <strong>{{ product.name }}</strong>
+                                    <br><small class="text-muted">{{ product.category }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-primary">{{ product.quantity_in_stock }} in stock</span>
+                                    <br><small class="text-muted">{{ product.total_sold }} sold</small>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <p class="text-muted">No product data available</p>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Sales Trend Chart
+    const salesCtx = document.getElementById('salesTrendChart').getContext('2d');
+    const salesData = {{ daily_sales|safe }};
+    
+    const salesChart = new Chart(salesCtx, {
+        type: 'line',
+        data: {
+            labels: salesData.map(item => item.date),
+            datasets: [{
+                label: 'Daily Sales',
+                data: salesData.map(item => item.sales),
+                borderColor: '#20c997',
+                backgroundColor: 'rgba(32, 201, 151, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Store Comparison Chart
+    const storeCtx = document.getElementById('storeComparisonChart').getContext('2d');
+    const storeData = {{ store_performance|safe }};
+    
+    const storeChart = new Chart(storeCtx, {
+        type: 'doughnut',
+        data: {
+            labels: storeData.map(store => store.store.name),
+            datasets: [{
+                data: storeData.map(store => parseFloat(store.total_sales)),
+                backgroundColor: [
+                    '#20c997',
+                    '#17a2b8',
+                    '#6f42c1',
+                    '#e83e8c',
+                    '#fd7e14',
+                    '#28a745'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Enhanced period change function with loading state
+    function changePeriod(period) {
+        // Show loading state
+        document.querySelectorAll('.period-btn').forEach(btn => {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-arrow-clockwise spin"></i>';
+        });
+
+        const url = new URL(window.location);
+        url.searchParams.set('period', period);
+        window.location.href = url.toString();
+    }
+
+    // Chart update function for time analysis
+    function updateChart(timeframe) {
+        // Update chart based on timeframe
+        console.log('Updating chart for timeframe:', timeframe);
+
+        // Here you would typically make an AJAX call to get new data
+        // For now, we'll just update the button states
+        document.querySelectorAll('.btn-outline-primary, .btn-primary').forEach(btn => {
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-outline-primary');
+        });
+
+        event.target.classList.remove('btn-outline-primary');
+        event.target.classList.add('btn-primary');
+    }
+
+    // Template filter for dictionary lookup
+    function lookup(dict, key) {
+        return dict[key] || [];
+    }
+
+    // Add spinning animation for loading states
+    const style = document.createElement('style');
+    style.textContent = `
+        .spin {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Enhanced chart tooltips
+    Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    Chart.defaults.plugins.tooltip.titleColor = '#fff';
+    Chart.defaults.plugins.tooltip.bodyColor = '#fff';
+    Chart.defaults.plugins.tooltip.borderColor = '#20c997';
+    Chart.defaults.plugins.tooltip.borderWidth = 1;
+
+    // PDF Export function
+    function exportToPDF() {
+        const currentPeriod = new URLSearchParams(window.location.search).get('period') || '30';
+        const exportUrl = `{% url 'export_analytics_pdf' %}?period=${currentPeriod}`;
+
+        // Show loading state
+        const exportBtn = document.querySelector('button[onclick="exportToPDF()"]');
+        const originalText = exportBtn.innerHTML;
+        exportBtn.innerHTML = '<i class="bi bi-arrow-clockwise spin"></i> Generating PDF...';
+        exportBtn.disabled = true;
+
+        // Create a temporary link to download the PDF
+        const link = document.createElement('a');
+        link.href = exportUrl;
+        link.download = `analytics_report_${currentPeriod}_days.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Reset button after a delay
+        setTimeout(() => {
+            exportBtn.innerHTML = originalText;
+            exportBtn.disabled = false;
+        }, 2000);
+    }
+</script>
+{% endblock %}

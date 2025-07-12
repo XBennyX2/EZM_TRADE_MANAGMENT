@@ -355,9 +355,9 @@
                         <label for="product_id" class="form-label">Product *</label>
                         <select class="form-select" id="product_id" name="product_id" required>
                             <option value="">Select a product</option>
-                            {% for stock in current_stock %}
-                            <option value="{{ stock.product.id }}" data-current-stock="{{ stock.quantity }}">
-                                {{ stock.product.name }} (Current: {{ stock.quantity }})
+                            {% for product in restock_available_products %}
+                            <option value="{{ product.id }}">
+                                {{ product.name }} - {{ product.category }}
                             </option>
                             {% endfor %}
                         </select>

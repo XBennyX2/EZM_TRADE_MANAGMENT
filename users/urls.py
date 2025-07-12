@@ -20,7 +20,11 @@ from .views import (
     store_manager_restock_requests, store_manager_transfer_requests, store_manager_stock_management,
     # Head Manager request management views
     head_manager_restock_requests,
-    approve_restock_request, reject_restock_request
+    approve_restock_request, reject_restock_request,
+    # API endpoints for product dropdowns
+    get_restock_products, get_transfer_products,
+    # Analytics views
+    analytics_dashboard, financial_reports, analytics_api, export_analytics_pdf, export_financial_pdf
 )
 
 # Import API views
@@ -58,10 +62,21 @@ urlpatterns = [
     path('store-manager/transfer-requests/', store_manager_transfer_requests, name='store_manager_transfer_requests'),
     path('store-manager/stock-management/', store_manager_stock_management, name='store_manager_stock_management'),
 
+    # API endpoints for product dropdowns
+    path('api/restock-products/', get_restock_products, name='get_restock_products'),
+    path('api/transfer-products/', get_transfer_products, name='get_transfer_products'),
+
     # Head Manager request management URLs
     path('head-manager/restock-requests/', head_manager_restock_requests, name='head_manager_restock_requests'),
     path('head-manager/restock-requests/<int:request_id>/approve/', approve_restock_request, name='approve_restock_request'),
     path('head-manager/restock-requests/<int:request_id>/reject/', reject_restock_request, name='reject_restock_request'),
+
+    # Analytics and Reports URLs
+    path('head-manager/analytics/', analytics_dashboard, name='analytics_dashboard'),
+    path('head-manager/financial-reports/', financial_reports, name='financial_reports'),
+    path('head-manager/analytics/export-pdf/', export_analytics_pdf, name='export_analytics_pdf'),
+    path('head-manager/financial-reports/export-pdf/', export_financial_pdf, name='export_financial_pdf'),
+    path('api/analytics/', analytics_api, name='analytics_api'),
 
 
     path('admin/settings/', admin_settings, name='admin_settings'),

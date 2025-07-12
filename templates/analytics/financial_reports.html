@@ -1,0 +1,507 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
+{% block title %}Financial Reports{% endblock %}
+{% block page_title %}Financial Reports{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .financial-card {
+        background: var(--white);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        border: none;
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+
+    .financial-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    .profit-card {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        color: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+    }
+
+    .loss-card {
+        background: linear-gradient(135deg, #dc3545, #e83e8c);
+        color: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+    }
+
+    .revenue-card {
+        background: linear-gradient(135deg, #007bff, #17a2b8);
+        color: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+    }
+
+    .expense-card {
+        background: linear-gradient(135deg, #fd7e14, #ffc107);
+        color: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+    }
+
+    .financial-metric h3 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .financial-metric p {
+        margin: 0;
+        opacity: 0.9;
+    }
+
+    .profit-positive {
+        color: #28a745;
+        font-weight: 600;
+    }
+
+    .profit-negative {
+        color: #dc3545;
+        font-weight: 600;
+    }
+
+    .margin-excellent {
+        background: #d4edda;
+        color: #155724;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .margin-good {
+        background: #d1ecf1;
+        color: #0c5460;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .margin-poor {
+        background: #f8d7da;
+        color: #721c24;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .financial-table {
+        background: var(--white);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .financial-table th {
+        background: var(--light-gray);
+        font-weight: 600;
+        border: none;
+        padding: 1rem;
+    }
+
+    .financial-table td {
+        border: none;
+        padding: 1rem;
+        border-bottom: 1px solid var(--light-gray);
+    }
+
+    .export-btn {
+        background: var(--accent-teal);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .export-btn:hover {
+        background: var(--accent-cyan);
+        color: white;
+    }
+
+    .period-selector {
+        background: var(--light-gray);
+        border-radius: 8px;
+        padding: 0.25rem;
+        display: inline-flex;
+    }
+
+    .period-btn {
+        background: transparent;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        color: var(--secondary-dark);
+        font-weight: 500;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .period-btn.active {
+        background: var(--accent-teal);
+        color: white;
+    }
+
+    .period-btn:hover {
+        background: var(--accent-cyan);
+        color: white;
+    }
+
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin: 1rem 0;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: var(--text-muted);
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">Financial Reports</h2>
+                    <p class="text-muted mb-0">Profit & Loss statements, revenue analysis, and financial metrics</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <div class="period-selector">
+                        <button class="period-btn {% if period == '7' %}active{% endif %}" onclick="changePeriod('7')">7 Days</button>
+                        <button class="period-btn {% if period == '30' %}active{% endif %}" onclick="changePeriod('30')">30 Days</button>
+                        <button class="period-btn {% if period == '90' %}active{% endif %}" onclick="changePeriod('90')">90 Days</button>
+                        <button class="period-btn {% if period == '365' %}active{% endif %}" onclick="changePeriod('365')">1 Year</button>
+                    </div>
+                    <button class="export-btn" onclick="exportFinancialPDF()">
+                        <i class="bi bi-file-earmark-pdf me-2"></i>Export PDF Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overall Financial Metrics -->
+    <div class="row mb-4 g-3">
+        <div class="col-lg-3 col-md-6">
+            <div class="revenue-card financial-metric">
+                <h3>${{ financial_metrics.total_revenue|floatformat:0 }}</h3>
+                <p>Total Revenue</p>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="expense-card financial-metric">
+                <h3>${{ financial_metrics.total_expenses|floatformat:0 }}</h3>
+                <p>Total Expenses</p>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="{% if financial_metrics.total_profit >= 0 %}profit-card{% else %}loss-card{% endif %} financial-metric">
+                <h3>${{ financial_metrics.total_profit|floatformat:0 }}</h3>
+                <p>{% if financial_metrics.total_profit >= 0 %}Net Profit{% else %}Net Loss{% endif %}</p>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="{% if financial_metrics.overall_margin >= 20 %}profit-card{% elif financial_metrics.overall_margin >= 10 %}revenue-card{% else %}expense-card{% endif %} financial-metric">
+                <h3>{{ financial_metrics.overall_margin|floatformat:1 }}%</h3>
+                <p>Profit Margin</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Trend Chart -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="financial-card">
+                <div class="card-header">
+                    <h5 class="mb-0">Revenue vs Expenses Trend</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="financialTrendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Store-wise Financial Performance -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="financial-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Store-wise Financial Performance</h5>
+                    <small class="text-muted">Period: {{ start_date|date:"M d, Y" }} - {{ end_date|date:"M d, Y" }}</small>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table financial-table">
+                            <thead>
+                                <tr>
+                                    <th>Store</th>
+                                    <th>Revenue</th>
+                                    <th>Expenses</th>
+                                    <th>Profit/Loss</th>
+                                    <th>Margin</th>
+                                    <th>Performance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for store_data in financial_data %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ store_data.store.name }}</strong>
+                                        <br><small class="text-muted">{{ store_data.store.address }}</small>
+                                    </td>
+                                    <td>
+                                        <strong class="text-primary">${{ store_data.revenue|floatformat:0 }}</strong>
+                                    </td>
+                                    <td>
+                                        <strong class="text-warning">${{ store_data.expenses|floatformat:0 }}</strong>
+                                    </td>
+                                    <td>
+                                        <strong class="{% if store_data.profit_loss >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
+                                            ${{ store_data.profit_loss|floatformat:0 }}
+                                        </strong>
+                                    </td>
+                                    <td>
+                                        <strong>{{ store_data.profit_margin|floatformat:1 }}%</strong>
+                                    </td>
+                                    <td>
+                                        {% if store_data.profit_margin >= 20 %}
+                                            <span class="margin-excellent">Excellent</span>
+                                        {% elif store_data.profit_margin >= 10 %}
+                                            <span class="margin-good">Good</span>
+                                        {% else %}
+                                            <span class="margin-poor">Needs Improvement</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4">
+                                        <div class="empty-state">
+                                            <i class="bi bi-graph-down"></i>
+                                            <p>No financial data available for the selected period.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Summary Cards -->
+    <div class="row mb-4 g-4">
+        <div class="col-lg-6">
+            <div class="financial-card">
+                <div class="card-header">
+                    <h5 class="mb-0">Revenue Breakdown</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="revenueBreakdownChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="financial-card">
+                <div class="card-header">
+                    <h5 class="mb-0">Key Financial Insights</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <h6>Overall Performance</h6>
+                            {% if financial_metrics.overall_margin >= 20 %}
+                                <p class="profit-positive">Excellent profitability - {{ financial_metrics.overall_margin|floatformat:1 }}% margin</p>
+                            {% elif financial_metrics.overall_margin >= 10 %}
+                                <p class="text-primary">Good profitability - {{ financial_metrics.overall_margin|floatformat:1 }}% margin</p>
+                            {% elif financial_metrics.overall_margin >= 0 %}
+                                <p class="text-warning">Low profitability - {{ financial_metrics.overall_margin|floatformat:1 }}% margin</p>
+                            {% else %}
+                                <p class="profit-negative">Operating at a loss - {{ financial_metrics.overall_margin|floatformat:1 }}% margin</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-12 mb-3">
+                            <h6>Store Performance</h6>
+                            <p><strong>{{ financial_metrics.profitable_stores }}</strong> out of <strong>{{ financial_metrics.stores_count }}</strong> stores are profitable</p>
+                        </div>
+                        {% if financial_metrics.best_performing_store %}
+                        <div class="col-12">
+                            <h6>Top Performing Store</h6>
+                            <p><strong>{{ financial_metrics.best_performing_store.store.name }}</strong> - ${{ financial_metrics.best_performing_store.profit_loss|floatformat:0 }} profit ({{ financial_metrics.best_performing_store.profit_margin|floatformat:1 }}% margin)</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Financial Trend Chart
+    const trendCtx = document.getElementById('financialTrendChart').getContext('2d');
+    const trendData = {{ monthly_trend|safe }};
+    
+    const trendChart = new Chart(trendCtx, {
+        type: 'line',
+        data: {
+            labels: trendData.map(item => item.month),
+            datasets: [{
+                label: 'Revenue',
+                data: trendData.map(item => item.revenue),
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                borderWidth: 3,
+                fill: false
+            }, {
+                label: 'Expenses',
+                data: trendData.map(item => item.expenses),
+                borderColor: '#fd7e14',
+                backgroundColor: 'rgba(253, 126, 20, 0.1)',
+                borderWidth: 3,
+                fill: false
+            }, {
+                label: 'Profit',
+                data: trendData.map(item => item.profit),
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                borderWidth: 3,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Revenue Breakdown Chart
+    const revenueCtx = document.getElementById('revenueBreakdownChart').getContext('2d');
+    const financialData = {{ financial_data|safe }};
+    
+    const revenueChart = new Chart(revenueCtx, {
+        type: 'doughnut',
+        data: {
+            labels: financialData.map(store => store.store.name),
+            datasets: [{
+                data: financialData.map(store => parseFloat(store.revenue)),
+                backgroundColor: [
+                    '#007bff',
+                    '#28a745',
+                    '#17a2b8',
+                    '#ffc107',
+                    '#dc3545',
+                    '#6f42c1'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Period change function
+    function changePeriod(period) {
+        const url = new URL(window.location);
+        url.searchParams.set('period', period);
+        window.location.href = url.toString();
+    }
+
+    // PDF Export function for financial reports
+    function exportFinancialPDF() {
+        const currentPeriod = new URLSearchParams(window.location.search).get('period') || '30';
+        const exportUrl = `{% url 'export_financial_pdf' %}?period=${currentPeriod}`;
+
+        // Show loading state
+        const exportBtn = document.querySelector('button[onclick="exportFinancialPDF()"]');
+        const originalText = exportBtn.innerHTML;
+        exportBtn.innerHTML = '<i class="bi bi-arrow-clockwise spin"></i> Generating PDF...';
+        exportBtn.disabled = true;
+
+        // Create a temporary link to download the PDF
+        const link = document.createElement('a');
+        link.href = exportUrl;
+        link.download = `financial_report_${currentPeriod}_days.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Reset button after a delay
+        setTimeout(() => {
+            exportBtn.innerHTML = originalText;
+            exportBtn.disabled = false;
+        }, 2000);
+    }
+
+    // Add spinning animation for loading states
+    const style = document.createElement('style');
+    style.textContent = `
+        .spin {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    `;
+    document.head.appendChild(style);
+</script>
+{% endblock %}

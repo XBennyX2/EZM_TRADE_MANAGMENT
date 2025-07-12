@@ -748,10 +748,33 @@ class RestockRequestForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         if store:
-            # Only show products that are available in this store
-            from .models import Stock
-            available_products = Stock.objects.filter(store=store).values_list('product', flat=True)
-            self.fields['product'].queryset = Product.objects.filter(id__in=available_products)
+            # For restock requests, show products available from:
+            # 1. Warehouse products
+            # 2. Products in other stores
+            # 3. All products in the system (for potential restocking)
+            from .models import Stock, WarehouseProduct
+            from store.models import Store
+            from django.db import models
+
+            # Get products available in warehouse
+            warehouse_product_names = WarehouseProduct.objects.filter(
+                quantity_in_stock__gt=0,
+                is_active=True
+            ).values_list('product_name', flat=True)
+
+            # Get products available in other stores
+            other_stores_products = Stock.objects.filter(
+                quantity__gt=0
+            ).exclude(store=store).values_list('product', flat=True)
+
+            # Combine all available products for restocking
+            # Include products that match warehouse product names or are in other stores
+            available_products = Product.objects.filter(
+                models.Q(id__in=other_stores_products) |
+                models.Q(name__in=warehouse_product_names)
+            ).distinct()
+
+            self.fields['product'].queryset = available_products
         else:
             self.fields['product'].queryset = Product.objects.none()
 
@@ -820,15 +843,20 @@ class StoreStockTransferRequestForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         if from_store:
-            # Only show products that are available in the source store
+            # For transfer requests, show products available in OTHER stores
+            # (excluding warehouse and current store)
+            # This allows requesting products FROM other stores TO current store
             from .models import Stock
             from store.models import Store
 
-            available_products = Stock.objects.filter(
-                store=from_store,
-                quantity__gt=0  # Only products with stock > 0
-            ).values_list('product', flat=True)
-            self.fields['product'].queryset = Product.objects.filter(id__in=available_products)
+            # Get products available in other stores (excluding current store)
+            other_stores_products = Stock.objects.filter(
+                quantity__gt=0
+            ).exclude(store=from_store).values_list('product', flat=True).distinct()
+
+            self.fields['product'].queryset = Product.objects.filter(
+                id__in=other_stores_products
+            ).order_by('name')
 
             # Only show other stores (exclude the current store)
             self.fields['to_store'].queryset = Store.objects.exclude(id=from_store.id)

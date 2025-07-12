@@ -383,17 +383,17 @@
                         <label for="transfer_product_id" class="form-label">Product *</label>
                         <select class="form-select" id="transfer_product_id" name="product_id" required>
                             <option value="">Select a product</option>
-                            {% for stock in current_stock %}
-                            <option value="{{ stock.product.id }}" data-available-stock="{{ stock.quantity }}">
-                                {{ stock.product.name }} (Available: {{ stock.quantity }})
+                            {% for product in transfer_available_products %}
+                            <option value="{{ product.id }}">
+                                {{ product.name }} - {{ product.category }}
                             </option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label for="to_store_id" class="form-label">Destination Store *</label>
+                        <label for="to_store_id" class="form-label">Transfer From *</label>
                         <select class="form-select" id="to_store_id" name="to_store_id" required>
-                            <option value="">Select destination store</option>
+                            <option value="">Select source store</option>
                             {% for store in other_stores %}
                             <option value="{{ store.id }}">{{ store.name }}</option>
                             {% endfor %}

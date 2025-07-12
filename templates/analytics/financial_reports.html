@@ -204,8 +204,8 @@
                         <button class="period-btn {% if period == '90' %}active{% endif %}" onclick="changePeriod('90')">90 Days</button>
                         <button class="period-btn {% if period == '365' %}active{% endif %}" onclick="changePeriod('365')">1 Year</button>
                     </div>
-                    <button class="export-btn" onclick="exportFinancialPDF()">
-                        <i class="bi bi-file-earmark-pdf me-2"></i>Export PDF Report
+                    <button class="export-btn" onclick="exportReport()">
+                        <i class="bi bi-download me-2"></i>Export Report
                     </button>
                 </div>
             </div>
@@ -465,43 +465,9 @@
         window.location.href = url.toString();
     }
 
-    // PDF Export function for financial reports
-    function exportFinancialPDF() {
-        const currentPeriod = new URLSearchParams(window.location.search).get('period') || '30';
-        const exportUrl = `{% url 'export_financial_pdf' %}?period=${currentPeriod}`;
-
-        // Show loading state
-        const exportBtn = document.querySelector('button[onclick="exportFinancialPDF()"]');
-        const originalText = exportBtn.innerHTML;
-        exportBtn.innerHTML = '<i class="bi bi-arrow-clockwise spin"></i> Generating PDF...';
-        exportBtn.disabled = true;
-
-        // Create a temporary link to download the PDF
-        const link = document.createElement('a');
-        link.href = exportUrl;
-        link.download = `financial_report_${currentPeriod}_days.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        // Reset button after a delay
-        setTimeout(() => {
-            exportBtn.innerHTML = originalText;
-            exportBtn.disabled = false;
-        }, 2000);
+    // Export function
+    function exportReport() {
+        alert('Export functionality would be implemented here. This could generate PDF or Excel reports.');
     }
-
-    // Add spinning animation for loading states
-    const style = document.createElement('style');
-    style.textContent = `
-        .spin {
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-    `;
-    document.head.appendChild(style);
 </script>
 {% endblock %}

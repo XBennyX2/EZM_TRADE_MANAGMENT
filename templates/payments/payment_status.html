@@ -1,0 +1,273 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
+{% block title %}Payment Status - EZM Trade Management{% endblock %}
+{% block page_title %}Payment Status{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .status-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .status-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        padding: 2rem;
+        text-align: center;
+    }
+
+    .status-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+    }
+
+    .status-success {
+        color: #28a745;
+    }
+
+    .status-pending {
+        color: #ffc107;
+    }
+
+    .status-failed {
+        color: #dc3545;
+    }
+
+    .transaction-details {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin: 2rem 0;
+        text-align: left;
+    }
+
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .detail-row:last-child {
+        border-bottom: none;
+    }
+
+    .btn-ezm-primary {
+        background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+        border: none;
+        color: white;
+        border-radius: 10px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-ezm-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 252, 241, 0.4);
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid status-container">
+    {% if demo_mode %}
+    <!-- Demo Mode Message -->
+    <div class="status-card text-center">
+        <div class="status-icon" style="background: linear-gradient(45deg, #17a2b8, #007bff); color: white;">
+            <i class="bi bi-info-circle-fill"></i>
+        </div>
+        <h3 class="text-info mb-3">Demo Mode Active</h3>
+        <p class="lead mb-4">{{ error_message }}</p>
+
+        <div class="alert alert-info text-start">
+            <h6><i class="bi bi-lightbulb me-2"></i>What this means:</h6>
+            <ul class="mb-0">
+                <li>This is a demonstration of the payment workflow</li>
+                <li>No real money was processed</li>
+                <li>The transaction reference "{{ tx_ref }}" is for testing purposes only</li>
+                <li>In production mode, this would show real payment status from Chapa</li>
+            </ul>
+        </div>
+
+        <div class="mt-4">
+            <a href="{% url 'cart_view' %}" class="btn btn-ezm-primary me-3">
+                <i class="bi bi-cart me-2"></i>Back to Cart
+            </a>
+            <a href="{% url 'payment_history' %}" class="btn btn-outline-primary">
+                <i class="bi bi-clock-history me-2"></i>Payment History
+            </a>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="status-card">
+        {% if transaction.status == 'success' %}
+        <div class="status-icon status-success">
+            <i class="bi bi-check-circle-fill"></i>
+        </div>
+        <h3 class="text-success mb-3">Payment Successful!</h3>
+        <p class="lead">Your payment has been processed successfully.</p>
+
+        {% elif transaction.status == 'pending' %}
+        <div class="status-icon status-pending">
+            <i class="bi bi-clock-fill"></i>
+        </div>
+        <h3 class="text-warning mb-3">Payment Pending</h3>
+        <p class="lead">Your payment is being processed. Please wait for confirmation.</p>
+
+        {% elif transaction.status == 'failed' %}
+        <div class="status-icon status-failed">
+            <i class="bi bi-x-circle-fill"></i>
+        </div>
+        <h3 class="text-danger mb-3">Payment Failed</h3>
+        <p class="lead">Unfortunately, your payment could not be processed.</p>
+
+        {% else %}
+        <div class="status-icon status-pending">
+            <i class="bi bi-question-circle-fill"></i>
+        </div>
+        <h3 class="text-muted mb-3">Payment Status Unknown</h3>
+        <p class="lead">We're checking the status of your payment.</p>
+        {% endif %}
+
+        <!-- Transaction Details -->
+        <div class="transaction-details">
+            <h5 class="mb-3">
+                <i class="bi bi-receipt me-2"></i>
+                Transaction Details
+            </h5>
+
+            <div class="detail-row">
+                <span><strong>Transaction Reference:</strong></span>
+                <span class="font-monospace">{{ transaction.chapa_tx_ref }}</span>
+            </div>
+
+            <div class="detail-row">
+                <span><strong>Supplier:</strong></span>
+                <span>{{ transaction.supplier.name }}</span>
+            </div>
+
+            <div class="detail-row">
+                <span><strong>Amount:</strong></span>
+                <span class="fw-bold">ETB {{ transaction.amount|floatformat:2 }}</span>
+            </div>
+
+            <div class="detail-row">
+                <span><strong>Currency:</strong></span>
+                <span>{{ transaction.currency }}</span>
+            </div>
+
+            <div class="detail-row">
+                <span><strong>Date:</strong></span>
+                <span>{{ transaction.created_at|date:"M d, Y H:i" }}</span>
+            </div>
+
+            {% if transaction.paid_at %}
+            <div class="detail-row">
+                <span><strong>Paid At:</strong></span>
+                <span>{{ transaction.paid_at|date:"M d, Y H:i" }}</span>
+            </div>
+            {% endif %}
+
+            <div class="detail-row">
+                <span><strong>Status:</strong></span>
+                <span>
+                    {% if transaction.status == 'success' %}
+                    <span class="badge bg-success">{{ transaction.get_status_display }}</span>
+                    {% elif transaction.status == 'pending' %}
+                    <span class="badge bg-warning">{{ transaction.get_status_display }}</span>
+                    {% elif transaction.status == 'failed' %}
+                    <span class="badge bg-danger">{{ transaction.get_status_display }}</span>
+                    {% else %}
+                    <span class="badge bg-secondary">{{ transaction.get_status_display }}</span>
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+
+        <!-- Order Information -->
+        {% if order_payment %}
+        <div class="transaction-details">
+            <h5 class="mb-3">
+                <i class="bi bi-box me-2"></i>
+                Order Information
+            </h5>
+
+            <div class="detail-row">
+                <span><strong>Order Status:</strong></span>
+                <span>
+                    {% if order_payment.status == 'payment_confirmed' %}
+                    <span class="badge bg-success">{{ order_payment.get_status_display }}</span>
+                    {% elif order_payment.status == 'payment_pending' %}
+                    <span class="badge bg-warning">{{ order_payment.get_status_display }}</span>
+                    {% else %}
+                    <span class="badge bg-secondary">{{ order_payment.get_status_display }}</span>
+                    {% endif %}
+                </span>
+            </div>
+
+            <div class="detail-row">
+                <span><strong>Items Count:</strong></span>
+                <span>{{ order_payment.order_items|length }} item{{ order_payment.order_items|length|pluralize }}</span>
+            </div>
+
+            {% if order_payment.payment_confirmed_at %}
+            <div class="detail-row">
+                <span><strong>Confirmed At:</strong></span>
+                <span>{{ order_payment.payment_confirmed_at|date:"M d, Y H:i" }}</span>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Action Buttons -->
+        <div class="mt-4">
+            {% if transaction.status == 'success' %}
+            <a href="{% url 'head_manager_dashboard' %}" class="btn btn-ezm-primary me-3">
+                <i class="bi bi-house me-2"></i>Go to Dashboard
+            </a>
+            <a href="{% url 'payment_history' %}" class="btn btn-outline-primary">
+                <i class="bi bi-clock-history me-2"></i>View Payment History
+            </a>
+
+            {% elif transaction.status == 'failed' %}
+            <a href="{% url 'cart_view' %}" class="btn btn-ezm-primary me-3">
+                <i class="bi bi-cart me-2"></i>Back to Cart
+            </a>
+            <a href="{% url 'order_confirmation' %}" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-clockwise me-2"></i>Try Again
+            </a>
+
+            {% else %}
+            <button class="btn btn-ezm-primary me-3" onclick="location.reload()">
+                <i class="bi bi-arrow-clockwise me-2"></i>Refresh Status
+            </button>
+            <a href="{% url 'payment_history' %}" class="btn btn-outline-primary">
+                <i class="bi bi-clock-history me-2"></i>Payment History
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if transaction.status == 'pending' %}
+<script>
+    // Auto-refresh for pending payments
+    setTimeout(function () {
+        location.reload();
+    }, 30000); // Refresh every 30 seconds
+</script>
+{% endif %}
+{% endif %}
+</div>
+{% endblock %}

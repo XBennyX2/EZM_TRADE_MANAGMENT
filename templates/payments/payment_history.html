@@ -1,0 +1,247 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
+{% block title %}Payment History - EZM Trade Management{% endblock %}
+{% block page_title %}Payment History{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .history-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .transaction-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .transaction-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .transaction-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid #f8f9fa;
+    }
+
+    .transaction-body {
+        padding: 1.5rem;
+    }
+
+    .status-badge {
+        font-size: 0.875rem;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: 600;
+    }
+
+    .amount-display {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--accent-teal);
+    }
+
+    .filter-section {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .btn-filter {
+        background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+        border: none;
+        color: white;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        color: #6c757d;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid history-container">
+    <!-- Filter Section -->
+    <div class="filter-section">
+        <form method="get" class="row align-items-end">
+            <div class="col-md-3">
+                <label for="status" class="form-label">Status</label>
+                <select name="status" id="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="success" {% if request.GET.status == 'success' %}selected{% endif %}>Success</option>
+                    <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="failed" {% if request.GET.status == 'failed' %}selected{% endif %}>Failed</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="date_from" class="form-label">From Date</label>
+                <input type="date" name="date_from" id="date_from" class="form-control" value="{{ request.GET.date_from }}">
+            </div>
+            <div class="col-md-3">
+                <label for="date_to" class="form-label">To Date</label>
+                <input type="date" name="date_to" id="date_to" class="form-control" value="{{ request.GET.date_to }}">
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-filter w-100">
+                    <i class="bi bi-funnel me-2"></i>Filter
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {% if transactions %}
+    <!-- Transactions List -->
+    {% for transaction in transactions %}
+    <div class="transaction-card">
+        <div class="transaction-header">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h6 class="mb-1">{{ transaction.supplier.name }}</h6>
+                    <small class="text-muted font-monospace">{{ transaction.chapa_tx_ref }}</small>
+                </div>
+                <div class="col-md-3 text-center">
+                    <div class="amount-display">ETB {{ transaction.amount|floatformat:2 }}</div>
+                </div>
+                <div class="col-md-3 text-end">
+                    {% if transaction.status == 'success' %}
+                    <span class="status-badge bg-success text-white">
+                        <i class="bi bi-check-circle me-1"></i>Success
+                    </span>
+                    {% elif transaction.status == 'pending' %}
+                    <span class="status-badge bg-warning text-dark">
+                        <i class="bi bi-clock me-1"></i>Pending
+                    </span>
+                    {% elif transaction.status == 'failed' %}
+                    <span class="status-badge bg-danger text-white">
+                        <i class="bi bi-x-circle me-1"></i>Failed
+                    </span>
+                    {% else %}
+                    <span class="status-badge bg-secondary text-white">
+                        <i class="bi bi-question-circle me-1"></i>{{ transaction.get_status_display }}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="transaction-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="row mb-2">
+                        <div class="col-sm-6">
+                            <small class="text-muted">Date:</small>
+                            <div>{{ transaction.created_at|date:"M d, Y H:i" }}</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <small class="text-muted">Currency:</small>
+                            <div>{{ transaction.currency }}</div>
+                        </div>
+                    </div>
+                    
+                    {% if transaction.paid_at %}
+                    <div class="row mb-2">
+                        <div class="col-sm-6">
+                            <small class="text-muted">Paid At:</small>
+                            <div>{{ transaction.paid_at|date:"M d, Y H:i" }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if transaction.description %}
+                    <div class="row">
+                        <div class="col-12">
+                            <small class="text-muted">Description:</small>
+                            <div>{{ transaction.description }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="col-md-4 text-end">
+                    <a href="{% url 'payment_status' transaction.chapa_tx_ref %}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-eye me-1"></i>View Details
+                    </a>
+                    
+                    {% if transaction.status == 'failed' %}
+                    <a href="{% url 'cart_view' %}" class="btn btn-outline-warning btn-sm mt-2">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Retry
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- Pagination -->
+    {% if transactions.has_other_pages %}
+    <nav aria-label="Payment history pagination" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if transactions.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ transactions.previous_page_number }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">
+                    <i class="bi bi-chevron-left"></i>
+                </a>
+            </li>
+            {% endif %}
+            
+            {% for num in transactions.paginator.page_range %}
+            {% if transactions.number == num %}
+            <li class="page-item active">
+                <span class="page-link">{{ num }}</span>
+            </li>
+            {% elif num > transactions.number|add:'-3' and num < transactions.number|add:'3' %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ num }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endif %}
+            {% endfor %}
+            
+            {% if transactions.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ transactions.next_page_number }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <!-- Empty State -->
+    <div class="empty-state">
+        <i class="bi bi-receipt"></i>
+        <h4>No Payment History</h4>
+        <p class="text-muted mb-4">You haven't made any payments yet. Start shopping to see your payment history here.</p>
+        <a href="{% url 'supplier_list' %}" class="btn btn-ezm-primary">
+            <i class="bi bi-shop me-2"></i>Browse Suppliers
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -168,7 +168,7 @@
                     </div>
                     <div class="col-md-2">
                         <div class="text-center">
-                            <strong>${{ item.price }}</strong>
+                            <strong>ETB {{ item.price|floatformat:2 }}</strong>
                             <br>
                             <small class="text-muted">per unit</small>
                         </div>
@@ -193,7 +193,7 @@
                     </div>
                     <div class="col-md-1">
                         <div class="text-center">
-                            <strong>${{ item.total_price }}</strong>
+                            <strong>ETB {{ item.total_price|floatformat:2 }}</strong>
                         </div>
                     </div>
                     <div class="col-md-1">
@@ -228,7 +228,7 @@
 
                 <div class="d-flex justify-content-between mb-3">
                     <span class="h6">Total Amount:</span>
-                    <strong class="h5">${{ total_price }}</strong>
+                    <strong class="h5">ETB {{ total_price|floatformat:2 }}</strong>
                 </div>
 
                 <div class="d-grid gap-2">
@@ -273,7 +273,7 @@
                     // Update the item total price
                     const cartItem = $(`.cart-item[data-product-id="${productId}"]`);
                     cartItem.find('.quantity-input').val(response.item_quantity);
-                    cartItem.find('.col-md-1:nth-last-child(2) strong').text('$' + response.item_total_price);
+                    cartItem.find('.col-md-1:nth-last-child(2) strong').text('ETB ' + parseFloat(response.item_total_price).toFixed(2));
 
                     // Update cart summary
                     updateCartSummary();
@@ -330,7 +330,7 @@
 
         $('.cart-item').each(function () {
             const quantity = parseInt($(this).find('.quantity-input').val());
-            const itemTotal = parseFloat($(this).find('.col-md-1:nth-last-child(2) strong').text().replace('$', ''));
+            const itemTotal = parseFloat($(this).find('.col-md-1:nth-last-child(2) strong').text().replace('ETB ', ''));
 
             totalItems += quantity;
             totalPrice += itemTotal;
@@ -338,7 +338,7 @@
 
         // Update summary display
         $('.cart-summary .d-flex:first-child strong').text(totalItems);
-        $('.cart-summary .h5').text('$' + totalPrice.toFixed(2));
+        $('.cart-summary .h5').text('ETB ' + totalPrice.toFixed(2));
 
         // Update cart counter in navigation
         $('#cart-counter').text(totalItems);

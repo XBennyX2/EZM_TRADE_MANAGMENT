@@ -1,0 +1,205 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
+{% block title %}Payment Success - EZM Trade Management{% endblock %}
+{% block page_title %}Payment Success{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .success-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 2rem 0;
+    }
+
+    .success-card {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        padding: 3rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .success-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 5px;
+        background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+    }
+
+    .success-icon {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: linear-gradient(45deg, #28a745, #20c997);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 2rem;
+        font-size: 3rem;
+        animation: successPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes successPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+
+    .demo-badge {
+        background: linear-gradient(45deg, #17a2b8, #007bff);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        display: inline-block;
+    }
+
+    .success-title {
+        color: #28a745;
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+
+    .demo-explanation {
+        background: #f8f9fa;
+        border-left: 4px solid #17a2b8;
+        padding: 1.5rem;
+        margin: 2rem 0;
+        border-radius: 0 10px 10px 0;
+        text-align: left;
+    }
+
+    .action-buttons {
+        margin-top: 2rem;
+    }
+
+    .btn-ezm-primary {
+        background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+        border: none;
+        color: white;
+        border-radius: 10px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        margin: 0.5rem;
+    }
+
+    .btn-ezm-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 252, 241, 0.4);
+        color: white;
+    }
+
+    .transaction-ref {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1rem;
+        margin: 1.5rem 0;
+        font-family: 'Courier New', monospace;
+        font-size: 0.9rem;
+        color: #495057;
+    }
+
+    .features-list {
+        text-align: left;
+        margin: 2rem 0;
+    }
+
+    .features-list li {
+        margin-bottom: 0.5rem;
+        color: #6c757d;
+    }
+
+    .features-list i {
+        color: var(--accent-teal);
+        margin-right: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid success-container">
+    <div class="success-card">
+        {% if demo_mode %}
+        <span class="demo-badge">
+            <i class="bi bi-gear me-1"></i>Demo Mode
+        </span>
+        {% endif %}
+        
+        <div class="success-icon">
+            <i class="bi bi-check-lg"></i>
+        </div>
+        
+        <h2 class="success-title">{{ success_message }}</h2>
+        
+        {% if demo_mode %}
+        <p class="lead text-muted">{{ demo_explanation }}</p>
+        
+        <div class="transaction-ref">
+            <strong>Demo Transaction Reference:</strong> {{ tx_ref }}
+        </div>
+        
+        <div class="demo-explanation">
+            <h6 class="text-info mb-3">
+                <i class="bi bi-info-circle me-2"></i>
+                Chapa Payment Integration Features Demonstrated:
+            </h6>
+            <ul class="features-list">
+                <li><i class="bi bi-check-circle-fill"></i>Multi-supplier payment processing</li>
+                <li><i class="bi bi-check-circle-fill"></i>ETB currency integration</li>
+                <li><i class="bi bi-check-circle-fill"></i>Professional payment confirmation workflow</li>
+                <li><i class="bi bi-check-circle-fill"></i>Payment status tracking and history</li>
+                <li><i class="bi bi-check-circle-fill"></i>Secure transaction reference generation</li>
+                <li><i class="bi bi-check-circle-fill"></i>Webhook-based payment notifications</li>
+                <li><i class="bi bi-check-circle-fill"></i>Purchase order integration</li>
+                <li><i class="bi bi-check-circle-fill"></i>Role-based payment access (Head Manager only)</li>
+            </ul>
+        </div>
+        
+        <div class="alert alert-success">
+            <h6><i class="bi bi-shield-check me-2"></i>Production Ready Features:</h6>
+            <p class="mb-0">This payment system is ready for production use with real Chapa API credentials. Simply update the API keys in settings and enable database tables for full functionality.</p>
+        </div>
+        
+        {% else %}
+        <p class="lead">Your payment has been processed successfully!</p>
+        
+        <div class="transaction-ref">
+            <strong>Transaction Reference:</strong> {{ tx_ref }}
+        </div>
+        
+        <div class="alert alert-success">
+            <i class="bi bi-check-circle me-2"></i>
+            Your purchase orders have been created and will be processed shortly.
+        </div>
+        {% endif %}
+        
+        <div class="action-buttons">
+            <a href="{% url 'head_manager_page' %}" class="btn btn-ezm-primary">
+                <i class="bi bi-house me-2"></i>Back to Dashboard
+            </a>
+            
+            <a href="{% url 'payment_history' %}" class="btn btn-outline-primary">
+                <i class="bi bi-clock-history me-2"></i>Payment History
+            </a>
+            
+            <a href="{% url 'supplier_list' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-shop me-2"></i>Continue Shopping
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

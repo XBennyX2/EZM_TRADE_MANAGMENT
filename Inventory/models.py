@@ -341,7 +341,7 @@ class SupplierProduct(models.Model):
 
     # Pricing and Quantities
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
-    currency = models.CharField(max_length=3, default='USD')
+    currency = models.CharField(max_length=3, default='ETB')
     minimum_order_quantity = models.PositiveIntegerField(default=1)
     maximum_order_quantity = models.PositiveIntegerField(null=True, blank=True)
 
@@ -638,10 +638,11 @@ class PurchaseOrder(models.Model):
     Represents purchase orders created by head manager to suppliers.
     """
     STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('approved', 'Approved'),
-        ('shipped', 'Shipped'),
-        ('received', 'Received'),
+        ('initial', 'Initial'),
+        ('payment_pending', 'Payment Pending'),
+        ('payment_confirmed', 'Payment Confirmed'),
+        ('in_transit', 'In Transit'),
+        ('delivered', 'Delivered'),
         ('cancelled', 'Cancelled'),
     ]
 
@@ -652,7 +653,7 @@ class PurchaseOrder(models.Model):
         on_delete=models.PROTECT,
         related_name='created_purchase_orders'
     )
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='initial')
     order_date = models.DateTimeField(auto_now_add=True)
     expected_delivery_date = models.DateField(blank=True, null=True)
     actual_delivery_date = models.DateField(blank=True, null=True)
@@ -663,6 +664,12 @@ class PurchaseOrder(models.Model):
         validators=[MinValueValidator(Decimal('0.00'))]
     )
     notes = models.TextField(blank=True)
+
+    # Payment tracking fields
+    payment_reference = models.CharField(max_length=100, blank=True, null=True, help_text="Chapa transaction reference")
+    payment_amount = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True, help_text="Payment amount in ETB")
+    payment_confirmed_at = models.DateTimeField(blank=True, null=True)
+
     created_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
 
@@ -671,6 +678,45 @@ class PurchaseOrder(models.Model):
 
     def __str__(self):
         return f"PO-{self.order_number} - {self.supplier.name}"
+
+    def update_payment_status(self, payment_reference, payment_amount=None):
+        """Update purchase order when payment is confirmed"""
+        self.payment_reference = payment_reference
+        if payment_amount:
+            self.payment_amount = payment_amount
+        self.status = 'payment_confirmed'
+        if not self.payment_confirmed_at:
+            from django.utils import timezone
+            self.payment_confirmed_at = timezone.now()
+        self.save()
+
+    def mark_payment_pending(self, payment_reference):
+        """Mark purchase order as payment pending"""
+        self.payment_reference = payment_reference
+        self.status = 'payment_pending'
+        self.save()
+
+    def cancel_order(self, reason=None):
+        """Cancel the purchase order"""
+        self.status = 'cancelled'
+        if reason:
+            self.notes = f"{self.notes}\nCancelled: {reason}" if self.notes else f"Cancelled: {reason}"
+        self.save()
+
+    @property
+    def is_payment_confirmed(self):
+        """Check if payment is confirmed"""
+        return self.status == 'payment_confirmed'
+
+    @property
+    def is_payment_pending(self):
+        """Check if payment is pending"""
+        return self.status == 'payment_pending'
+
+    @property
+    def can_be_shipped(self):
+        """Check if order can be shipped (payment confirmed)"""
+        return self.status == 'payment_confirmed'
 
 
 class PurchaseOrderItem(models.Model):

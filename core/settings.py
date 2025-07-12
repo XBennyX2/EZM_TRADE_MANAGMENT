@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'store',
     'Inventory',
     'transactions',
+    'payments',
 ]
 
 AUTH_USER_MODEL = 'users.CustomUser'
@@ -168,3 +169,16 @@ if EMAIL_HOST:
 else:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
     print("Warning: Using console email backend. Configure EMAIL_HOST for production.")
+
+# Cart session configuration
+CART_SESSION_ID = 'cart'
+
+# Chapa Payment Gateway Configuration
+CHAPA_PUBLIC_KEY = 'CHAPUBK_TEST-rcdxqVTYWaIUAhVJ7Ip2pOPsWWpoINp6'
+CHAPA_SECRET_KEY = 'CHASECK_TEST-mvksKxpc12HVNl2S9HwDbd3Wzgj8rHp3'
+CHAPA_BASE_URL = 'https://api.chapa.co/v1'
+CHAPA_WEBHOOK_SECRET = 'your_webhook_secret_here'  # You should set this in Chapa dashboard
+
+# Currency Configuration
+DEFAULT_CURRENCY = 'ETB'
+CURRENCY_SYMBOL = 'ETB'

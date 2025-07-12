@@ -201,29 +201,22 @@ def order_confirmation(request):
 
 @login_required
 @user_passes_test(is_head_manager)
+@require_POST
 def proceed_to_purchase_requests(request):
     """
-    Process the cart and create purchase requests for each supplier
-    This will be the next step in the workflow
+    Process the cart and initiate Chapa payment workflow
     """
     cart = Cart(request)
-    
+
     if cart.get_total_items() == 0:
         messages.warning(request, 'Your cart is empty.')
         return redirect('cart_view')
-    
+
     suppliers_cart = cart.get_cart_by_supplier()
-    
-    # For now, we'll just show a success message and clear the cart
-    # This is where you would integrate with the purchase request system
-    messages.success(
-        request, 
-        f'Order prepared for {len(suppliers_cart)} supplier(s). '
-        'Purchase requests will be created for each supplier.'
-    )
-    
-    # Clear the cart after processing
-    cart.clear()
-    
-    # Redirect to purchase requests or dashboard
-    return redirect('head_manager_page')
+
+    if not suppliers_cart:
+        messages.error(request, 'No items found in cart.')
+        return redirect('cart_view')
+
+    # Redirect to payment initiation
+    return redirect('initiate_payment')

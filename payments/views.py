@@ -1,0 +1,399 @@
+import json
+import logging
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST, require_GET
+from django.http import JsonResponse, HttpResponse, HttpResponseBadRequest
+from django.contrib import messages
+from django.urls import reverse
+from django.utils.decorators import method_decorator
+from django.views import View
+from utils.cart import Cart
+from .services import ChapaPaymentService
+from .models import ChapaTransaction, PaymentWebhookLog
+import hmac
+import hashlib
+
+logger = logging.getLogger(__name__)
+
+
+def is_head_manager(user):
+    """Check if user is a head manager"""
+    return user.is_authenticated and user.role == 'head_manager'
+
+
+@login_required
+@user_passes_test(is_head_manager)
+def initiate_payment(request):
+    """
+    Initiate payment process for cart items
+    """
+    try:
+        cart = Cart(request)
+
+        if not cart.cart:
+            messages.error(request, 'Your cart is empty.')
+            return redirect('cart_view')
+
+        # Get suppliers cart data
+        suppliers_cart = cart.get_cart_by_supplier()
+
+        if not suppliers_cart:
+            messages.error(request, 'No items found in cart.')
+            return redirect('cart_view')
+
+        # Handle GET request - show payment confirmation
+        if request.method == 'GET':
+            context = {
+                'suppliers_cart': suppliers_cart,
+                'total_suppliers': len(suppliers_cart),
+                'total_items': cart.get_total_items(),
+                'total_price': cart.get_total_price(),
+            }
+            return render(request, 'payments/payment_confirmation.html', context)
+
+        # Handle POST request - create payments
+        if request.method == 'POST':
+            # Create payments for all suppliers
+            payment_service = ChapaPaymentService()
+            payment_results = payment_service.create_payments_for_cart(
+                user=request.user,
+                suppliers_cart=suppliers_cart,
+                request=request
+            )
+
+            if payment_results['success']:
+                # Store payment information in session for tracking
+                request.session['payment_transactions'] = [
+                    {
+                        'tx_ref': payment['tx_ref'],
+                        'supplier_id': payment['supplier'].id,
+                        'supplier_name': payment['supplier'].name,
+                        'amount': str(payment['amount']),
+                        'checkout_url': payment['checkout_url']
+                    }
+                    for payment in payment_results['payments']
+                ]
+
+                # If single supplier, redirect directly to Chapa
+                if len(payment_results['payments']) == 1:
+                    checkout_url = payment_results['payments'][0]['checkout_url']
+                    return redirect(checkout_url)
+                else:
+                    # Multiple suppliers - show payment selection page
+                    return redirect('payment_selection')
+            else:
+                # Handle errors
+                error_messages = []
+                for error in payment_results['errors']:
+                    if 'supplier' in error:
+                        error_messages.append(f"Error with {error['supplier'].name}: {error['error']}")
+                    else:
+                        error_messages.append(f"Error: {error['error']}")
+
+                for msg in error_messages:
+                    messages.error(request, msg)
+
+                return redirect('order_confirmation')
+            
+    except Exception as e:
+        logger.error(f"Error initiating payment: {str(e)}")
+        messages.error(request, 'An error occurred while initiating payment. Please try again.')
+        return redirect('order_confirmation')
+
+
+@login_required
+@user_passes_test(is_head_manager)
+def payment_selection(request):
+    """
+    Show payment selection page for multiple suppliers
+    """
+    payment_transactions = request.session.get('payment_transactions', [])
+    
+    if not payment_transactions:
+        messages.error(request, 'No payment transactions found.')
+        return redirect('cart_view')
+    
+    context = {
+        'payment_transactions': payment_transactions,
+        'total_amount': sum(float(tx['amount']) for tx in payment_transactions)
+    }
+    
+    return render(request, 'payments/payment_selection.html', context)
+
+
+@login_required
+@user_passes_test(is_head_manager)
+def payment_success(request):
+    """
+    Handle successful payment return from Chapa
+    """
+    tx_ref = request.GET.get('tx_ref')
+    
+    if not tx_ref:
+        messages.error(request, 'Invalid payment reference.')
+        return redirect('cart_view')
+    
+    try:
+        # Verify payment
+        payment_service = ChapaPaymentService()
+        verification_result = payment_service.verify_payment(tx_ref)
+        
+        if verification_result['success'] and verification_result['transaction'].is_successful:
+            # Clear cart items for this supplier
+            cart = Cart(request)
+            transaction = verification_result['transaction']
+            
+            # Get order payment to access cart items
+            if hasattr(transaction, 'purchase_order_payment'):
+                order_payment = transaction.purchase_order_payment
+                # Remove items from cart (you might want to implement this in Cart class)
+                # For now, we'll clear the entire cart if all payments are successful
+                
+                messages.success(
+                    request, 
+                    f'Payment successful! Your order with {transaction.supplier.name} '
+                    f'for ETB {transaction.amount} has been confirmed.'
+                )
+            
+            # Check if all payments are complete
+            payment_transactions = request.session.get('payment_transactions', [])
+            if payment_transactions:
+                all_complete = True
+                for tx_data in payment_transactions:
+                    try:
+                        tx = ChapaTransaction.objects.get(chapa_tx_ref=tx_data['tx_ref'])
+                        if not tx.is_successful:
+                            all_complete = False
+                            break
+                    except ChapaTransaction.DoesNotExist:
+                        all_complete = False
+                        break
+                
+                if all_complete:
+                    # Clear cart and session data
+                    cart.clear()
+                    del request.session['payment_transactions']
+                    messages.success(request, 'All payments completed successfully!')
+                    return redirect('head_manager_dashboard')
+            
+            return redirect('payment_status', tx_ref=tx_ref)
+        else:
+            messages.error(request, 'Payment verification failed. Please contact support.')
+            return redirect('payment_status', tx_ref=tx_ref)
+            
+    except Exception as e:
+        logger.error(f"Error processing payment success: {str(e)}")
+        messages.error(request, 'An error occurred while processing your payment.')
+        return redirect('cart_view')
+
+
+@login_required
+@user_passes_test(is_head_manager)
+def payment_status(request, tx_ref):
+    """
+    Show payment status page
+    """
+    try:
+        # Try to get transaction from database
+        try:
+            transaction = ChapaTransaction.objects.get(chapa_tx_ref=tx_ref, user=request.user)
+
+            context = {
+                'transaction': transaction,
+                'order_payment': getattr(transaction, 'purchase_order_payment', None),
+                'is_real_transaction': True
+            }
+
+        except ChapaTransaction.DoesNotExist:
+            # Transaction not found - this is likely a mock/test transaction
+            context = {
+                'tx_ref': tx_ref,
+                'transaction': None,
+                'order_payment': None,
+                'is_real_transaction': False,
+                'error_message': 'This appears to be a test transaction. The payment system is currently in demo mode.',
+                'demo_mode': True
+            }
+
+        return render(request, 'payments/payment_status.html', context)
+
+    except Exception as e:
+        logger.error(f"Error showing payment status: {str(e)}")
+
+        # If database tables don't exist, show demo mode message
+        context = {
+            'tx_ref': tx_ref,
+            'transaction': None,
+            'order_payment': None,
+            'is_real_transaction': False,
+            'error_message': 'Payment system is in demo mode. Database tables are not yet configured.',
+            'demo_mode': True
+        }
+
+        return render(request, 'payments/payment_status.html', context)
+
+
+@login_required
+@user_passes_test(is_head_manager)
+def payment_success(request):
+    """
+    Payment success page - handles both real and demo transactions
+    """
+    tx_ref = request.GET.get('tx_ref', 'DEMO-TX-REF')
+
+    context = {
+        'tx_ref': tx_ref,
+        'demo_mode': True,
+        'success_message': 'Payment workflow completed successfully!',
+        'demo_explanation': 'This is a demonstration of the Chapa payment integration. In production mode, this would show real payment confirmation from Chapa.'
+    }
+
+    return render(request, 'payments/payment_success.html', context)
+
+
+@csrf_exempt
+@require_POST
+def chapa_webhook(request):
+    """
+    Handle Chapa webhook notifications
+    """
+    try:
+        # Get raw payload
+        payload = request.body.decode('utf-8')
+        signature = request.headers.get('Chapa-Signature', '')
+        
+        # Log webhook
+        webhook_log = PaymentWebhookLog.objects.create(
+            webhook_data=json.loads(payload),
+            signature=signature
+        )
+        
+        # Verify signature (if configured)
+        from .chapa_client import ChapaClient
+        client = ChapaClient()
+        
+        if not client.verify_webhook_signature(payload, signature):
+            logger.warning(f"Invalid webhook signature: {signature}")
+            webhook_log.processing_error = "Invalid signature"
+            webhook_log.save()
+            return HttpResponseBadRequest("Invalid signature")
+        
+        # Parse webhook data
+        webhook_data = json.loads(payload)
+        tx_ref = webhook_data.get('tx_ref')
+        status = webhook_data.get('status', '').lower()
+        
+        if not tx_ref:
+            logger.error("Webhook missing tx_ref")
+            webhook_log.processing_error = "Missing tx_ref"
+            webhook_log.save()
+            return HttpResponseBadRequest("Missing tx_ref")
+        
+        # Find and update transaction
+        try:
+            transaction = ChapaTransaction.objects.get(chapa_tx_ref=tx_ref)
+            webhook_log.transaction = transaction
+            
+            # Update transaction status
+            if status == 'success':
+                transaction.status = 'success'
+                transaction.paid_at = timezone.now()
+            elif status in ['failed', 'cancelled']:
+                transaction.status = 'failed'
+            else:
+                transaction.status = 'pending'
+            
+            transaction.webhook_data = webhook_data
+            transaction.save()
+            
+            # Update related purchase order payment
+            if hasattr(transaction, 'purchase_order_payment'):
+                transaction.purchase_order_payment.update_status_from_payment()
+            
+            webhook_log.processed = True
+            webhook_log.processed_at = timezone.now()
+            webhook_log.save()
+            
+            logger.info(f"Webhook processed successfully: {tx_ref} - {status}")
+            return HttpResponse("OK")
+            
+        except ChapaTransaction.DoesNotExist:
+            logger.error(f"Transaction not found for webhook: {tx_ref}")
+            webhook_log.processing_error = f"Transaction not found: {tx_ref}"
+            webhook_log.save()
+            return HttpResponseBadRequest("Transaction not found")
+            
+    except Exception as e:
+        logger.error(f"Error processing webhook: {str(e)}")
+        if 'webhook_log' in locals():
+            webhook_log.processing_error = str(e)
+            webhook_log.save()
+        return HttpResponseBadRequest("Webhook processing error")
+
+
+@login_required
+@user_passes_test(is_head_manager)
+def payment_history(request):
+    """
+    Show payment history for the user with filtering and pagination
+    """
+    try:
+        from django.core.paginator import Paginator
+        from django.utils import timezone
+        from datetime import datetime
+
+        # Get filter parameters
+        status_filter = request.GET.get('status', '')
+        date_from = request.GET.get('date_from', '')
+        date_to = request.GET.get('date_to', '')
+
+        # Start with user's transactions
+        transactions = ChapaTransaction.objects.filter(user=request.user)
+
+        # Apply filters
+        if status_filter:
+            transactions = transactions.filter(status=status_filter)
+
+        if date_from:
+            try:
+                date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+                transactions = transactions.filter(created_at__date__gte=date_from_obj)
+            except ValueError:
+                pass
+
+        if date_to:
+            try:
+                date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
+                transactions = transactions.filter(created_at__date__lte=date_to_obj)
+            except ValueError:
+                pass
+
+        # Order by most recent first
+        transactions = transactions.order_by('-created_at')
+
+        # Pagination
+        paginator = Paginator(transactions, 10)  # Show 10 transactions per page
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+
+        context = {
+            'transactions': page_obj,
+            'status_filter': status_filter,
+            'date_from': date_from,
+            'date_to': date_to,
+        }
+
+        return render(request, 'payments/payment_history.html', context)
+
+    except Exception as e:
+        # If database tables don't exist yet, show empty state
+        messages.info(request, 'Payment history is not available yet. Database tables are being set up.')
+        context = {
+            'transactions': [],
+            'status_filter': '',
+            'date_from': '',
+            'date_to': '',
+        }
+        return render(request, 'payments/payment_history.html', context)

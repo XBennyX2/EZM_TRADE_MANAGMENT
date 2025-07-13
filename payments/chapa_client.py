@@ -32,29 +32,48 @@ class ChapaClient:
     def generate_tx_ref(self):
         """Generate a unique transaction reference"""
         return f"EZM-{uuid.uuid4().hex[:12].upper()}"
-    
-    def initialize_payment(self, amount, email, first_name, last_name, phone=None, 
-                          callback_url=None, return_url=None, description=None, tx_ref=None):
+
+    def _create_safe_title(self, title):
         """
-        Initialize a payment with Chapa
-        
+        Ensure title meets Chapa's 16-character limit
+
+        Args:
+            title (str): The desired title
+
+        Returns:
+            str: A title that fits within Chapa's 16-character limit
+        """
+        if len(title) <= 16:
+            return title
+        else:
+            return title[:16]
+    
+    def initialize_payment(self, amount, email, first_name, last_name, phone=None,
+                          callback_url=None, return_url=None, description=None, tx_ref=None,
+                          customization=None, meta=None):
+        """
+        Initialize a payment with Chapa with comprehensive payment method support
+
         Args:
             amount (Decimal): Payment amount in ETB
             email (str): Customer email
             first_name (str): Customer first name
             last_name (str): Customer last name
-            phone (str, optional): Customer phone number
+            phone (str, optional): Customer phone number (required for mobile wallets)
             callback_url (str, optional): Webhook callback URL
             return_url (str, optional): Return URL after payment
             description (str, optional): Payment description
             tx_ref (str, optional): Transaction reference (auto-generated if not provided)
-        
+            customization (dict, optional): Checkout page customization
+            meta (dict, optional): Additional metadata
+
         Returns:
-            dict: Chapa API response
+            dict: Chapa API response with checkout URL for all payment methods
         """
         if not tx_ref:
             tx_ref = self.generate_tx_ref()
-        
+
+        # Base payload with required fields
         payload = {
             "amount": str(amount),
             "currency": "ETB",
@@ -63,7 +82,7 @@ class ChapaClient:
             "last_name": last_name,
             "tx_ref": tx_ref,
         }
-        
+
         # Optional fields
         if phone:
             payload["phone_number"] = phone
@@ -73,6 +92,23 @@ class ChapaClient:
             payload["return_url"] = return_url
         if description:
             payload["description"] = description
+
+        # Enhanced customization for better payment experience
+        if customization:
+            # Ensure title is safe for Chapa
+            if "title" in customization:
+                customization["title"] = self._create_safe_title(customization["title"])
+            payload["customization"] = customization
+        else:
+            # Chapa title must be 16 characters or less
+            payload["customization"] = {
+                "title": "EZM Trade",  # 9 characters - well under 16 limit
+                "description": description or "Secure payment for your order"
+            }
+
+        # Meta information for additional features
+        if meta:
+            payload["meta"] = meta
         
         try:
             response = requests.post(
@@ -209,3 +245,147 @@ class ChapaClient:
         if verification_result['success']:
             return verification_result.get('status', 'unknown')
         return 'failed'
+
+    def get_supported_payment_methods(self):
+        """
+        Get list of supported payment methods in Ethiopia
+
+        Returns:
+            dict: Available payment methods with their details
+        """
+        return {
+            'mobile_wallets': [
+                {
+                    'name': 'Telebirr',
+                    'code': 'telebirr',
+                    'description': 'Ethiopia\'s leading mobile money service',
+                    'min_amount': 1,
+                    'max_amount': 75000,
+                    'currency': 'ETB',
+                    'icon': 'telebirr_logo.svg'
+                },
+                {
+                    'name': 'CBE Birr',
+                    'code': 'cbebirr',
+                    'description': 'Commercial Bank of Ethiopia mobile wallet',
+                    'min_amount': 1,
+                    'max_amount': 75000,
+                    'currency': 'ETB',
+                    'icon': 'cbebirr_logo.svg'
+                },
+                {
+                    'name': 'M-Pesa',
+                    'code': 'mpesa',
+                    'description': 'Safaricom mobile money service',
+                    'min_amount': 20,
+                    'max_amount': 75000,
+                    'currency': 'ETB',
+                    'icon': 'mpesa_logo.svg'
+                },
+                {
+                    'name': 'Amole',
+                    'code': 'amole',
+                    'description': 'Dashen Bank mobile wallet',
+                    'min_amount': 1,
+                    'max_amount': 250000,
+                    'currency': 'ETB',
+                    'icon': 'amole_logo.svg'
+                },
+                {
+                    'name': 'AwashBirr',
+                    'code': 'awashbirr',
+                    'description': 'Awash Bank mobile wallet',
+                    'min_amount': 1,
+                    'max_amount': 600000,
+                    'currency': 'ETB',
+                    'icon': 'awashbirr_logo.svg'
+                },
+                {
+                    'name': 'Coopay-Ebirr',
+                    'code': 'coopay',
+                    'description': 'Cooperative Bank mobile wallet',
+                    'min_amount': 1,
+                    'max_amount': 30000,
+                    'currency': 'ETB',
+                    'icon': 'coop_card_logo.svg'
+                }
+            ],
+            'bank_cards': [
+                {
+                    'name': 'Credit/Debit Cards',
+                    'code': 'card',
+                    'description': 'Visa, Mastercard, and local bank cards',
+                    'min_amount': 10,
+                    'max_amount': 500000,
+                    'currency': 'ETB',
+                    'icon': 'card.png'
+                },
+                {
+                    'name': 'BOA Card',
+                    'code': 'boa_card',
+                    'description': 'Bank of Abyssinia cards',
+                    'min_amount': 1,
+                    'max_amount': 10000,
+                    'currency': 'ETB',
+                    'icon': 'boa_logo.svg'
+                }
+            ],
+            'bank_transfers': [
+                {
+                    'name': 'CBE Bank Transfer',
+                    'code': 'cbe_transfer',
+                    'description': 'Commercial Bank of Ethiopia direct transfer',
+                    'min_amount': 1,
+                    'max_amount': 1000000,
+                    'currency': 'ETB',
+                    'icon': 'cbe_bank_logo.svg'
+                },
+                {
+                    'name': 'Cooperative Bank',
+                    'code': 'coop_bank',
+                    'description': 'Cooperative Bank of Oromia transfer',
+                    'min_amount': 1,
+                    'max_amount': 1000000,
+                    'currency': 'ETB',
+                    'icon': 'coop_bank_logo.svg'
+                },
+                {
+                    'name': 'Awash Bank',
+                    'code': 'awash_bank',
+                    'description': 'Awash Bank direct transfer',
+                    'min_amount': 1,
+                    'max_amount': 100000,
+                    'currency': 'ETB',
+                    'icon': 'awash_bank_logo.svg'
+                },
+                {
+                    'name': 'Enat Bank',
+                    'code': 'enat_bank',
+                    'description': 'Enat Bank transfer',
+                    'min_amount': 1,
+                    'max_amount': 90000,
+                    'currency': 'ETB',
+                    'icon': 'enat_bank_logo.svg'
+                },
+                {
+                    'name': 'Amhara Bank',
+                    'code': 'amhara_bank',
+                    'description': 'Amhara Bank transfer',
+                    'min_amount': 1,
+                    'max_amount': 100000,
+                    'currency': 'ETB',
+                    'icon': 'amhara_bank_logo.svg'
+                }
+            ],
+            'international': [
+                {
+                    'name': 'PayPal',
+                    'code': 'paypal',
+                    'description': 'International PayPal payments',
+                    'min_amount': 10,
+                    'max_amount': 500000,
+                    'currency': 'ETB',
+                    'icon': 'paypal_icon.svg'
+                }
+            ]
+        }

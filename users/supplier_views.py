@@ -210,25 +210,125 @@ def supplier_invoices(request):
 
 @supplier_profile_required
 def supplier_payments(request):
-    """List of payments for the supplier"""
+    """Enhanced payment notifications and history for the supplier"""
     try:
         supplier = Supplier.objects.get(email=request.user.email)
-        supplier_account = SupplierAccount.objects.get(supplier=supplier)
-        
-        payments = SupplierPayment.objects.filter(
-            supplier_transaction__supplier_account=supplier_account
-        ).order_by('-payment_date')
-        
+
+        # Get Chapa payment transactions for this supplier
+        from payments.models import ChapaTransaction, PurchaseOrderPayment
+
+        # Get all Chapa transactions for this supplier
+        chapa_transactions = ChapaTransaction.objects.filter(
+            supplier=supplier
+        ).order_by('-created_at')
+
+        # Get purchase order payments
+        purchase_order_payments = PurchaseOrderPayment.objects.filter(
+            supplier=supplier
+        ).order_by('-created_at')
+
+        # Get delivery confirmations and issue reports
+        from Inventory.models import DeliveryConfirmation, IssueReport
+        delivery_confirmations = DeliveryConfirmation.objects.filter(
+            purchase_order__supplier=supplier
+        ).order_by('-confirmed_at')[:10]
+
+        issue_reports = IssueReport.objects.filter(
+            purchase_order__supplier=supplier
+        ).order_by('-reported_at')[:10]
+
+        # Get traditional supplier payments (for backward compatibility)
+        try:
+            supplier_account = SupplierAccount.objects.get(supplier=supplier)
+            traditional_payments = SupplierPayment.objects.filter(
+                supplier_transaction__supplier_account=supplier_account
+            ).order_by('-payment_date')
+        except SupplierAccount.DoesNotExist:
+            traditional_payments = []
+
+        # Payment statistics
+        total_chapa_payments = chapa_transactions.filter(status='success').aggregate(
+            total=Sum('amount')
+        )['total'] or 0
+
+        pending_payments = chapa_transactions.filter(status='pending').count()
+        failed_payments = chapa_transactions.filter(status='failed').count()
+        successful_payments = chapa_transactions.filter(status='success').count()
+
         context = {
             'supplier': supplier,
-            'payments': payments,
+            'chapa_transactions': chapa_transactions,
+            'purchase_order_payments': purchase_order_payments,
+            'traditional_payments': traditional_payments,
+            'delivery_confirmations': delivery_confirmations,
+            'issue_reports': issue_reports,
+            'total_chapa_payments': total_chapa_payments,
+            'pending_payments': pending_payments,
+            'failed_payments': failed_payments,
+            'successful_payments': successful_payments,
+            'total_transactions': chapa_transactions.count(),
         }
-        
-    except (Supplier.DoesNotExist, SupplierAccount.DoesNotExist):
-        messages.warning(request, "Supplier account not found. Please contact the administrator to set up your supplier profile.")
+
+    except Supplier.DoesNotExist:
+        messages.warning(request, "Supplier profile not found. Please contact the administrator to set up your supplier profile.")
         return redirect('supplier_dashboard')
-    
+
     return render(request, 'supplier/payments.html', context)
+
+
+@supplier_profile_required
+def supplier_payment_notifications_api(request):
+    """
+    API endpoint for real-time payment notification updates
+    """
+    try:
+        supplier = Supplier.objects.get(email=request.user.email)
+
+        # Get Chapa payment transactions for this supplier
+        from payments.models import ChapaTransaction
+
+        chapa_transactions = ChapaTransaction.objects.filter(
+            supplier=supplier
+        ).order_by('-created_at')
+
+        # Payment statistics
+        total_chapa_payments = chapa_transactions.filter(status='success').aggregate(
+            total=Sum('amount')
+        )['total'] or 0
+
+        pending_payments = chapa_transactions.filter(status='pending').count()
+        failed_payments = chapa_transactions.filter(status='failed').count()
+        successful_payments = chapa_transactions.filter(status='success').count()
+
+        # Recent transactions for real-time updates
+        recent_transactions = []
+        for transaction in chapa_transactions[:10]:
+            recent_transactions.append({
+                'chapa_tx_ref': transaction.chapa_tx_ref,
+                'amount': float(transaction.amount),
+                'status': transaction.status,
+                'customer_first_name': transaction.customer_first_name,
+                'customer_last_name': transaction.customer_last_name,
+                'customer_email': transaction.customer_email,
+                'created_at': transaction.created_at.isoformat(),
+                'description': transaction.description,
+            })
+
+        data = {
+            'successful_payments': successful_payments,
+            'pending_payments': pending_payments,
+            'failed_payments': failed_payments,
+            'total_transactions': chapa_transactions.count(),
+            'total_amount': float(total_chapa_payments),
+            'recent_transactions': recent_transactions,
+        }
+
+        return JsonResponse(data)
+
+    except Supplier.DoesNotExist:
+        return JsonResponse({'error': 'Supplier not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 
 @supplier_profile_required

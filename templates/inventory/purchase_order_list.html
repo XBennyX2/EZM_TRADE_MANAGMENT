@@ -1,11 +1,155 @@
 {% extends 'base_sidebar.html' %}
 {% load static %}
 
-{% block title %}Purchase Orders{% endblock %}
-{% block page_title %}Purchase Orders{% endblock %}
+{% block title %}Purchase Orders - Order Tracking{% endblock %}
+{% block page_title %}Purchase Orders - Order Tracking{% endblock %}
 
 {% block sidebar_menu %}
 {% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .countdown-timer {
+        font-family: 'Courier New', monospace;
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+
+    .countdown-expired {
+        color: #dc3545;
+        animation: pulse-red 2s infinite;
+    }
+
+    .countdown-warning {
+        color: #ffc107;
+    }
+
+    .countdown-normal {
+        color: #28a745;
+    }
+
+    @keyframes pulse-red {
+        0% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.5;
+        }
+
+        100% {
+            opacity: 1;
+        }
+    }
+
+    .status-indicator {
+        position: relative;
+        display: inline-block;
+    }
+
+    .status-indicator.in-transit::before {
+        content: '';
+        position: absolute;
+        top: -2px;
+        right: -2px;
+        width: 8px;
+        height: 8px;
+        background: #17a2b8;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+
+    .delivery-actions {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+    }
+
+    .order-card {
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+        margin-bottom: 1rem;
+    }
+
+    .order-card:hover {
+        border-color: var(--accent-teal);
+        box-shadow: 0 4px 15px rgba(102, 252, 241, 0.2);
+    }
+
+    .order-card.overdue {
+        border-color: #dc3545;
+        background: rgba(220, 53, 69, 0.05);
+    }
+
+    .order-card.in-transit {
+        border-color: #17a2b8;
+        background: rgba(23, 162, 184, 0.05);
+    }
+
+    .order-card.delivered {
+        border-color: #28a745;
+        background: rgba(40, 167, 69, 0.05);
+    }
+
+    .progress-timeline {
+        display: flex;
+        align-items: center;
+        margin: 1rem 0;
+    }
+
+    .timeline-step {
+        flex: 1;
+        text-align: center;
+        position: relative;
+    }
+
+    .timeline-step::before {
+        content: '';
+        position: absolute;
+        top: 15px;
+        left: 50%;
+        right: -50%;
+        height: 2px;
+        background: #e9ecef;
+        z-index: 1;
+    }
+
+    .timeline-step:last-child::before {
+        display: none;
+    }
+
+    .timeline-step.completed::before {
+        background: var(--accent-teal);
+    }
+
+    .timeline-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: #e9ecef;
+        color: #6c757d;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 5px;
+        position: relative;
+        z-index: 2;
+        font-size: 0.9rem;
+    }
+
+    .timeline-step.completed .timeline-icon {
+        background: var(--accent-teal);
+        color: white;
+    }
+
+    .timeline-step.current .timeline-icon {
+        background: #ffc107;
+        color: white;
+        animation: pulse 2s infinite;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -15,71 +159,250 @@
         <div class="col-12">
             <div class="ezm-card">
                 <div class="ezm-card-header">
-                    <i class="bi bi-cart-check me-2"></i>Purchase Orders
+                    <i class="bi bi-truck me-2"></i>Order Tracking & Delivery Management
+                    <span class="real-time-indicator"></span>
+                    <small class="text-muted ms-2">Real-time tracking</small>
                 </div>
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
-                        <p class="mb-0">Manage and track purchase orders</p>
-                        <a href="{% url 'purchase_order_create' %}" class="btn btn-ezm-primary">
-                            <i class="bi bi-plus-circle me-2"></i>Create Purchase Order
-                        </a>
+                        <p class="mb-0">Track delivery status, confirm deliveries, and report issues for all purchase
+                            orders</p>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-ezm-secondary btn-sm" onclick="filterOrders('all')">
+                                <i class="bi bi-funnel me-1"></i>All Orders
+                            </button>
+                            <button class="btn btn-ezm-secondary btn-sm" onclick="filterOrders('in_transit')">
+                                <i class="bi bi-truck me-1"></i>In Transit
+                            </button>
+                            <button class="btn btn-ezm-secondary btn-sm" onclick="filterOrders('overdue')">
+                                <i class="bi bi-exclamation-triangle me-1"></i>Overdue
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Statistics Cards -->
+    <!-- Order Statistics -->
     <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card bg-primary text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h6 class="card-title">Total Orders</h6>
-                            <h3 class="mb-0">{{ total_orders }}</h3>
-                        </div>
-                        <i class="bi bi-cart-check fs-1 opacity-50"></i>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stats-card">
+                <div class="card-body d-flex align-items-center p-4">
+                    <div class="stats-icon" style="background: rgba(23, 162, 184, 0.1); color: #17a2b8;">
+                        <i class="bi bi-truck"></i>
+                    </div>
+                    <div>
+                        <p class="mb-1 text-muted">In Transit</p>
+                        <h3 class="fw-bold mb-0" style="color: #17a2b8;" id="in-transit-count">0</h3>
+                        <small class="text-muted">Active deliveries</small>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-warning text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h6 class="card-title">Pending Orders</h6>
-                            <h3 class="mb-0">{{ pending_orders }}</h3>
-                        </div>
-                        <i class="bi bi-clock fs-1 opacity-50"></i>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stats-card">
+                <div class="card-body d-flex align-items-center p-4">
+                    <div class="stats-icon" style="background: rgba(220, 53, 69, 0.1); color: #dc3545;">
+                        <i class="bi bi-exclamation-triangle"></i>
+                    </div>
+                    <div>
+                        <p class="mb-1 text-muted">Overdue</p>
+                        <h3 class="fw-bold mb-0" style="color: #dc3545;" id="overdue-count">0</h3>
+                        <small class="text-muted">Require attention</small>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-success text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h6 class="card-title">Approved Orders</h6>
-                            <h3 class="mb-0">{{ approved_orders }}</h3>
-                        </div>
-                        <i class="bi bi-check-circle fs-1 opacity-50"></i>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stats-card">
+                <div class="card-body d-flex align-items-center p-4">
+                    <div class="stats-icon" style="background: rgba(40, 167, 69, 0.1); color: #28a745;">
+                        <i class="bi bi-check-circle"></i>
+                    </div>
+                    <div>
+                        <p class="mb-1 text-muted">Delivered</p>
+                        <h3 class="fw-bold mb-0" style="color: #28a745;" id="delivered-count">0</h3>
+                        <small class="text-muted">This month</small>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-info text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h6 class="card-title">This Month</h6>
-                            <h3 class="mb-0">{{ purchase_orders|length }}</h3>
-                        </div>
-                        <i class="bi bi-calendar-month fs-1 opacity-50"></i>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stats-card">
+                <div class="card-body d-flex align-items-center p-4">
+                    <div class="stats-icon" style="background: rgba(255, 193, 7, 0.1); color: #ffc107;">
+                        <i class="bi bi-exclamation-circle"></i>
                     </div>
+                    <div>
+                        <p class="mb-1 text-muted">Issues Reported</p>
+                        <h3 class="fw-bold mb-0" style="color: #ffc107;" id="issues-count">0</h3>
+                        <small class="text-muted">Pending resolution</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced Order Tracking Cards -->
+    <div class="row">
+        <div class="col-12">
+            <div class="ezm-card">
+                <div class="ezm-card-header">
+                    <i class="bi bi-list-ul me-2"></i>Active Purchase Orders
+                    <span class="badge bg-primary ms-2" id="total-orders-badge">{{ purchase_orders|length }}</span>
+                </div>
+                <div class="card-body">
+                    {% if purchase_orders %}
+                    <div id="orders-container">
+                        {% for order in purchase_orders %}
+                        <div class="order-card {% if order.is_overdue %}overdue{% elif order.is_in_transit %}in-transit{% elif order.is_delivered %}delivered{% endif %}"
+                            data-order-id="{{ order.id }}" data-status="{{ order.status }}"
+                            data-countdown="{{ order.delivery_countdown_seconds }}">
+
+                            <div class="card-body p-4">
+                                <!-- Order Header -->
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <div>
+                                        <h5 class="mb-1 fw-bold">
+                                            <i class="bi bi-cart-check me-2"></i>
+                                            Order #{{ order.order_number }}
+                                        </h5>
+                                        <p class="text-muted mb-0">
+                                            <i class="bi bi-building me-1"></i>{{ order.supplier.name }}
+                                            <span class="mx-2">•</span>
+                                            <i class="bi bi-calendar me-1"></i>{{ order.order_date|date:"M d, Y" }}
+                                        </p>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="status-indicator {% if order.is_in_transit %}in-transit{% endif %}">
+                                            {% if order.status == 'payment_confirmed' %}
+                                            <span class="badge bg-success">Payment Confirmed</span>
+                                            {% elif order.status == 'in_transit' %}
+                                            <span class="badge bg-info">In Transit</span>
+                                            {% elif order.status == 'delivered' %}
+                                            <span class="badge bg-primary">Delivered</span>
+                                            {% elif order.status == 'issue_reported' %}
+                                            <span class="badge bg-warning">Issues Reported</span>
+                                            {% else %}
+                                            <span class="badge bg-secondary">{{ order.get_status_display }}</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="mt-1">
+                                            <strong style="color: var(--accent-teal);">ETB {{
+                                                order.total_amount|floatformat:2 }}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Progress Timeline -->
+                                <div class="progress-timeline">
+                                    <div class="timeline-step {% if order.payment_confirmed_at %}completed{% endif %}">
+                                        <div class="timeline-icon">
+                                            <i class="bi bi-credit-card"></i>
+                                        </div>
+                                        <small>Payment</small>
+                                    </div>
+                                    <div
+                                        class="timeline-step {% if order.shipped_at %}completed{% elif order.status == 'payment_confirmed' %}current{% endif %}">
+                                        <div class="timeline-icon">
+                                            <i class="bi bi-box-seam"></i>
+                                        </div>
+                                        <small>Shipped</small>
+                                    </div>
+                                    <div
+                                        class="timeline-step {% if order.is_in_transit %}current{% elif order.is_delivered %}completed{% endif %}">
+                                        <div class="timeline-icon">
+                                            <i class="bi bi-truck"></i>
+                                        </div>
+                                        <small>In Transit</small>
+                                    </div>
+                                    <div
+                                        class="timeline-step {% if order.is_delivered %}completed{% elif order.is_in_transit %}current{% endif %}">
+                                        <div class="timeline-icon">
+                                            <i class="bi bi-house-check"></i>
+                                        </div>
+                                        <small>Delivered</small>
+                                    </div>
+                                </div>
+
+                                <!-- Countdown Timer -->
+                                {% if order.is_in_transit or order.status == 'payment_confirmed' %}
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <small class="text-muted">Estimated Delivery:</small>
+                                        <div class="countdown-timer" id="countdown-{{ order.id }}">
+                                            {% if order.delivery_countdown_seconds > 0 %}
+                                            <span class="countdown-normal">Calculating...</span>
+                                            {% else %}
+                                            <span class="countdown-expired">OVERDUE</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% if order.tracking_number %}
+                                    <div class="text-end">
+                                        <small class="text-muted">Tracking:</small>
+                                        <div><code>{{ order.tracking_number }}</code></div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+
+                                <!-- Order Items Summary -->
+                                <div class="mb-3">
+                                    <small class="text-muted">Items:</small>
+                                    <div class="d-flex flex-wrap gap-1 mt-1">
+                                        {% for item in order.items.all|slice:":3" %}
+                                        <span class="badge bg-light text-dark">{{ item.quantity_ordered }}x {{
+                                            item.warehouse_product.product_name|truncatechars:20 }}</span>
+                                        {% endfor %}
+                                        {% if order.items.count > 3 %}
+                                        <span class="badge bg-secondary">+{{ order.items.count|add:"-3" }} more</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="delivery-actions">
+                                    <a href="{% url 'purchase_order_detail' order.pk %}"
+                                        class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-eye me-1"></i>View Details
+                                    </a>
+
+                                    {% if order.is_in_transit %}
+                                    <button class="btn btn-success btn-sm" onclick="confirmDelivery({{ order.id }})">
+                                        <i class="bi bi-check-circle me-1"></i>Confirm Delivery
+                                    </button>
+                                    <button class="btn btn-warning btn-sm" onclick="reportIssue({{ order.id }})">
+                                        <i class="bi bi-exclamation-triangle me-1"></i>Report Issue
+                                    </button>
+                                    {% elif order.status == 'payment_confirmed' %}
+                                    <button class="btn btn-info btn-sm" onclick="markInTransit({{ order.id }})">
+                                        <i class="bi bi-truck me-1"></i>Mark In Transit
+                                    </button>
+                                    {% elif order.is_delivered %}
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check-circle me-1"></i>Delivered {{ order.delivered_at|date:"M
+                                        d" }}
+                                    </span>
+                                    {% elif order.has_delivery_issues %}
+                                    <button class="btn btn-outline-warning btn-sm" onclick="viewIssues({{ order.id }})">
+                                        <i class="bi bi-exclamation-circle me-1"></i>View Issues
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-truck" style="font-size: 4rem; color: var(--light-gray);"></i>
+                        <h4 class="mt-3 mb-2" style="color: var(--primary-dark);">No Purchase Orders Found</h4>
+                        <p class="text-muted">Purchase orders will appear here once payments are confirmed and orders
+                            are created.</p>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -94,7 +417,7 @@
                     <select name="status" id="status" class="form-select">
                         <option value="">All Statuses</option>
                         {% for value, label in status_choices %}
-                        <option value="{{ value }}" {% if value==selected_status %}selected{% endif %}>
+                        <option value="{{ value }}" {% if value in selected_status %} selected{% endif %}>
                             {{ label }}
                         </option>
                         {% endfor %}
@@ -105,8 +428,8 @@
                     <select name="supplier" id="supplier" class="form-select">
                         <option value="">All Suppliers</option>
                         {% for supplier in suppliers %}
-                        <option value="{{ supplier.pk }}" {% if supplier.pk|stringformat:"s"==selected_supplier
-                            %}selected{% endif %}>
+                        <option value="{{ supplier.pk }}" {% if supplier.pk|stringformat:"s" in selected_supplier %}
+                            selected{% endif %}>
                             {{ supplier.name }}
                         </option>
                         {% endfor %}
@@ -274,6 +597,624 @@
         </div>
     </div>
 </div>
+
+<!-- Delivery Confirmation Modal -->
+<div class="modal fade" id="deliveryConfirmationModal" tabindex="-1" aria-labelledby="deliveryConfirmationModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deliveryConfirmationModalLabel">
+                    <i class="bi bi-check-circle me-2"></i>Confirm Delivery
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="deliveryConfirmationForm">
+                    <input type="hidden" id="confirmOrderId" name="order_id">
+
+                    <!-- Order Information -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold mb-3">Order Information</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Order Number:</strong> <span id="confirmOrderNumber"></span></p>
+                                <p><strong>Supplier:</strong> <span id="confirmSupplier"></span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Total Amount:</strong> <span id="confirmAmount"></span></p>
+                                <p><strong>Expected Delivery:</strong> <span id="confirmExpectedDate"></span></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Item Checklist -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold mb-3">Item Verification</h6>
+                        <div id="itemChecklist">
+                            <!-- Items will be populated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- Delivery Condition -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold mb-3">Delivery Condition</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label for="deliveryCondition" class="form-label">Overall Condition</label>
+                                <select class="form-select" id="deliveryCondition" name="delivery_condition" required>
+                                    <option value="">Select condition...</option>
+                                    <option value="excellent">Excellent</option>
+                                    <option value="good">Good</option>
+                                    <option value="fair">Fair</option>
+                                    <option value="poor">Poor</option>
+                                    <option value="damaged">Damaged</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">All Items Received?</label>
+                                <div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="all_items_received"
+                                            id="allItemsYes" value="true" checked>
+                                        <label class="form-check-label" for="allItemsYes">Yes</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="all_items_received"
+                                            id="allItemsNo" value="false">
+                                        <label class="form-check-label" for="allItemsNo">No</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Photo Upload -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold mb-3">Photo Documentation (Optional)</h6>
+                        <div class="mb-3">
+                            <label for="deliveryPhotos" class="form-label">Upload photos of delivered items</label>
+                            <input class="form-control" type="file" id="deliveryPhotos" name="delivery_photos" multiple
+                                accept="image/*">
+                            <div class="form-text">You can upload multiple photos to document the delivery condition.
+                            </div>
+                        </div>
+                        <div id="photoPreview" class="d-flex flex-wrap gap-2"></div>
+                    </div>
+
+                    <!-- Comments -->
+                    <div class="mb-4">
+                        <label for="deliveryNotes" class="form-label">Delivery Notes</label>
+                        <textarea class="form-control" id="deliveryNotes" name="delivery_notes" rows="3"
+                            placeholder="Add any additional notes about the delivery..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="submitDeliveryConfirmation()">
+                    <i class="bi bi-check-circle me-2"></i>Confirm Delivery
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Issue Report Modal -->
+<div class="modal fade" id="issueReportModal" tabindex="-1" aria-labelledby="issueReportModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="issueReportModalLabel">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Report Delivery Issue
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="issueReportForm">
+                    <input type="hidden" id="issueOrderId" name="order_id">
+
+                    <!-- Order Information -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold mb-3">Order Information</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Order Number:</strong> <span id="issueOrderNumber"></span></p>
+                                <p><strong>Supplier:</strong> <span id="issueSupplier"></span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Total Amount:</strong> <span id="issueAmount"></span></p>
+                                <p><strong>Expected Delivery:</strong> <span id="issueExpectedDate"></span></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Issue Details -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold mb-3">Issue Details</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label for="issueType" class="form-label">Issue Type</label>
+                                <select class="form-select" id="issueType" name="issue_type" required>
+                                    <option value="">Select issue type...</option>
+                                    <option value="missing_items">Missing Items</option>
+                                    <option value="damaged_items">Damaged Items</option>
+                                    <option value="wrong_items">Wrong Items</option>
+                                    <option value="quality_issues">Quality Issues</option>
+                                    <option value="packaging_issues">Packaging Issues</option>
+                                    <option value="late_delivery">Late Delivery</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="issueSeverity" class="form-label">Severity</label>
+                                <select class="form-select" id="issueSeverity" name="severity" required>
+                                    <option value="">Select severity...</option>
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="critical">Critical</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Issue Title and Description -->
+                    <div class="mb-4">
+                        <label for="issueTitle" class="form-label">Issue Title</label>
+                        <input type="text" class="form-control" id="issueTitle" name="title" required
+                            placeholder="Brief description of the issue">
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="issueDescription" class="form-label">Detailed Description</label>
+                        <textarea class="form-control" id="issueDescription" name="description" rows="4" required
+                            placeholder="Provide detailed information about the issue..."></textarea>
+                    </div>
+
+                    <!-- Affected Items -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold mb-3">Affected Items</h6>
+                        <div id="affectedItemsChecklist">
+                            <!-- Items will be populated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- Photo Upload -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold mb-3">Photo Documentation</h6>
+                        <div class="mb-3">
+                            <label for="issuePhotos" class="form-label">Upload photos documenting the issue</label>
+                            <input class="form-control" type="file" id="issuePhotos" name="issue_photos" multiple
+                                accept="image/*">
+                            <div class="form-text">Photos help suppliers understand and resolve the issue quickly.</div>
+                        </div>
+                        <div id="issuePhotoPreview" class="d-flex flex-wrap gap-2"></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" onclick="submitIssueReport()">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Report Issue
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Order tracking and delivery confirmation system
+    let orderData = {};
+    let countdownIntervals = {};
+
+    // Initialize the order tracking system
+    document.addEventListener('DOMContentLoaded', function () {
+        initializeCountdownTimers();
+        updateOrderStatistics();
+        setupPhotoPreview();
+
+        // Refresh data every 30 seconds
+        setInterval(function () {
+            updateOrderStatistics();
+            refreshCountdownTimers();
+        }, 30000);
+    });
+
+    function initializeCountdownTimers() {
+        document.querySelectorAll('[data-countdown]').forEach(function (element) {
+            const orderId = element.getAttribute('data-order-id');
+            const countdownSeconds = parseInt(element.getAttribute('data-countdown'));
+
+            if (countdownSeconds > 0) {
+                startCountdown(orderId, countdownSeconds);
+            }
+        });
+    }
+
+    function startCountdown(orderId, seconds) {
+        const countdownElement = document.getElementById(`countdown-${orderId}`);
+        if (!countdownElement) return;
+
+        // Clear existing interval
+        if (countdownIntervals[orderId]) {
+            clearInterval(countdownIntervals[orderId]);
+        }
+
+        let remainingSeconds = seconds;
+
+        countdownIntervals[orderId] = setInterval(function () {
+            if (remainingSeconds <= 0) {
+                countdownElement.innerHTML = '<span class="countdown-expired">OVERDUE</span>';
+                clearInterval(countdownIntervals[orderId]);
+                markOrderOverdue(orderId);
+                return;
+            }
+
+            const days = Math.floor(remainingSeconds / 86400);
+            const hours = Math.floor((remainingSeconds % 86400) / 3600);
+            const minutes = Math.floor((remainingSeconds % 3600) / 60);
+            const secs = remainingSeconds % 60;
+
+            let timeString = '';
+            let className = 'countdown-normal';
+
+            if (days > 0) {
+                timeString = `${days}d ${hours}h ${minutes}m`;
+            } else if (hours > 0) {
+                timeString = `${hours}h ${minutes}m ${secs}s`;
+                if (hours < 24) className = 'countdown-warning';
+            } else {
+                timeString = `${minutes}m ${secs}s`;
+                className = 'countdown-warning';
+            }
+
+            countdownElement.innerHTML = `<span class="${className}">${timeString}</span>`;
+            remainingSeconds--;
+        }, 1000);
+    }
+
+    function markOrderOverdue(orderId) {
+        const orderCard = document.querySelector(`[data-order-id="${orderId}"]`);
+        if (orderCard) {
+            orderCard.classList.add('overdue');
+        }
+        updateOrderStatistics();
+    }
+
+    function refreshCountdownTimers() {
+        // Refresh countdown timers from server
+        fetch('/inventory/purchase-orders/countdown-data/')
+            .then(response => response.json())
+            .then(data => {
+                data.orders.forEach(order => {
+                    if (order.countdown_seconds > 0) {
+                        startCountdown(order.id, order.countdown_seconds);
+                    }
+                });
+            })
+            .catch(error => console.error('Error refreshing countdown data:', error));
+    }
+
+    function updateOrderStatistics() {
+        const inTransitCount = document.querySelectorAll('[data-status="in_transit"]').length;
+        const overdueCount = document.querySelectorAll('.order-card.overdue').length;
+        const deliveredCount = document.querySelectorAll('[data-status="delivered"]').length;
+        const issuesCount = document.querySelectorAll('[data-status="issue_reported"]').length;
+
+        document.getElementById('in-transit-count').textContent = inTransitCount;
+        document.getElementById('overdue-count').textContent = overdueCount;
+        document.getElementById('delivered-count').textContent = deliveredCount;
+        document.getElementById('issues-count').textContent = issuesCount;
+    }
+
+    function filterOrders(status) {
+        const orderCards = document.querySelectorAll('.order-card');
+
+        orderCards.forEach(card => {
+            if (status === 'all') {
+                card.style.display = 'block';
+            } else if (status === 'in_transit') {
+                card.style.display = card.classList.contains('in-transit') ? 'block' : 'none';
+            } else if (status === 'overdue') {
+                card.style.display = card.classList.contains('overdue') ? 'block' : 'none';
+            } else {
+                card.style.display = card.getAttribute('data-status') === status ? 'block' : 'none';
+            }
+        });
+    }
+
+    function confirmDelivery(orderId) {
+        // Fetch order details and populate modal
+        fetch(`/inventory/purchase-orders/${orderId}/details/`)
+            .then(response => response.json())
+            .then(data => {
+                populateDeliveryModal(data);
+                new bootstrap.Modal(document.getElementById('deliveryConfirmationModal')).show();
+            })
+            .catch(error => {
+                console.error('Error fetching order details:', error);
+                alert('Unable to load order details. Please try again.');
+            });
+    }
+
+    function populateDeliveryModal(orderData) {
+        document.getElementById('confirmOrderId').value = orderData.id;
+        document.getElementById('confirmOrderNumber').textContent = orderData.order_number;
+        document.getElementById('confirmSupplier').textContent = orderData.supplier.name;
+        document.getElementById('confirmAmount').textContent = `ETB ${orderData.total_amount}`;
+        document.getElementById('confirmExpectedDate').textContent = orderData.expected_delivery_date || 'Not specified';
+
+        // Populate item checklist
+        const checklist = document.getElementById('itemChecklist');
+        checklist.innerHTML = '';
+
+        orderData.items.forEach(item => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'form-check mb-2';
+            itemDiv.innerHTML = `
+                <input class="form-check-input" type="checkbox" id="item-${item.id}" name="received_items" value="${item.id}" checked>
+                <label class="form-check-label" for="item-${item.id}">
+                    <strong>${item.quantity_ordered}x ${item.product_name}</strong>
+                    <small class="text-muted d-block">Expected: ${item.quantity_ordered} | Unit Price: ETB ${item.unit_price}</small>
+                </label>
+            `;
+            checklist.appendChild(itemDiv);
+        });
+    }
+
+    function reportIssue(orderId) {
+        // Fetch order details and populate issue modal
+        fetch(`/inventory/purchase-orders/${orderId}/details/`)
+            .then(response => response.json())
+            .then(data => {
+                populateIssueModal(data);
+                new bootstrap.Modal(document.getElementById('issueReportModal')).show();
+            })
+            .catch(error => {
+                console.error('Error fetching order details:', error);
+                alert('Unable to load order details. Please try again.');
+            });
+    }
+
+    function populateIssueModal(orderData) {
+        document.getElementById('issueOrderId').value = orderData.id;
+        document.getElementById('issueOrderNumber').textContent = orderData.order_number;
+        document.getElementById('issueSupplier').textContent = orderData.supplier.name;
+        document.getElementById('issueAmount').textContent = `ETB ${orderData.total_amount}`;
+        document.getElementById('issueExpectedDate').textContent = orderData.expected_delivery_date || 'Not specified';
+
+        // Populate affected items checklist
+        const checklist = document.getElementById('affectedItemsChecklist');
+        checklist.innerHTML = '';
+
+        orderData.items.forEach(item => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'form-check mb-2';
+            itemDiv.innerHTML = `
+                <input class="form-check-input" type="checkbox" id="affected-item-${item.id}" name="affected_items" value="${item.id}">
+                <label class="form-check-label" for="affected-item-${item.id}">
+                    <strong>${item.quantity_ordered}x ${item.product_name}</strong>
+                    <small class="text-muted d-block">Unit Price: ETB ${item.unit_price}</small>
+                </label>
+            `;
+            checklist.appendChild(itemDiv);
+        });
+    }
+
+    function markInTransit(orderId) {
+        if (confirm('Mark this order as in transit? This will start the delivery countdown timer.')) {
+            fetch(`/inventory/purchase-orders/${orderId}/mark-in-transit/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json',
+                },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error marking order in transit:', error);
+                    alert('Unable to update order status. Please try again.');
+                });
+        }
+    }
+
+    function submitDeliveryConfirmation() {
+        const form = document.getElementById('deliveryConfirmationForm');
+        const formData = new FormData(form);
+
+        // Add received items
+        const receivedItems = [];
+        document.querySelectorAll('input[name="received_items"]:checked').forEach(checkbox => {
+            receivedItems.push(checkbox.value);
+        });
+        formData.append('received_items', JSON.stringify(receivedItems));
+
+        // Add photos
+        const photos = document.getElementById('deliveryPhotos').files;
+        for (let i = 0; i < photos.length; i++) {
+            formData.append('delivery_photos', photos[i]);
+        }
+
+        fetch(`/inventory/purchase-orders/${formData.get('order_id')}/confirm-delivery/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('deliveryConfirmationModal')).hide();
+                    showSuccessMessage('Delivery confirmed successfully!');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error confirming delivery:', error);
+                alert('Unable to confirm delivery. Please try again.');
+            });
+    }
+
+    function submitIssueReport() {
+        const form = document.getElementById('issueReportForm');
+        const formData = new FormData(form);
+
+        // Add affected items
+        const affectedItems = [];
+        document.querySelectorAll('input[name="affected_items"]:checked').forEach(checkbox => {
+            affectedItems.push(checkbox.value);
+        });
+        formData.append('affected_items', JSON.stringify(affectedItems));
+
+        // Add photos
+        const photos = document.getElementById('issuePhotos').files;
+        for (let i = 0; i < photos.length; i++) {
+            formData.append('issue_photos', photos[i]);
+        }
+
+        fetch(`/inventory/purchase-orders/${formData.get('order_id')}/report-issue/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('issueReportModal')).hide();
+                    showWarningMessage('Issue reported successfully. Supplier has been notified.');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error reporting issue:', error);
+                alert('Unable to report issue. Please try again.');
+            });
+    }
+
+    function setupPhotoPreview() {
+        // Delivery photos preview
+        document.getElementById('deliveryPhotos').addEventListener('change', function (e) {
+            showPhotoPreview(e.target.files, 'photoPreview');
+        });
+
+        // Issue photos preview
+        document.getElementById('issuePhotos').addEventListener('change', function (e) {
+            showPhotoPreview(e.target.files, 'issuePhotoPreview');
+        });
+    }
+
+    function showPhotoPreview(files, containerId) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '';
+
+        Array.from(files).forEach(file => {
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'img-thumbnail';
+                    img.style.width = '100px';
+                    img.style.height = '100px';
+                    img.style.objectFit = 'cover';
+                    container.appendChild(img);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    function showSuccessMessage(message) {
+        const toast = document.createElement('div');
+        toast.className = 'toast align-items-center text-white bg-success border-0';
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="bi bi-check-circle me-2"></i>${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+
+        const container = getOrCreateToastContainer();
+        container.appendChild(toast);
+        new bootstrap.Toast(toast).show();
+
+        toast.addEventListener('hidden.bs.toast', () => {
+            container.removeChild(toast);
+        });
+    }
+
+    function showWarningMessage(message) {
+        const toast = document.createElement('div');
+        toast.className = 'toast align-items-center text-white bg-warning border-0';
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="bi bi-exclamation-triangle me-2"></i>${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+
+        const container = getOrCreateToastContainer();
+        container.appendChild(toast);
+        new bootstrap.Toast(toast).show();
+
+        toast.addEventListener('hidden.bs.toast', () => {
+            container.removeChild(toast);
+        });
+    }
+
+    function getOrCreateToastContainer() {
+        let container = document.getElementById('toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toast-container';
+            container.className = 'toast-container position-fixed top-0 end-0 p-3';
+            container.style.zIndex = '1055';
+            document.body.appendChild(container);
+        }
+        return container;
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function viewIssues(orderId) {
+        // Redirect to order detail page with issues tab
+        window.location.href = `/inventory/purchase-orders/${orderId}/?tab=issues`;
+    }
+</script>
 {% endblock %}

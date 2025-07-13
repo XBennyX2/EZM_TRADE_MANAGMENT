@@ -10,6 +10,7 @@ from .views import (
     purchase_request_list, purchase_request_create, purchase_request_detail, purchase_request_from_catalog,
     convert_request_to_order
 )
+from . import order_tracking_views
 
 urlpatterns = [
     # Product URLs
@@ -50,6 +51,14 @@ urlpatterns = [
     path('purchase-orders/new/', PurchaseOrderCreateView.as_view(), name='purchase_order_create'),
     path('purchase-orders/<int:pk>/', PurchaseOrderDetailView.as_view(), name='purchase_order_detail'),
     path('purchase-orders/<int:pk>/edit/', PurchaseOrderUpdateView.as_view(), name='purchase_order_update'),
+
+    # Order tracking and delivery confirmation APIs
+    path('purchase-orders/<int:order_id>/details/', order_tracking_views.purchase_order_details_api, name='purchase_order_details_api'),
+    path('purchase-orders/<int:order_id>/mark-in-transit/', order_tracking_views.mark_order_in_transit, name='mark_order_in_transit'),
+    path('purchase-orders/<int:order_id>/confirm-delivery/', order_tracking_views.confirm_delivery, name='confirm_delivery'),
+    path('purchase-orders/<int:order_id>/report-issue/', order_tracking_views.report_delivery_issue, name='report_delivery_issue'),
+    path('purchase-orders/countdown-data/', order_tracking_views.countdown_data_api, name='countdown_data_api'),
+    path('purchase-orders/statistics/', order_tracking_views.order_statistics_api, name='order_statistics_api'),
 
     # Purchase Requests
     path('purchase-requests/', purchase_request_list, name='purchase_request_list'),

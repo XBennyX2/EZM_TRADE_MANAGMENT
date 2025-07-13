@@ -1,0 +1,352 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
+{% block title %}Payment Methods - EZM Trade Management{% endblock %}
+{% block page_title %}Available Payment Methods{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .methods-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .methods-header {
+        background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
+        color: white;
+        border-radius: 15px;
+        padding: 2rem;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .method-category {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+        overflow: hidden;
+    }
+
+    .category-header {
+        background: linear-gradient(45deg, var(--secondary-dark), var(--primary-dark));
+        color: white;
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .category-icon {
+        font-size: 2rem;
+        margin-right: 1rem;
+    }
+
+    .method-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        padding: 2rem;
+    }
+
+    .method-card {
+        border: 2px solid #f8f9fa;
+        border-radius: 12px;
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .method-card:hover {
+        border-color: var(--accent-teal);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 252, 241, 0.2);
+    }
+
+    .method-icon {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .method-name {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--primary-dark);
+        margin-bottom: 0.5rem;
+    }
+
+    .method-description {
+        color: #6c757d;
+        margin-bottom: 1rem;
+        font-size: 0.9rem;
+    }
+
+    .method-limits {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+
+    .limit-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+    }
+
+    .limit-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .limit-label {
+        font-weight: 600;
+        color: var(--secondary-dark);
+    }
+
+    .limit-value {
+        color: var(--accent-teal);
+        font-weight: 600;
+    }
+
+    .info-banner {
+        background: rgba(102, 252, 241, 0.1);
+        border: 1px solid var(--accent-teal);
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .security-notice {
+        background: rgba(40, 167, 69, 0.1);
+        border: 1px solid #28a745;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-top: 2rem;
+    }
+
+    .badge-count {
+        background: var(--accent-cyan);
+        color: white;
+        border-radius: 20px;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid methods-container">
+    <!-- Header -->
+    <div class="methods-header">
+        <h2 class="mb-3">
+            <i class="bi bi-credit-card-2-front me-2"></i>
+            Payment Methods Available
+        </h2>
+        <p class="lead mb-0">
+            Choose from {{ total_methods }} secure payment options when making purchases through EZM Trade Management
+        </p>
+    </div>
+
+    <!-- Information Banner -->
+    <div class="info-banner">
+        <h6 class="text-info mb-3">
+            <i class="bi bi-info-circle me-2"></i>
+            How Payment Methods Work
+        </h6>
+        <ul class="mb-0">
+            <li>All payment methods are processed securely through Chapa Payment Gateway</li>
+            <li>You can select your preferred payment method during checkout</li>
+            <li>Mobile wallet payments require a valid Ethiopian phone number</li>
+            <li>Bank transfers and cards support both local and international transactions</li>
+            <li>Payment limits vary by method and are enforced by the respective providers</li>
+        </ul>
+    </div>
+
+    <!-- Mobile Wallets -->
+    <div class="method-category">
+        <div class="category-header">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-phone category-icon"></i>
+                <div>
+                    <h4 class="mb-1">Mobile Wallets</h4>
+                    <small>Ethiopian mobile money services</small>
+                </div>
+            </div>
+            <span class="badge-count">{{ payment_methods.mobile_wallets|length }} options</span>
+        </div>
+        <div class="method-grid">
+            {% for method in payment_methods.mobile_wallets %}
+            <div class="method-card">
+                <div class="method-icon">
+                    <i class="bi bi-phone-fill"></i>
+                </div>
+                <div class="method-name">{{ method.name }}</div>
+                <div class="method-description">{{ method.description }}</div>
+                <div class="method-limits">
+                    <div class="limit-item">
+                        <span class="limit-label">Minimum:</span>
+                        <span class="limit-value">ETB {{ method.min_amount|floatformat:0 }}</span>
+                    </div>
+                    <div class="limit-item">
+                        <span class="limit-label">Maximum:</span>
+                        <span class="limit-value">ETB {{ method.max_amount|floatformat:0 }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Bank Cards -->
+    <div class="method-category">
+        <div class="category-header">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-credit-card category-icon"></i>
+                <div>
+                    <h4 class="mb-1">Bank Cards</h4>
+                    <small>Credit and debit cards</small>
+                </div>
+            </div>
+            <span class="badge-count">{{ payment_methods.bank_cards|length }} options</span>
+        </div>
+        <div class="method-grid">
+            {% for method in payment_methods.bank_cards %}
+            <div class="method-card">
+                <div class="method-icon">
+                    <i class="bi bi-credit-card-fill"></i>
+                </div>
+                <div class="method-name">{{ method.name }}</div>
+                <div class="method-description">{{ method.description }}</div>
+                <div class="method-limits">
+                    <div class="limit-item">
+                        <span class="limit-label">Minimum:</span>
+                        <span class="limit-value">ETB {{ method.min_amount|floatformat:0 }}</span>
+                    </div>
+                    <div class="limit-item">
+                        <span class="limit-label">Maximum:</span>
+                        <span class="limit-value">ETB {{ method.max_amount|floatformat:0 }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Bank Transfers -->
+    <div class="method-category">
+        <div class="category-header">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-bank category-icon"></i>
+                <div>
+                    <h4 class="mb-1">Bank Transfers</h4>
+                    <small>Direct bank-to-bank transfers</small>
+                </div>
+            </div>
+            <span class="badge-count">{{ payment_methods.bank_transfers|length }} options</span>
+        </div>
+        <div class="method-grid">
+            {% for method in payment_methods.bank_transfers %}
+            <div class="method-card">
+                <div class="method-icon">
+                    <i class="bi bi-bank2"></i>
+                </div>
+                <div class="method-name">{{ method.name }}</div>
+                <div class="method-description">{{ method.description }}</div>
+                <div class="method-limits">
+                    <div class="limit-item">
+                        <span class="limit-label">Minimum:</span>
+                        <span class="limit-value">ETB {{ method.min_amount|floatformat:0 }}</span>
+                    </div>
+                    <div class="limit-item">
+                        <span class="limit-label">Maximum:</span>
+                        <span class="limit-value">ETB {{ method.max_amount|floatformat:0 }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- International Methods -->
+    <div class="method-category">
+        <div class="category-header">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-globe category-icon"></i>
+                <div>
+                    <h4 class="mb-1">International Payments</h4>
+                    <small>Global payment solutions</small>
+                </div>
+            </div>
+            <span class="badge-count">{{ payment_methods.international|length }} options</span>
+        </div>
+        <div class="method-grid">
+            {% for method in payment_methods.international %}
+            <div class="method-card">
+                <div class="method-icon">
+                    <i class="bi bi-globe2"></i>
+                </div>
+                <div class="method-name">{{ method.name }}</div>
+                <div class="method-description">{{ method.description }}</div>
+                <div class="method-limits">
+                    <div class="limit-item">
+                        <span class="limit-label">Minimum:</span>
+                        <span class="limit-value">ETB {{ method.min_amount|floatformat:0 }}</span>
+                    </div>
+                    <div class="limit-item">
+                        <span class="limit-label">Maximum:</span>
+                        <span class="limit-value">ETB {{ method.max_amount|floatformat:0 }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Security Notice -->
+    <div class="security-notice">
+        <h6 class="text-success mb-3">
+            <i class="bi bi-shield-check me-2"></i>
+            Security & Trust
+        </h6>
+        <div class="row">
+            <div class="col-md-6">
+                <ul class="mb-0">
+                    <li>All transactions are encrypted and secure</li>
+                    <li>Chapa is licensed by the National Bank of Ethiopia</li>
+                    <li>Your payment information is never stored on our servers</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <ul class="mb-0">
+                    <li>24/7 fraud monitoring and protection</li>
+                    <li>Instant payment confirmation and receipts</li>
+                    <li>Full transaction history and tracking</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="text-center mt-4">
+        <a href="{% url 'supplier_list' %}" class="btn btn-ezm-primary me-3">
+            <i class="bi bi-shop me-2"></i>Start Shopping
+        </a>
+        <a href="{% url 'cart_view' %}" class="btn btn-outline-primary">
+            <i class="bi bi-cart me-2"></i>View Cart
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -636,6 +636,7 @@ class WarehouseStockMovement(models.Model):
 class PurchaseOrder(models.Model):
     """
     Represents purchase orders created by head manager to suppliers.
+    Enhanced with delivery tracking and confirmation capabilities.
     """
     STATUS_CHOICES = [
         ('initial', 'Initial'),
@@ -643,6 +644,7 @@ class PurchaseOrder(models.Model):
         ('payment_confirmed', 'Payment Confirmed'),
         ('in_transit', 'In Transit'),
         ('delivered', 'Delivered'),
+        ('issue_reported', 'Issue Reported'),
         ('cancelled', 'Cancelled'),
     ]
 
@@ -670,6 +672,36 @@ class PurchaseOrder(models.Model):
     payment_amount = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True, help_text="Payment amount in ETB")
     payment_confirmed_at = models.DateTimeField(blank=True, null=True)
 
+    # Enhanced delivery tracking fields
+    shipped_at = models.DateTimeField(blank=True, null=True, help_text="When supplier marked order as shipped")
+    estimated_delivery_hours = models.PositiveIntegerField(default=168, help_text="Estimated delivery time in hours (default: 7 days)")
+    tracking_number = models.CharField(max_length=100, blank=True, null=True, help_text="Shipping tracking number")
+    delivery_address = models.TextField(blank=True, help_text="Delivery address for this order")
+
+    # Delivery confirmation fields
+    delivered_at = models.DateTimeField(blank=True, null=True, help_text="When delivery was confirmed by Head Manager")
+    confirmed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='confirmed_deliveries',
+        help_text="Head Manager who confirmed delivery"
+    )
+    delivery_notes = models.TextField(blank=True, help_text="Notes from delivery confirmation")
+
+    # Issue tracking fields
+    has_issues = models.BooleanField(default=False, help_text="Whether delivery has reported issues")
+    issue_reported_at = models.DateTimeField(blank=True, null=True, help_text="When issues were first reported")
+    issue_reported_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reported_order_issues',
+        help_text="Head Manager who reported issues"
+    )
+
     created_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
 
@@ -696,6 +728,37 @@ class PurchaseOrder(models.Model):
         self.status = 'payment_pending'
         self.save()
 
+    def mark_in_transit(self, tracking_number=None):
+        """Mark order as in transit (shipped by supplier)"""
+        from django.utils import timezone
+        self.status = 'in_transit'
+        self.shipped_at = timezone.now()
+        if tracking_number:
+            self.tracking_number = tracking_number
+        self.save()
+
+    def confirm_delivery(self, confirmed_by, delivery_notes=None):
+        """Confirm successful delivery"""
+        from django.utils import timezone
+        self.status = 'delivered'
+        self.delivered_at = timezone.now()
+        self.actual_delivery_date = timezone.now().date()
+        self.confirmed_by = confirmed_by
+        if delivery_notes:
+            self.delivery_notes = delivery_notes
+        self.save()
+
+    def report_issue(self, reported_by, issue_description=None):
+        """Report delivery issues"""
+        from django.utils import timezone
+        self.status = 'issue_reported'
+        self.has_issues = True
+        self.issue_reported_at = timezone.now()
+        self.issue_reported_by = reported_by
+        if issue_description:
+            self.delivery_notes = f"{self.delivery_notes}\nIssue: {issue_description}" if self.delivery_notes else f"Issue: {issue_description}"
+        self.save()
+
     def cancel_order(self, reason=None):
         """Cancel the purchase order"""
         self.status = 'cancelled'
@@ -718,10 +781,66 @@ class PurchaseOrder(models.Model):
         """Check if order can be shipped (payment confirmed)"""
         return self.status == 'payment_confirmed'
 
+    @property
+    def is_in_transit(self):
+        """Check if order is in transit"""
+        return self.status == 'in_transit'
+
+    @property
+    def is_delivered(self):
+        """Check if order is delivered"""
+        return self.status == 'delivered'
+
+    @property
+    def has_delivery_issues(self):
+        """Check if order has delivery issues"""
+        return self.status == 'issue_reported' or self.has_issues
+
+    @property
+    def estimated_delivery_datetime(self):
+        """Calculate estimated delivery datetime"""
+        if self.shipped_at and self.estimated_delivery_hours:
+            from datetime import timedelta
+            return self.shipped_at + timedelta(hours=self.estimated_delivery_hours)
+        elif self.payment_confirmed_at and self.estimated_delivery_hours:
+            from datetime import timedelta
+            return self.payment_confirmed_at + timedelta(hours=self.estimated_delivery_hours)
+        return None
+
+    @property
+    def delivery_countdown_seconds(self):
+        """Get remaining seconds until estimated delivery"""
+        estimated_delivery = self.estimated_delivery_datetime
+        if estimated_delivery:
+            from django.utils import timezone
+            remaining = estimated_delivery - timezone.now()
+            return max(0, int(remaining.total_seconds()))
+        return 0
+
+    @property
+    def is_overdue(self):
+        """Check if delivery is overdue"""
+        return self.delivery_countdown_seconds == 0 and self.status in ['payment_confirmed', 'in_transit']
+
+    @property
+    def delivery_status_display(self):
+        """Get human-readable delivery status"""
+        status_map = {
+            'initial': 'Order Created',
+            'payment_pending': 'Awaiting Payment',
+            'payment_confirmed': 'Payment Confirmed - Preparing Shipment',
+            'in_transit': 'In Transit',
+            'delivered': 'Delivered Successfully',
+            'issue_reported': 'Delivery Issues Reported',
+            'cancelled': 'Order Cancelled'
+        }
+        return status_map.get(self.status, self.status.title())
+
 
 class PurchaseOrderItem(models.Model):
     """
     Individual items in a purchase order.
+    Enhanced with delivery confirmation tracking.
     """
     purchase_order = models.ForeignKey(
         PurchaseOrder,
@@ -742,12 +861,187 @@ class PurchaseOrderItem(models.Model):
         validators=[MinValueValidator(Decimal('0.00'))]
     )
 
+    # Delivery confirmation fields
+    is_confirmed_received = models.BooleanField(default=False, help_text="Whether this item was confirmed as received")
+    has_issues = models.BooleanField(default=False, help_text="Whether this item has delivery issues")
+    issue_description = models.TextField(blank=True, help_text="Description of any issues with this item")
+    confirmed_at = models.DateTimeField(blank=True, null=True, help_text="When this item was confirmed as received")
+
     def save(self, *args, **kwargs):
         self.total_price = self.quantity_ordered * self.unit_price
         super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.warehouse_product.product_name} - {self.quantity_ordered} units"
+
+    @property
+    def is_fully_received(self):
+        """Check if full quantity was received"""
+        return self.quantity_received >= self.quantity_ordered
+
+    @property
+    def missing_quantity(self):
+        """Get quantity of missing items"""
+        return max(0, self.quantity_ordered - self.quantity_received)
+
+
+class DeliveryConfirmation(models.Model):
+    """
+    Records delivery confirmations for purchase orders.
+    """
+    purchase_order = models.OneToOneField(
+        PurchaseOrder,
+        on_delete=models.CASCADE,
+        related_name='delivery_confirmation'
+    )
+    confirmed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='confirmed_deliveries_detail'
+    )
+    confirmed_at = models.DateTimeField(auto_now_add=True)
+
+    # Delivery details
+    delivery_notes = models.TextField(blank=True, help_text="General notes about the delivery")
+    all_items_received = models.BooleanField(default=True, help_text="Whether all items were received as expected")
+    delivery_condition = models.CharField(
+        max_length=20,
+        choices=[
+            ('excellent', 'Excellent'),
+            ('good', 'Good'),
+            ('fair', 'Fair'),
+            ('poor', 'Poor'),
+            ('damaged', 'Damaged')
+        ],
+        default='good',
+        help_text="Overall condition of delivered items"
+    )
+
+    # Photo documentation
+    delivery_photos = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of photo file paths for delivery documentation"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-confirmed_at']
+
+    def __str__(self):
+        return f"Delivery confirmation for {self.purchase_order.order_number} by {self.confirmed_by.get_full_name()}"
+
+
+class IssueReport(models.Model):
+    """
+    Records delivery issues and problems reported by Head Managers.
+    """
+    ISSUE_TYPES = [
+        ('missing_items', 'Missing Items'),
+        ('damaged_items', 'Damaged Items'),
+        ('wrong_items', 'Wrong Items'),
+        ('quality_issues', 'Quality Issues'),
+        ('packaging_issues', 'Packaging Issues'),
+        ('late_delivery', 'Late Delivery'),
+        ('other', 'Other'),
+    ]
+
+    SEVERITY_LEVELS = [
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('critical', 'Critical'),
+    ]
+
+    purchase_order = models.ForeignKey(
+        PurchaseOrder,
+        on_delete=models.CASCADE,
+        related_name='issue_reports'
+    )
+    reported_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='reported_delivery_issues'
+    )
+    reported_at = models.DateTimeField(auto_now_add=True)
+
+    # Issue details
+    issue_type = models.CharField(max_length=20, choices=ISSUE_TYPES)
+    severity = models.CharField(max_length=10, choices=SEVERITY_LEVELS, default='medium')
+    title = models.CharField(max_length=200, help_text="Brief description of the issue")
+    description = models.TextField(help_text="Detailed description of the issue")
+
+    # Affected items
+    affected_items = models.ManyToManyField(
+        PurchaseOrderItem,
+        blank=True,
+        related_name='issue_reports',
+        help_text="Specific items affected by this issue"
+    )
+
+    # Documentation
+    issue_photos = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of photo file paths documenting the issue"
+    )
+
+    # Resolution tracking
+    is_resolved = models.BooleanField(default=False)
+    resolution_notes = models.TextField(blank=True, help_text="Notes about how the issue was resolved")
+    resolved_at = models.DateTimeField(blank=True, null=True)
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='resolved_delivery_issues'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-reported_at']
+
+    def __str__(self):
+        return f"{self.get_issue_type_display()} - {self.title} ({self.purchase_order.order_number})"
+
+
+class OrderStatusHistory(models.Model):
+    """
+    Tracks all status changes for purchase orders for audit trail.
+    """
+    purchase_order = models.ForeignKey(
+        PurchaseOrder,
+        on_delete=models.CASCADE,
+        related_name='status_history'
+    )
+    previous_status = models.CharField(max_length=20, blank=True)
+    new_status = models.CharField(max_length=20)
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='order_status_changes'
+    )
+    changed_at = models.DateTimeField(auto_now_add=True)
+
+    # Change details
+    reason = models.TextField(blank=True, help_text="Reason for status change")
+    notes = models.TextField(blank=True, help_text="Additional notes about the change")
+
+    # System tracking
+    ip_address = models.GenericIPAddressField(blank=True, null=True)
+    user_agent = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-changed_at']
+        verbose_name_plural = "Order status histories"
+
+    def __str__(self):
+        return f"{self.purchase_order.order_number}: {self.previous_status} → {self.new_status}"
 
 
 class Warehouse(models.Model):

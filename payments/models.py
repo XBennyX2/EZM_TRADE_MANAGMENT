@@ -145,6 +145,10 @@ class PurchaseOrderPayment(models.Model):
                 from django.utils import timezone
                 self.payment_confirmed_at = timezone.now()
 
+            # Create purchase order if it doesn't exist
+            if not self.purchase_order:
+                self.create_purchase_order()
+
             # Update linked purchase order if exists
             if self.purchase_order:
                 self.purchase_order.update_payment_status(
@@ -159,16 +163,81 @@ class PurchaseOrderPayment(models.Model):
             if self.purchase_order:
                 self.purchase_order.cancel_order("Payment failed")
 
-        elif self.chapa_transaction.is_pending:
-            self.status = 'payment_pending'
-
-            # Mark purchase order as payment pending if exists
-            if self.purchase_order:
-                self.purchase_order.mark_payment_pending(
-                    payment_reference=self.chapa_transaction.chapa_tx_ref
-                )
-
         self.save()
+
+    def create_purchase_order(self):
+        """Create a purchase order from the payment information"""
+        from Inventory.models import PurchaseOrder, PurchaseOrderItem, SupplierProduct
+        from django.utils import timezone
+        from datetime import timedelta
+        import uuid
+
+        try:
+            # Generate unique order number
+            order_number = f"PO-{uuid.uuid4().hex[:8].upper()}"
+
+            # Calculate expected delivery date (7 days from now)
+            expected_delivery = timezone.now().date() + timedelta(days=7)
+
+            # Create purchase order
+            purchase_order = PurchaseOrder.objects.create(
+                order_number=order_number,
+                supplier=self.supplier,
+                created_by=self.user,
+                status='payment_confirmed',
+                expected_delivery_date=expected_delivery,
+                total_amount=self.total_amount,
+                payment_reference=self.chapa_transaction.chapa_tx_ref,
+                payment_amount=self.chapa_transaction.amount,
+                payment_confirmed_at=self.payment_confirmed_at,
+                notes=f"Auto-generated from payment {self.chapa_transaction.chapa_tx_ref}"
+            )
+
+            # Create purchase order items from cart items
+            for item_data in self.order_items:
+                try:
+                    # Get the supplier product
+                    supplier_product = SupplierProduct.objects.get(
+                        id=item_data.get('product_id'),
+                        supplier=self.supplier
+                    )
+
+                    # Create purchase order item
+                    PurchaseOrderItem.objects.create(
+                        purchase_order=purchase_order,
+                        warehouse_product=supplier_product,  # This might need adjustment based on your model structure
+                        quantity_ordered=item_data.get('quantity', 1),
+                        unit_price=item_data.get('price', 0),
+                        total_price=item_data.get('total_price', 0)
+                    )
+
+                except SupplierProduct.DoesNotExist:
+                    # Log error but continue with other items
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"SupplierProduct {item_data.get('product_id')} not found for purchase order {order_number}")
+                    continue
+
+            # Link the purchase order to this payment
+            self.purchase_order = purchase_order
+            self.save()
+
+            # Send supplier notification
+            try:
+                from .notification_service import supplier_notification_service
+                supplier_notification_service.send_purchase_order_notification(purchase_order)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to send purchase order notification: {str(e)}")
+
+            return purchase_order
+
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to create purchase order for payment {self.chapa_transaction.chapa_tx_ref}: {str(e)}")
+            return None
 
 
 class PaymentWebhookLog(models.Model):

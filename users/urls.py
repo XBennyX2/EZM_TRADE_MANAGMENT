@@ -33,7 +33,7 @@ from .supplier_views import (
     supplier_dashboard, supplier_account, supplier_purchase_orders, supplier_invoices,
     supplier_payments, supplier_transactions, supplier_products, supplier_reports, supplier_settings,
     check_supplier_setup_status, supplier_onboarding, supplier_product_catalog,
-    supplier_add_product, supplier_edit_product, supplier_delete_product
+    supplier_add_product, supplier_edit_product, supplier_delete_product, supplier_payment_notifications_api
 )
 
 urlpatterns = [
@@ -122,6 +122,7 @@ urlpatterns = [
     path('supplier/purchase-orders/', supplier_purchase_orders, name='supplier_purchase_orders'),
     path('supplier/invoices/', supplier_invoices, name='supplier_invoices'),
     path('supplier/payments/', supplier_payments, name='supplier_payments'),
+    path('supplier/payments/notifications/', supplier_payment_notifications_api, name='supplier_payment_notifications_api'),
     path('supplier/transactions/', supplier_transactions, name='supplier_transactions'),
     path('supplier/products/', supplier_products, name='supplier_products'),
     path('supplier/reports/', supplier_reports, name='supplier_reports'),

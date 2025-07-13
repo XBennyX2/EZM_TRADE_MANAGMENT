@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URGENT: Delivery Issue - {{ purchase_order.order_number }}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .email-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .header .subtitle {
+            margin: 10px 0 0 0;
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        .urgent-badge {
+            background: #dc3545;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        .content {
+            padding: 30px;
+        }
+        .order-info {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #dc3545;
+        }
+        .order-info h3 {
+            margin: 0 0 15px 0;
+            color: #1F2833;
+            font-size: 18px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #495057;
+        }
+        .info-value {
+            color: #212529;
+        }
+        .issue-details {
+            background: #f8d7da;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #dc3545;
+        }
+        .issue-details h3 {
+            margin: 0 0 15px 0;
+            color: #721c24;
+            font-size: 18px;
+        }
+        .severity-badge {
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+        .severity-low { background: #d4edda; color: #155724; }
+        .severity-medium { background: #fff3cd; color: #856404; }
+        .severity-high { background: #f8d7da; color: #721c24; }
+        .severity-critical { background: #f5c6cb; color: #721c24; font-weight: 700; }
+        .issue-type-badge {
+            background: #e2e3e5;
+            color: #495057;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .affected-items {
+            background: #fff3cd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #ffeaa7;
+        }
+        .affected-items h3 {
+            margin: 0 0 15px 0;
+            color: #856404;
+            font-size: 18px;
+        }
+        .item {
+            background: white;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 3px solid #dc3545;
+        }
+        .item-name {
+            font-weight: 600;
+            color: #212529;
+            margin-bottom: 5px;
+        }
+        .item-details {
+            font-size: 14px;
+            color: #6c757d;
+        }
+        .description-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #6c757d;
+        }
+        .description-section h3 {
+            margin: 0 0 10px 0;
+            color: #495057;
+            font-size: 16px;
+        }
+        .action-required {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .action-required h3 {
+            margin: 0 0 10px 0;
+            color: #856404;
+            font-size: 18px;
+        }
+        .footer {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            text-align: center;
+            border-top: 1px solid #e9ecef;
+        }
+        .footer p {
+            margin: 5px 0;
+            color: #6c757d;
+            font-size: 14px;
+        }
+        .company-info {
+            color: #495057;
+            font-weight: 600;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #dc3545;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            margin: 10px 5px;
+            transition: background-color 0.3s ease;
+        }
+        .btn:hover {
+            background: #c82333;
+        }
+        .btn-secondary {
+            background: #6c757d;
+        }
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .content { padding: 20px; }
+            .info-row { flex-direction: column; }
+            .info-row .info-value { margin-top: 5px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <h1>⚠️ URGENT: Delivery Issue</h1>
+            <p class="subtitle">Immediate attention required for order {{ purchase_order.order_number }}</p>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <div class="urgent-badge">
+                URGENT ACTION REQUIRED
+            </div>
+
+            <p>Dear <strong>{{ supplier.name }}</strong>,</p>
+            
+            <p>We need to bring to your immediate attention that a delivery issue has been reported for one of your recent orders. Please review the details below and take appropriate action as soon as possible.</p>
+
+            <!-- Order Information -->
+            <div class="order-info">
+                <h3>📦 Order Information</h3>
+                <div class="info-row">
+                    <span class="info-label">Order Number:</span>
+                    <span class="info-value"><strong>{{ purchase_order.order_number }}</strong></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Order Date:</span>
+                    <span class="info-value">{{ purchase_order.order_date|date:"F d, Y" }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Total Amount:</span>
+                    <span class="info-value"><strong>ETB {{ purchase_order.total_amount|floatformat:2 }}</strong></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Reported By:</span>
+                    <span class="info-value">{{ reported_by.get_full_name|default:reported_by.username }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Report Date:</span>
+                    <span class="info-value">{{ reported_date|date:"F d, Y H:i" }}</span>
+                </div>
+            </div>
+
+            <!-- Issue Details -->
+            <div class="issue-details">
+                <h3>🚨 Issue Details</h3>
+                <div class="info-row">
+                    <span class="info-label">Issue Type:</span>
+                    <span class="info-value">
+                        <span class="issue-type-badge">{{ issue_type }}</span>
+                    </span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Severity Level:</span>
+                    <span class="info-value">
+                        <span class="severity-badge severity-{{ issue_report.severity }}">
+                            {{ severity }}
+                        </span>
+                    </span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Issue Title:</span>
+                    <span class="info-value"><strong>{{ issue_title }}</strong></span>
+                </div>
+            </div>
+
+            <!-- Issue Description -->
+            <div class="description-section">
+                <h3>📝 Detailed Description</h3>
+                <p>{{ issue_description }}</p>
+            </div>
+
+            <!-- Affected Items -->
+            {% if affected_items %}
+            <div class="affected-items">
+                <h3>📋 Affected Items</h3>
+                {% for item in affected_items %}
+                <div class="item">
+                    <div class="item-name">{{ item.warehouse_product.product_name }}</div>
+                    <div class="item-details">
+                        Quantity Ordered: {{ item.quantity_ordered }} | 
+                        Unit Price: ETB {{ item.unit_price|floatformat:2 }} | 
+                        Total Value: ETB {{ item.total_price|floatformat:2 }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Action Required -->
+            <div class="action-required">
+                <h3>⚡ Action Required</h3>
+                <p>Please investigate this issue immediately and contact our Head Manager to discuss resolution options. Prompt action will help maintain our business relationship and ensure customer satisfaction.</p>
+                
+                <div style="margin-top: 20px;">
+                    <a href="#" class="btn">Contact Head Manager</a>
+                    <a href="#" class="btn btn-secondary">View Order Details</a>
+                </div>
+            </div>
+
+            <p><strong>Next Steps:</strong></p>
+            <ol>
+                <li>Review the issue details and affected items</li>
+                <li>Investigate the root cause of the problem</li>
+                <li>Contact our Head Manager to discuss resolution</li>
+                <li>Provide a timeline for corrective action</li>
+                <li>Implement measures to prevent similar issues</li>
+            </ol>
+
+            <p>We value our partnership and trust that you will address this matter with the urgency it requires. Please respond within 24 hours with your action plan.</p>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p class="company-info">{{ company_name }}</p>
+            <p>Immediate response required - Please contact us as soon as possible</p>
+            <p>This is an automated notification. Please respond via official channels.</p>
+        </div>
+    </div>
+</body>
+</html>

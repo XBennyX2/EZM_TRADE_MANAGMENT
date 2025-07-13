@@ -469,3 +469,62 @@ body {
     50% { transform: scale(1.1); }
     100% { transform: scale(1); }
 }
+
+/* Notification Badge Styles */
+.notification-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 10;
+}
+
+.notification-badge .badge {
+    font-size: 0.7rem;
+    min-width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: pulse-notification 2s infinite;
+}
+
+@keyframes pulse-notification {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.sidebar-menu-item {
+    position: relative;
+}
+
+.sidebar-menu-item a {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Real-time indicator */
+.real-time-status {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.8rem;
+    color: #28a745;
+    margin-left: 10px;
+}
+
+.real-time-status::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    background: #28a745;
+    border-radius: 50%;
+    margin-right: 5px;
+    animation: pulse 2s infinite;
+}
+
+.real-time-status.offline::before {
+    background: #dc3545;
+    animation: none;
+}

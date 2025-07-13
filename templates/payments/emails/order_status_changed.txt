@@ -1,0 +1,55 @@
+ORDER STATUS UPDATE - {{ purchase_order.order_number }}
+{{ company_name }}
+
+Dear {{ supplier.name }},
+
+We're writing to inform you that the status of your order has been updated. Please review the details below for the current status and any required actions.
+
+ORDER INFORMATION
+=================
+Order Number: {{ purchase_order.order_number }}
+Order Date: {{ purchase_order.order_date|date:"F d, Y" }}
+Total Amount: ETB {{ purchase_order.total_amount|floatformat:2 }}
+Updated By: {{ changed_by.get_full_name|default:changed_by.username }}
+Update Date: {{ change_date|date:"F d, Y H:i" }}
+
+STATUS CHANGE
+=============
+Previous Status: {{ previous_status|title }}
+New Status: {{ new_status|title }}
+
+Your order has been moved from {{ previous_status|title }} to {{ new_status|title }}
+
+ORDER ITEMS
+===========
+{% for item in purchase_order.items.all %}
+- {{ item.warehouse_product.product_name }}
+  Quantity: {{ item.quantity_ordered }}
+  Unit Price: ETB {{ item.unit_price|floatformat:2 }}
+  Total: ETB {{ item.total_price|floatformat:2 }}
+
+{% endfor %}
+
+WHAT THIS MEANS
+===============
+{% if new_status == 'payment_confirmed' %}
+Payment Confirmed: Your payment has been successfully processed. Please prepare the items for shipment and update the order status to "In Transit" once shipped.
+{% elif new_status == 'in_transit' %}
+In Transit: The order is now marked as shipped and in transit. The customer has been notified and delivery tracking has begun.
+{% elif new_status == 'delivered' %}
+Delivered: The order has been successfully delivered and confirmed by the customer. Thank you for your excellent service!
+{% elif new_status == 'issue_reported' %}
+Issue Reported: There has been an issue reported with this delivery. Please check your email for detailed issue information and contact us immediately.
+{% elif new_status == 'cancelled' %}
+Cancelled: This order has been cancelled. If you have any questions about the cancellation, please contact our Head Manager.
+{% else %}
+The order status has been updated to {{ new_status|title }}. Please review your dashboard for any required actions.
+{% endif %}
+
+You can view the complete order details and track its progress through your supplier dashboard. If you have any questions about this status change, please don't hesitate to contact us.
+
+---
+{{ company_name }}
+Stay updated with your order progress
+
+This is an automated notification. Please do not reply to this email.

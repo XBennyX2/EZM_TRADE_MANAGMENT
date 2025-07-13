@@ -58,6 +58,12 @@
         </a>
     </li>
     <li class="sidebar-menu-item">
+        <a href="{% url 'payment_methods_info' %}" data-tooltip="Payment Methods">
+            <i class="bi bi-wallet2"></i>
+            <span>Payment Methods</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
         <a href="{% url 'payment_history' %}" data-tooltip="Payment History">
             <i class="bi bi-credit-card"></i>
             <span>Payment History</span>
@@ -222,6 +228,9 @@
         <a href="{% url 'supplier_payments' %}" data-tooltip="Payments">
             <i class="bi bi-credit-card"></i>
             <span>Payments</span>
+            <span class="notification-badge" id="payment-notification-badge" style="display: none;">
+                <span class="badge bg-warning rounded-pill">0</span>
+            </span>
         </a>
     </li>
     <li class="sidebar-menu-item">

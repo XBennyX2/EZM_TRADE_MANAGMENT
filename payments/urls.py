@@ -17,6 +17,13 @@ urlpatterns = [
     # Webhook endpoint
     path('webhook/', views.chapa_webhook, name='chapa_webhook'),
     
+    # Payment methods information
+    path('methods/', views.payment_methods_info, name='payment_methods_info'),
+
     # Payment history
     path('history/', views.payment_history, name='payment_history'),
+
+    # Receipt and invoice downloads
+    path('receipt/<str:tx_ref>/', views.download_payment_receipt, name='download_payment_receipt'),
+    path('invoice/<str:order_id>/', views.download_order_invoice, name='download_order_invoice'),
 ]

@@ -1,0 +1,43 @@
+DELIVERY CONFIRMED - {{ purchase_order.order_number }}
+{{ company_name }}
+
+Dear {{ supplier.name }},
+
+We're pleased to inform you that your order has been successfully delivered and confirmed by our Head Manager. Thank you for your excellent service and timely delivery.
+
+ORDER INFORMATION
+=================
+Order Number: {{ purchase_order.order_number }}
+Order Date: {{ purchase_order.order_date|date:"F d, Y" }}
+Total Amount: ETB {{ purchase_order.total_amount|floatformat:2 }}
+Delivery Date: {{ delivery_date|date:"F d, Y H:i" }}
+
+DELIVERY DETAILS
+================
+Confirmed By: {{ confirmed_by.get_full_name|default:confirmed_by.username }}
+Delivery Condition: {{ delivery_condition }}
+All Items Received: {% if all_items_received %}Yes{% else %}No{% endif %}
+
+DELIVERED ITEMS
+===============
+{% for item in purchase_order.items.all %}
+- {{ item.warehouse_product.product_name }}
+  Quantity: {{ item.quantity_ordered }}
+  Unit Price: ETB {{ item.unit_price|floatformat:2 }}
+  Total: ETB {{ item.total_price|floatformat:2 }}
+
+{% endfor %}
+
+{% if delivery_notes %}
+DELIVERY NOTES
+==============
+{{ delivery_notes }}
+
+{% endif %}
+This delivery confirmation marks the successful completion of your order. We appreciate your partnership and look forward to working with you on future orders.
+
+---
+{{ company_name }}
+Thank you for being a valued supplier partner
+
+This is an automated notification. Please do not reply to this email.

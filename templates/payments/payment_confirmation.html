@@ -108,8 +108,9 @@
             Payment Confirmation
         </h3>
         <div class="h2 mb-2">ETB {{ total_price|floatformat:2 }}</div>
-        <p class="mb-0">Total payment for {{ total_suppliers }} supplier{{ total_suppliers|pluralize }} ({{ total_items }} item{{ total_items|pluralize }})</p>
-        
+        <p class="mb-0">Total payment for {{ total_suppliers }} supplier{{ total_suppliers|pluralize }} ({{ total_items
+            }} item{{ total_items|pluralize }})</p>
+
         <div class="security-notice">
             <small>
                 <i class="bi bi-shield-check me-2"></i>
@@ -124,22 +125,27 @@
             <i class="bi bi-info-circle me-2"></i>
             Payment Information
         </h5>
-        
+
         <div class="info-item">
             <span><strong>Payment Gateway:</strong></span>
             <span>Chapa (Secure)</span>
         </div>
-        
+
         <div class="info-item">
             <span><strong>Currency:</strong></span>
             <span>Ethiopian Birr (ETB)</span>
         </div>
-        
+
         <div class="info-item">
-            <span><strong>Payment Method:</strong></span>
-            <span>Mobile Money, Bank Transfer, Card Payment</span>
+            <span><strong>Payment Methods:</strong></span>
+            <span>
+                <a href="{% url 'payment_methods_info' %}" class="text-decoration-none">
+                    Telebirr, CBE Birr, M-Pesa, Amole, Cards & More
+                    <i class="bi bi-info-circle ms-1"></i>
+                </a>
+            </span>
         </div>
-        
+
         <div class="info-item">
             <span><strong>Processing:</strong></span>
             <span>Separate payments for each supplier</span>
@@ -151,19 +157,20 @@
         <i class="bi bi-building me-2"></i>
         Payment Breakdown by Supplier
     </h5>
-    
+
     {% for supplier_id, supplier_data in suppliers_cart.items %}
     <div class="supplier-card">
         <div class="supplier-header">
             <div>
                 <h6 class="mb-1">{{ supplier_data.supplier_name }}</h6>
-                <small class="opacity-75">{{ supplier_data.items|length }} item{{ supplier_data.items|length|pluralize }}</small>
+                <small class="opacity-75">{{ supplier_data.items|length }} item{{ supplier_data.items|length|pluralize
+                    }}</small>
             </div>
             <div class="supplier-amount">
                 ETB {{ supplier_data.total_price|floatformat:2 }}
             </div>
         </div>
-        
+
         <div class="card-body p-3">
             <div class="row">
                 {% for item in supplier_data.items %}
@@ -188,11 +195,11 @@
                 Proceed to Chapa Payment Gateway
             </button>
         </form>
-        
+
         <a href="{% url 'order_confirmation' %}" class="btn btn-outline-secondary me-3">
             <i class="bi bi-arrow-left me-2"></i>Back to Order Review
         </a>
-        
+
         <a href="{% url 'cart_view' %}" class="btn btn-outline-primary">
             <i class="bi bi-cart me-2"></i>Back to Cart
         </a>

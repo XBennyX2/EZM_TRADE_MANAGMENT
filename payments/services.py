@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.urls import reverse
 from .models import ChapaTransaction, PurchaseOrderPayment
 from .chapa_client import ChapaClient
+from .notification_service import supplier_notification_service
 from Inventory.models import Supplier
 import logging
 
@@ -16,9 +17,35 @@ class ChapaPaymentService:
     """
     Service class for handling Chapa payment operations
     """
-    
+
     def __init__(self):
         self.client = ChapaClient()
+
+    def _create_chapa_title(self, supplier_name):
+        """
+        Create a Chapa-compliant title (max 16 characters)
+
+        Args:
+            supplier_name (str): The supplier name
+
+        Returns:
+            str: A title that fits within Chapa's 16-character limit
+        """
+        # Start with "EZM-" prefix (4 characters)
+        prefix = "EZM-"
+        max_supplier_chars = 16 - len(prefix)  # 12 characters remaining
+
+        # Clean and truncate supplier name
+        clean_name = supplier_name.replace(" ", "").replace("-", "").replace(".", "")
+        truncated_name = clean_name[:max_supplier_chars]
+        title = f"{prefix}{truncated_name}"
+
+        # Ensure we never exceed 16 characters
+        if len(title) > 16:
+            title = title[:16]
+
+        logger.info(f"Generated Chapa title: '{title}' (length: {len(title)}) for supplier: {supplier_name}")
+        return title
     
     def create_payment_for_supplier(self, user, supplier, cart_items, request=None):
         """
@@ -59,7 +86,20 @@ class ChapaPaymentService:
             item_count = len(cart_items)
             description = f"Payment for {item_count} item{'s' if item_count > 1 else ''} from {supplier.name}"
             
-            # Initialize payment with Chapa
+            # Enhanced payment initialization with comprehensive payment method support
+            # Use a simple, short title that's guaranteed to be under 16 characters
+            customization = {
+                "title": "EZM Payment",  # 11 characters - well under 16 limit
+                "description": f"Payment for {item_count} item{'s' if item_count > 1 else ''} from {supplier.name}"
+            }
+
+            meta = {
+                "supplier_id": supplier.id,
+                "supplier_name": supplier.name,
+                "item_count": item_count,
+                "order_type": "purchase_order"
+            }
+
             payment_result = self.client.initialize_payment(
                 amount=total_amount,
                 email=user.email,
@@ -69,7 +109,9 @@ class ChapaPaymentService:
                 callback_url=callback_url,
                 return_url=return_url,
                 description=description,
-                tx_ref=tx_ref
+                tx_ref=tx_ref,
+                customization=customization,
+                meta=meta
             )
             
             if payment_result['success']:
@@ -250,8 +292,9 @@ class ChapaPaymentService:
             
             if verification_result['success']:
                 # Update transaction status
+                old_status = transaction.status
                 chapa_status = verification_result.get('status', '').lower()
-                
+
                 if chapa_status == 'success':
                     transaction.status = 'success'
                     transaction.paid_at = timezone.now()
@@ -259,8 +302,29 @@ class ChapaPaymentService:
                     transaction.status = 'failed'
                 else:
                     transaction.status = 'pending'
-                
+
                 transaction.save()
+
+                # Send supplier notification if status changed to success
+                if old_status != 'success' and transaction.status == 'success':
+                    try:
+                        order_payment = getattr(transaction, 'purchase_order_payment', None)
+                        supplier_notification_service.send_payment_confirmation_notification(
+                            transaction, order_payment
+                        )
+                        logger.info(f"Payment confirmation notification sent for transaction {tx_ref}")
+                    except Exception as e:
+                        logger.error(f"Failed to send payment confirmation notification for {tx_ref}: {str(e)}")
+
+                # Send status change notification for significant changes
+                if old_status != transaction.status:
+                    try:
+                        supplier_notification_service.send_payment_status_change_notification(
+                            transaction, old_status, transaction.status
+                        )
+                        logger.info(f"Payment status change notification sent for transaction {tx_ref}")
+                    except Exception as e:
+                        logger.error(f"Failed to send status change notification for {tx_ref}: {str(e)}")
                 
                 # Update related purchase order payment
                 if hasattr(transaction, 'purchase_order_payment'):

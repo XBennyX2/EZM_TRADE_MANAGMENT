@@ -253,6 +253,94 @@ def payment_success(request):
     return render(request, 'payments/payment_success.html', context)
 
 
+@login_required
+@user_passes_test(is_head_manager)
+def payment_methods_info(request):
+    """
+    Display available payment methods information
+    """
+    from .chapa_client import ChapaClient
+
+    client = ChapaClient()
+    payment_methods = client.get_supported_payment_methods()
+
+    context = {
+        'payment_methods': payment_methods,
+        'total_methods': (
+            len(payment_methods['mobile_wallets']) +
+            len(payment_methods['bank_cards']) +
+            len(payment_methods['bank_transfers']) +
+            len(payment_methods['international'])
+        )
+    }
+
+    return render(request, 'payments/payment_methods_info.html', context)
+
+
+@login_required
+def download_payment_receipt(request, tx_ref):
+    """
+    Download payment receipt as PDF
+    """
+    try:
+        # Get the transaction
+        transaction = ChapaTransaction.objects.get(chapa_tx_ref=tx_ref)
+
+        # Check permissions - only the customer or supplier can download
+        if request.user != transaction.user and request.user.email != transaction.supplier.email:
+            messages.error(request, "You don't have permission to download this receipt.")
+            return redirect('payment_history')
+
+        # Only allow download for successful payments
+        if transaction.status != 'success':
+            messages.error(request, "Receipt is only available for successful payments.")
+            return redirect('payment_history')
+
+        # Generate and return PDF receipt
+        from .receipt_service import receipt_service
+        return receipt_service.generate_payment_receipt_pdf(transaction)
+
+    except ChapaTransaction.DoesNotExist:
+        messages.error(request, "Transaction not found.")
+        return redirect('payment_history')
+    except Exception as e:
+        logger.error(f"Error downloading receipt for {tx_ref}: {str(e)}")
+        messages.error(request, "Unable to generate receipt. Please try again later.")
+        return redirect('payment_history')
+
+
+@login_required
+def download_order_invoice(request, order_id):
+    """
+    Download purchase order invoice as PDF
+    """
+    try:
+        # Get the order payment
+        order_payment = PurchaseOrderPayment.objects.get(id=order_id)
+
+        # Check permissions - only the customer or supplier can download
+        if request.user != order_payment.user and request.user.email != order_payment.supplier.email:
+            messages.error(request, "You don't have permission to download this invoice.")
+            return redirect('payment_history')
+
+        # Only allow download for confirmed payments
+        if order_payment.status not in ['payment_confirmed', 'in_transit', 'delivered']:
+            messages.error(request, "Invoice is only available for confirmed orders.")
+            return redirect('payment_history')
+
+        # Generate and return PDF invoice
+        from .receipt_service import receipt_service
+        return receipt_service.generate_purchase_order_invoice_pdf(order_payment)
+
+    except PurchaseOrderPayment.DoesNotExist:
+        messages.error(request, "Order not found.")
+        return redirect('payment_history')
+    except Exception as e:
+        logger.error(f"Error downloading invoice for order {order_id}: {str(e)}")
+        messages.error(request, "Unable to generate invoice. Please try again later.")
+        return redirect('payment_history')
+
+
 @csrf_exempt
 @require_POST
 def chapa_webhook(request):

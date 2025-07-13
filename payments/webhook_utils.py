@@ -2,6 +2,7 @@ import logging
 from django.utils import timezone
 from .models import ChapaTransaction, PaymentWebhookLog
 from .services import ChapaPaymentService
+from .notification_service import supplier_notification_service
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ class WebhookProcessor:
             
             # Update transaction status based on webhook
             old_status = transaction.status
-            
+
             if status == 'success':
                 transaction.status = 'success'
                 if not transaction.paid_at:
@@ -59,15 +60,35 @@ class WebhookProcessor:
             else:
                 logger.warning(f"Unknown status in webhook: {status}")
                 transaction.status = 'pending'
-            
+
             # Update webhook data
             transaction.webhook_data = webhook_data
             transaction.save()
-            
+
             # Update related purchase order payment
             if hasattr(transaction, 'purchase_order_payment'):
                 transaction.purchase_order_payment.update_status_from_payment()
-            
+
+            # Send supplier notifications for status changes
+            if old_status != transaction.status:
+                try:
+                    # Send payment confirmation notification for successful payments
+                    if old_status != 'success' and transaction.status == 'success':
+                        order_payment = getattr(transaction, 'purchase_order_payment', None)
+                        supplier_notification_service.send_payment_confirmation_notification(
+                            transaction, order_payment
+                        )
+                        logger.info(f"Payment confirmation notification sent via webhook for {tx_ref}")
+
+                    # Send status change notification
+                    supplier_notification_service.send_payment_status_change_notification(
+                        transaction, old_status, transaction.status
+                    )
+                    logger.info(f"Payment status change notification sent via webhook for {tx_ref}")
+
+                except Exception as e:
+                    logger.error(f"Failed to send webhook notifications for {tx_ref}: {str(e)}")
+
             logger.info(
                 f"Webhook processed: {tx_ref} - Status changed from {old_status} to {transaction.status}"
             )

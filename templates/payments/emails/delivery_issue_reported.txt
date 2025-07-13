@@ -1,0 +1,57 @@
+URGENT: DELIVERY ISSUE REPORTED - {{ purchase_order.order_number }}
+{{ company_name }}
+
+*** IMMEDIATE ATTENTION REQUIRED ***
+
+Dear {{ supplier.name }},
+
+We need to bring to your immediate attention that a delivery issue has been reported for one of your recent orders. Please review the details below and take appropriate action as soon as possible.
+
+ORDER INFORMATION
+=================
+Order Number: {{ purchase_order.order_number }}
+Order Date: {{ purchase_order.order_date|date:"F d, Y" }}
+Total Amount: ETB {{ purchase_order.total_amount|floatformat:2 }}
+Reported By: {{ reported_by.get_full_name|default:reported_by.username }}
+Report Date: {{ reported_date|date:"F d, Y H:i" }}
+
+ISSUE DETAILS
+=============
+Issue Type: {{ issue_type }}
+Severity Level: {{ severity }}
+Issue Title: {{ issue_title }}
+
+DETAILED DESCRIPTION
+====================
+{{ issue_description }}
+
+{% if affected_items %}
+AFFECTED ITEMS
+==============
+{% for item in affected_items %}
+- {{ item.warehouse_product.product_name }}
+  Quantity Ordered: {{ item.quantity_ordered }}
+  Unit Price: ETB {{ item.unit_price|floatformat:2 }}
+  Total Value: ETB {{ item.total_price|floatformat:2 }}
+
+{% endfor %}
+{% endif %}
+
+ACTION REQUIRED
+===============
+Please investigate this issue immediately and contact our Head Manager to discuss resolution options. Prompt action will help maintain our business relationship and ensure customer satisfaction.
+
+NEXT STEPS:
+1. Review the issue details and affected items
+2. Investigate the root cause of the problem
+3. Contact our Head Manager to discuss resolution
+4. Provide a timeline for corrective action
+5. Implement measures to prevent similar issues
+
+We value our partnership and trust that you will address this matter with the urgency it requires. Please respond within 24 hours with your action plan.
+
+---
+{{ company_name }}
+Immediate response required - Please contact us as soon as possible
+
+This is an automated notification. Please respond via official channels.

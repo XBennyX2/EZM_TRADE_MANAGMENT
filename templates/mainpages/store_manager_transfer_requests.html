@@ -291,9 +291,19 @@
                             </td>
                             <td>
                                 <div class="transfer-direction">
-                                    <span class="badge bg-primary">{{ request.from_store.name }}</span>
-                                    <span class="transfer-arrow">→</span>
-                                    <span class="badge bg-success">{{ request.to_store.name }}</span>
+                                    {% if request.from_store.store_manager == user %}
+                                        <!-- Incoming request - other store requesting from us -->
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="bi bi-arrow-down-circle me-1"></i>INCOMING
+                                        </span><br>
+                                        <small class="text-muted">{{ request.to_store.name }} requesting from us</small>
+                                    {% else %}
+                                        <!-- Outgoing request - we requested from other store -->
+                                        <span class="badge bg-info">
+                                            <i class="bi bi-arrow-up-circle me-1"></i>OUTGOING
+                                        </span><br>
+                                        <small class="text-muted">We requested from {{ request.from_store.name }}</small>
+                                    {% endif %}
                                 </div>
                             </td>
                             <td>{{ request.product.name }}</td>
@@ -310,10 +320,23 @@
                             </td>
                             <td>{{ request.requested_date|date:"M d, Y H:i" }}</td>
                             <td>
-                                <button class="btn btn-outline-primary btn-sm"
-                                    onclick="viewTransferDetails({{request.id}})">
-                                    <i class="bi bi-eye"></i> View
-                                </button>
+                                {% if request.from_store.store_manager == user and request.status == 'pending' %}
+                                    <!-- Incoming request - this store needs to approve -->
+                                    <button class="btn btn-success btn-sm me-1"
+                                        onclick="approveTransferRequest({{ request.id }}, '{{ request.request_number }}', '{{ request.product.name }}', {{ request.requested_quantity }}, '{{ request.to_store.name }}')">
+                                        <i class="bi bi-check-lg"></i> Approve
+                                    </button>
+                                    <button class="btn btn-danger btn-sm"
+                                        onclick="declineTransferRequest({{ request.id }}, '{{ request.request_number }}')">
+                                        <i class="bi bi-x-lg"></i> Decline
+                                    </button>
+                                {% else %}
+                                    <!-- Outgoing request or already processed -->
+                                    <button class="btn btn-outline-primary btn-sm"
+                                        onclick="viewTransferDetails({{request.id}})">
+                                        <i class="bi bi-eye"></i> View
+                                    </button>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
@@ -526,5 +549,94 @@
             }
         }
     });
+
+    // Transfer request approval functions
+    function approveTransferRequest(requestId, requestNumber, productName, requestedQty, requestingStore) {
+        document.getElementById('approval-request-number').textContent = requestNumber;
+        document.getElementById('approval-product-name').textContent = productName;
+        document.getElementById('approval-requesting-store').textContent = requestingStore;
+        document.getElementById('approval-requested-qty').textContent = requestedQty;
+        document.getElementById('approved_quantity').value = requestedQty;
+
+        const form = document.getElementById('transferApprovalForm');
+        form.action = '{% url "approve_store_transfer_request" 0 %}'.replace('0', requestId);
+
+        const modal = new bootstrap.Modal(document.getElementById('transferApprovalModal'));
+        modal.show();
+    }
+
+    function declineTransferRequest(requestId, requestNumber) {
+        document.getElementById('decline-request-number').textContent = requestNumber;
+
+        const form = document.getElementById('transferDeclineForm');
+        form.action = '{% url "decline_store_transfer_request" 0 %}'.replace('0', requestId);
+
+        const modal = new bootstrap.Modal(document.getElementById('transferDeclineModal'));
+        modal.show();
+    }
 </script>
+
+<!-- Transfer Request Approval Modal -->
+<div class="modal fade" id="transferApprovalModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Approve Transfer Request</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" id="transferApprovalForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <strong>Request:</strong> <span id="approval-request-number"></span><br>
+                        <strong>Product:</strong> <span id="approval-product-name"></span><br>
+                        <strong>Requesting Store:</strong> <span id="approval-requesting-store"></span><br>
+                        <strong>Requested Quantity:</strong> <span id="approval-requested-qty"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label for="approved_quantity" class="form-label">Approved Quantity</label>
+                        <input type="number" class="form-control" id="approved_quantity" name="approved_quantity" min="1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="approval_notes" class="form-label">Notes (Optional)</label>
+                        <textarea class="form-control" id="approval_notes" name="review_notes" rows="3" placeholder="Any additional notes..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Approve Transfer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Transfer Request Decline Modal -->
+<div class="modal fade" id="transferDeclineModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger">
+                <h5 class="modal-title text-white">Decline Transfer Request</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" id="transferDeclineForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <strong>Request:</strong> <span id="decline-request-number"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label for="decline_reason" class="form-label">Reason for Declining <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="decline_reason" name="reason" rows="4" required placeholder="Please provide a reason for declining this request..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Decline Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 {% endblock %}

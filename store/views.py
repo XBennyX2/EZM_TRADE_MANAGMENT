@@ -1027,10 +1027,193 @@ def view_receipt(request, receipt_id):
         }
 
         return render(request, 'store/view_receipt.html', context)
-
     except Exception as e:
         messages.error(request, f"Error viewing receipt: {str(e)}")
         return redirect('cashier_dashboard')
+
+
+@login_required
+def approve_store_transfer_request(request, request_id):
+    """
+    Handle transfer request approval by store manager for incoming requests.
+    """
+    if request.user.role != 'store_manager':
+        messages.error(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
+    try:
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, "You are not assigned to manage any store.")
+        return redirect('store_manager_transfer_requests')
+
+    if request.method == 'POST':
+        from Inventory.models import StoreStockTransferRequest, Stock
+        from django.utils import timezone
+        import json
+
+        try:
+            # Get the transfer request - must be FROM this store (source)
+            transfer_request = StoreStockTransferRequest.objects.get(
+                id=request_id,
+                from_store=store,  # This store is the source
+                status='pending'
+            )
+
+            # Parse data
+            if request.content_type == 'application/json':
+                data = json.loads(request.body)
+                approved_quantity = int(data.get('approved_quantity', transfer_request.requested_quantity))
+                review_notes = data.get('review_notes', '').strip()
+            else:
+                approved_quantity = int(request.POST.get('approved_quantity', transfer_request.requested_quantity))
+                review_notes = request.POST.get('review_notes', '').strip()
+
+            # Validation
+            if approved_quantity <= 0:
+                error_msg = "Approved quantity must be greater than 0."
+                if request.content_type == 'application/json':
+                    return JsonResponse({'success': False, 'error': error_msg})
+                messages.error(request, error_msg)
+                return redirect('store_manager_transfer_requests')
+
+            # Check if source store has sufficient stock
+            source_stock = Stock.objects.filter(
+                store=store,  # This store (source)
+                product=transfer_request.product
+            ).first()
+
+            if not source_stock or source_stock.quantity < approved_quantity:
+                error_msg = f"Insufficient stock. Available: {source_stock.quantity if source_stock else 0}, Requested: {approved_quantity}"
+                if request.content_type == 'application/json':
+                    return JsonResponse({'success': False, 'error': error_msg})
+                messages.error(request, error_msg)
+                return redirect('store_manager_transfer_requests')
+
+            # Update transfer request
+            transfer_request.status = 'approved'
+            transfer_request.approved_quantity = approved_quantity
+            transfer_request.reviewed_by = request.user
+            transfer_request.reviewed_date = timezone.now()
+            transfer_request.review_notes = review_notes
+            transfer_request.save()
+
+            # Transfer stock
+            # Reduce stock from source store (this store)
+            source_stock.quantity -= approved_quantity
+            source_stock.last_updated = timezone.now()
+            source_stock.save()
+
+            # Add stock to destination store
+            dest_stock, _ = Stock.objects.get_or_create(
+                store=transfer_request.to_store,
+                product=transfer_request.product,
+                defaults={
+                    'quantity': 0,
+                    'low_stock_threshold': 10,
+                    'selling_price': source_stock.selling_price,
+                    'last_updated': timezone.now()
+                }
+            )
+            dest_stock.quantity += approved_quantity
+            dest_stock.last_updated = timezone.now()
+            dest_stock.save()
+
+            success_msg = f"Transfer request #{transfer_request.request_number} approved. {approved_quantity} units transferred to {transfer_request.to_store.name}."
+
+            if request.content_type == 'application/json':
+                return JsonResponse({'success': True, 'message': success_msg})
+
+            messages.success(request, success_msg)
+
+        except StoreStockTransferRequest.DoesNotExist:
+            error_msg = "Transfer request not found or already processed."
+            if request.content_type == 'application/json':
+                return JsonResponse({'success': False, 'error': error_msg})
+            messages.error(request, error_msg)
+        except (ValueError, json.JSONDecodeError) as e:
+            error_msg = "Invalid quantity or data format."
+            if request.content_type == 'application/json':
+                return JsonResponse({'success': False, 'error': error_msg})
+            messages.error(request, error_msg)
+        except Exception as e:
+            error_msg = f"Error processing request: {str(e)}"
+            if request.content_type == 'application/json':
+                return JsonResponse({'success': False, 'error': error_msg})
+            messages.error(request, error_msg)
+
+    return redirect('store_manager_transfer_requests')
+
+
+@login_required
+def decline_store_transfer_request(request, request_id):
+    """
+    Handle transfer request decline by store manager for incoming requests.
+    """
+    if request.user.role != 'store_manager':
+        messages.error(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
+    try:
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, "You are not assigned to manage any store.")
+        return redirect('store_manager_transfer_requests')
+
+    if request.method == 'POST':
+        from Inventory.models import StoreStockTransferRequest
+        from django.utils import timezone
+        import json
+
+        try:
+            # Get the transfer request - must be FROM this store (source)
+            transfer_request = StoreStockTransferRequest.objects.get(
+                id=request_id,
+                from_store=store,  # This store is the source
+                status='pending'
+            )
+
+            # Parse data
+            if request.content_type == 'application/json':
+                data = json.loads(request.body)
+                review_notes = data.get('reason', '').strip()
+            else:
+                review_notes = request.POST.get('reason', '').strip()
+
+            # Require a reason for declining
+            if not review_notes:
+                error_msg = "Please provide a reason for declining this transfer request."
+                if request.content_type == 'application/json':
+                    return JsonResponse({'success': False, 'error': error_msg})
+                messages.error(request, error_msg)
+                return redirect('store_manager_transfer_requests')
+
+            # Update transfer request
+            transfer_request.status = 'rejected'
+            transfer_request.reviewed_by = request.user
+            transfer_request.reviewed_date = timezone.now()
+            transfer_request.review_notes = review_notes
+            transfer_request.save()
+
+            success_msg = f"Transfer request #{transfer_request.request_number} declined."
+
+            if request.content_type == 'application/json':
+                return JsonResponse({'success': True, 'message': success_msg})
+
+            messages.success(request, success_msg)
+
+        except StoreStockTransferRequest.DoesNotExist:
+            error_msg = "Transfer request not found or already processed."
+            if request.content_type == 'application/json':
+                return JsonResponse({'success': False, 'error': error_msg})
+            messages.error(request, error_msg)
+        except Exception as e:
+            error_msg = f"Error processing request: {str(e)}"
+            if request.content_type == 'application/json':
+                return JsonResponse({'success': False, 'error': error_msg})
+            messages.error(request, error_msg)
+
+    return redirect('store_manager_transfer_requests')
 
 
 @login_required

@@ -24,7 +24,7 @@ from .views import (
     # API endpoints for product dropdowns
     get_restock_products, get_transfer_products, get_stores_with_product,
     # Analytics views
-    analytics_dashboard, financial_reports, analytics_api, export_analytics_pdf, export_financial_pdf
+    analytics_dashboard, financial_reports, analytics_api
 )
 
 # Import API views
@@ -75,8 +75,6 @@ urlpatterns = [
     # Analytics and Reports URLs
     path('head-manager/analytics/', analytics_dashboard, name='analytics_dashboard'),
     path('head-manager/financial-reports/', financial_reports, name='financial_reports'),
-    path('head-manager/analytics/export-pdf/', export_analytics_pdf, name='export_analytics_pdf'),
-    path('head-manager/financial-reports/export-pdf/', export_financial_pdf, name='export_financial_pdf'),
     path('api/analytics/', analytics_api, name='analytics_api'),
 
 

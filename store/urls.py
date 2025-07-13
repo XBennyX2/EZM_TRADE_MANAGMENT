@@ -33,4 +33,8 @@ urlpatterns = [
     path('manager/remove-cashier/<int:cashier_id>/', views.remove_cashier, name='remove_cashier'),
     path('manager/manage-cashiers/', views.manage_cashiers, name='manage_cashiers'),
     path('products/', views.store_product_list, name='store_product_list'),
+
+    # Store Manager Transfer Request Approval URLs
+    path('manager/approve-transfer-request/<int:request_id>/', views.approve_store_transfer_request, name='approve_store_transfer_request'),
+    path('manager/decline-transfer-request/<int:request_id>/', views.decline_store_transfer_request, name='decline_store_transfer_request'),
 ]

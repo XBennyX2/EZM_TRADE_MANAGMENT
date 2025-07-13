@@ -670,6 +670,9 @@ class PurchaseOrder(models.Model):
     # Payment tracking fields
     payment_reference = models.CharField(max_length=100, blank=True, null=True, help_text="Chapa transaction reference")
     payment_amount = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True, help_text="Payment amount in ETB")
+    payment_status = models.CharField(max_length=20, default='pending', help_text="Payment status from Chapa")
+    payment_initiated_date = models.DateTimeField(blank=True, null=True, help_text="When payment was initiated")
+    payment_completed_date = models.DateTimeField(blank=True, null=True, help_text="When payment was completed")
     payment_confirmed_at = models.DateTimeField(blank=True, null=True)
 
     # Enhanced delivery tracking fields
@@ -717,15 +720,21 @@ class PurchaseOrder(models.Model):
         if payment_amount:
             self.payment_amount = payment_amount
         self.status = 'payment_confirmed'
+        self.payment_status = 'success'
         if not self.payment_confirmed_at:
             from django.utils import timezone
             self.payment_confirmed_at = timezone.now()
+            self.payment_completed_date = timezone.now()
         self.save()
 
     def mark_payment_pending(self, payment_reference):
         """Mark purchase order as payment pending"""
         self.payment_reference = payment_reference
         self.status = 'payment_pending'
+        self.payment_status = 'pending'
+        if not self.payment_initiated_date:
+            from django.utils import timezone
+            self.payment_initiated_date = timezone.now()
         self.save()
 
     def mark_in_transit(self, tracking_number=None):

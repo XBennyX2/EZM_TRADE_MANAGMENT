@@ -289,8 +289,7 @@
                                             {% endif %}
                                         </div>
                                         <div class="mt-1">
-                                            <strong style="color: var(--accent-teal);">ETB {{
-                                                order.total_amount|floatformat:2 }}</strong>
+                                            <strong style="color: var(--accent-teal);">ETB {{ order.total_amount|floatformat:2 }}</strong>
                                         </div>
                                     </div>
                                 </div>
@@ -353,8 +352,7 @@
                                     <small class="text-muted">Items:</small>
                                     <div class="d-flex flex-wrap gap-1 mt-1">
                                         {% for item in order.items.all|slice:":3" %}
-                                        <span class="badge bg-light text-dark">{{ item.quantity_ordered }}x {{
-                                            item.warehouse_product.product_name|truncatechars:20 }}</span>
+                                        <span class="badge bg-light text-dark">{{ item.quantity_ordered }}x {{ item.warehouse_product.product_name|truncatechars:20 }}</span>
                                         {% endfor %}
                                         {% if order.items.count > 3 %}
                                         <span class="badge bg-secondary">+{{ order.items.count|add:"-3" }} more</span>
@@ -382,8 +380,7 @@
                                     </button>
                                     {% elif order.is_delivered %}
                                     <span class="badge bg-success">
-                                        <i class="bi bi-check-circle me-1"></i>Delivered {{ order.delivered_at|date:"M
-                                        d" }}
+                                        <i class="bi bi-check-circle me-1"></i>Delivered {{ order.delivered_at|date:"M d" }}
                                     </span>
                                     {% elif order.has_delivery_issues %}
                                     <button class="btn btn-outline-warning btn-sm" onclick="viewIssues({{ order.id }})">
@@ -480,8 +477,7 @@
                             </td>
                             <td>
                                 <div class="fw-bold">{{ order.supplier.name }}</div>
-                                <small class="text-muted">{{ order.supplier.contact_person|default:"No contact"
-                                    }}</small>
+                                <small class="text-muted">{{ order.supplier.contact_person|default:"No contact" }}</small>
                             </td>
                             <td>{{ order.order_date|date:"M d, Y" }}</td>
                             <td>

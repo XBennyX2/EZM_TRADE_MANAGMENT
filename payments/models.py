@@ -189,6 +189,9 @@ class PurchaseOrderPayment(models.Model):
                 total_amount=self.total_amount,
                 payment_reference=self.chapa_transaction.chapa_tx_ref,
                 payment_amount=self.chapa_transaction.amount,
+                payment_status='success',
+                payment_initiated_date=self.chapa_transaction.created_at,
+                payment_completed_date=self.chapa_transaction.paid_at,
                 payment_confirmed_at=self.payment_confirmed_at,
                 notes=f"Auto-generated from payment {self.chapa_transaction.chapa_tx_ref}"
             )

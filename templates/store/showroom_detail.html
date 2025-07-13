@@ -264,8 +264,8 @@
                                                     }}</span>
                                             </td>
                                             <td>{{ transaction.quantity }}</td>
-                                            <td class="fw-bold text-success">${{ transaction.total_amount|floatformat:2
-                                                }}</td>
+                                            <td class="fw-bold text-success">${{
+                                                transaction.total_amount|floatformat:2}}</td>
                                             <td>{{ transaction.user.get_full_name|default:transaction.user.username }}
                                             </td>
                                         </tr>

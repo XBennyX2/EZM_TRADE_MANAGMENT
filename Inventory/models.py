@@ -582,11 +582,144 @@ class WarehouseProduct(models.Model):
         blank=True
     )
 
+    # FIFO tracking fields
+    arrival_date = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Date when this product batch arrived in warehouse"
+    )
+    batch_number = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Batch number for FIFO tracking"
+    )
+    expiry_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Product expiry date if applicable"
+    )
+
     class Meta:
         ordering = ['product_name', 'category']
 
     def __str__(self):
         return f"{self.product_name} ({self.product_id})"
+
+    @property
+    def is_low_stock(self):
+        """Check if current stock is below minimum threshold"""
+        return self.quantity_in_stock <= self.minimum_stock_level
+
+    @property
+    def is_out_of_stock(self):
+        """Check if product is out of stock"""
+        return self.quantity_in_stock == 0
+
+    @property
+    def stock_status(self):
+        """Get human-readable stock status"""
+        if self.is_out_of_stock:
+            return "Out of Stock"
+        elif self.is_low_stock:
+            return "Low Stock"
+        elif self.quantity_in_stock >= self.maximum_stock_level:
+            return "Overstocked"
+        else:
+            return "In Stock"
+
+    @classmethod
+    def get_fifo_ordered_products(cls, category=None):
+        """Get products ordered by arrival date (FIFO)"""
+        queryset = cls.objects.filter(is_active=True)
+        if category:
+            queryset = queryset.filter(category=category)
+        return queryset.order_by('arrival_date', 'batch_number')
+
+    @classmethod
+    def get_low_stock_products(cls):
+        """Get all products with low stock"""
+        return cls.objects.filter(
+            is_active=True,
+            quantity_in_stock__lte=models.F('minimum_stock_level')
+        )
+
+    def update_stock(self, quantity_change, reason="Manual adjustment"):
+        """Update stock quantity with logging"""
+        old_quantity = self.quantity_in_stock
+        self.quantity_in_stock = max(0, self.quantity_in_stock + quantity_change)
+        self.save()
+
+        # Log the stock change
+        InventoryMovement.objects.create(
+            warehouse_product=self,
+            movement_type='adjustment' if quantity_change != 0 else 'no_change',
+            quantity_change=quantity_change,
+            old_quantity=old_quantity,
+            new_quantity=self.quantity_in_stock,
+            reason=reason
+        )
+
+
+class InventoryMovement(models.Model):
+    """
+    Tracks all stock movements for audit and FIFO purposes.
+    """
+    MOVEMENT_TYPES = [
+        ('purchase_delivery', 'Purchase Delivery'),
+        ('restock_fulfillment', 'Restock Fulfillment'),
+        ('sale', 'Sale'),
+        ('transfer_out', 'Transfer Out'),
+        ('transfer_in', 'Transfer In'),
+        ('adjustment', 'Manual Adjustment'),
+        ('damage', 'Damage/Loss'),
+        ('return', 'Return'),
+    ]
+
+    warehouse_product = models.ForeignKey(
+        WarehouseProduct,
+        on_delete=models.CASCADE,
+        related_name='inventory_movements'
+    )
+    movement_type = models.CharField(max_length=20, choices=MOVEMENT_TYPES)
+    quantity_change = models.IntegerField(help_text="Positive for stock increase, negative for decrease")
+    old_quantity = models.PositiveIntegerField()
+    new_quantity = models.PositiveIntegerField()
+    reason = models.CharField(max_length=200)
+
+    # Related objects
+    purchase_order = models.ForeignKey(
+        'PurchaseOrder',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='inventory_movements'
+    )
+    restock_request = models.ForeignKey(
+        'RestockRequest',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='inventory_movements'
+    )
+
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        'users.CustomUser',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['warehouse_product', 'created_at']),
+            models.Index(fields=['movement_type']),
+            models.Index(fields=['created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.warehouse_product.product_name}: {self.quantity_change:+d} ({self.get_movement_type_display()})"
 
 
 class WarehouseStockMovement(models.Model):
@@ -1090,6 +1223,8 @@ class RestockRequest(models.Model):
         ('pending', 'Pending'),
         ('approved', 'Approved'),
         ('rejected', 'Rejected'),
+        ('shipped', 'Shipped'),
+        ('received', 'Received'),
         ('fulfilled', 'Fulfilled'),
     ]
 
@@ -1132,7 +1267,33 @@ class RestockRequest(models.Model):
 
     # Fulfillment tracking
     approved_quantity = models.PositiveIntegerField(null=True, blank=True, help_text="Quantity approved by head manager")
-    fulfilled_quantity = models.PositiveIntegerField(null=True, blank=True, help_text="Actual quantity fulfilled")
+
+    # Shipping tracking
+    shipped_quantity = models.PositiveIntegerField(null=True, blank=True, help_text="Quantity shipped from warehouse")
+    shipped_date = models.DateTimeField(null=True, blank=True)
+    shipped_by = models.ForeignKey(
+        'users.CustomUser',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='shipped_restock_requests'
+    )
+    tracking_number = models.CharField(max_length=100, blank=True, help_text="Shipping tracking number")
+
+    # Receiving tracking
+    received_quantity = models.PositiveIntegerField(null=True, blank=True, help_text="Quantity actually received by store")
+    received_date = models.DateTimeField(null=True, blank=True)
+    received_by = models.ForeignKey(
+        'users.CustomUser',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='received_restock_requests'
+    )
+    receiving_notes = models.TextField(blank=True, help_text="Notes from store manager on receipt")
+
+    # Final fulfillment
+    fulfilled_quantity = models.PositiveIntegerField(null=True, blank=True, help_text="Final fulfilled quantity")
     fulfilled_date = models.DateTimeField(null=True, blank=True)
 
     class Meta:
@@ -1162,6 +1323,111 @@ class RestockRequest(models.Model):
             product=self.product,
             status='pending'
         ).exclude(pk=self.pk).exists()
+
+    def approve(self, approved_by, approved_quantity=None, notes=""):
+        """Approve the restock request"""
+        from django.utils import timezone
+        from users.notifications import NotificationManager
+
+        self.status = 'approved'
+        self.reviewed_by = approved_by
+        self.reviewed_date = timezone.now()
+        self.approved_quantity = approved_quantity or self.requested_quantity
+        self.review_notes = notes
+        self.save()
+
+        # Create notification for store manager
+        NotificationManager.create_notification(
+            notification_type='request_approved',
+            title=f'Restock Request Approved: {self.product.name}',
+            message=f'Your request for {self.approved_quantity} units has been approved',
+            target_users=[self.requested_by],
+            priority='medium',
+            related_object_type='restock_request',
+            related_object_id=self.id
+        )
+
+    def reject(self, rejected_by, notes=""):
+        """Reject the restock request"""
+        from django.utils import timezone
+        from users.notifications import NotificationManager
+
+        self.status = 'rejected'
+        self.reviewed_by = rejected_by
+        self.reviewed_date = timezone.now()
+        self.review_notes = notes
+        self.save()
+
+        # Create notification for store manager
+        NotificationManager.create_notification(
+            notification_type='request_rejected',
+            title=f'Restock Request Rejected: {self.product.name}',
+            message=f'Your request has been rejected. Reason: {notes}',
+            target_users=[self.requested_by],
+            priority='medium',
+            related_object_type='restock_request',
+            related_object_id=self.id
+        )
+
+    def ship(self, shipped_by, shipped_quantity=None, tracking_number=""):
+        """Mark request as shipped"""
+        from django.utils import timezone
+
+        self.status = 'shipped'
+        self.shipped_by = shipped_by
+        self.shipped_date = timezone.now()
+        self.shipped_quantity = shipped_quantity or self.approved_quantity
+        self.tracking_number = tracking_number
+        self.save()
+
+        # Update warehouse stock
+        try:
+            warehouse_product = WarehouseProduct.objects.get(
+                product_name=self.product.name,
+                is_active=True
+            )
+            warehouse_product.update_stock(
+                -self.shipped_quantity,
+                f"Restock shipment to {self.store.name} - {self.request_number}"
+            )
+        except WarehouseProduct.DoesNotExist:
+            pass
+
+    def receive(self, received_by, received_quantity=None, notes=""):
+        """Mark request as received by store"""
+        from django.utils import timezone
+
+        self.status = 'received'
+        self.received_by = received_by
+        self.received_date = timezone.now()
+        self.received_quantity = received_quantity or self.shipped_quantity
+        self.receiving_notes = notes
+        self.save()
+
+        # Update store stock
+        try:
+            stock, created = Stock.objects.get_or_create(
+                product=self.product,
+                store=self.store,
+                defaults={'quantity': 0, 'low_stock_threshold': 10}
+            )
+            stock.quantity += self.received_quantity
+            stock.save()
+        except Exception:
+            pass
+
+        # Mark as fulfilled if fully received
+        if self.received_quantity >= self.approved_quantity:
+            self.fulfill()
+
+    def fulfill(self):
+        """Mark request as completely fulfilled"""
+        from django.utils import timezone
+
+        self.status = 'fulfilled'
+        self.fulfilled_quantity = self.received_quantity or self.shipped_quantity
+        self.fulfilled_date = timezone.now()
+        self.save()
 
 
 class StoreStockTransferRequest(models.Model):

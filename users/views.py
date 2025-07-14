@@ -350,39 +350,12 @@ def approve_restock_request(request, request_id):
             if approved_quantity > restock_request.requested_quantity * 2:
                 messages.warning(request, f"Approved quantity ({approved_quantity}) is significantly higher than requested ({restock_request.requested_quantity}). Please confirm this is intentional.")
 
-            # Update request status with comprehensive details
-            restock_request.status = 'approved'
-            restock_request.reviewed_by = request.user
-            restock_request.reviewed_date = timezone.now()
-            restock_request.approved_quantity = approved_quantity
-
-            # Enhanced review notes
-            if review_notes:
-                restock_request.review_notes = review_notes
-            else:
-                restock_request.review_notes = f"Approved by {request.user.get_full_name() or request.user.username} on {timezone.now().strftime('%Y-%m-%d %H:%M')}"
-
-            restock_request.save()
-
-            # Update stock levels
-            stock, created = Stock.objects.get_or_create(
-                store=restock_request.store,
-                product=restock_request.product,
-                defaults={'quantity': 0, 'selling_price': restock_request.product.price}
+            # Use the new approve method which handles notifications and workflow
+            restock_request.approve(
+                approved_by=request.user,
+                approved_quantity=approved_quantity,
+                notes=review_notes or f"Approved by {request.user.get_full_name() or request.user.username}"
             )
-            stock.quantity += approved_quantity
-            stock.last_updated = timezone.now()
-            stock.save()
-
-            # Mark as fulfilled
-            restock_request.status = 'fulfilled'
-            restock_request.fulfilled_quantity = approved_quantity
-            restock_request.fulfilled_date = timezone.now()
-            restock_request.save()
-
-            # Create notification for store manager
-            from .notifications import NotificationTriggers
-            NotificationTriggers.notify_request_status_change(restock_request, 'approved', request.user)
 
             # Success message with details
             success_msg = f"Restock request #{restock_request.request_number} approved and fulfilled for {approved_quantity} units of {restock_request.product.name} to {restock_request.store.name}."
@@ -421,11 +394,6 @@ def reject_restock_request(request, request_id):
                 messages.error(request, "Please provide a reason for rejecting this request to help the Store Manager understand the decision.")
                 return redirect('head_manager_restock_requests')
 
-            # Update request status with comprehensive feedback
-            restock_request.status = 'rejected'
-            restock_request.reviewed_by = request.user
-            restock_request.reviewed_date = timezone.now()
-
             # Combine rejection reason and review notes
             feedback_parts = []
             if rejection_reason:
@@ -433,16 +401,13 @@ def reject_restock_request(request, request_id):
             if review_notes:
                 feedback_parts.append(f"Notes: {review_notes}")
 
-            if feedback_parts:
-                restock_request.review_notes = " | ".join(feedback_parts)
-            else:
-                restock_request.review_notes = f"Rejected by {request.user.get_full_name() or request.user.username} on {timezone.now().strftime('%Y-%m-%d %H:%M')}"
+            combined_notes = " | ".join(feedback_parts) if feedback_parts else f"Rejected by {request.user.get_full_name() or request.user.username}"
 
-            restock_request.save()
-
-            # Create notification for store manager
-            from .notifications import NotificationTriggers
-            NotificationTriggers.notify_request_status_change(restock_request, 'rejected', request.user)
+            # Use the new reject method which handles notifications
+            restock_request.reject(
+                rejected_by=request.user,
+                notes=combined_notes
+            )
 
             # Success message with details
             messages.success(request, f"Restock request #{restock_request.request_number} for {restock_request.product.name} from {restock_request.store.name} has been rejected. Feedback has been sent to the Store Manager.")

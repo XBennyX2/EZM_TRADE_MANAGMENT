@@ -1,8 +1,29 @@
-{% extends 'base.html' %}
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
 {% block title %}Delete Warehouse{% endblock %}
+{% block page_title %}Delete Warehouse{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .warning-card {
+        border-left: 4px solid #dc3545;
+        transition: all 0.3s ease;
+    }
+
+    .warning-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.2);
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container-fluid mt-4">
     <div class="row justify-content-center">
         <div class="col-lg-6">
             <!-- Header -->
@@ -11,7 +32,7 @@
                     <i class="bi bi-arrow-left"></i>
                 </a>
                 <div>
-                    <h2 class="mb-0">
+                    <h2 class="mb-0" style="color: var(--primary-dark);">
                         <i class="bi bi-exclamation-triangle text-danger me-2"></i>
                         Delete Warehouse
                     </h2>
@@ -20,12 +41,10 @@
             </div>
 
             <!-- Warning Card -->
-            <div class="card shadow-sm border-danger">
-                <div class="card-header bg-danger text-white">
-                    <h5 class="mb-0">
-                        <i class="bi bi-exclamation-triangle me-2"></i>
-                        Confirm Deletion
-                    </h5>
+            <div class="ezm-card warning-card">
+                <div class="ezm-card-header text-center"
+                    style="background: linear-gradient(90deg, #dc3545, #c82333); color: white;">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Confirm Deletion
                 </div>
                 <div class="card-body">
                     <div class="alert alert-warning" role="alert">
@@ -36,13 +55,13 @@
                     <p class="mb-3">Are you sure you want to delete the following warehouse?</p>
 
                     <!-- Warehouse Information -->
-                    <div class="card bg-light">
+                    <div class="ezm-card mb-3" style="background: var(--light-gray); border: 1px solid #dee2e6;">
                         <div class="card-body">
                             <div class="row">
                                 <div class="col-md-6">
                                     <h6 class="text-muted">Warehouse Name</h6>
-                                    <p class="fw-bold">{{ object.name }}</p>
-                                    
+                                    <p class="fw-bold" style="color: var(--primary-dark);">{{ object.name }}</p>
+
                                     <h6 class="text-muted">Warehouse ID</h6>
                                     <p>{{ object.warehouse_id }}</p>
                                 </div>
@@ -50,9 +69,10 @@
                                     <h6 class="text-muted">Location</h6>
                                     <p>{{ object.address }}</p>
                                     {% if object.city %}
-                                    <p class="text-muted">{{ object.city }}{% if object.state %}, {{ object.state }}{% endif %}</p>
+                                    <p class="text-muted">{{ object.city }}{% if object.state %}, {{ object.state }}{%
+                                        endif %}</p>
                                     {% endif %}
-                                    
+
                                     {% if object.manager %}
                                     <h6 class="text-muted">Manager</h6>
                                     <p>{{ object.manager.get_full_name|default:object.manager.username }}</p>
@@ -79,7 +99,7 @@
                     <form method="post" class="mt-4">
                         {% csrf_token %}
                         <div class="d-flex justify-content-between">
-                            <a href="{% url 'warehouse_list' %}" class="btn btn-outline-secondary">
+                            <a href="{% url 'warehouse_list' %}" class="btn btn-ezm-secondary">
                                 <i class="bi bi-x-circle me-2"></i>Cancel
                             </a>
                             <button type="submit" class="btn btn-danger">
@@ -91,17 +111,15 @@
             </div>
 
             <!-- Alternative Actions -->
-            <div class="card shadow-sm mt-4">
-                <div class="card-header bg-info text-white">
-                    <h6 class="mb-0">
-                        <i class="bi bi-lightbulb me-2"></i>
-                        Alternative Actions
-                    </h6>
+            <div class="ezm-card mt-4">
+                <div class="ezm-card-header"
+                    style="background: linear-gradient(90deg, var(--accent-teal), var(--accent-cyan)); color: white;">
+                    <i class="bi bi-lightbulb me-2"></i>Alternative Actions
                 </div>
                 <div class="card-body">
                     <p class="mb-3">Instead of deleting, you might want to:</p>
                     <div class="d-grid gap-2">
-                        <a href="{% url 'warehouse_update' object.pk %}" class="btn btn-outline-primary">
+                        <a href="{% url 'warehouse_update' object.pk %}" class="btn btn-ezm-primary">
                             <i class="bi bi-pencil me-2"></i>Edit Warehouse Information
                         </a>
                         {% if object.is_active %}
@@ -121,18 +139,18 @@
 </div>
 
 <script>
-function deactivateWarehouse() {
-    if (confirm('Are you sure you want to deactivate this warehouse? This will preserve all data but mark the warehouse as inactive.')) {
-        // You can implement AJAX call here to deactivate the warehouse
-        window.location.href = "{% url 'warehouse_update' object.pk %}";
+    function deactivateWarehouse() {
+        if (confirm('Are you sure you want to deactivate this warehouse? This will preserve all data but mark the warehouse as inactive.')) {
+            // You can implement AJAX call here to deactivate the warehouse
+            window.location.href = "{% url 'warehouse_update' object.pk %}";
+        }
     }
-}
 
-function activateWarehouse() {
-    if (confirm('Are you sure you want to reactivate this warehouse?')) {
-        // You can implement AJAX call here to activate the warehouse
-        window.location.href = "{% url 'warehouse_update' object.pk %}";
+    function activateWarehouse() {
+        if (confirm('Are you sure you want to reactivate this warehouse?')) {
+            // You can implement AJAX call here to activate the warehouse
+            window.location.href = "{% url 'warehouse_update' object.pk %}";
+        }
     }
-}
 </script>
 {% endblock %}

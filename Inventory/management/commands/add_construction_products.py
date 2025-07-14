@@ -1,11 +1,13 @@
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from decimal import Decimal
+from django.utils import timezone
 from Inventory.models import (
     Product, WarehouseProduct, Warehouse, Supplier, Stock
 )
 from store.models import Store
 import random
+import uuid
 
 
 class Command(BaseCommand):
@@ -38,87 +40,197 @@ class Command(BaseCommand):
             }
         )
 
-        # Create or get default supplier
-        supplier, created = Supplier.objects.get_or_create(
-            name='Construction Materials Ltd',
-            defaults={
-                'contact_person': 'Mike Builder',
-                'email': 'mike@constructionmaterials.com',
-                'phone': '+1-555-0456',
-                'address': '456 Builder St, Industrial Zone',
-                'is_active': True
-            }
-        )
+        # Get suppliers or create default ones
+        suppliers = {}
+        supplier_names = [
+            'Dangote Cement Ethiopia',
+            'Ethiopian Steel Corporation',
+            'Addis Tiles & Ceramics',
+            'Crown Paints Ethiopia',
+            'Electrical Supply House Ethiopia',
+            'Plumbing Solutions Ethiopia',
+            'Derba Cement Share Company',
+            'Bricks & Blocks Manufacturing'
+        ]
 
-        # Construction products data
+        for supplier_name in supplier_names:
+            supplier, created = Supplier.objects.get_or_create(
+                name=supplier_name,
+                defaults={
+                    'contact_person': 'Contact Person',
+                    'email': f'contact@{supplier_name.lower().replace(" ", "")}.com',
+                    'phone': '+251-11-123-4567',
+                    'address': 'Addis Ababa, Ethiopia',
+                    'is_active': True
+                }
+            )
+            suppliers[supplier_name] = supplier
+
+        # Construction products data with Ethiopian suppliers
         construction_products = [
-            # Cement and Concrete
+            # Dangote Cement Products
             {
-                'name': 'Portland Cement Bag 50kg',
+                'name': 'Dangote Portland Cement 50kg',
                 'category': 'cement',
-                'description': 'High-quality Portland cement for construction projects',
-                'price': Decimal('12.50'),
+                'description': 'Premium Portland cement from Dangote Ethiopia',
+                'price': Decimal('850.00'),  # ETB
                 'material': 'Portland cement',
                 'size': '50kg',
                 'variation': 'Type I',
                 'product_type': 'raw_material',
-                'batch_number': 'CEM001',
+                'batch_number': f'DNG{timezone.now().strftime("%Y%m")}001',
                 'storing_condition': 'dry',
-                'warehouse_quantity': 500,
-                'unit_price': Decimal('10.00'),
-                'sku': 'CEM-PORT-50KG',
-                'barcode': '1234567890123',
+                'warehouse_quantity': 800,
+                'unit_price': Decimal('750.00'),
+                'sku': 'DNG-CEM-50KG',
+                'barcode': f'251{random.randint(1000000000, 9999999999)}',
                 'weight': Decimal('50.00'),
                 'dimensions': '60x40x15 cm',
-                'warehouse_location': 'Aisle A, Shelf 1',
-                'min_stock': 50,
-                'max_stock': 1000,
-                'reorder_point': 100
+                'warehouse_location': 'Aisle A, Section 1',
+                'min_stock': 100,
+                'max_stock': 2000,
+                'reorder_point': 200,
+                'supplier_name': 'Dangote Cement Ethiopia'
             },
             {
-                'name': 'Ready Mix Concrete m³',
-                'category': 'concrete',
-                'description': 'Ready-to-use concrete mix for foundations and structures',
-                'price': Decimal('85.00'),
-                'material': 'Concrete mix',
-                'size': '1m³',
-                'variation': 'C25/30',
-                'product_type': 'finished_product',
-                'batch_number': 'CON001',
-                'storing_condition': 'room_temperature',
-                'warehouse_quantity': 50,
-                'unit_price': Decimal('75.00'),
-                'sku': 'CON-RDY-1M3',
-                'barcode': '1234567890124',
-                'weight': Decimal('2400.00'),
-                'dimensions': '1x1x1 m',
-                'warehouse_location': 'Yard Area A',
-                'min_stock': 10,
-                'max_stock': 100,
-                'reorder_point': 20
+                'name': 'Derba Portland Cement 50kg',
+                'category': 'cement',
+                'description': 'High-quality Portland cement from Derba Cement',
+                'price': Decimal('820.00'),  # ETB
+                'material': 'Portland cement',
+                'size': '50kg',
+                'variation': 'Type I',
+                'product_type': 'raw_material',
+                'batch_number': f'DRB{timezone.now().strftime("%Y%m")}001',
+                'storing_condition': 'dry',
+                'warehouse_quantity': 600,
+                'unit_price': Decimal('720.00'),
+                'sku': 'DRB-CEM-50KG',
+                'barcode': f'251{random.randint(1000000000, 9999999999)}',
+                'weight': Decimal('50.00'),
+                'dimensions': '60x40x15 cm',
+                'warehouse_location': 'Aisle A, Section 2',
+                'min_stock': 80,
+                'max_stock': 1500,
+                'reorder_point': 150,
+                'supplier_name': 'Derba Cement Share Company'
             },
-            # Steel and Metal
+            # Ethiopian Steel Corporation Products
             {
-                'name': 'Steel Rebar 12mm x 6m',
+                'name': 'Steel Rebar 8mm x 12m',
                 'category': 'steel',
-                'description': 'High-strength steel reinforcement bars for concrete structures',
-                'price': Decimal('25.00'),
+                'description': 'High-strength steel reinforcement bars from Ethiopian Steel Corp',
+                'price': Decimal('450.00'),  # ETB
                 'material': 'Carbon steel',
-                'size': '12mm x 6m',
+                'size': '8mm x 12m',
                 'variation': 'Grade 60',
                 'product_type': 'raw_material',
-                'batch_number': 'STL001',
+                'batch_number': f'ESC{timezone.now().strftime("%Y%m")}001',
                 'storing_condition': 'dry',
-                'warehouse_quantity': 200,
-                'unit_price': Decimal('22.00'),
-                'sku': 'STL-RBR-12MM',
-                'barcode': '1234567890125',
-                'weight': Decimal('5.33'),
-                'dimensions': '600x1.2x1.2 cm',
-                'warehouse_location': 'Aisle B, Rack 1',
-                'min_stock': 30,
-                'max_stock': 500,
-                'reorder_point': 60
+                'warehouse_quantity': 500,
+                'unit_price': Decimal('400.00'),
+                'sku': 'ESC-RBR-8MM',
+                'barcode': f'251{random.randint(1000000000, 9999999999)}',
+                'weight': Decimal('4.74'),
+                'dimensions': '1200x0.8x0.8 cm',
+                'warehouse_location': 'Aisle B, Section 1',
+                'min_stock': 100,
+                'max_stock': 1000,
+                'reorder_point': 200,
+                'supplier_name': 'Ethiopian Steel Corporation'
+            },
+            {
+                'name': 'Steel Rebar 12mm x 12m',
+                'category': 'steel',
+                'description': 'Medium-duty steel reinforcement bars',
+                'price': Decimal('680.00'),  # ETB
+                'material': 'Carbon steel',
+                'size': '12mm x 12m',
+                'variation': 'Grade 60',
+                'product_type': 'raw_material',
+                'batch_number': f'ESC{timezone.now().strftime("%Y%m")}002',
+                'storing_condition': 'dry',
+                'warehouse_quantity': 400,
+                'unit_price': Decimal('620.00'),
+                'sku': 'ESC-RBR-12MM',
+                'barcode': f'251{random.randint(1000000000, 9999999999)}',
+                'weight': Decimal('10.65'),
+                'dimensions': '1200x1.2x1.2 cm',
+                'warehouse_location': 'Aisle B, Section 2',
+                'min_stock': 80,
+                'max_stock': 800,
+                'reorder_point': 150,
+                'supplier_name': 'Ethiopian Steel Corporation'
+            },
+            {
+                'name': 'Steel Rebar 16mm x 12m',
+                'category': 'steel',
+                'description': 'Heavy-duty steel reinforcement bars',
+                'price': Decimal('1200.00'),  # ETB
+                'material': 'Carbon steel',
+                'size': '16mm x 12m',
+                'variation': 'Grade 60',
+                'product_type': 'raw_material',
+                'batch_number': f'ESC{timezone.now().strftime("%Y%m")}003',
+                'storing_condition': 'dry',
+                'warehouse_quantity': 300,
+                'unit_price': Decimal('1100.00'),
+                'sku': 'ESC-RBR-16MM',
+                'barcode': f'251{random.randint(1000000000, 9999999999)}',
+                'weight': Decimal('18.94'),
+                'dimensions': '1200x1.6x1.6 cm',
+                'warehouse_location': 'Aisle B, Section 3',
+                'min_stock': 60,
+                'max_stock': 600,
+                'reorder_point': 120,
+                'supplier_name': 'Ethiopian Steel Corporation'
+            },
+            # Addis Tiles & Ceramics Products
+            {
+                'name': 'Ceramic Floor Tiles 60x60cm',
+                'category': 'tiles',
+                'description': 'Premium ceramic floor tiles from Addis Tiles',
+                'price': Decimal('180.00'),  # ETB per piece
+                'material': 'Ceramic',
+                'size': '60x60cm',
+                'variation': 'Polished',
+                'product_type': 'finished_product',
+                'batch_number': f'ATC{timezone.now().strftime("%Y%m")}001',
+                'storing_condition': 'dry',
+                'warehouse_quantity': 1200,
+                'unit_price': Decimal('150.00'),
+                'sku': 'ATC-CER-60X60',
+                'barcode': f'251{random.randint(1000000000, 9999999999)}',
+                'weight': Decimal('2.50'),
+                'dimensions': '60x60x1 cm',
+                'warehouse_location': 'Aisle C, Section 1',
+                'min_stock': 200,
+                'max_stock': 2000,
+                'reorder_point': 400,
+                'supplier_name': 'Addis Tiles & Ceramics'
+            },
+            {
+                'name': 'Porcelain Wall Tiles 30x60cm',
+                'category': 'tiles',
+                'description': 'High-quality porcelain wall tiles',
+                'price': Decimal('220.00'),  # ETB per piece
+                'material': 'Porcelain',
+                'size': '30x60cm',
+                'variation': 'Matte finish',
+                'product_type': 'finished_product',
+                'batch_number': f'ATC{timezone.now().strftime("%Y%m")}002',
+                'storing_condition': 'dry',
+                'warehouse_quantity': 800,
+                'unit_price': Decimal('190.00'),
+                'sku': 'ATC-POR-30X60',
+                'barcode': f'251{random.randint(1000000000, 9999999999)}',
+                'weight': Decimal('1.80'),
+                'dimensions': '30x60x1 cm',
+                'warehouse_location': 'Aisle C, Section 2',
+                'min_stock': 150,
+                'max_stock': 1500,
+                'reorder_point': 300,
+                'supplier_name': 'Addis Tiles & Ceramics'
             },
             {
                 'name': 'Steel I-Beam 200mm x 6m',
@@ -328,6 +440,10 @@ class Command(BaseCommand):
         
         with transaction.atomic():
             for product_data in construction_products:
+                # Get the correct supplier for this product
+                supplier_name = product_data.get('supplier_name', 'Dangote Cement Ethiopia')
+                product_supplier = suppliers.get(supplier_name, suppliers['Dangote Cement Ethiopia'])
+
                 # Create Product
                 product = Product.objects.create(
                     name=product_data['name'],
@@ -338,12 +454,12 @@ class Command(BaseCommand):
                     size=product_data['size'],
                     variation=product_data['variation'],
                     product_type=product_data['product_type'],
-                    supplier_company=supplier,
+                    supplier_company=product_supplier,
                     batch_number=product_data['batch_number'],
                     storing_condition=product_data['storing_condition']
                 )
 
-                # Create WarehouseProduct
+                # Create WarehouseProduct with FIFO fields
                 warehouse_product = WarehouseProduct.objects.create(
                     product_id=product_data['sku'],
                     product_name=product_data['name'],
@@ -358,8 +474,10 @@ class Command(BaseCommand):
                     weight=product_data['weight'],
                     dimensions=product_data['dimensions'],
                     warehouse_location=product_data['warehouse_location'],
-                    supplier=supplier,
-                    warehouse=warehouse
+                    supplier=product_supplier,
+                    warehouse=warehouse,
+                    batch_number=product_data['batch_number'],
+                    arrival_date=timezone.now()
                 )
 
                 # Create Stock entries for all stores

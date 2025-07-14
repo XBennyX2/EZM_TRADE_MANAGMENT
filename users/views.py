@@ -350,7 +350,7 @@ def approve_restock_request(request, request_id):
             if approved_quantity > restock_request.requested_quantity * 2:
                 messages.warning(request, f"Approved quantity ({approved_quantity}) is significantly higher than requested ({restock_request.requested_quantity}). Please confirm this is intentional.")
 
-            # Use the new approve method which handles notifications and workflow
+            # Use the new approve method which handles notifications and immediate inventory transfer
             restock_request.approve(
                 approved_by=request.user,
                 approved_quantity=approved_quantity,
@@ -358,13 +358,16 @@ def approve_restock_request(request, request_id):
             )
 
             # Success message with details
-            success_msg = f"Restock request #{restock_request.request_number} approved and fulfilled for {approved_quantity} units of {restock_request.product.name} to {restock_request.store.name}."
+            success_msg = f"✅ Restock request #{restock_request.request_number} approved and inventory transferred! {approved_quantity} units of {restock_request.product.name} have been moved from warehouse to {restock_request.store.name}."
             if approved_quantity != restock_request.requested_quantity:
                 success_msg += f" (Originally requested: {restock_request.requested_quantity} units)"
             messages.success(request, success_msg)
 
-        except (RestockRequest.DoesNotExist, ValueError) as e:
-            messages.error(request, "Invalid request or quantity specified.")
+        except RestockRequest.DoesNotExist:
+            messages.error(request, "Restock request not found or already processed.")
+        except ValueError as e:
+            # Handle specific inventory-related errors
+            messages.error(request, f"Inventory Error: {str(e)}")
         except Exception as e:
             messages.error(request, f"Error processing request: {str(e)}")
 

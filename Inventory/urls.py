@@ -3,7 +3,7 @@ from .views import (
     ProductListView, ProductCreateView, ProductUpdateView, ProductDeleteView,
     StockListView, StockCreateView, StockUpdateView, StockDeleteView,
     SupplierListView, SupplierCreateView, SupplierUpdateView, SupplierDeleteView,
-    WarehouseListView, WarehouseDetailView, WarehouseCreateView, WarehouseUpdateView, WarehouseDeleteView,
+    WarehouseListView, WarehouseDetailView, WarehouseCreateView, WarehouseUpdateView, WarehouseDeleteView, WarehouseDebugView,
     SupplierProductListView, WarehouseProductCreateView, WarehouseProductUpdateView, WarehouseProductDeleteView,
     PurchaseOrderListView, PurchaseOrderCreateView, PurchaseOrderDetailView, PurchaseOrderUpdateView,
     activate_supplier_account, supplier_account_status, supplier_profile_view, supplier_product_catalog_view,
@@ -44,6 +44,7 @@ urlpatterns = [
 
     # Warehouse URLs
     path('warehouses/', WarehouseListView.as_view(), name='warehouse_list'),
+    path('warehouses/debug/', WarehouseDebugView.as_view(), name='warehouse_debug'),
     path('warehouses/<int:pk>/', WarehouseDetailView.as_view(), name='warehouse_detail'),
     path('warehouses/new/', WarehouseCreateView.as_view(), name='warehouse_create'),
     path('warehouses/<int:pk>/edit/', WarehouseUpdateView.as_view(), name='warehouse_update'),

@@ -177,8 +177,14 @@
                             <td>
                                 {% if product.warehouse %}
                                 <div class="fw-bold">{{ product.warehouse.name }}</div>
-                                <small class="text-muted">{{ product.warehouse_location|default:"No location"
-                                    }}</small>
+                                <small class="text-muted">
+                                    {% if product.warehouse_location %}
+                                    <i class="bi bi-geo-alt me-1"></i>{{ product.warehouse_location }}
+                                    {% else %}
+                                    <span class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>No
+                                        location set</span>
+                                    {% endif %}
+                                </small>
                                 {% else %}
                                 <span class="text-muted">No warehouse assigned</span>
                                 {% endif %}

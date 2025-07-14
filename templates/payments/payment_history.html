@@ -92,18 +92,18 @@
                 <label for="status" class="form-label">Status</label>
                 <select name="status" id="status" class="form-select">
                     <option value="">All Statuses</option>
-                    <option value="success" {% if request.GET.status == 'success' %}selected{% endif %}>Success</option>
-                    <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>Pending</option>
-                    <option value="failed" {% if request.GET.status == 'failed' %}selected{% endif %}>Failed</option>
+                    <option value="success" {% if is_success_selected %} selected{% endif %}>Success</option>
+                    <option value="pending" {% if is_pending_selected %} selected{% endif %}>Pending</option>
+                    <option value="failed" {% if is_failed_selected %} selected{% endif %}>Failed</option>
                 </select>
             </div>
             <div class="col-md-3">
                 <label for="date_from" class="form-label">From Date</label>
-                <input type="date" name="date_from" id="date_from" class="form-control" value="{{ request.GET.date_from }}">
+                <input type="date" name="date_from" id="date_from" class="form-control" value="{{ date_from }}">
             </div>
             <div class="col-md-3">
                 <label for="date_to" class="form-label">To Date</label>
-                <input type="date" name="date_to" id="date_to" class="form-control" value="{{ request.GET.date_to }}">
+                <input type="date" name="date_to" id="date_to" class="form-control" value="{{ date_to }}">
             </div>
             <div class="col-md-3">
                 <button type="submit" class="btn btn-filter w-100">
@@ -147,13 +147,13 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="transaction-body">
             <div class="row">
                 <div class="col-md-8">
                     <div class="row mb-2">
                         <div class="col-sm-6">
-                            <small class="text-muted">Date:</small>
+                            <small class="text-muted">Payment Date:</small>
                             <div>{{ transaction.created_at|date:"M d, Y H:i" }}</div>
                         </div>
                         <div class="col-sm-6">
@@ -161,16 +161,46 @@
                             <div>{{ transaction.currency }}</div>
                         </div>
                     </div>
-                    
+
                     {% if transaction.paid_at %}
                     <div class="row mb-2">
                         <div class="col-sm-6">
-                            <small class="text-muted">Paid At:</small>
-                            <div>{{ transaction.paid_at|date:"M d, Y H:i" }}</div>
+                            <small class="text-muted">Completed At:</small>
+                            <div class="text-success">{{ transaction.paid_at|date:"M d, Y H:i" }}</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <small class="text-muted">Processing Time:</small>
+                            <div>{{ transaction.paid_at|timesince:transaction.created_at }}</div>
                         </div>
                     </div>
                     {% endif %}
-                    
+
+                    <!-- Purchase Order Details -->
+                    {% if transaction.purchase_order_payment %}
+                    <div class="row mb-2">
+                        <div class="col-sm-6">
+                            <small class="text-muted">Purchase Order Status:</small>
+                            <div>
+                                {% if transaction.purchase_order_payment.status == 'payment_confirmed' %}
+                                <span class="badge bg-success">Payment Confirmed</span>
+                                {% elif transaction.purchase_order_payment.status == 'in_transit' %}
+                                <span class="badge bg-info">In Transit</span>
+                                {% elif transaction.purchase_order_payment.status == 'delivered' %}
+                                <span class="badge bg-primary">Delivered</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{
+                                    transaction.purchase_order_payment.get_status_display }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <small class="text-muted">Items Count:</small>
+                            <div>{{ transaction.purchase_order_payment.order_items|length }} item{{
+                                transaction.purchase_order_payment.order_items|length|pluralize }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     {% if transaction.description %}
                     <div class="row">
                         <div class="col-12">
@@ -180,12 +210,13 @@
                     </div>
                     {% endif %}
                 </div>
-                
+
                 <div class="col-md-4 text-end">
-                    <a href="{% url 'payment_status' transaction.chapa_tx_ref %}" class="btn btn-outline-primary btn-sm">
+                    <a href="{% url 'payment_status' transaction.chapa_tx_ref %}"
+                        class="btn btn-outline-primary btn-sm">
                         <i class="bi bi-eye me-1"></i>View Details
                     </a>
-                    
+
                     {% if transaction.status == 'failed' %}
                     <a href="{% url 'cart_view' %}" class="btn btn-outline-warning btn-sm mt-2">
                         <i class="bi bi-arrow-clockwise me-1"></i>Retry
@@ -203,31 +234,34 @@
         <ul class="pagination justify-content-center">
             {% if transactions.has_previous %}
             <li class="page-item">
-                <a class="page-link" href="?page={{ transactions.previous_page_number }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">
+                <a class="page-link"
+                    href="?page={{ transactions.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
                     <i class="bi bi-chevron-left"></i>
                 </a>
             </li>
             {% endif %}
-            
+
             {% for num in transactions.paginator.page_range %}
             {% if transactions.number == num %}
             <li class="page-item active">
                 <span class="page-link">{{ num }}</span>
             </li>
-            {% elif num > transactions.number|add:'-3' and num < transactions.number|add:'3' %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ num }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">{{ num }}</a>
-            </li>
-            {% endif %}
-            {% endfor %}
-            
-            {% if transactions.has_next %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ transactions.next_page_number }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">
-                    <i class="bi bi-chevron-right"></i>
-                </a>
-            </li>
-            {% endif %}
+            {% elif num > transactions.number|add:'-3' and num < transactions.number|add:'3' %} <li class="page-item">
+                <a class="page-link"
+                    href="?page={{ num }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">{{
+                    num }}</a>
+                </li>
+                {% endif %}
+                {% endfor %}
+
+                {% if transactions.has_next %}
+                <li class="page-item">
+                    <a class="page-link"
+                        href="?page={{ transactions.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
         </ul>
     </nav>
     {% endif %}
@@ -237,7 +271,8 @@
     <div class="empty-state">
         <i class="bi bi-receipt"></i>
         <h4>No Payment History</h4>
-        <p class="text-muted mb-4">You haven't made any payments yet. Start shopping to see your payment history here.</p>
+        <p class="text-muted mb-4">You haven't made any payments yet. Start shopping to see your payment history here.
+        </p>
         <a href="{% url 'supplier_list' %}" class="btn btn-ezm-primary">
             <i class="bi bi-shop me-2"></i>Browse Suppliers
         </a>

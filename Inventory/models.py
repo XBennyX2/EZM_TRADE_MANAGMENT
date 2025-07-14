@@ -1325,22 +1325,69 @@ class RestockRequest(models.Model):
         ).exclude(pk=self.pk).exists()
 
     def approve(self, approved_by, approved_quantity=None, notes=""):
-        """Approve the restock request"""
+        """Approve the restock request and immediately transfer inventory"""
         from django.utils import timezone
+        from django.db import transaction
         from users.notifications import NotificationManager
 
-        self.status = 'approved'
-        self.reviewed_by = approved_by
-        self.reviewed_date = timezone.now()
-        self.approved_quantity = approved_quantity or self.requested_quantity
-        self.review_notes = notes
-        self.save()
+        approved_qty = approved_quantity or self.requested_quantity
+
+        with transaction.atomic():
+            # Update request status
+            self.status = 'approved'
+            self.reviewed_by = approved_by
+            self.reviewed_date = timezone.now()
+            self.approved_quantity = approved_qty
+            self.review_notes = notes
+
+            # Immediately transfer inventory upon approval
+            try:
+                # 1. Decrease warehouse stock
+                warehouse_product = WarehouseProduct.objects.get(
+                    product_name=self.product.name,
+                    is_active=True
+                )
+
+                # Check if warehouse has sufficient stock
+                if warehouse_product.quantity_in_stock < approved_qty:
+                    raise ValueError(f"Insufficient warehouse stock. Available: {warehouse_product.quantity_in_stock}, Requested: {approved_qty}")
+
+                # Decrease warehouse stock
+                warehouse_product.update_stock(
+                    -approved_qty,
+                    f"Restock approval to {self.store.name} - {self.request_number}"
+                )
+
+                # 2. Increase store stock
+                stock, created = Stock.objects.get_or_create(
+                    product=self.product,
+                    store=self.store,
+                    defaults={
+                        'quantity': 0,
+                        'low_stock_threshold': 10,
+                        'selling_price': warehouse_product.unit_price * Decimal('1.25')  # 25% markup
+                    }
+                )
+                stock.quantity += approved_qty
+                stock.save()
+
+                # 3. Mark as fulfilled since inventory is immediately transferred
+                self.status = 'fulfilled'
+                self.fulfilled_quantity = approved_qty
+                self.fulfilled_date = timezone.now()
+
+            except WarehouseProduct.DoesNotExist:
+                raise ValueError(f"Product '{self.product.name}' not found in warehouse")
+            except Exception as e:
+                raise ValueError(f"Inventory transfer failed: {str(e)}")
+
+            self.save()
 
         # Create notification for store manager
         NotificationManager.create_notification(
             notification_type='request_approved',
-            title=f'Restock Request Approved: {self.product.name}',
-            message=f'Your request for {self.approved_quantity} units has been approved',
+            title=f'Restock Request Approved & Fulfilled: {self.product.name}',
+            message=f'Your request for {self.approved_quantity} units has been approved and inventory has been transferred to your store',
             target_users=[self.requested_by],
             priority='medium',
             related_object_type='restock_request',

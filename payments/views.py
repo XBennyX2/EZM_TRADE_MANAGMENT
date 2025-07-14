@@ -4,7 +4,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_GET
-from django.http import JsonResponse, HttpResponse, HttpResponseBadRequest
+from django.http import JsonResponse, HttpResponse, HttpResponseBadRequest, HttpResponseNotAllowed
 from django.contrib import messages
 from django.urls import reverse
 from django.utils.decorators import method_decorator
@@ -350,11 +350,59 @@ def download_order_invoice(request, order_id):
 
 
 @csrf_exempt
-@require_POST
 def chapa_webhook(request):
     """
     Handle Chapa webhook notifications
+    Supports POST (for actual webhooks), GET (for verification), and OPTIONS (for CORS)
     """
+    # Handle OPTIONS request for CORS preflight
+    if request.method == 'OPTIONS':
+        response = HttpResponse()
+        response['Access-Control-Allow-Origin'] = '*'
+        response['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+        response['Access-Control-Allow-Headers'] = 'Content-Type, Chapa-Signature'
+        return response
+
+    # Handle GET request (verification or callback)
+    if request.method == 'GET':
+        # Extract parameters from URL
+        tx_ref = request.GET.get('trx_ref')
+        status = request.GET.get('status', '').lower()
+
+        if tx_ref and status:
+            logger.info(f"Webhook GET request: {tx_ref} - {status}")
+
+            # Update transaction status
+            try:
+                transaction = ChapaTransaction.objects.get(chapa_tx_ref=tx_ref)
+
+                if status == 'success':
+                    transaction.status = 'success'
+                    transaction.paid_at = timezone.now()
+                elif status in ['failed', 'cancelled']:
+                    transaction.status = 'failed'
+                else:
+                    transaction.status = 'pending'
+
+                transaction.save()
+
+                # Update related purchase order payment
+                if hasattr(transaction, 'purchase_order_payment'):
+                    transaction.purchase_order_payment.update_status_from_payment()
+
+                logger.info(f"Transaction updated via GET webhook: {tx_ref} - {status}")
+                return HttpResponse("OK")
+
+            except ChapaTransaction.DoesNotExist:
+                logger.error(f"Transaction not found for GET webhook: {tx_ref}")
+                return HttpResponseBadRequest("Transaction not found")
+
+        return HttpResponse("OK")
+
+    # Handle POST request (standard webhook)
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['GET', 'POST', 'OPTIONS'])
+
     try:
         # Get raw payload
         payload = request.body.decode('utf-8')

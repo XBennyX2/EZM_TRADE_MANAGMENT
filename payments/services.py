@@ -116,30 +116,63 @@ class ChapaPaymentService:
             
             if payment_result['success']:
                 try:
-                    # Try to create real transaction record
-                    transaction = ChapaTransaction.objects.create(
-                        chapa_tx_ref=tx_ref,
-                        chapa_checkout_url=payment_result.get('checkout_url'),
-                        amount=total_amount,
-                        currency='ETB',
-                        description=description,
-                        user=user,
-                        supplier=supplier,
-                        status='pending',
-                        chapa_response=payment_result.get('data'),
-                        customer_email=user.email,
-                        customer_first_name=user.first_name or user.username,
-                        customer_last_name=user.last_name or '',
-                        customer_phone=getattr(user, 'phone', None)
-                    )
+                    # Use the actual tx_ref returned from Chapa (in case it was regenerated)
+                    actual_tx_ref = payment_result.get('tx_ref', tx_ref)
+
+                    # Check if transaction already exists (prevent duplicates)
+                    existing_transaction = ChapaTransaction.objects.filter(
+                        chapa_tx_ref=actual_tx_ref
+                    ).first()
+
+                    if existing_transaction:
+                        logger.warning(f"Transaction {actual_tx_ref} already exists, using existing record")
+                        transaction = existing_transaction
+                    else:
+                        # Create new transaction record
+                        transaction = ChapaTransaction.objects.create(
+                            chapa_tx_ref=actual_tx_ref,
+                            chapa_checkout_url=payment_result.get('checkout_url'),
+                            amount=total_amount,
+                            currency='ETB',
+                            description=description,
+                            user=user,
+                            supplier=supplier,
+                            status='pending',
+                            chapa_response=payment_result.get('data'),
+                            customer_email=user.email,
+                            customer_first_name=user.first_name or user.username,
+                            customer_last_name=user.last_name or '',
+                            customer_phone=getattr(user, 'phone', None)
+                        )
 
                     # Create purchase order payment record
+                    # Convert all non-serializable objects to JSON-safe format
+                    serializable_cart_items = []
+                    for item in cart_items:
+                        serializable_item = {}
+                        for key, value in item.items():
+                            if isinstance(value, Decimal):
+                                serializable_item[key] = str(value)
+                            elif hasattr(value, 'id'):  # Handle model objects like SupplierProduct
+                                if key == 'product':
+                                    # Convert SupplierProduct to serializable dict
+                                    serializable_item['product_id'] = value.id
+                                    serializable_item['product_name'] = value.product_name
+                                    serializable_item['product_code'] = getattr(value, 'product_code', '')
+                                    serializable_item['supplier_id'] = value.supplier.id
+                                    serializable_item['supplier_name'] = value.supplier.name
+                                else:
+                                    serializable_item[key] = str(value)
+                            else:
+                                serializable_item[key] = value
+                        serializable_cart_items.append(serializable_item)
+
                     order_payment = PurchaseOrderPayment.objects.create(
                         chapa_transaction=transaction,
                         supplier=supplier,
                         user=user,
                         status='initial',
-                        order_items=cart_items,
+                        order_items=serializable_cart_items,
                         subtotal=total_amount,
                         total_amount=total_amount
                     )
@@ -174,11 +207,31 @@ class ChapaPaymentService:
                         'customer_phone': getattr(user, 'phone', None)
                     }
 
+                    # Convert cart items for mock payment too
+                    mock_serializable_items = []
+                    for item in cart_items:
+                        mock_item = {}
+                        for key, value in item.items():
+                            if isinstance(value, Decimal):
+                                mock_item[key] = str(value)
+                            elif hasattr(value, 'id'):  # Handle model objects
+                                if key == 'product':
+                                    mock_item['product_id'] = value.id
+                                    mock_item['product_name'] = value.product_name
+                                    mock_item['product_code'] = getattr(value, 'product_code', '')
+                                    mock_item['supplier_id'] = value.supplier.id
+                                    mock_item['supplier_name'] = value.supplier.name
+                                else:
+                                    mock_item[key] = str(value)
+                            else:
+                                mock_item[key] = value
+                        mock_serializable_items.append(mock_item)
+
                     mock_order_payment = {
                         'supplier': supplier,
                         'user': user,
                         'status': 'initial',
-                        'order_items': cart_items,
+                        'order_items': mock_serializable_items,
                         'subtotal': total_amount,
                         'total_amount': total_amount
                     }
@@ -188,7 +241,9 @@ class ChapaPaymentService:
                         'transaction': mock_transaction,
                         'order_payment': mock_order_payment,
                         'checkout_url': payment_result.get('checkout_url'),
-                        'tx_ref': tx_ref,
+                        'tx_ref': payment_result.get('tx_ref', tx_ref),  # Use actual tx_ref from Chapa
+                        'amount': total_amount,
+                        'supplier': supplier,
                         'message': 'Payment initialized successfully (mock mode)'
                     }
             else:
@@ -239,15 +294,24 @@ class ChapaPaymentService:
                 )
                 
                 if payment_result['success']:
+                    # Handle both model objects and dictionaries
+                    transaction = payment_result['transaction']
+                    if hasattr(transaction, 'amount'):  # Model object
+                        amount = transaction.amount
+                        tx_ref = transaction.chapa_tx_ref
+                    else:  # Dictionary (mock)
+                        amount = transaction.get('amount', Decimal('0.00'))
+                        tx_ref = transaction.get('chapa_tx_ref', payment_result.get('tx_ref'))
+
                     results['payments'].append({
                         'supplier': supplier,
                         'transaction': payment_result['transaction'],
                         'order_payment': payment_result['order_payment'],
                         'checkout_url': payment_result['checkout_url'],
-                        'tx_ref': payment_result['tx_ref'],
-                        'amount': payment_result['transaction']['amount']
+                        'tx_ref': payment_result.get('tx_ref', tx_ref),
+                        'amount': amount
                     })
-                    results['total_amount'] += payment_result['transaction']['amount']
+                    results['total_amount'] += amount
                 else:
                     results['errors'].append({
                         'supplier': supplier,
@@ -276,17 +340,17 @@ class ChapaPaymentService:
     
     def verify_payment(self, tx_ref):
         """
-        Verify a payment transaction with Chapa
-        
+        Verify a payment transaction with Chapa and update transaction status
+
         Args:
             tx_ref: Transaction reference
-        
+
         Returns:
-            dict: Verification result
+            dict: Verification result with enhanced error handling
         """
         try:
             transaction = ChapaTransaction.objects.get(chapa_tx_ref=tx_ref)
-            
+
             # Verify with Chapa
             verification_result = self.client.verify_payment(tx_ref)
             

@@ -129,15 +129,49 @@ def payment_selection(request):
 def payment_success(request):
     """
     Handle successful payment return from Chapa
+    Enhanced to address common Chapa return URL issues
     """
-    tx_ref = request.GET.get('tx_ref')
+    # Extract tx_ref from query parameters (handle both tx_ref and transaction_id)
+    tx_ref = request.GET.get('tx_ref') or request.GET.get('transaction_id')
 
+    # Debug logging for return URL parameters
+    logger.info(f"Payment success callback - Query params: {dict(request.GET)}")
+
+    # Validation 1: Check if tx_ref is present
     if not tx_ref:
-        messages.error(request, 'Invalid payment reference.')
+        logger.error("Payment success callback missing tx_ref parameter")
+        logger.error(f"Available query parameters: {dict(request.GET)}")
+
+        # Try to find the most recent pending transaction for this user as fallback
+        try:
+            recent_transaction = ChapaTransaction.objects.filter(
+                user=request.user,
+                status='pending'
+            ).order_by('-created_at').first()
+
+            if recent_transaction:
+                logger.info(f"Using most recent pending transaction as fallback: {recent_transaction.chapa_tx_ref}")
+                tx_ref = recent_transaction.chapa_tx_ref
+                messages.warning(request, 'Payment completed, but reference was missing. Using most recent transaction.')
+            else:
+                messages.error(request, 'Invalid payment reference. Missing transaction reference.')
+                return redirect('cart_view')
+        except Exception as e:
+            logger.error(f"Error finding fallback transaction: {str(e)}")
+            messages.error(request, 'Invalid payment reference. Missing transaction reference.')
+            return redirect('cart_view')
+
+    # Validation 2: Clean and validate tx_ref format
+    tx_ref = tx_ref.strip()
+    if not tx_ref or len(tx_ref) < 5:
+        logger.error(f"Payment success callback with invalid tx_ref format: '{tx_ref}'")
+        messages.error(request, 'Invalid payment reference format.')
         return redirect('cart_view')
 
+    logger.info(f"Processing payment success for tx_ref: {tx_ref}")
+
     try:
-        # Get the transaction first
+        # Validation 3: Get the transaction and verify ownership
         transaction = ChapaTransaction.objects.get(chapa_tx_ref=tx_ref, user=request.user)
 
         # Force update transaction status to success since Chapa redirected here

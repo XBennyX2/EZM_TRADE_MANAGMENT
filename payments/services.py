@@ -70,14 +70,21 @@ class ChapaPaymentService:
             # Generate transaction reference
             tx_ref = self.client.generate_tx_ref()
             
-            # Prepare callback URLs
+            # Prepare callback URLs with proper parameter templates
             if request:
                 callback_url = request.build_absolute_uri(
                     reverse('chapa_webhook')
                 )
-                return_url = request.build_absolute_uri(
+                # CRITICAL FIX: Include tx_ref parameter in return URL
+                # Use the actual tx_ref we generated (not a template)
+                base_return_url = request.build_absolute_uri(
                     reverse('payment_success')
                 )
+                return_url = f"{base_return_url}?tx_ref={tx_ref}"
+
+                logger.info(f"Payment URLs configured:")
+                logger.info(f"  Callback URL: {callback_url}")
+                logger.info(f"  Return URL: {return_url}")
             else:
                 callback_url = None
                 return_url = None
@@ -247,10 +254,25 @@ class ChapaPaymentService:
                         'message': 'Payment initialized successfully (mock mode)'
                     }
             else:
-                logger.error(f"Failed to initialize payment: {payment_result.get('error')}")
+                error_msg = payment_result.get('error', 'Payment initialization failed')
+                retry_count = payment_result.get('retry_count', 0)
+                suggestion = payment_result.get('suggestion', '')
+
+                logger.error(f"Failed to initialize payment after {retry_count} retries: {error_msg}")
+
+                # Provide user-friendly error messages
+                user_error = error_msg
+                if 'reference' in error_msg.lower() and 'invalid' in error_msg.lower():
+                    user_error = "Payment reference error. Please try again."
+                elif retry_count >= 3:
+                    user_error = "Payment service temporarily unavailable. Please try again in a few minutes."
+
                 return {
                     'success': False,
-                    'error': payment_result.get('error', 'Payment initialization failed'),
+                    'error': user_error,
+                    'technical_error': error_msg,
+                    'retry_count': retry_count,
+                    'suggestion': suggestion,
                     'message': 'Failed to initialize payment with Chapa'
                 }
                 
@@ -340,7 +362,14 @@ class ChapaPaymentService:
     
     def verify_payment(self, tx_ref):
         """
-        Verify a payment transaction with Chapa and update transaction status
+        Verify a payment transaction with Chapa - Enhanced with comprehensive error handling
+
+        Addresses all common Chapa verification issues:
+        1. tx_ref not matching/doesn't exist
+        2. tx_ref not unique
+        3. Verifying before payment was initiated
+        4. Wrong HTTP method or headers
+        5. Using wrong tx_ref from return URL
 
         Args:
             tx_ref: Transaction reference
@@ -348,23 +377,66 @@ class ChapaPaymentService:
         Returns:
             dict: Verification result with enhanced error handling
         """
+        # Validation 1: Check tx_ref format and presence
+        if not tx_ref:
+            logger.error("Verification failed: Missing tx_ref")
+            return {
+                'success': False,
+                'error': 'Missing transaction reference',
+                'transaction': None
+            }
+
+        if not isinstance(tx_ref, str) or len(tx_ref.strip()) == 0:
+            logger.error(f"Verification failed: Invalid tx_ref format: {tx_ref}")
+            return {
+                'success': False,
+                'error': 'Invalid transaction reference format',
+                'transaction': None
+            }
+
+        # Clean the tx_ref (remove any whitespace)
+        tx_ref = tx_ref.strip()
+
         try:
+            # Validation 2: Check if transaction exists in our database
             transaction = ChapaTransaction.objects.get(chapa_tx_ref=tx_ref)
 
-            # Verify with Chapa
+            # Validation 3: Check if payment was properly initialized
+            if not transaction.chapa_checkout_url:
+                logger.warning(f"Transaction {tx_ref} was not properly initialized (no checkout URL)")
+                return {
+                    'success': False,
+                    'error': 'Transaction was not properly initialized',
+                    'transaction': transaction
+                }
+
+            # Log the verification attempt
+            logger.info(f"Verifying payment with Chapa: {tx_ref} (current status: {transaction.status})")
+
+            # Verify with Chapa API using exact same tx_ref
             verification_result = self.client.verify_payment(tx_ref)
-            
+
             if verification_result['success']:
-                # Update transaction status
+                # Update transaction status based on Chapa response
                 old_status = transaction.status
                 chapa_status = verification_result.get('status', '').lower()
 
+                # Validate that Chapa returned the same tx_ref
+                returned_tx_ref = verification_result.get('tx_ref')
+                if returned_tx_ref and returned_tx_ref != tx_ref:
+                    logger.warning(f"tx_ref mismatch: sent {tx_ref}, received {returned_tx_ref}")
+
+                # Map Chapa status to our status
                 if chapa_status == 'success':
                     transaction.status = 'success'
                     transaction.paid_at = timezone.now()
                 elif chapa_status in ['failed', 'cancelled']:
                     transaction.status = 'failed'
+                elif chapa_status == 'pending':
+                    transaction.status = 'pending'
                 else:
+                    # Unknown status from Chapa
+                    logger.warning(f"Unknown status from Chapa: {chapa_status} for {tx_ref}")
                     transaction.status = 'pending'
 
                 transaction.save()

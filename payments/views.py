@@ -234,7 +234,8 @@ def payment_success(request):
                 messages.success(request, f'All payments completed successfully! Total: ETB {total_amount} to {len(completed_suppliers)} supplier(s): {supplier_list}. View details in Payment History.')
                 return redirect('payment_history')
 
-        return redirect('payment_status', tx_ref=tx_ref)
+        # Redirect to payment completed page for individual transaction
+        return redirect('payment_completed', tx_ref=tx_ref)
 
     except ChapaTransaction.DoesNotExist:
         logger.error(f"Transaction not found: {tx_ref}")
@@ -244,6 +245,41 @@ def payment_success(request):
         logger.error(f"Error processing payment success: {str(e)}")
         messages.error(request, 'An error occurred while processing your payment.')
         return redirect('cart_view')
+
+
+@login_required
+@user_passes_test(is_head_manager)
+def payment_completed(request, tx_ref):
+    """
+    Display payment completed page with transaction details and order summary
+    """
+    try:
+        # Get the transaction
+        transaction = ChapaTransaction.objects.get(chapa_tx_ref=tx_ref, user=request.user)
+
+        # Ensure the transaction is successful
+        if transaction.status != 'success':
+            messages.error(request, 'Payment not completed yet.')
+            return redirect('payment_status', tx_ref=tx_ref)
+
+        # Get order items if available
+        order_items = []
+        if hasattr(transaction, 'purchase_order_payment'):
+            order_payment = transaction.purchase_order_payment
+            # order_items is a JSONField, so it's already a list/dict
+            order_items = order_payment.order_items or []
+
+        context = {
+            'transaction': transaction,
+            'order_items': order_items,
+            'page_title': 'Payment Completed'
+        }
+
+        return render(request, 'payments/payment_completed.html', context)
+
+    except ChapaTransaction.DoesNotExist:
+        messages.error(request, 'Transaction not found.')
+        return redirect('payment_history')
 
 
 @login_required

@@ -1,0 +1,383 @@
+{% extends 'webfront/webfront_base.html' %}
+{% load widget_tweaks %}
+{% load webfront_extras %}
+
+{% block title %}Browse Products - EZM Trade{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="container">
+        <h1><i class="bi bi-grid me-3"></i>Browse Our Products</h1>
+        <p>Discover our extensive inventory across all store locations. Find the perfect products with real-time availability and pricing information.</p>
+        <div class="mt-4">
+            <span class="badge bg-light text-dark fs-6 px-3 py-2 me-2">
+                <i class="bi bi-box-seam me-1"></i>{{ page_obj.paginator.count }} Products Available
+            </span>
+            <span class="badge bg-light text-dark fs-6 px-3 py-2">
+                <i class="bi bi-building me-1"></i>Multiple Locations
+            </span>
+        </div>
+    </div>
+</section>
+
+<!-- Main Content -->
+<section class="content-section">
+    <div class="container">
+        <!-- Breadcrumb -->
+        <div class="breadcrumb-section">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'webfront:home' %}" class="text-decoration-none">Home</a>
+                    </li>
+                    <li class="breadcrumb-item active">Browse Products</li>
+                </ol>
+            </nav>
+        </div>
+
+        <!-- Search and Filters -->
+        <div class="search-section" id="searchSection">
+            <h5 class="search-title mb-3"><i class="bi bi-search me-2"></i>Find Products</h5>
+            <form method="get">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-2">
+                        <label for="store" class="form-label small">Store</label>
+                        <select name="store" id="store" class="form-select form-select-sm">
+                            <option value="">All Stores</option>
+                            {% for store in stores %}
+                                <option value="{{ store.id }}" {% if current_store == store.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ store.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="category" class="form-label small">Category</label>
+                        <select name="category" id="category" class="form-select form-select-sm">
+                            <option value="">All Categories</option>
+                            {% for category in categories %}
+                                <option value="{{ category }}" {% if current_category == category %}selected{% endif %}>
+                                    {{ category }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="search" class="form-label small">Search</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" name="search" id="search" class="form-control"
+                                   placeholder="Product name or description..."
+                                   value="{% if search_query %}{{ search_query }}{% endif %}">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="d-flex gap-1">
+                            <button type="submit" class="btn btn-primary-custom btn-sm">
+                                <i class="bi bi-search"></i> Search
+                            </button>
+                            <a href="{% url 'webfront:stock_list' %}" class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="low_stock" id="low_stock"
+                                   {% if low_stock_only %}checked{% endif %}>
+                            <label class="form-check-label small" for="low_stock">
+                                <i class="bi bi-exclamation-triangle text-warning me-1"></i>Low stock only
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Products Display -->
+        <div class="products-table">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th><i class="bi bi-box me-1"></i>Product</th>
+                            <th><i class="bi bi-building me-1"></i>Store Location</th>
+                            <th><i class="bi bi-tags me-1"></i>Category</th>
+                            <th><i class="bi bi-stack me-1"></i>Available</th>
+                            <th><i class="bi bi-currency-dollar me-1"></i>Price</th>
+                            <th><i class="bi bi-calculator me-1"></i>Calculate</th>
+                            <th><i class="bi bi-check-circle me-1"></i>Status</th>
+                            <th><i class="bi bi-eye me-1"></i>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stock in page_obj %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        <div class="bg-primary bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
+                                            <i class="bi bi-box text-primary fs-5"></i>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-1 fw-semibold">{{ stock.product.name }}</h6>
+                                        {% if stock.product.variation %}
+                                            <small class="text-muted">{{ stock.product.variation }}</small>
+                                        {% endif %}
+                                        {% if stock.product.description %}
+                                            <small class="text-muted d-block">{{ stock.product.description|truncatechars:50 }}</small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <a href="{% url 'webfront:store_stock' stock.store.id %}" class="text-decoration-none fw-semibold">
+                                    <i class="bi bi-geo-alt me-1 text-primary"></i>{{ stock.store.name }}
+                                </a>
+                                {% if stock.store.address %}
+                                    <small class="text-muted d-block">{{ stock.store.address|truncatechars:30 }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2">
+                                    {{ stock.product.category }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="text-center">
+                                    <span class="fw-bold fs-5 {% if stock.quantity <= stock.low_stock_threshold %}text-danger{% else %}text-success{% endif %}">
+                                        {{ stock.quantity }}
+                                    </span>
+                                    <small class="text-muted d-block">units available</small>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="fw-bold text-dark fs-6">ETB {{ stock.selling_price }}</span>
+                            </td>
+                            <td>
+                                <div class="quantity-calculator">
+                                    <div class="input-group input-group-sm">
+                                        <input type="number" class="form-control quantity-input"
+                                               placeholder="Qty" min="1" max="{{ stock.quantity }}"
+                                               step="1" pattern="[0-9]*" inputmode="numeric"
+                                               data-price="{{ stock.selling_price }}"
+                                               data-stock-id="{{ stock.id }}"
+                                               title="Enter quantity (max: {{ stock.quantity }} units)">
+                                        <span class="input-group-text total-price" data-stock-id="{{ stock.id }}">ETB 0</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                {% if stock.quantity <= stock.low_stock_threshold %}
+                                    <span class="status-badge status-low-stock">
+                                        <i class="bi bi-exclamation-triangle"></i>Low Stock
+                                    </span>
+                                {% elif stock.quantity <= 50 %}
+                                    <span class="status-badge status-medium-stock">
+                                        <i class="bi bi-dash-circle"></i>Medium Stock
+                                    </span>
+                                {% else %}
+                                    <span class="status-badge status-in-stock">
+                                        <i class="bi bi-check-circle"></i>In Stock
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <a href="{% url 'webfront:stock_detail' stock.id %}"
+                                       class="btn btn-primary-custom btn-sm" title="View Details">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{% url 'webfront:product_stores' stock.product.id %}"
+                                       class="btn btn-outline-custom btn-sm" title="Other Locations">
+                                        <i class="bi bi-buildings"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <div class="text-muted">
+                                    <i class="bi bi-search fs-1 mb-3 d-block opacity-50"></i>
+                                    <h4 class="mb-3">No products found</h4>
+                                    <p class="mb-4">We couldn't find any products matching your search criteria. Try adjusting your filters or browse all products.</p>
+                                    <a href="{% url 'webfront:stock_list' %}" class="btn btn-primary-custom">
+                                        <i class="bi bi-arrow-clockwise me-1"></i>Reset Filters
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <div class="d-flex justify-content-center mt-4">
+            <nav aria-label="Product pagination">
+                <ul class="pagination pagination-lg">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if request.GET.store %}&store={{ request.GET.store }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.low_stock %}&low_stock=on{% endif %}">
+                                <i class="bi bi-chevron-double-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.store %}&store={{ request.GET.store }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.low_stock %}&low_stock=on{% endif %}">
+                                <i class="bi bi-chevron-left me-1"></i>Previous
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">
+                            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                        </span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.store %}&store={{ request.GET.store }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.low_stock %}&low_stock=on{% endif %}">
+                                Next<i class="bi bi-chevron-right ms-1"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.store %}&store={{ request.GET.store }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.low_stock %}&low_stock=on{% endif %}">
+                                <i class="bi bi-chevron-double-right"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-submit form when filters change
+    const filterInputs = document.querySelectorAll('#store, #category, #low_stock');
+    filterInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            this.form.submit();
+        });
+    });
+
+    // Add smooth scrolling for pagination
+    const paginationLinks = document.querySelectorAll('.pagination a');
+    paginationLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    });
+
+    // Sticky search bar functionality
+    const searchSection = document.getElementById('searchSection');
+    const searchSectionOffset = searchSection.offsetTop;
+
+    function handleScroll() {
+        if (window.pageYOffset > searchSectionOffset + 100) {
+            searchSection.classList.add('sticky-search');
+        } else {
+            searchSection.classList.remove('sticky-search');
+        }
+    }
+
+    window.addEventListener('scroll', handleScroll);
+
+    // Quantity calculator functionality
+    const quantityInputs = document.querySelectorAll('.quantity-input');
+    quantityInputs.forEach(input => {
+        const maxQuantity = parseInt(input.getAttribute('max')) || 0;
+
+        input.addEventListener('input', function() {
+            let quantity = parseFloat(this.value) || 0;
+            const price = parseFloat(this.dataset.price) || 0;
+            const stockId = this.dataset.stockId;
+
+            // Prevent calculation beyond max allowed quantity
+            if (quantity > maxQuantity) {
+                quantity = maxQuantity;
+                this.value = maxQuantity;
+
+                // Show warning message
+                const existingWarning = this.parentNode.parentNode.querySelector('.quantity-warning');
+                if (!existingWarning) {
+                    const warning = document.createElement('small');
+                    warning.className = 'quantity-warning text-danger d-block mt-1';
+                    warning.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Max: ' + maxQuantity;
+                    this.parentNode.parentNode.appendChild(warning);
+
+                    // Remove warning after 2 seconds
+                    setTimeout(() => {
+                        if (warning.parentNode) {
+                            warning.parentNode.removeChild(warning);
+                        }
+                    }, 2000);
+                }
+            }
+
+            // Prevent negative values
+            if (quantity < 0) {
+                quantity = 0;
+                this.value = 0;
+            }
+
+            const totalPrice = quantity * price;
+            const totalPriceElement = document.querySelector(`[data-stock-id="${stockId}"].total-price`);
+            if (totalPriceElement) {
+                totalPriceElement.textContent = `ETB ${totalPrice.toFixed(2)}`;
+            }
+        });
+
+        // Additional validation on blur
+        input.addEventListener('blur', function() {
+            if (!this.value) {
+                const stockId = this.dataset.stockId;
+                const totalPriceElement = document.querySelector(`[data-stock-id="${stockId}"].total-price`);
+                if (totalPriceElement) {
+                    totalPriceElement.textContent = 'ETB 0';
+                }
+            } else {
+                let quantity = parseFloat(this.value) || 0;
+                if (quantity > maxQuantity) {
+                    this.value = maxQuantity;
+                    const price = parseFloat(this.dataset.price) || 0;
+                    const stockId = this.dataset.stockId;
+                    const totalPriceElement = document.querySelector(`[data-stock-id="${stockId}"].total-price`);
+                    if (totalPriceElement) {
+                        totalPriceElement.textContent = `ETB ${(maxQuantity * price).toFixed(2)}`;
+                    }
+                }
+            }
+        });
+
+        // Prevent typing beyond max on keypress
+        input.addEventListener('keypress', function(e) {
+            // Allow backspace, delete, tab, escape, enter
+            if ([8, 9, 27, 13, 46].indexOf(e.keyCode) !== -1 ||
+                // Allow Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+                (e.keyCode === 65 && e.ctrlKey === true) ||
+                (e.keyCode === 67 && e.ctrlKey === true) ||
+                (e.keyCode === 86 && e.ctrlKey === true) ||
+                (e.keyCode === 88 && e.ctrlKey === true)) {
+                return;
+            }
+
+            // Ensure that it is a number and stop the keypress
+            if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+                e.preventDefault();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

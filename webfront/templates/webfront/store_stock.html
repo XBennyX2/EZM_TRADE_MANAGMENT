@@ -1,0 +1,335 @@
+{% extends 'webfront/webfront_base.html' %}
+{% load widget_tweaks %}
+{% load webfront_extras %}
+
+{% block title %}{{ store.name }} - Store Location - EZM Trade{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h1><i class="bi bi-building me-3"></i>{{ store.name }}</h1>
+                <p class="mb-3">Browse our complete inventory at this store location. Find products, check availability, and get pricing information.</p>
+                <div class="d-flex gap-2 flex-wrap">
+                    <span class="badge bg-light text-dark fs-6 px-3 py-2">
+                        <i class="bi bi-geo-alt me-1"></i>{{ store.address|default:"Store Location" }}
+                    </span>
+                    <span class="badge bg-light text-dark fs-6 px-3 py-2">
+                        <i class="bi bi-box-seam me-1"></i>{{ page_obj.paginator.count }} Products
+                    </span>
+                </div>
+            </div>
+            <div class="col-lg-4 text-lg-end">
+                <a href="{% url 'webfront:stock_list' %}" class="btn btn-outline-light btn-lg">
+                    <i class="bi bi-arrow-left me-1"></i>All Locations
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Main Content -->
+<section class="content-section">
+    <div class="container">
+        <!-- Breadcrumb -->
+        <div class="breadcrumb-section">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'webfront:home' %}" class="text-decoration-none">Home</a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'webfront:stock_list' %}" class="text-decoration-none">Browse Products</a>
+                    </li>
+                    <li class="breadcrumb-item active">{{ store.name }}</li>
+                </ol>
+            </nav>
+        </div>
+
+    <!-- Store Information -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-geo-alt me-2"></i>Store Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <h5 class="text-primary mb-2">{{ store.name }}</h5>
+                            <p class="mb-2">
+                                <i class="bi bi-geo-alt text-muted"></i> {{ store.address }}
+                            </p>
+                            {% if store.phone_number %}
+                                <p class="mb-2">
+                                    <i class="bi bi-telephone text-muted"></i> {{ store.phone_number }}
+                                </p>
+                            {% endif %}
+                            {% if store.store_manager %}
+                                <p class="mb-0">
+                                    <i class="bi bi-person-badge text-muted"></i>
+                                    Manager: {{ store.store_manager.get_full_name|default:store.store_manager.username }}
+                                </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="stats-card">
+                                    <div class="stats-number">{{ total_products }}</div>
+                                    <div class="stats-label">Total Products</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stats-card">
+                                    <div class="stats-number text-warning">{{ low_stock_count }}</div>
+                                    <div class="stats-label">Low Stock</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stats-card">
+                                    <div class="stats-number text-info">{{ categories_count }}</div>
+                                    <div class="stats-label">Categories</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="search-section" id="searchSection">
+            <h5 class="search-title mb-3"><i class="bi bi-funnel me-2"></i>Filter Products</h5>
+            <form method="get">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-3">
+                        <label for="category" class="form-label small">Category</label>
+                        <select name="category" id="category" class="form-select form-select-sm">
+                            <option value="">All Categories</option>
+                            {% for category in categories %}
+                                <option value="{{ category }}" {% if current_category == category %}selected{% endif %}>
+                                    {{ category }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label for="search" class="form-label small">Search</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" name="search" id="search" class="form-control"
+                                   placeholder="Product name or description..."
+                                   value="{% if search_query %}{{ search_query }}{% endif %}">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="d-flex gap-1">
+                            <button type="submit" class="btn btn-primary-custom btn-sm">
+                                <i class="bi bi-search"></i>
+                            </button>
+                            <a href="{% url 'webfront:store_stock' store.id %}" class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="low_stock" id="low_stock"
+                                   {% if low_stock_only %}checked{% endif %}>
+                            <label class="form-check-label small" for="low_stock">
+                                <i class="bi bi-exclamation-triangle text-warning me-1"></i>Low stock only
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Stock Table -->
+        <div class="table-custom">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th><i class="bi bi-box"></i> Product</th>
+                            <th><i class="bi bi-tags"></i> Category</th>
+                            <th><i class="bi bi-stack"></i> Quantity</th>
+                            <th><i class="bi bi-currency-dollar"></i> Price</th>
+                            <th><i class="bi bi-check-circle"></i> Status</th>
+                            <th><i class="bi bi-three-dots"></i> Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stock in page_obj %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        <div class="bg-primary bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                            <i class="bi bi-box text-primary"></i>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0">{{ stock.product.name }}</h6>
+                                        {% if stock.product.variation %}
+                                            <small class="text-muted">{{ stock.product.variation }}</small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge rounded-pill" style="background-color: var(--primary-color); color: white;">
+                                    {{ stock.product.category }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="fw-bold fs-5 {% if stock.quantity <= 10 %}text-danger{% else %}text-success{% endif %}">
+                                    {{ stock.quantity }}
+                                </span>
+                                <small class="text-muted d-block">units available</small>
+                            </td>
+                            <td>
+                                <span class="fw-semibold">ETB {{ stock.selling_price }}</span>
+                            </td>
+                            <td>
+                                {% if stock.quantity <= 10 %}
+                                    <span class="status-badge status-low-stock">
+                                        <i class="bi bi-exclamation-triangle"></i> Low Stock
+                                    </span>
+                                {% elif stock.quantity <= 50 %}
+                                    <span class="status-badge status-medium-stock">
+                                        <i class="bi bi-dash-circle"></i> Medium
+                                    </span>
+                                {% else %}
+                                    <span class="status-badge status-in-stock">
+                                        <i class="bi bi-check-circle"></i> In Stock
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'webfront:stock_detail' stock.id %}"
+                                       class="btn btn-outline-primary" title="View Details">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{% url 'webfront:product_stores' stock.product.id %}"
+                                       class="btn btn-outline-info" title="View in Other Stores">
+                                        <i class="bi bi-buildings"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5">
+                                <div class="text-muted">
+                                    <i class="bi bi-search fs-1 mb-3 d-block"></i>
+                                    <h5>No products found</h5>
+                                    <p>This store doesn't have any products matching your criteria.</p>
+                                    <a href="{% url 'webfront:store_stock' store.id %}" class="btn btn-primary-custom">
+                                        <i class="bi bi-arrow-clockwise"></i> Reset Filters
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <div class="d-flex justify-content-center mt-4">
+            <nav aria-label="Stock pagination">
+                <ul class="pagination pagination-lg">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.low_stock %}&low_stock=on{% endif %}">
+                                <i class="bi bi-chevron-double-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.low_stock %}&low_stock=on{% endif %}">
+                                <i class="bi bi-chevron-left"></i> Previous
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">
+                            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                        </span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.low_stock %}&low_stock=on{% endif %}">
+                                Next <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.low_stock %}&low_stock=on{% endif %}">
+                                <i class="bi bi-chevron-double-right"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+
+        <!-- Back Button -->
+        <div class="text-center mt-4">
+            <a href="{% url 'webfront:stock_list' %}" class="btn btn-outline-secondary btn-lg">
+                <i class="bi bi-arrow-left"></i> Back to All Stores
+            </a>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-submit form when filters change
+    const filterInputs = document.querySelectorAll('#category, #low_stock');
+    filterInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            this.form.submit();
+        });
+    });
+
+    // Add smooth scrolling for pagination
+    const paginationLinks = document.querySelectorAll('.pagination a');
+    paginationLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    });
+
+    // Sticky search bar functionality
+    const searchSection = document.getElementById('searchSection');
+    if (searchSection) {
+        const searchSectionOffset = searchSection.offsetTop;
+
+        function handleScroll() {
+            if (window.pageYOffset > searchSectionOffset + 100) {
+                searchSection.classList.add('sticky-search');
+            } else {
+                searchSection.classList.remove('sticky-search');
+            }
+        }
+
+        window.addEventListener('scroll', handleScroll);
+    }
+});
+</script>
+{% endblock %}

@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'Inventory',
     'transactions',
     'payments',
+    'webfront',
 ]
 
 AUTH_USER_MODEL = 'users.CustomUser'

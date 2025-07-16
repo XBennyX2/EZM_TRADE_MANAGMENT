@@ -1,0 +1,80 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
+{% block title %}Warehouse Debug{% endblock %}
+{% block page_title %}Warehouse Location Debug{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="ezm-card">
+                <div class="ezm-card-header">
+                    <i class="bi bi-bug me-2"></i>Warehouse Location Debug
+                </div>
+                <div class="card-body">
+                    <p>This page shows raw warehouse location data for debugging purposes.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="ezm-card">
+                <div class="ezm-card-header">
+                    <i class="bi bi-list me-2"></i>Product Location Data
+                </div>
+                <div class="card-body">
+                    {% if products %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Product Name</th>
+                                        <th>Warehouse</th>
+                                        <th>Raw Location</th>
+                                        <th>Location Length</th>
+                                        <th>Location Boolean</th>
+                                        <th>Template Test</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for product in products %}
+                                    <tr>
+                                        <td>{{ product.product_name }}</td>
+                                        <td>{{ product.warehouse.name|default:"No warehouse" }}</td>
+                                        <td><code>"{{ product.warehouse_location }}"</code></td>
+                                        <td>{{ product.warehouse_location|length }}</td>
+                                        <td>
+                                            {% if product.warehouse_location %}
+                                                <span class="badge bg-success">True</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">False</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if product.warehouse_location %}
+                                                <i class="bi bi-geo-alt text-success"></i> {{ product.warehouse_location }}
+                                            {% else %}
+                                                <i class="bi bi-exclamation-triangle text-warning"></i> No location
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No products found.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

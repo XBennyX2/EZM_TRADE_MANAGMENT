@@ -1,12 +1,82 @@
-{% extends 'base.html' %}
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .warning-card {
+        border-left: 4px solid #dc3545;
+        transition: all 0.3s ease;
+    }
+
+    .warning-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.2);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<h1>{{ title }}</h1>
-<hr>
-<p>Are you sure you want to delete "<strong>{{ object }}</strong>"?</p>
-<p class="text-danger">This action cannot be undone.</p>
-<form method="post">
-    {% csrf_token %}
-    <button type="submit" class="btn btn-danger">Confirm Delete</button>
-    <a href="{{ request.META.HTTP_REFERER|escape }}" class="btn btn-secondary">Cancel</a>
-</form>
+<div class="container-fluid mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <!-- Header -->
+            <div class="d-flex align-items-center mb-4">
+                <a href="{% url 'product_list' %}" class="btn btn-ezm-secondary me-3">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                <div>
+                    <h2 class="mb-0" style="color: var(--primary-dark);">
+                        <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+                        {{ title }}
+                    </h2>
+                    <p class="text-muted mb-0">Confirm product deletion</p>
+                </div>
+            </div>
+
+            <!-- Warning Card -->
+            <div class="ezm-card warning-card">
+                <div class="ezm-card-header text-center"
+                    style="background: linear-gradient(90deg, #dc3545, #c82333); color: white;">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Confirm Deletion
+                </div>
+                <div class="card-body text-center">
+                    <div class="alert alert-warning" role="alert">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Warning!</strong> This action cannot be undone.
+                    </div>
+
+                    <p class="mb-3">Are you sure you want to delete the following product?</p>
+
+                    <!-- Product Information -->
+                    <div class="ezm-card mb-3" style="background: var(--light-gray); border: 1px solid #dee2e6;">
+                        <div class="card-body">
+                            <h5 class="mb-2" style="color: var(--primary-dark);">{{ object }}</h5>
+                            <p class="text-muted mb-0">This product will be permanently removed from the system.</p>
+                        </div>
+                    </div>
+
+                    <!-- Confirmation Form -->
+                    <form method="post" class="mt-4">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'product_list' %}" class="btn btn-ezm-secondary">
+                                <i class="bi bi-x-circle me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-trash me-2"></i>Yes, Delete Product
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

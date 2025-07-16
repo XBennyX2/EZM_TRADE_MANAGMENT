@@ -350,48 +350,24 @@ def approve_restock_request(request, request_id):
             if approved_quantity > restock_request.requested_quantity * 2:
                 messages.warning(request, f"Approved quantity ({approved_quantity}) is significantly higher than requested ({restock_request.requested_quantity}). Please confirm this is intentional.")
 
-            # Update request status with comprehensive details
-            restock_request.status = 'approved'
-            restock_request.reviewed_by = request.user
-            restock_request.reviewed_date = timezone.now()
-            restock_request.approved_quantity = approved_quantity
-
-            # Enhanced review notes
-            if review_notes:
-                restock_request.review_notes = review_notes
-            else:
-                restock_request.review_notes = f"Approved by {request.user.get_full_name() or request.user.username} on {timezone.now().strftime('%Y-%m-%d %H:%M')}"
-
-            restock_request.save()
-
-            # Update stock levels
-            stock, created = Stock.objects.get_or_create(
-                store=restock_request.store,
-                product=restock_request.product,
-                defaults={'quantity': 0, 'selling_price': restock_request.product.price}
+            # Use the new approve method which handles notifications and immediate inventory transfer
+            restock_request.approve(
+                approved_by=request.user,
+                approved_quantity=approved_quantity,
+                notes=review_notes or f"Approved by {request.user.get_full_name() or request.user.username}"
             )
-            stock.quantity += approved_quantity
-            stock.last_updated = timezone.now()
-            stock.save()
-
-            # Mark as fulfilled
-            restock_request.status = 'fulfilled'
-            restock_request.fulfilled_quantity = approved_quantity
-            restock_request.fulfilled_date = timezone.now()
-            restock_request.save()
-
-            # Create notification for store manager
-            from .notifications import NotificationTriggers
-            NotificationTriggers.notify_request_status_change(restock_request, 'approved', request.user)
 
             # Success message with details
-            success_msg = f"Restock request #{restock_request.request_number} approved and fulfilled for {approved_quantity} units of {restock_request.product.name} to {restock_request.store.name}."
+            success_msg = f"✅ Restock request #{restock_request.request_number} approved and inventory transferred! {approved_quantity} units of {restock_request.product.name} have been moved from warehouse to {restock_request.store.name}."
             if approved_quantity != restock_request.requested_quantity:
                 success_msg += f" (Originally requested: {restock_request.requested_quantity} units)"
             messages.success(request, success_msg)
 
-        except (RestockRequest.DoesNotExist, ValueError) as e:
-            messages.error(request, "Invalid request or quantity specified.")
+        except RestockRequest.DoesNotExist:
+            messages.error(request, "Restock request not found or already processed.")
+        except ValueError as e:
+            # Handle specific inventory-related errors
+            messages.error(request, f"Inventory Error: {str(e)}")
         except Exception as e:
             messages.error(request, f"Error processing request: {str(e)}")
 
@@ -421,11 +397,6 @@ def reject_restock_request(request, request_id):
                 messages.error(request, "Please provide a reason for rejecting this request to help the Store Manager understand the decision.")
                 return redirect('head_manager_restock_requests')
 
-            # Update request status with comprehensive feedback
-            restock_request.status = 'rejected'
-            restock_request.reviewed_by = request.user
-            restock_request.reviewed_date = timezone.now()
-
             # Combine rejection reason and review notes
             feedback_parts = []
             if rejection_reason:
@@ -433,16 +404,13 @@ def reject_restock_request(request, request_id):
             if review_notes:
                 feedback_parts.append(f"Notes: {review_notes}")
 
-            if feedback_parts:
-                restock_request.review_notes = " | ".join(feedback_parts)
-            else:
-                restock_request.review_notes = f"Rejected by {request.user.get_full_name() or request.user.username} on {timezone.now().strftime('%Y-%m-%d %H:%M')}"
+            combined_notes = " | ".join(feedback_parts) if feedback_parts else f"Rejected by {request.user.get_full_name() or request.user.username}"
 
-            restock_request.save()
-
-            # Create notification for store manager
-            from .notifications import NotificationTriggers
-            NotificationTriggers.notify_request_status_change(restock_request, 'rejected', request.user)
+            # Use the new reject method which handles notifications
+            restock_request.reject(
+                rejected_by=request.user,
+                notes=combined_notes
+            )
 
             # Success message with details
             messages.success(request, f"Restock request #{restock_request.request_number} for {restock_request.product.name} from {restock_request.store.name} has been rejected. Feedback has been sent to the Store Manager.")
@@ -1487,49 +1455,49 @@ EZM Trade Management Team"""
 
 @user_passes_test(is_admin)
 def toggle_user_status(request, user_id):
-    user = get_object_or_404(User, id=user_id)
-    user.is_active = not user.is_active
-    user.save()
+    target_user = get_object_or_404(User, id=user_id)
+    target_user.is_active = not target_user.is_active
+    target_user.save()
     return redirect('manage_users')
 
 @user_passes_test(is_admin)
 def view_user_detail(request, user_id):
-    user = get_object_or_404(User, id=user_id)
-    return render(request, 'admin/user_detail.html', {'user': user})
+    target_user = get_object_or_404(User, id=user_id)
+    return render(request, 'admin/user_detail.html', {'target_user': target_user})
 
 @user_passes_test(is_admin)
 def change_user_role(request, user_id):
-    user = get_object_or_404(User, id=user_id)
+    target_user = get_object_or_404(User, id=user_id)
     if request.method == 'POST':
-        form = ChangeUserRoleForm(request.POST, instance=user)
+        form = ChangeUserRoleForm(request.POST, instance=target_user)
         if form.is_valid():
             form.save()
             return redirect('manage_users')
     else:
-        form = ChangeUserRoleForm(instance=user)
-    return render(request, 'admin/change_user_role.html', {'form': form, 'user': user})
+        form = ChangeUserRoleForm(instance=target_user)
+    return render(request, 'admin/change_user_role.html', {'form': form, 'target_user': target_user})
 
 @user_passes_test(is_admin)
 def delete_user(request, user_id):
-    user = get_object_or_404(User, id=user_id)
+    target_user = get_object_or_404(User, id=user_id)
 
     # Prevent admin from deleting themselves
-    if user == request.user:
+    if target_user == request.user:
         messages.error(request, "You cannot delete your own account.")
         return redirect('manage_users')
 
     # Prevent deletion of superusers by non-superusers
-    if user.is_superuser and not request.user.is_superuser:
+    if target_user.is_superuser and not request.user.is_superuser:
         messages.error(request, "You cannot delete a superuser account.")
         return redirect('manage_users')
 
     if request.method == 'POST':
-        username = user.username
-        user.delete()
+        username = target_user.username
+        target_user.delete()
         messages.success(request, f"User '{username}' has been successfully deleted.")
         return redirect('manage_users')
 
-    return render(request, 'admin/delete_user_confirm.html', {'user': user})
+    return render(request, 'admin/delete_user_confirm.html', {'target_user': target_user})
 
 @login_required
 def admin_settings(request):
@@ -2141,11 +2109,11 @@ def analytics_api(request):
             day_sales = Transaction.objects.filter(
                 transaction_type='sale',
                 timestamp__date=current_date
-            ).aggregate(total=Sum('total_amount') or Decimal('0'))
+            ).aggregate(total=Sum('total_amount'))
 
             daily_sales.append({
                 'date': current_date.strftime('%Y-%m-%d'),
-                'sales': float(day_sales['total'])
+                'sales': float(day_sales['total'] or 0)
             })
             current_date += timedelta(days=1)
 

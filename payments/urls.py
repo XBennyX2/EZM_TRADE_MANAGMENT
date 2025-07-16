@@ -10,7 +10,10 @@ urlpatterns = [
     
     # Payment success/return from Chapa
     path('success/', views.payment_success, name='payment_success'),
-    
+
+    # Payment completed page
+    path('completed/<str:tx_ref>/', views.payment_completed, name='payment_completed'),
+
     # Payment status page
     path('status/<str:tx_ref>/', views.payment_status, name='payment_status'),
     

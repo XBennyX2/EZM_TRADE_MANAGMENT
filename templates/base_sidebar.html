@@ -20,10 +20,16 @@
 </head>
 
 <body>
+    <!-- Mobile Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="{% url 'login' %}" class="sidebar-brand">EZM</a>
+            <button class="sidebar-close" id="sidebarClose" onclick="closeSidebar()">
+                <i class="bi bi-x-lg"></i>
+            </button>
         </div>
 
         <div class="sidebar-menu">
@@ -39,8 +45,6 @@
             </ul>
             {% endblock %}
         </div>
-
-
     </div>
 
     <!-- Main Content -->
@@ -48,6 +52,9 @@
         <!-- Top Navigation Bar -->
         <nav class="top-navbar">
             <div class="navbar-left">
+                <button class="mobile-toggle" id="mobileToggle" onclick="toggleSidebar()">
+                    <i class="bi bi-list"></i>
+                </button>
                 <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
             </div>
 
@@ -167,6 +174,21 @@
     <!-- Custom JavaScript -->
     <script>
         const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        const mainContent = document.getElementById('mainContent');
+
+        // Mobile sidebar functionality
+        function toggleSidebar() {
+            sidebar.classList.toggle('show');
+            sidebarOverlay.classList.toggle('show');
+            document.body.classList.toggle('sidebar-open');
+        }
+
+        function closeSidebar() {
+            sidebar.classList.remove('show');
+            sidebarOverlay.classList.remove('show');
+            document.body.classList.remove('sidebar-open');
+        }
 
         // Profile dropdown functionality
         const profileDropdown = document.getElementById('profileDropdown');
@@ -188,21 +210,42 @@
         // Handle window resize
         window.addEventListener('resize', function () {
             if (window.innerWidth > 768) {
-                sidebar.classList.remove('show');
+                closeSidebar();
             }
         });
 
-        // Set active menu item based on current URL
+        // Close sidebar when clicking on menu items on mobile
         document.addEventListener('DOMContentLoaded', function () {
             const currentPath = window.location.pathname;
             const menuItems = document.querySelectorAll('.sidebar-menu-item a');
 
             menuItems.forEach(item => {
+                // Set active menu item
                 if (item.getAttribute('href') === currentPath) {
                     item.classList.add('active');
                 }
+
+                // Close sidebar on mobile when menu item is clicked
+                item.addEventListener('click', function () {
+                    if (window.innerWidth <= 768) {
+                        setTimeout(closeSidebar, 100);
+                    }
+                });
             });
         });
+
+        // Prevent body scroll when sidebar is open on mobile
+        function updateBodyScroll() {
+            if (window.innerWidth <= 768 && sidebar.classList.contains('show')) {
+                document.body.style.overflow = 'hidden';
+            } else {
+                document.body.style.overflow = '';
+            }
+        }
+
+        // Update body scroll on sidebar toggle
+        const observer = new MutationObserver(updateBodyScroll);
+        observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
     </script>
 
     <!-- Notification System JS -->
@@ -236,6 +279,9 @@
         }
     </script>
     {% endif %}
+
+    <!-- Payment Reference Validator -->
+    <script src="{% static 'js/payment-reference-validator.js' %}"></script>
 
     {% block extra_js %}{% endblock %}
 </body>

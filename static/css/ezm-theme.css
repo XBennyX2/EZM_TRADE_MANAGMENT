@@ -23,6 +23,25 @@ body {
     transition: margin-left 0.3s ease;
 }
 
+/* Sidebar Overlay for Mobile */
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.sidebar-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
 /* Sidebar Styles */
 .sidebar {
     position: fixed;
@@ -49,6 +68,22 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
+}
+
+.sidebar-close {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--white);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+    transition: background-color 0.3s ease;
+}
+
+.sidebar-close:hover {
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 .sidebar-brand {
@@ -369,26 +404,55 @@ body {
 @media (max-width: 768px) {
     .sidebar {
         transform: translateX(-280px);
+        z-index: 1001;
     }
-    
+
     .sidebar.show {
         transform: translateX(0);
     }
-    
+
+    .sidebar-close {
+        display: block;
+    }
+
     .main-content {
         margin-left: 0;
     }
-    
+
     .mobile-toggle {
         display: block;
     }
-    
+
     .profile-info {
         display: none;
     }
-    
+
     .content-area {
         padding: 20px 15px;
+    }
+
+    .page-title {
+        font-size: 1.2rem;
+    }
+
+    /* Prevent body scroll when sidebar is open */
+    body.sidebar-open {
+        overflow: hidden;
+    }
+}
+
+/* Tablet Design */
+@media (max-width: 1024px) and (min-width: 769px) {
+    .sidebar {
+        width: 260px;
+    }
+
+    .main-content {
+        margin-left: 260px;
+    }
+
+    .content-area {
+        padding: 25px 20px;
     }
 }
 
@@ -396,13 +460,13 @@ body {
     .profile-dropdown {
         padding: 6px 10px;
     }
-    
+
     .profile-avatar {
         width: 30px;
         height: 30px;
         font-size: 1rem;
     }
-    
+
     .top-navbar {
         padding: 12px 15px;
     }
@@ -417,6 +481,14 @@ body {
         width: 18px;
         height: 18px;
         font-size: 0.7rem;
+    }
+
+    .sidebar {
+        width: 100%;
+    }
+
+    .sidebar.show {
+        transform: translateX(0);
     }
 }
 

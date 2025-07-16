@@ -1,0 +1,409 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
+{% block title %}FIFO Inventory Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .fifo-card {
+        border-left: 4px solid var(--accent-teal);
+        transition: all 0.3s ease;
+    }
+    .fifo-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .batch-info {
+        background: linear-gradient(135deg, var(--primary-dark), var(--secondary-dark));
+        color: white;
+        border-radius: 8px;
+        padding: 0.5rem;
+        margin: 0.25rem 0;
+    }
+    .arrival-date {
+        font-size: 0.85rem;
+        color: var(--accent-cyan);
+        font-weight: bold;
+    }
+    .stock-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 0.5rem;
+    }
+    .stock-good { background-color: #28a745; }
+    .stock-low { background-color: #fd7e14; }
+    .stock-out { background-color: #dc3545; }
+    .fifo-badge {
+        background: var(--accent-teal);
+        color: white;
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+    }
+    .movement-history {
+        max-height: 200px;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0">
+                <i class="bi bi-arrow-repeat text-primary me-2"></i>
+                FIFO Inventory Management
+            </h2>
+            <p class="text-muted mb-0">
+                {% if is_store_view %}
+                Store inventory ordered by First-In-First-Out ({{ user_store.name }})
+                {% else %}
+                Warehouse inventory ordered by First-In-First-Out
+                {% endif %}
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            {% if not is_store_view %}
+            <a href="{% url 'batch_management_view' %}" class="btn btn-outline-primary">
+                <i class="bi bi-layers me-1"></i>Batch Management
+            </a>
+            {% endif %}
+            <button class="btn btn-primary" onclick="refreshInventory()">
+                <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="ezm-card mb-4">
+        <div class="ezm-card-header">
+            <i class="bi bi-funnel me-2"></i>Filters
+        </div>
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-4">
+                    <label for="search" class="form-label">Search Products</label>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ search_query }}" placeholder="Product name or category">
+                </div>
+                <div class="col-md-3">
+                    <label for="category" class="form-label">Category</label>
+                    <select class="form-select" id="category" name="category">
+                        <option value="">All Categories</option>
+                        {% for category in categories %}
+                        <option value="{{ category }}" {% if category == category_filter %}selected{% endif %}>
+                            {{ category|title }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="stock_status" class="form-label">Stock Status</label>
+                    <select class="form-select" id="stock_status" name="stock_status">
+                        <option value="">All Status</option>
+                        <option value="low_stock" {% if stock_status_filter == 'low_stock' %}selected{% endif %}>Low Stock</option>
+                        <option value="out_of_stock" {% if stock_status_filter == 'out_of_stock' %}selected{% endif %}>Out of Stock</option>
+                        {% if not is_store_view %}
+                        <option value="overstocked" {% if stock_status_filter == 'overstocked' %}selected{% endif %}>Overstocked</option>
+                        {% endif %}
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="bi bi-search me-1"></i>Filter
+                    </button>
+                    <a href="{% url 'fifo_inventory_view' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle me-1"></i>Clear
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- FIFO Inventory List -->
+    <div class="ezm-card">
+        <div class="ezm-card-header">
+            <i class="bi bi-list-ul me-2"></i>
+            {% if is_store_view %}Store Inventory{% else %}Warehouse Inventory{% endif %}
+            <span class="badge bg-primary ms-2">{{ page_obj.paginator.count }} items</span>
+        </div>
+        <div class="card-body p-0">
+            {% if page_obj %}
+            <div class="row g-3 p-3">
+                {% for item in page_obj %}
+                {% if is_store_view %}
+                    {% with stock=item.stock fifo_info=item.fifo_info %}
+                    <div class="col-lg-6 col-xl-4">
+                        <div class="card fifo-card h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="card-title mb-0">{{ stock.product.name }}</h6>
+                                    <span class="fifo-badge">FIFO</span>
+                                </div>
+                                
+                                <div class="batch-info mb-3">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Batch: {{ fifo_info.batch_number }}</span>
+                                        {% if fifo_info.arrival_date %}
+                                        <span class="arrival-date">{{ fifo_info.arrival_date|date:"M d, Y" }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <div class="row text-center mb-3">
+                                    <div class="col-6">
+                                        <div class="fw-bold text-primary">{{ stock.quantity }}</div>
+                                        <small class="text-muted">Store Stock</small>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="fw-bold text-secondary">{{ fifo_info.warehouse_stock }}</div>
+                                        <small class="text-muted">Warehouse</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="stock-indicator {% if item.is_out_of_stock %}stock-out{% elif item.is_low_stock %}stock-low{% else %}stock-good{% endif %}"></span>
+                                    <span class="fw-bold">
+                                        {% if item.is_out_of_stock %}
+                                        Out of Stock
+                                        {% elif item.is_low_stock %}
+                                        Low Stock
+                                        {% else %}
+                                        In Stock
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                
+                                <div class="small text-muted mb-3">
+                                    <div><strong>Category:</strong> {{ stock.product.category|title }}</div>
+                                    <div><strong>Location:</strong> {{ fifo_info.warehouse_location|default:"Not specified" }}</div>
+                                    <div><strong>Threshold:</strong> {{ stock.low_stock_threshold }} units</div>
+                                </div>
+                                
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-outline-info flex-fill" 
+                                            onclick="viewFIFODetails('{{ stock.product.name }}')">
+                                        <i class="bi bi-info-circle me-1"></i>FIFO Details
+                                    </button>
+                                    {% if request.user.role == 'store_manager' %}
+                                    <button class="btn btn-sm btn-outline-primary" 
+                                            onclick="createRestockRequest('{{ stock.product.id }}')">
+                                        <i class="bi bi-plus-circle me-1"></i>Restock
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endwith %}
+                {% else %}
+                    {% with product=item %}
+                    <div class="col-lg-6 col-xl-4">
+                        <div class="card fifo-card h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="card-title mb-0">{{ product.product_name }}</h6>
+                                    <span class="fifo-badge">FIFO #{{ forloop.counter }}</span>
+                                </div>
+                                
+                                <div class="batch-info mb-3">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Batch: {{ product.batch_number }}</span>
+                                        <span class="arrival-date">{{ product.arrival_date|date:"M d, Y" }}</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="row text-center mb-3">
+                                    <div class="col-6">
+                                        <div class="fw-bold text-primary">{{ product.quantity_in_stock }}</div>
+                                        <small class="text-muted">Current Stock</small>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="fw-bold text-secondary">{{ product.minimum_stock_level }}</div>
+                                        <small class="text-muted">Min Level</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="stock-indicator {% if product.is_out_of_stock %}stock-out{% elif product.is_low_stock %}stock-low{% else %}stock-good{% endif %}"></span>
+                                    <span class="fw-bold">{{ product.stock_status }}</span>
+                                </div>
+                                
+                                <div class="small text-muted mb-3">
+                                    <div><strong>Category:</strong> {{ product.category|title }}</div>
+                                    <div><strong>Supplier:</strong> {{ product.supplier.name }}</div>
+                                    <div><strong>Location:</strong> {{ product.warehouse_location|default:"Not specified" }}</div>
+                                    <div><strong>SKU:</strong> {{ product.sku }}</div>
+                                </div>
+                                
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-outline-info flex-fill" 
+                                            onclick="viewMovementHistory({{ product.id }})">
+                                        <i class="bi bi-clock-history me-1"></i>History
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-primary" 
+                                            onclick="viewFIFODetails('{{ product.product_name }}')">
+                                        <i class="bi bi-info-circle me-1"></i>Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endwith %}
+                {% endif %}
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+            <div class="d-flex justify-content-center mt-3 mb-3">
+                <nav aria-label="FIFO inventory pagination">
+                    <ul class="pagination">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if stock_status_filter %}&stock_status={{ stock_status_filter }}{% endif %}">Previous</a>
+                        </li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if stock_status_filter %}&stock_status={{ stock_status_filter }}{% endif %}">{{ num }}</a>
+                        </li>
+                        {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if stock_status_filter %}&stock_status={{ stock_status_filter }}{% endif %}">Next</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-box text-muted" style="font-size: 3rem;"></i>
+                <h4 class="mt-3">No Inventory Found</h4>
+                <p class="text-muted">No products match your current filters.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- FIFO Details Modal -->
+<div class="modal fade" id="fifoDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">FIFO Product Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="fifoDetailsContent">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function viewFIFODetails(productName) {
+    const modal = new bootstrap.Modal(document.getElementById('fifoDetailsModal'));
+    modal.show();
+    
+    fetch(`/inventory/api/fifo-product/${encodeURIComponent(productName)}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('fifoDetailsContent').innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Product Information</h6>
+                            <table class="table table-sm">
+                                <tr><td><strong>Name:</strong></td><td>${data.product_name}</td></tr>
+                                <tr><td><strong>Batch:</strong></td><td>${data.batch_number}</td></tr>
+                                <tr><td><strong>Arrival Date:</strong></td><td>${data.arrival_date || 'N/A'}</td></tr>
+                                <tr><td><strong>Supplier:</strong></td><td>${data.supplier}</td></tr>
+                                <tr><td><strong>Location:</strong></td><td>${data.location}</td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Stock Information</h6>
+                            <table class="table table-sm">
+                                <tr><td><strong>Current Stock:</strong></td><td>${data.current_stock}</td></tr>
+                                <tr><td><strong>Minimum Stock:</strong></td><td>${data.minimum_stock}</td></tr>
+                                <tr><td><strong>Status:</strong></td><td><span class="badge bg-secondary">${data.stock_status}</span></td></tr>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <h6>Recent Movements</h6>
+                        <div class="movement-history">
+                            ${data.recent_movements.map(movement => `
+                                <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                                    <div>
+                                        <strong>${movement.type}</strong><br>
+                                        <small class="text-muted">${movement.reason}</small>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="badge ${movement.quantity_change > 0 ? 'bg-success' : 'bg-danger'}">
+                                            ${movement.quantity_change > 0 ? '+' : ''}${movement.quantity_change}
+                                        </span><br>
+                                        <small class="text-muted">${movement.date}</small>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } else {
+                document.getElementById('fifoDetailsContent').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        ${data.error}
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            document.getElementById('fifoDetailsContent').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Error loading product details
+                </div>
+            `;
+        });
+}
+
+function viewMovementHistory(productId) {
+    window.open(`/inventory/movement-history/${productId}/`, '_blank');
+}
+
+function createRestockRequest(productId) {
+    // Redirect to restock request creation
+    window.location.href = `/inventory/restock-request/create/?product=${productId}`;
+}
+
+function refreshInventory() {
+    location.reload();
+}
+</script>
+{% endblock %}

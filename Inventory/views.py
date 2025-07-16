@@ -467,6 +467,15 @@ class WarehouseDeleteView(LoginRequiredMixin, StoreOwnerMixin, DeleteView):
         return super().delete(request, *args, **kwargs)
 
 
+class WarehouseDebugView(LoginRequiredMixin, StoreOwnerMixin, ListView):
+    model = WarehouseProduct
+    template_name = 'inventory/warehouse_debug.html'
+    context_object_name = 'products'
+
+    def get_queryset(self):
+        return WarehouseProduct.objects.select_related('warehouse', 'supplier').all()[:10]
+
+
 # --- Supplier Product Views ---
 
 class SupplierProductListView(LoginRequiredMixin, StoreOwnerMixin, ListView):

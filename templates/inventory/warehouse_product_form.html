@@ -1,22 +1,46 @@
-{% extends 'base.html' %}
+{% extends 'base_sidebar.html' %}
 {% load widget_tweaks %}
+{% load static %}
+
 {% block title %}
 {% if object %}Edit Product{% else %}Add New Product{% endif %}
 {% endblock %}
 
+{% block page_title %}
+{% if object %}Edit Product{% else %}Add New Product{% endif %}
+{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .product-form-card {
+        border-left: 4px solid var(--accent-teal);
+        transition: all 0.3s ease;
+    }
+
+    .product-form-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
+<div class="container-fluid mt-4">
     <div class="row justify-content-center">
         <div class="col-lg-10">
             <!-- Header -->
             <div class="d-flex align-items-center mb-4">
-                <a href="{% if object %}{% url 'supplier_products' object.supplier.pk %}{% else %}{% url 'supplier_list' %}{% endif %}" 
-                   class="btn btn-outline-secondary me-3">
+                <a href="{% if object %}{% url 'supplier_products' object.supplier.pk %}{% else %}{% url 'supplier_list' %}{% endif %}"
+                    class="btn btn-ezm-secondary me-3">
                     <i class="bi bi-arrow-left"></i>
                 </a>
                 <div>
-                    <h2 class="mb-0">
-                        <i class="bi bi-box-seam text-primary me-2"></i>
+                    <h2 class="mb-0" style="color: var(--primary-dark);">
+                        <i class="bi bi-box-seam me-2" style="color: var(--accent-teal);"></i>
                         {% if object %}Edit Product{% else %}Add New Product{% endif %}
                     </h2>
                     <p class="text-muted mb-0">
@@ -30,16 +54,14 @@
             </div>
 
             <!-- Form Card -->
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">
-                        <i class="bi bi-info-circle me-2"></i>Product Information
-                    </h5>
+            <div class="ezm-card product-form-card">
+                <div class="ezm-card-header">
+                    <i class="bi bi-info-circle me-2"></i>Product Information
                 </div>
                 <div class="card-body">
                     <form method="post" novalidate>
                         {% csrf_token %}
-                        
+
                         <!-- Basic Product Information -->
                         <div class="row g-3">
                             <div class="col-md-6">
@@ -53,7 +75,7 @@
                                 </div>
                                 {% endif %}
                             </div>
-                            
+
                             <div class="col-md-6">
                                 <label for="{{ form.product_name.id_for_label }}" class="form-label">
                                     <i class="bi bi-box me-1"></i>Product Name *
@@ -79,7 +101,7 @@
                                 </div>
                                 {% endif %}
                             </div>
-                            
+
                             <div class="col-md-6">
                                 <label for="{{ form.supplier.id_for_label }}" class="form-label">
                                     <i class="bi bi-truck me-1"></i>Supplier *
@@ -98,7 +120,7 @@
                         <h6 class="text-primary mb-3">
                             <i class="bi bi-clipboard-data me-2"></i>Inventory Information
                         </h6>
-                        
+
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label for="{{ form.quantity_in_stock.id_for_label }}" class="form-label">
@@ -111,7 +133,7 @@
                                 </div>
                                 {% endif %}
                             </div>
-                            
+
                             <div class="col-md-4">
                                 <label for="{{ form.unit_price.id_for_label }}" class="form-label">
                                     <i class="bi bi-currency-dollar me-1"></i>Unit Price *
@@ -123,7 +145,7 @@
                                 </div>
                                 {% endif %}
                             </div>
-                            
+
                             <div class="col-md-4">
                                 <label for="{{ form.reorder_point.id_for_label }}" class="form-label">
                                     <i class="bi bi-arrow-repeat me-1"></i>Reorder Point *
@@ -149,7 +171,7 @@
                                 </div>
                                 {% endif %}
                             </div>
-                            
+
                             <div class="col-md-6">
                                 <label for="{{ form.maximum_stock_level.id_for_label }}" class="form-label">
                                     <i class="bi bi-plus-circle me-1"></i>Maximum Stock Level *
@@ -168,7 +190,7 @@
                         <h6 class="text-primary mb-3">
                             <i class="bi bi-info-square me-2"></i>Product Details
                         </h6>
-                        
+
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label for="{{ form.sku.id_for_label }}" class="form-label">
@@ -181,7 +203,7 @@
                                 </div>
                                 {% endif %}
                             </div>
-                            
+
                             <div class="col-md-4">
                                 <label for="{{ form.barcode.id_for_label }}" class="form-label">
                                     <i class="bi bi-upc-scan me-1"></i>Barcode
@@ -193,7 +215,7 @@
                                 </div>
                                 {% endif %}
                             </div>
-                            
+
                             <div class="col-md-4">
                                 <label for="{{ form.weight.id_for_label }}" class="form-label">
                                     <i class="bi bi-speedometer me-1"></i>Weight (kg)
@@ -219,7 +241,7 @@
                                 </div>
                                 {% endif %}
                             </div>
-                            
+
                             <div class="col-md-6">
                                 <label for="{{ form.warehouse_location.id_for_label }}" class="form-label">
                                     <i class="bi bi-geo-alt me-1"></i>Warehouse Location
@@ -252,11 +274,11 @@
 
                         <!-- Form Actions -->
                         <div class="d-flex justify-content-between mt-4 pt-3 border-top">
-                            <a href="{% if object %}{% url 'supplier_products' object.supplier.pk %}{% else %}{% url 'supplier_list' %}{% endif %}" 
-                               class="btn btn-outline-secondary">
+                            <a href="{% if object %}{% url 'supplier_products' object.supplier.pk %}{% else %}{% url 'supplier_list' %}{% endif %}"
+                                class="btn btn-ezm-secondary">
                                 <i class="bi bi-x-circle me-2"></i>Cancel
                             </a>
-                            <button type="submit" class="btn btn-primary">
+                            <button type="submit" class="btn btn-ezm-primary">
                                 <i class="bi bi-check-circle me-2"></i>
                                 {% if object %}Update Product{% else %}Create Product{% endif %}
                             </button>

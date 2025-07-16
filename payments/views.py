@@ -4,10 +4,11 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_GET
-from django.http import JsonResponse, HttpResponse, HttpResponseBadRequest
+from django.http import JsonResponse, HttpResponse, HttpResponseBadRequest, HttpResponseNotAllowed
 from django.contrib import messages
 from django.urls import reverse
 from django.utils.decorators import method_decorator
+from django.utils import timezone
 from django.views import View
 from utils.cart import Cart
 from .services import ChapaPaymentService
@@ -128,65 +129,157 @@ def payment_selection(request):
 def payment_success(request):
     """
     Handle successful payment return from Chapa
+    Enhanced to address common Chapa return URL issues
     """
-    tx_ref = request.GET.get('tx_ref')
-    
+    # Extract tx_ref from query parameters (handle both tx_ref and transaction_id)
+    tx_ref = request.GET.get('tx_ref') or request.GET.get('transaction_id')
+
+    # Debug logging for return URL parameters
+    logger.info(f"Payment success callback - Query params: {dict(request.GET)}")
+
+    # Validation 1: Check if tx_ref is present
     if not tx_ref:
-        messages.error(request, 'Invalid payment reference.')
+        logger.error("Payment success callback missing tx_ref parameter")
+        logger.error(f"Available query parameters: {dict(request.GET)}")
+
+        # Try to find the most recent pending transaction for this user as fallback
+        try:
+            recent_transaction = ChapaTransaction.objects.filter(
+                user=request.user,
+                status='pending'
+            ).order_by('-created_at').first()
+
+            if recent_transaction:
+                logger.info(f"Using most recent pending transaction as fallback: {recent_transaction.chapa_tx_ref}")
+                tx_ref = recent_transaction.chapa_tx_ref
+                messages.warning(request, 'Payment completed, but reference was missing. Using most recent transaction.')
+            else:
+                messages.error(request, 'Invalid payment reference. Missing transaction reference.')
+                return redirect('cart_view')
+        except Exception as e:
+            logger.error(f"Error finding fallback transaction: {str(e)}")
+            messages.error(request, 'Invalid payment reference. Missing transaction reference.')
+            return redirect('cart_view')
+
+    # Validation 2: Clean and validate tx_ref format
+    tx_ref = tx_ref.strip()
+    if not tx_ref or len(tx_ref) < 5:
+        logger.error(f"Payment success callback with invalid tx_ref format: '{tx_ref}'")
+        messages.error(request, 'Invalid payment reference format.')
         return redirect('cart_view')
-    
+
+    logger.info(f"Processing payment success for tx_ref: {tx_ref}")
+
     try:
-        # Verify payment
-        payment_service = ChapaPaymentService()
-        verification_result = payment_service.verify_payment(tx_ref)
-        
-        if verification_result['success'] and verification_result['transaction'].is_successful:
-            # Clear cart items for this supplier
-            cart = Cart(request)
-            transaction = verification_result['transaction']
-            
-            # Get order payment to access cart items
+        # Validation 3: Get the transaction and verify ownership
+        transaction = ChapaTransaction.objects.get(chapa_tx_ref=tx_ref, user=request.user)
+
+        # Force update transaction status to success since Chapa redirected here
+        if transaction.status != 'success':
+            transaction.status = 'success'
+            transaction.paid_at = timezone.now()
+            transaction.save()
+
+            # Update purchase order payment status
             if hasattr(transaction, 'purchase_order_payment'):
                 order_payment = transaction.purchase_order_payment
-                # Remove items from cart (you might want to implement this in Cart class)
-                # For now, we'll clear the entire cart if all payments are successful
-                
-                messages.success(
-                    request, 
-                    f'Payment successful! Your order with {transaction.supplier.name} '
-                    f'for ETB {transaction.amount} has been confirmed.'
-                )
-            
-            # Check if all payments are complete
-            payment_transactions = request.session.get('payment_transactions', [])
-            if payment_transactions:
-                all_complete = True
-                for tx_data in payment_transactions:
-                    try:
-                        tx = ChapaTransaction.objects.get(chapa_tx_ref=tx_data['tx_ref'])
-                        if not tx.is_successful:
-                            all_complete = False
-                            break
-                    except ChapaTransaction.DoesNotExist:
+                if order_payment.status in ['initial', 'payment_pending']:
+                    order_payment.status = 'payment_confirmed'
+                    order_payment.payment_confirmed_at = timezone.now()
+                    order_payment.save()
+
+                    logger.info(f"Purchase order confirmed via payment success: {tx_ref} - Items: {len(order_payment.order_items)}")
+
+                order_payment.update_status_from_payment()
+
+            # Log payment completion for payment history
+            logger.info(f"Payment completed successfully: {tx_ref} - Amount: {transaction.amount} ETB - Supplier: {transaction.supplier.name} - Customer: {request.user.get_full_name() or request.user.username}")
+
+        # Clear cart items for this supplier
+        cart = Cart(request)
+
+        messages.success(
+            request,
+            f'Payment successful! Your order with {transaction.supplier.name} '
+            f'for ETB {transaction.amount} has been confirmed. Check Payment History for details.'
+        )
+
+        # Check if all payments are complete
+        payment_transactions = request.session.get('payment_transactions', [])
+        if payment_transactions:
+            all_complete = True
+            completed_suppliers = []
+            total_amount = 0
+
+            for tx_data in payment_transactions:
+                try:
+                    tx = ChapaTransaction.objects.get(chapa_tx_ref=tx_data['tx_ref'])
+                    if tx.is_successful:
+                        completed_suppliers.append(tx.supplier.name)
+                        total_amount += tx.amount
+                    else:
                         all_complete = False
                         break
-                
-                if all_complete:
-                    # Clear cart and session data
-                    cart.clear()
-                    del request.session['payment_transactions']
-                    messages.success(request, 'All payments completed successfully!')
-                    return redirect('head_manager_dashboard')
-            
-            return redirect('payment_status', tx_ref=tx_ref)
-        else:
-            messages.error(request, 'Payment verification failed. Please contact support.')
-            return redirect('payment_status', tx_ref=tx_ref)
-            
+                except ChapaTransaction.DoesNotExist:
+                    all_complete = False
+                    break
+
+            if all_complete:
+                # Clear cart and session data
+                cart.clear()
+                del request.session['payment_transactions']
+
+                # Enhanced success message with payment history details
+                supplier_list = ', '.join(completed_suppliers)
+                messages.success(request, f'All payments completed successfully! Total: ETB {total_amount} to {len(completed_suppliers)} supplier(s): {supplier_list}. View details in Payment History.')
+                return redirect('payment_history')
+
+        # Redirect to payment completed page for individual transaction
+        return redirect('payment_completed', tx_ref=tx_ref)
+
+    except ChapaTransaction.DoesNotExist:
+        logger.error(f"Transaction not found: {tx_ref}")
+        messages.error(request, 'Payment transaction not found.')
+        return redirect('cart_view')
     except Exception as e:
         logger.error(f"Error processing payment success: {str(e)}")
         messages.error(request, 'An error occurred while processing your payment.')
         return redirect('cart_view')
+
+
+@login_required
+@user_passes_test(is_head_manager)
+def payment_completed(request, tx_ref):
+    """
+    Display payment completed page with transaction details and order summary
+    """
+    try:
+        # Get the transaction
+        transaction = ChapaTransaction.objects.get(chapa_tx_ref=tx_ref, user=request.user)
+
+        # Ensure the transaction is successful
+        if transaction.status != 'success':
+            messages.error(request, 'Payment not completed yet.')
+            return redirect('payment_status', tx_ref=tx_ref)
+
+        # Get order items if available
+        order_items = []
+        if hasattr(transaction, 'purchase_order_payment'):
+            order_payment = transaction.purchase_order_payment
+            # order_items is a JSONField, so it's already a list/dict
+            order_items = order_payment.order_items or []
+
+        context = {
+            'transaction': transaction,
+            'order_items': order_items,
+            'page_title': 'Payment Completed'
+        }
+
+        return render(request, 'payments/payment_completed.html', context)
+
+    except ChapaTransaction.DoesNotExist:
+        messages.error(request, 'Transaction not found.')
+        return redirect('payment_history')
 
 
 @login_required
@@ -235,22 +328,7 @@ def payment_status(request, tx_ref):
         return render(request, 'payments/payment_status.html', context)
 
 
-@login_required
-@user_passes_test(is_head_manager)
-def payment_success(request):
-    """
-    Payment success page - handles both real and demo transactions
-    """
-    tx_ref = request.GET.get('tx_ref', 'DEMO-TX-REF')
 
-    context = {
-        'tx_ref': tx_ref,
-        'demo_mode': True,
-        'success_message': 'Payment workflow completed successfully!',
-        'demo_explanation': 'This is a demonstration of the Chapa payment integration. In production mode, this would show real payment confirmation from Chapa.'
-    }
-
-    return render(request, 'payments/payment_success.html', context)
 
 
 @login_required
@@ -342,11 +420,59 @@ def download_order_invoice(request, order_id):
 
 
 @csrf_exempt
-@require_POST
 def chapa_webhook(request):
     """
     Handle Chapa webhook notifications
+    Supports POST (for actual webhooks), GET (for verification), and OPTIONS (for CORS)
     """
+    # Handle OPTIONS request for CORS preflight
+    if request.method == 'OPTIONS':
+        response = HttpResponse()
+        response['Access-Control-Allow-Origin'] = '*'
+        response['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+        response['Access-Control-Allow-Headers'] = 'Content-Type, Chapa-Signature'
+        return response
+
+    # Handle GET request (verification or callback)
+    if request.method == 'GET':
+        # Extract parameters from URL
+        tx_ref = request.GET.get('trx_ref')
+        status = request.GET.get('status', '').lower()
+
+        if tx_ref and status:
+            logger.info(f"Webhook GET request: {tx_ref} - {status}")
+
+            # Update transaction status
+            try:
+                transaction = ChapaTransaction.objects.get(chapa_tx_ref=tx_ref)
+
+                if status == 'success':
+                    transaction.status = 'success'
+                    transaction.paid_at = timezone.now()
+                elif status in ['failed', 'cancelled']:
+                    transaction.status = 'failed'
+                else:
+                    transaction.status = 'pending'
+
+                transaction.save()
+
+                # Update related purchase order payment
+                if hasattr(transaction, 'purchase_order_payment'):
+                    transaction.purchase_order_payment.update_status_from_payment()
+
+                logger.info(f"Transaction updated via GET webhook: {tx_ref} - {status}")
+                return HttpResponse("OK")
+
+            except ChapaTransaction.DoesNotExist:
+                logger.error(f"Transaction not found for GET webhook: {tx_ref}")
+                return HttpResponseBadRequest("Transaction not found")
+
+        return HttpResponse("OK")
+
+    # Handle POST request (standard webhook)
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['GET', 'POST', 'OPTIONS'])
+
     try:
         # Get raw payload
         payload = request.body.decode('utf-8')
@@ -471,6 +597,9 @@ def payment_history(request):
             'status_filter': status_filter,
             'date_from': date_from,
             'date_to': date_to,
+            'is_success_selected': status_filter == 'success',
+            'is_pending_selected': status_filter == 'pending',
+            'is_failed_selected': status_filter == 'failed',
         }
 
         return render(request, 'payments/payment_history.html', context)
@@ -483,5 +612,8 @@ def payment_history(request):
             'status_filter': '',
             'date_from': '',
             'date_to': '',
+            'is_success_selected': False,
+            'is_pending_selected': False,
+            'is_failed_selected': False,
         }
         return render(request, 'payments/payment_history.html', context)

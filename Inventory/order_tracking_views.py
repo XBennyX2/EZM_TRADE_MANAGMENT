@@ -244,7 +244,7 @@ def confirm_delivery(request, order_id):
                 delivery_confirmation.delivery_photos = photos
                 delivery_confirmation.save()
             
-            # Update order items
+            # Update order items and warehouse stock
             for item_id in received_items:
                 try:
                     item = PurchaseOrderItem.objects.get(id=item_id, purchase_order=order)
@@ -252,6 +252,16 @@ def confirm_delivery(request, order_id):
                     item.quantity_received = item.quantity_ordered
                     item.confirmed_at = timezone.now()
                     item.save()
+
+                    # Update warehouse stock for received items
+                    warehouse_product = item.warehouse_product
+                    if warehouse_product:
+                        warehouse_product.update_stock(
+                            item.quantity_received,
+                            f"Purchase order delivery - {order.order_number}"
+                        )
+                        logger.info(f"Updated warehouse stock for {warehouse_product.product_name}: +{item.quantity_received}")
+
                 except PurchaseOrderItem.DoesNotExist:
                     continue
             

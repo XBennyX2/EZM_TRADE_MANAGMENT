@@ -3,7 +3,7 @@ from .views import (
     ProductListView, ProductCreateView, ProductUpdateView, ProductDeleteView,
     StockListView, StockCreateView, StockUpdateView, StockDeleteView,
     SupplierListView, SupplierCreateView, SupplierUpdateView, SupplierDeleteView,
-    WarehouseListView, WarehouseDetailView, WarehouseCreateView, WarehouseUpdateView, WarehouseDeleteView,
+    WarehouseListView, WarehouseDetailView, WarehouseCreateView, WarehouseUpdateView, WarehouseDeleteView, WarehouseDebugView,
     SupplierProductListView, WarehouseProductCreateView, WarehouseProductUpdateView, WarehouseProductDeleteView,
     PurchaseOrderListView, PurchaseOrderCreateView, PurchaseOrderDetailView, PurchaseOrderUpdateView,
     activate_supplier_account, supplier_account_status, supplier_profile_view, supplier_product_catalog_view,
@@ -11,6 +11,9 @@ from .views import (
     convert_request_to_order
 )
 from . import order_tracking_views
+from . import stock_alert_views
+from . import restock_workflow_views
+from . import fifo_views
 
 urlpatterns = [
     # Product URLs
@@ -41,6 +44,7 @@ urlpatterns = [
 
     # Warehouse URLs
     path('warehouses/', WarehouseListView.as_view(), name='warehouse_list'),
+    path('warehouses/debug/', WarehouseDebugView.as_view(), name='warehouse_debug'),
     path('warehouses/<int:pk>/', WarehouseDetailView.as_view(), name='warehouse_detail'),
     path('warehouses/new/', WarehouseCreateView.as_view(), name='warehouse_create'),
     path('warehouses/<int:pk>/edit/', WarehouseUpdateView.as_view(), name='warehouse_update'),
@@ -66,4 +70,24 @@ urlpatterns = [
     path('purchase-requests/<int:pk>/', purchase_request_detail, name='purchase_request_detail'),
     path('purchase-requests/<int:pk>/convert/', convert_request_to_order, name='convert_request_to_order'),
     path('suppliers/<int:supplier_id>/request/', purchase_request_from_catalog, name='purchase_request_from_catalog'),
+
+    # Stock Alert URLs
+    path('stock-alerts/', stock_alert_views.stock_alerts_dashboard, name='stock_alerts_dashboard'),
+    path('update-threshold/<int:product_id>/', stock_alert_views.update_stock_threshold, name='update_stock_threshold'),
+    path('bulk-update-thresholds/', stock_alert_views.bulk_update_thresholds, name='bulk_update_thresholds'),
+    path('warehouse-inventory/', stock_alert_views.warehouse_inventory_overview, name='warehouse_inventory_overview'),
+    path('store-inventory/', stock_alert_views.store_inventory_view, name='store_inventory_view'),
+
+    # Restock Workflow URLs
+    path('restock-workflow/', restock_workflow_views.restock_workflow_dashboard, name='restock_workflow_dashboard'),
+    path('restock-requests/<int:request_id>/ship/', restock_workflow_views.ship_restock_request, name='ship_restock_request'),
+    path('restock-requests/<int:request_id>/receive/', restock_workflow_views.receive_restock_request, name='receive_restock_request'),
+    path('store-restock-tracking/', restock_workflow_views.store_restock_tracking, name='store_restock_tracking'),
+    path('api/warehouse-stock/<str:product_name>/', restock_workflow_views.get_warehouse_stock_info, name='get_warehouse_stock_info'),
+
+    # FIFO Inventory URLs
+    path('fifo-inventory/', fifo_views.fifo_inventory_view, name='fifo_inventory_view'),
+    path('movement-history/<int:product_id>/', fifo_views.inventory_movement_history, name='inventory_movement_history'),
+    path('api/fifo-product/<str:product_name>/', fifo_views.get_fifo_product_info, name='get_fifo_product_info'),
+    path('batch-management/', fifo_views.batch_management_view, name='batch_management_view'),
 ]

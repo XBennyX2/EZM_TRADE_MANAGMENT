@@ -53,21 +53,47 @@ class WebhookProcessor:
                 transaction.status = 'success'
                 if not transaction.paid_at:
                     transaction.paid_at = timezone.now()
+
+                # Log successful payment for payment history
+                logger.info(f"Payment completed successfully: {tx_ref} - Amount: {transaction.amount} ETB - Supplier: {transaction.supplier.name}")
+
             elif status in ['failed', 'cancelled']:
                 transaction.status = 'failed'
+                logger.warning(f"Payment failed: {tx_ref} - Status: {status}")
             elif status == 'pending':
                 transaction.status = 'pending'
             else:
                 logger.warning(f"Unknown status in webhook: {status}")
                 transaction.status = 'pending'
 
-            # Update webhook data
-            transaction.webhook_data = webhook_data
+            # Update webhook data with additional metadata for payment history
+            enhanced_webhook_data = webhook_data.copy()
+            enhanced_webhook_data.update({
+                'processed_at': timezone.now().isoformat(),
+                'supplier_name': transaction.supplier.name,
+                'customer_name': f"{transaction.customer_first_name} {transaction.customer_last_name}",
+                'payment_method': webhook_data.get('payment_method', 'Unknown'),
+                'old_status': old_status,
+                'new_status': transaction.status
+            })
+
+            transaction.webhook_data = enhanced_webhook_data
             transaction.save()
 
-            # Update related purchase order payment
+            # Update related purchase order payment with enhanced status tracking
             if hasattr(transaction, 'purchase_order_payment'):
-                transaction.purchase_order_payment.update_status_from_payment()
+                order_payment = transaction.purchase_order_payment
+
+                # Update purchase order status based on payment status
+                if transaction.status == 'success' and order_payment.status in ['initial', 'payment_pending']:
+                    order_payment.status = 'payment_confirmed'
+                    order_payment.payment_confirmed_at = timezone.now()
+                    order_payment.save()
+
+                    logger.info(f"Purchase order payment confirmed: {tx_ref} - Order items: {len(order_payment.order_items)}")
+
+                # Call the existing update method
+                order_payment.update_status_from_payment()
 
             # Send supplier notifications for status changes
             if old_status != transaction.status:

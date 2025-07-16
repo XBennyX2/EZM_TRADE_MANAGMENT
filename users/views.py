@@ -2109,11 +2109,11 @@ def analytics_api(request):
             day_sales = Transaction.objects.filter(
                 transaction_type='sale',
                 timestamp__date=current_date
-            ).aggregate(total=Sum('total_amount') or Decimal('0'))
+            ).aggregate(total=Sum('total_amount'))
 
             daily_sales.append({
                 'date': current_date.strftime('%Y-%m-%d'),
-                'sales': float(day_sales['total'])
+                'sales': float(day_sales['total'] or 0)
             })
             current_date += timedelta(days=1)
 

@@ -16,7 +16,7 @@
     <div class="col-12">
       <div class="ezm-card">
         <div class="ezm-card-header">
-          <i class="bi bi-person-gear me-2"></i>Change Role for {{ user.username }}
+          <i class="bi bi-person-gear me-2"></i>Change Role for {{ target_user.username }}
         </div>
         <div class="card-body">
           <p class="mb-0">Update the user's role and associated permissions. Store assignment is required for Store
@@ -42,21 +42,21 @@
               <h6 class="mb-2">Current User Information</h6>
               <div class="row">
                 <div class="col-sm-6">
-                  <strong>Username:</strong> {{ user.username }}
+                  <strong>Username:</strong> {{ target_user.username }}
                 </div>
                 <div class="col-sm-6">
-                  <strong>Email:</strong> {{ user.email }}
+                  <strong>Email:</strong> {{ target_user.email }}
                 </div>
               </div>
               <div class="row mt-2">
                 <div class="col-sm-6">
                   <strong>Current Role:</strong>
-                  <span class="badge bg-secondary">{{ user.get_role_display }}</span>
+                  <span class="badge bg-secondary">{{ target_user.get_role_display }}</span>
                 </div>
                 <div class="col-sm-6">
                   <strong>Status:</strong>
-                  <span class="badge {% if user.is_active %}bg-success{% else %}bg-danger{% endif %}">
-                    {% if user.is_active %}Active{% else %}Inactive{% endif %}
+                  <span class="badge {% if target_user.is_active %}bg-success{% else %}bg-danger{% endif %}">
+                    {% if target_user.is_active %}Active{% else %}Inactive{% endif %}
                   </span>
                 </div>
               </div>

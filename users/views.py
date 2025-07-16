@@ -1455,49 +1455,49 @@ EZM Trade Management Team"""
 
 @user_passes_test(is_admin)
 def toggle_user_status(request, user_id):
-    user = get_object_or_404(User, id=user_id)
-    user.is_active = not user.is_active
-    user.save()
+    target_user = get_object_or_404(User, id=user_id)
+    target_user.is_active = not target_user.is_active
+    target_user.save()
     return redirect('manage_users')
 
 @user_passes_test(is_admin)
 def view_user_detail(request, user_id):
-    user = get_object_or_404(User, id=user_id)
-    return render(request, 'admin/user_detail.html', {'user': user})
+    target_user = get_object_or_404(User, id=user_id)
+    return render(request, 'admin/user_detail.html', {'target_user': target_user})
 
 @user_passes_test(is_admin)
 def change_user_role(request, user_id):
-    user = get_object_or_404(User, id=user_id)
+    target_user = get_object_or_404(User, id=user_id)
     if request.method == 'POST':
-        form = ChangeUserRoleForm(request.POST, instance=user)
+        form = ChangeUserRoleForm(request.POST, instance=target_user)
         if form.is_valid():
             form.save()
             return redirect('manage_users')
     else:
-        form = ChangeUserRoleForm(instance=user)
-    return render(request, 'admin/change_user_role.html', {'form': form, 'user': user})
+        form = ChangeUserRoleForm(instance=target_user)
+    return render(request, 'admin/change_user_role.html', {'form': form, 'target_user': target_user})
 
 @user_passes_test(is_admin)
 def delete_user(request, user_id):
-    user = get_object_or_404(User, id=user_id)
+    target_user = get_object_or_404(User, id=user_id)
 
     # Prevent admin from deleting themselves
-    if user == request.user:
+    if target_user == request.user:
         messages.error(request, "You cannot delete your own account.")
         return redirect('manage_users')
 
     # Prevent deletion of superusers by non-superusers
-    if user.is_superuser and not request.user.is_superuser:
+    if target_user.is_superuser and not request.user.is_superuser:
         messages.error(request, "You cannot delete a superuser account.")
         return redirect('manage_users')
 
     if request.method == 'POST':
-        username = user.username
-        user.delete()
+        username = target_user.username
+        target_user.delete()
         messages.success(request, f"User '{username}' has been successfully deleted.")
         return redirect('manage_users')
 
-    return render(request, 'admin/delete_user_confirm.html', {'user': user})
+    return render(request, 'admin/delete_user_confirm.html', {'target_user': target_user})
 
 @login_required
 def admin_settings(request):

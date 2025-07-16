@@ -1,0 +1,419 @@
+{% extends 'webfront/webfront_base.html' %}
+{% load widget_tweaks %}
+{% load webfront_extras %}
+
+{% block title %}{{ stock.product.name }} - Product Details - EZM Trade{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h1><i class="bi bi-box-seam me-3"></i>{{ stock.product.name }}</h1>
+                <p class="mb-3">Detailed product information and availability at {{ stock.store.name }}</p>
+                <div class="d-flex gap-2 flex-wrap">
+                    <span class="badge bg-light text-dark fs-6 px-3 py-2">
+                        <i class="bi bi-tags me-1"></i>{{ stock.product.category }}
+                    </span>
+                    <span class="badge bg-light text-dark fs-6 px-3 py-2">
+                        <i class="bi bi-geo-alt me-1"></i>{{ stock.store.name }}
+                    </span>
+                    {% if stock.quantity <= 10 %}
+                        <span class="badge bg-warning text-dark fs-6 px-3 py-2">
+                            <i class="bi bi-exclamation-triangle me-1"></i>Low Stock
+                        </span>
+                    {% else %}
+                        <span class="badge bg-success fs-6 px-3 py-2">
+                            <i class="bi bi-check-circle me-1"></i>In Stock
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-lg-4 text-lg-end">
+                <a href="{% url 'webfront:stock_list' %}" class="btn btn-outline-light btn-lg">
+                    <i class="bi bi-arrow-left me-1"></i>Back to Products
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Main Content -->
+<section class="content-section">
+    <div class="container">
+        <!-- Breadcrumb -->
+        <div class="breadcrumb-section">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'webfront:home' %}" class="text-decoration-none">Home</a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'webfront:stock_list' %}" class="text-decoration-none">Browse Products</a>
+                    </li>
+                    <li class="breadcrumb-item active">{{ stock.product.name }}</li>
+                </ol>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="row">
+            <!-- Product Information -->
+            <div class="col-lg-8">
+                <div class="product-card">
+                    <div class="card-body p-4">
+                        <h3 class="mb-4"><i class="bi bi-info-circle me-2"></i>Product Information</h3>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-4">
+                                <h4 class="text-primary mb-2">{{ stock.product.name }}</h4>
+                                {% if stock.product.variation %}
+                                    <p class="text-muted mb-3">{{ stock.product.variation }}</p>
+                                {% endif %}
+
+                                <div class="mb-3">
+                                    <span class="badge bg-info fs-6 px-3 py-2">
+                                        <i class="bi bi-tags me-1"></i>{{ stock.product.category }}
+                                    </span>
+                                </div>
+
+                                <div class="mb-3">
+                                    <h6 class="fw-semibold">Description</h6>
+                                    <p class="text-muted">{{ stock.product.description|default:"No description available" }}</p>
+                                </div>
+
+                                <div class="row">
+                                    {% if stock.product.material %}
+                                    <div class="col-6 mb-3">
+                                        <h6 class="fw-semibold">Material</h6>
+                                        <p class="mb-0">{{ stock.product.material }}</p>
+                                    </div>
+                                    {% endif %}
+
+                                    {% if stock.product.size %}
+                                    <div class="col-6 mb-3">
+                                        <h6 class="fw-semibold">Size</h6>
+                                        <p class="mb-0">{{ stock.product.get_size_display }}</p>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                            <div class="col-md-6">
+                                <div class="bg-light rounded-3 p-4">
+                                    <h5 class="text-primary mb-3">
+                                        <i class="bi bi-building"></i> Stock at {{ stock.store.name }}
+                                    </h5>
+
+                                    <div class="row text-center mb-4">
+                                        <div class="col-6">
+                                            <div class="stats-card">
+                                                <div class="stats-number {% if stock.quantity <= 10 %}text-danger{% else %}text-success{% endif %}">
+                                                    {{ stock.quantity }}
+                                                </div>
+                                                <div class="stats-label">Units Available</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="stats-card">
+                                                <div class="stats-number">ETB {{ stock.selling_price }}</div>
+                                                <div class="stats-label">Price per Unit</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+
+
+                                    <div class="row text-center mb-4">
+                                        <div class="col-12">
+                                            <div class="stats-card">
+                                                {% if stock.quantity <= 10 %}
+                                                    <span class="status-badge status-low-stock">
+                                                        <i class="bi bi-exclamation-triangle"></i> Low Stock
+                                                    </span>
+                                                {% elif stock.quantity <= 50 %}
+                                                    <span class="status-badge status-medium-stock">
+                                                        <i class="bi bi-dash-circle"></i> Medium Stock
+                                                    </span>
+                                                {% else %}
+                                                    <span class="status-badge status-in-stock">
+                                                        <i class="bi bi-check-circle"></i> In Stock
+                                                    </span>
+                                                {% endif %}
+                                                <div class="stats-label mt-2">Availability Status</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="text-center">
+                                        <small class="text-muted">
+                                            <i class="bi bi-clock"></i>
+                                            Last updated: {{ stock.last_updated|date:"M d, Y H:i" }}
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Store Information -->
+            <div class="col-lg-4">
+                <div class="store-card">
+                    <div class="card-header-custom">
+                        <h5 class="mb-0">
+                            <i class="bi bi-building"></i> Store Information
+                        </h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <h5 class="text-primary mb-3">{{ stock.store.name }}</h5>
+                        <div class="mb-3">
+                            <p class="mb-2">
+                                <i class="bi bi-geo-alt text-muted"></i> {{ stock.store.address }}
+                            </p>
+                            {% if stock.store.phone_number %}
+                                <p class="mb-2">
+                                    <i class="bi bi-telephone text-muted"></i> {{ stock.store.phone_number }}
+                                </p>
+                            {% endif %}
+                            {% if stock.store.store_manager %}
+                                <p class="mb-0">
+                                    <i class="bi bi-person-badge text-muted"></i>
+                                    Manager: {{ stock.store.store_manager.get_full_name|default:stock.store.store_manager.username }}
+                                </p>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-grid">
+                            <a href="{% url 'webfront:store_stock' stock.store.id %}" class="btn btn-primary-custom">
+                                <i class="bi bi-boxes"></i> View All Store Stock
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Price Calculator -->
+                <div class="store-card mt-4">
+                    <div class="card-body p-3">
+                        <h6 class="mb-3 text-center">
+                            <i class="bi bi-calculator me-2 text-primary"></i>Price Calculator
+                        </h6>
+
+                        <div class="calculator-container-small">
+                            <div class="row g-2 align-items-center">
+                                <div class="col-4">
+                                    <label class="form-label small text-muted mb-1">Quantity</label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="number" class="form-control text-center"
+                                               id="quantityInput" placeholder="0"
+                                               min="1" max="{{ stock.quantity }}"
+                                               step="1" pattern="[0-9]*" inputmode="numeric"
+                                               data-price="{{ stock.selling_price }}"
+                                               style="min-width: 60px;"
+                                               title="Enter quantity (max: {{ stock.quantity }} units)">
+                                        <span class="input-group-text">units</span>
+                                    </div>
+                                    <small class="text-muted d-block">Max: {{ stock.quantity }}</small>
+                                </div>
+
+                                <div class="col-1 text-center">
+                                    <i class="bi bi-x text-muted"></i>
+                                </div>
+
+                                <div class="col-3">
+                                    <label class="form-label small text-muted mb-1">Price</label>
+                                    <div class="price-display-small">
+                                        <span class="fw-bold text-primary">ETB {{ stock.selling_price }}</span>
+                                    </div>
+                                </div>
+
+                                <div class="col-1 text-center">
+                                    <i class="bi bi-equals text-muted"></i>
+                                </div>
+
+                                <div class="col-3">
+                                    <label class="form-label small text-muted mb-1">Total</label>
+                                    <div class="total-display-small">
+                                        <span id="totalPrice" class="fw-bold text-success">ETB 0.00</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+            </div>
+
+        <!-- Other Stores with This Product -->
+        {% if other_stores_stock %}
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="stock-card">
+                    <div class="card-header-custom">
+                        <h5 class="mb-0">
+                            <i class="bi bi-buildings"></i> This Product in Other Stores
+                        </h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="table-custom">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th><i class="bi bi-building"></i> Store</th>
+                                            <th><i class="bi bi-stack"></i> Quantity</th>
+                                            <th><i class="bi bi-currency-dollar"></i> Price</th>
+                                            <th><i class="bi bi-check-circle"></i> Status</th>
+                                            <th><i class="bi bi-three-dots"></i> Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for other_stock in other_stores_stock %}
+                                        <tr>
+                                            <td>
+                                                <a href="{% url 'webfront:store_stock' other_stock.store.id %}" class="text-decoration-none fw-semibold text-primary">
+                                                    <i class="bi bi-geo-alt"></i> {{ other_stock.store.name }}
+                                                </a>
+                                            </td>
+                                            <td>
+                                                <span class="fw-bold fs-5 {% if other_stock.quantity <= 10 %}text-danger{% else %}text-success{% endif %}">
+                                                    {{ other_stock.quantity }}
+                                                </span>
+                                                <small class="text-muted d-block">units</small>
+                                            </td>
+                                            <td>
+                                                <span class="fw-semibold">ETB {{ other_stock.selling_price }}</span>
+                                            </td>
+                                            <td>
+                                                {% if other_stock.quantity <= 10 %}
+                                                    <span class="status-badge status-low-stock">
+                                                        <i class="bi bi-exclamation-triangle"></i> Low Stock
+                                                    </span>
+                                                {% elif other_stock.quantity <= 50 %}
+                                                    <span class="status-badge status-medium-stock">
+                                                        <i class="bi bi-dash-circle"></i> Medium
+                                                    </span>
+                                                {% else %}
+                                                    <span class="status-badge status-in-stock">
+                                                        <i class="bi bi-check-circle"></i> In Stock
+                                                    </span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <a href="{% url 'webfront:stock_detail' other_stock.id %}"
+                                                   class="btn btn-outline-primary btn-sm">
+                                                    <i class="bi bi-eye"></i> View
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Action Buttons -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="d-flex gap-3 justify-content-center">
+                    <a href="{% url 'webfront:stock_list' %}" class="btn btn-outline-secondary btn-lg">
+                        <i class="bi bi-arrow-left"></i> Back to Stock List
+                    </a>
+                    <a href="{% url 'webfront:product_stores' stock.product.id %}" class="btn btn-primary-custom btn-lg">
+                        <i class="bi bi-buildings"></i> View in All Stores
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Quantity calculator functionality
+    const quantityInput = document.getElementById('quantityInput');
+    const totalPriceElement = document.getElementById('totalPrice');
+
+    if (quantityInput && totalPriceElement) {
+        const maxQuantity = parseInt(quantityInput.getAttribute('max')) || 0;
+
+        quantityInput.addEventListener('input', function() {
+            let quantity = parseFloat(this.value) || 0;
+            const price = parseFloat(this.dataset.price) || 0;
+
+            // Prevent calculation beyond max allowed quantity
+            if (quantity > maxQuantity) {
+                quantity = maxQuantity;
+                this.value = maxQuantity;
+
+                // Show warning message
+                if (!document.querySelector('.quantity-warning')) {
+                    const warning = document.createElement('small');
+                    warning.className = 'quantity-warning text-danger d-block mt-1';
+                    warning.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Maximum available quantity is ' + maxQuantity + ' units';
+                    this.parentNode.parentNode.appendChild(warning);
+
+                    // Remove warning after 3 seconds
+                    setTimeout(() => {
+                        if (warning.parentNode) {
+                            warning.parentNode.removeChild(warning);
+                        }
+                    }, 3000);
+                }
+            }
+
+            // Prevent negative values
+            if (quantity < 0) {
+                quantity = 0;
+                this.value = 0;
+            }
+
+            const totalPrice = quantity * price;
+            totalPriceElement.textContent = `ETB ${totalPrice.toFixed(2)}`;
+        });
+
+        // Additional validation on blur
+        quantityInput.addEventListener('blur', function() {
+            if (!this.value) {
+                totalPriceElement.textContent = 'ETB 0.00';
+            } else {
+                let quantity = parseFloat(this.value) || 0;
+                if (quantity > maxQuantity) {
+                    this.value = maxQuantity;
+                    const price = parseFloat(this.dataset.price) || 0;
+                    totalPriceElement.textContent = `ETB ${(maxQuantity * price).toFixed(2)}`;
+                }
+            }
+        });
+
+        // Prevent typing beyond max on keypress
+        quantityInput.addEventListener('keypress', function(e) {
+            // Allow backspace, delete, tab, escape, enter
+            if ([8, 9, 27, 13, 46].indexOf(e.keyCode) !== -1 ||
+                // Allow Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+                (e.keyCode === 65 && e.ctrlKey === true) ||
+                (e.keyCode === 67 && e.ctrlKey === true) ||
+                (e.keyCode === 86 && e.ctrlKey === true) ||
+                (e.keyCode === 88 && e.ctrlKey === true)) {
+                return;
+            }
+
+            // Ensure that it is a number and stop the keypress
+            if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+                e.preventDefault();
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,753 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}EZM Trade - Browse Our Products{% endblock %}</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --primary-color: #3b82f6;
+            --primary-dark: #1d4ed8;
+            --secondary-color: #6b7280;
+            --accent-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --light-bg: #f9fafb;
+            --white: #ffffff;
+            --dark-text: #111827;
+            --light-text: #6b7280;
+            --border-color: #e5e7eb;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--light-bg);
+            color: var(--dark-text);
+            line-height: 1.6;
+        }
+
+        /* Header Styles */
+        .website-header {
+            background: var(--white);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .website-header .navbar-brand {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--primary-color) !important;
+            text-decoration: none;
+        }
+
+        .website-header .nav-link {
+            color: var(--dark-text) !important;
+            font-weight: 500;
+            margin: 0 0.5rem;
+            padding: 0.5rem 1rem !important;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .website-header .nav-link:hover {
+            background-color: var(--light-bg);
+            color: var(--primary-color) !important;
+        }
+
+        .website-header .nav-link.active {
+            background-color: var(--primary-color);
+            color: white !important;
+        }
+
+        /* Dropdown Menu Styling */
+        .website-header .dropdown-menu {
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-radius: 0.5rem;
+            padding: 0.5rem 0;
+            margin-top: 0.5rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .website-header .dropdown-item {
+            padding: 0.5rem 1rem;
+            color: var(--dark-text);
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+
+        .website-header .dropdown-item:hover {
+            background-color: var(--light-bg);
+            color: var(--primary-color);
+        }
+
+        .website-header .dropdown-item i {
+            width: 16px;
+            text-align: center;
+        }
+
+        .website-header .dropdown-divider {
+            margin: 0.5rem 0;
+        }
+
+        /* Dropdown Menu Styling */
+        .website-header .dropdown-menu {
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-radius: 0.5rem;
+            padding: 0.5rem 0;
+            margin-top: 0.5rem;
+        }
+
+        .website-header .dropdown-item {
+            padding: 0.5rem 1rem;
+            color: var(--dark-text);
+            transition: all 0.2s ease;
+        }
+
+        .website-header .dropdown-item:hover {
+            background-color: var(--light-bg);
+            color: var(--primary-color);
+        }
+
+        .website-header .dropdown-item i {
+            width: 16px;
+            text-align: center;
+        }
+
+        /* Hero Section */
+        .hero-section {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 5rem 0;
+            text-align: center;
+        }
+
+        .hero-section h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+        }
+
+        .hero-section p {
+            font-size: 1.25rem;
+            opacity: 0.9;
+            max-width: 700px;
+            margin: 0 auto 2rem;
+        }
+
+        /* Content Sections */
+        .content-section {
+            padding: 3rem 0;
+        }
+
+        .section-title {
+            font-size: 2.25rem;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 2rem;
+            color: var(--dark-text);
+        }
+
+        /* Card Styles */
+        .product-card, .store-card, .info-card {
+            background: var(--white);
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .product-card:hover, .store-card:hover, .info-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Search and Filter Styles */
+        .search-section {
+            background: var(--white);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .search-section.sticky-search {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            margin-bottom: 0;
+            border-radius: 0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            padding: 0.75rem 1.5rem;
+        }
+
+        .search-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--dark-text);
+        }
+
+        .sticky-search .search-title {
+            font-size: 0.95rem;
+            margin-bottom: 0.75rem !important;
+        }
+
+        .sticky-search .row {
+            margin: 0;
+        }
+
+        .sticky-search .form-label {
+            font-size: 0.8rem;
+        }
+
+        /* Button Styles */
+        .btn-primary-custom {
+            background: var(--primary-color);
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            font-weight: 500;
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary-custom:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-outline-custom {
+            border: 2px solid var(--primary-color);
+            color: var(--primary-color);
+            border-radius: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            font-weight: 500;
+            background: transparent;
+            transition: all 0.3s ease;
+        }
+
+        .btn-outline-custom:hover {
+            background: var(--primary-color);
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        /* Status Badges */
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 1rem;
+            font-weight: 500;
+            font-size: 0.875rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .status-low-stock {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: var(--danger-color);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .status-medium-stock {
+            background-color: rgba(245, 158, 11, 0.1);
+            color: var(--warning-color);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .status-in-stock {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--accent-color);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        /* Table Styles */
+        .products-table {
+            background: var(--white);
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color);
+        }
+
+        .products-table thead {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .products-table th {
+            border: none;
+            padding: 1rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .products-table td {
+            padding: 1rem;
+            border-color: var(--border-color);
+            vertical-align: middle;
+        }
+
+        .products-table tbody tr:hover {
+            background-color: var(--light-bg);
+        }
+
+        /* Quantity Calculator */
+        .quantity-calculator {
+            min-width: 140px;
+        }
+
+        .quantity-calculator .form-control {
+            border-radius: 0.375rem 0 0 0.375rem;
+            border-right: none;
+            font-size: 0.875rem;
+        }
+
+        .quantity-calculator .input-group-text {
+            border-radius: 0 0.375rem 0.375rem 0;
+            background-color: var(--light-bg);
+            border-left: none;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            min-width: 70px;
+        }
+
+        /* Modern Calculator UI */
+        .calculator-container {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border-radius: 1rem;
+            padding: 2rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .price-display {
+            background: var(--white);
+            border: 2px solid var(--primary-color);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .total-display {
+            background: linear-gradient(135deg, var(--accent-color) 0%, #059669 100%);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .total-display span {
+            color: white !important;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .calculator-container .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+        }
+
+        /* Smaller Calculator UI */
+        .calculator-container-small {
+            background: var(--light-bg);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .price-display-small {
+            background: var(--white);
+            border: 1px solid var(--primary-color);
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            text-align: center;
+            font-size: 0.875rem;
+        }
+
+        .total-display-small {
+            background: var(--white);
+            border: 1px solid var(--accent-color);
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            text-align: center;
+            font-size: 0.875rem;
+        }
+
+        .calculator-container-small .form-control {
+            font-size: 0.875rem;
+            padding: 0.375rem 0.5rem;
+        }
+
+        .calculator-container-small .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.125rem rgba(59, 130, 246, 0.25);
+        }
+
+        .calculator-container-small .input-group-text {
+            font-size: 0.75rem;
+            padding: 0.375rem 0.5rem;
+        }
+
+        /* Quantity Warning Messages */
+        .quantity-warning {
+            animation: fadeIn 0.3s ease-in;
+            font-size: 0.75rem;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .quantity-calculator .quantity-warning {
+            position: absolute;
+            z-index: 10;
+            background: var(--white);
+            border: 1px solid #dc3545;
+            border-radius: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            box-shadow: 0 2px 4px rgba(220, 53, 69, 0.2);
+        }
+
+        /* Go to Top Button */
+        .go-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .go-to-top.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .go-to-top:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+        }
+
+        .go-to-top:active {
+            transform: translateY(0);
+        }
+
+        /* Mobile adjustments */
+        @media (max-width: 768px) {
+            .go-to-top {
+                bottom: 20px;
+                right: 20px;
+                width: 45px;
+                height: 45px;
+                font-size: 1.1rem;
+            }
+        }
+
+        /* Footer */
+        .website-footer {
+            background: linear-gradient(135deg, var(--dark-text) 0%, #374151 100%);
+            color: white;
+            padding: 3rem 0 1rem;
+            margin-top: 4rem;
+        }
+
+        .website-footer h5 {
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: white;
+        }
+
+        .website-footer a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .website-footer a:hover {
+            color: var(--primary-color);
+        }
+
+        /* Breadcrumb */
+        .breadcrumb-section {
+            background: var(--white);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color);
+        }
+
+        .breadcrumb-section .breadcrumb {
+            margin: 0;
+            background: none;
+        }
+
+        /* Product Grid */
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero-section h1 {
+                font-size: 2.5rem;
+            }
+
+            .section-title {
+                font-size: 1.75rem;
+            }
+
+            .product-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .search-section {
+                padding: 1.5rem;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .hero-section {
+                padding: 3rem 0;
+            }
+
+            .hero-section h1 {
+                font-size: 2rem;
+            }
+
+            .content-section {
+                padding: 2rem 0;
+            }
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="website-header">
+        <div class="container">
+            <nav class="navbar navbar-expand-lg">
+                <a class="navbar-brand" href="{% url 'webfront:home' %}">
+                    <i class="bi bi-shop me-2"></i>EZM Trade
+                </a>
+
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-3">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'webfront:stock_list' %}">
+                                <i class="bi bi-grid me-1"></i>Browse Products
+                            </a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-building me-1"></i>Store Locations
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'webfront:stock_list' %}">
+                                    <i class="bi bi-grid me-2"></i>All Locations
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                {% if webfront_stores %}
+                                    {% for store in webfront_stores %}
+                                        <li><a class="dropdown-item" href="{% url 'webfront:store_stock' store.id %}">
+                                            <i class="bi bi-geo-alt me-2"></i>{{ store.name }}
+                                        </a></li>
+                                    {% endfor %}
+                                {% else %}
+                                    <li><span class="dropdown-item text-muted">No stores available</span></li>
+                                {% endif %}
+                            </ul>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-tags me-1"></i>Categories
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'webfront:stock_list' %}">
+                                    <i class="bi bi-grid me-2"></i>All Categories
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                {% if webfront_categories %}
+                                    {% for category in webfront_categories %}
+                                        <li><a class="dropdown-item" href="{% url 'webfront:stock_list' %}?category={{ category|urlencode }}">
+                                            <i class="bi bi-tag me-2"></i>{{ category }}
+                                        </a></li>
+                                    {% endfor %}
+                                {% else %}
+                                    <li><span class="dropdown-item text-muted">No categories available</span></li>
+                                {% endif %}
+                            </ul>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#contact">
+                                <i class="bi bi-envelope me-1"></i>Contact
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="website-footer" id="contact">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4 mb-4">
+                    <h5><i class="bi bi-shop me-2"></i>EZM Trade</h5>
+                    <p class="mb-3">Your trusted source for quality products across multiple store locations. Browse our extensive inventory and find what you need.</p>
+                    <div class="d-flex gap-2">
+                        <a href="#" class="btn btn-outline-light btn-sm">
+                            <i class="bi bi-facebook"></i>
+                        </a>
+                        <a href="#" class="btn btn-outline-light btn-sm">
+                            <i class="bi bi-twitter"></i>
+                        </a>
+                        <a href="#" class="btn btn-outline-light btn-sm">
+                            <i class="bi bi-instagram"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <h5>Quick Links</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><a href="{% url 'webfront:home' %}"><i class="bi bi-arrow-right me-2"></i>Home</a></li>
+                        <li class="mb-2"><a href="{% url 'webfront:stock_list' %}"><i class="bi bi-arrow-right me-2"></i>Browse Products</a></li>
+                        <li class="mb-2"><a href="{% url 'webfront:stock_list' %}"><i class="bi bi-arrow-right me-2"></i>Store Locations</a></li>
+                        <li class="mb-2"><a href="{% url 'webfront:stock_list' %}"><i class="bi bi-arrow-right me-2"></i>Product Categories</a></li>
+                        <li class="mb-2"><a href="#contact"><i class="bi bi-arrow-right me-2"></i>Contact Us</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <h5>Contact Information</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <i class="bi bi-envelope me-2"></i>
+                            <a href="mailto:info@ezmtrade.com">info@ezmtrade.com</a>
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-telephone me-2"></i>
+                            <a href="tel:+251111234567">+251-11-123-4567</a>
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-geo-alt me-2"></i>
+                            Addis Ababa, Ethiopia
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-clock me-2"></i>
+                            Mon - Sat: 8:00 AM - 8:00 PM
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <hr class="my-4 opacity-25">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <p class="mb-0">&copy; 2025 EZM Trade. All rights reserved.</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <small class="text-muted">
+                        <a href="#" class="text-muted me-3">Privacy Policy</a>
+                        <a href="#" class="text-muted">Terms of Service</a>
+                    </small>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Go to Top Button -->
+    <button class="go-to-top" id="goToTopBtn" title="Go to top">
+        <i class="bi bi-chevron-up"></i>
+    </button>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Go to Top Functionality -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const goToTopBtn = document.getElementById('goToTopBtn');
+
+        // Show/hide button based on scroll position
+        function toggleGoToTopButton() {
+            if (window.pageYOffset > 300) {
+                goToTopBtn.classList.add('show');
+            } else {
+                goToTopBtn.classList.remove('show');
+            }
+        }
+
+        // Smooth scroll to top
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+
+        // Event listeners
+        window.addEventListener('scroll', toggleGoToTopButton);
+        goToTopBtn.addEventListener('click', scrollToTop);
+
+        // Initial check
+        toggleGoToTopButton();
+    });
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

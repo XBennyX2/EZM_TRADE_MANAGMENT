@@ -216,8 +216,7 @@
                             <div class="payment-card p-3">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                     <div>
-                                        <h6 class="mb-1 fw-bold">{{ transaction.customer_first_name }} {{
-                                            transaction.customer_last_name }}</h6>
+                                        <h6 class="mb-1 fw-bold">{{ transaction.customer_first_name|default:"Unknown" }} {{ transaction.customer_last_name|default:"Customer" }}</h6>
                                         <small class="text-muted">{{ transaction.created_at|date:"M d, Y H:i" }}</small>
                                     </div>
                                     <div>
@@ -239,8 +238,7 @@
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
                                         <p class="mb-1">
-                                            <strong style="color: var(--accent-teal);">ETB {{
-                                                transaction.amount|floatformat:2 }}</strong>
+                                            <strong style="color: var(--accent-teal);">ETB {{ transaction.amount|floatformat:2 }}</strong>
                                         </p>
                                         <small class="text-muted">
                                             <i class="bi bi-hash me-1"></i>{{ transaction.chapa_tx_ref }}
@@ -382,13 +380,10 @@
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
                                         <p class="mb-1">
-                                            <strong style="color: var(--accent-teal);">ETB {{
-                                                confirmation.purchase_order.total_amount|floatformat:2 }}</strong>
+                                            <strong style="color: var(--accent-teal);">ETB {{ confirmation.purchase_order.total_amount|floatformat:2 }}</strong>
                                         </p>
                                         <small class="text-muted">
-                                            Confirmed by: {{
-                                            confirmation.confirmed_by.get_full_name|default:confirmation.confirmed_by.username
-                                            }}
+                                            Confirmed by: {{ confirmation.confirmed_by.get_full_name|default:confirmation.confirmed_by.username }}
                                         </small>
                                     </div>
                                     <div class="btn-group btn-group-sm">
@@ -435,8 +430,7 @@
                                     </div>
                                     <div>
                                         <span class="payment-status-failed">
-                                            <i class="bi bi-exclamation-triangle me-1"></i>{{ issue.get_severity_display
-                                            }}
+                                            <i class="bi bi-exclamation-triangle me-1"></i>{{ issue.get_severity_display }}
                                         </span>
                                     </div>
                                 </div>
@@ -448,12 +442,10 @@
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
                                         <p class="mb-1">
-                                            <strong style="color: var(--accent-teal);">ETB {{
-                                                issue.purchase_order.total_amount|floatformat:2 }}</strong>
+                                            <strong style="color: var(--accent-teal);">ETB {{ issue.purchase_order.total_amount|floatformat:2 }}</strong>
                                         </p>
                                         <small class="text-muted">
-                                            Reported by: {{
-                                            issue.reported_by.get_full_name|default:issue.reported_by.username }}
+                                            Reported by: {{ issue.reported_by.get_full_name|default:issue.reported_by.username }}
                                         </small>
                                     </div>
                                     <div class="btn-group btn-group-sm">

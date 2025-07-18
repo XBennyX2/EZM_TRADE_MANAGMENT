@@ -1,10 +1,10 @@
 # users/supplier_views.py
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Sum, Count
 from transactions.models import (
-    SupplierAccount, SupplierTransaction, SupplierPayment, 
+    SupplierAccount, SupplierTransaction, SupplierPayment,
     SupplierCredit, SupplierInvoice
 )
 from Inventory.models import PurchaseOrder, Supplier
@@ -12,11 +12,15 @@ from .forms import EditProfileForm, ChangePasswordForm
 from django.contrib.auth import update_session_auth_hash
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
+import logging
+
+logger = logging.getLogger(__name__)
 from django.utils import timezone
-from Inventory.models import SupplierProfile, SupplierProduct
+from Inventory.models import SupplierProfile, SupplierProduct, WarehouseProduct, ProductCategory
 from Inventory.forms import SupplierProfileForm, SupplierProductForm
 from django.core.paginator import Paginator
 from django.db.models import Q
+from django.views.decorators.csrf import csrf_exempt
 
 
 def supplier_required(view_func):
@@ -172,17 +176,88 @@ def supplier_purchase_orders(request):
     try:
         supplier = Supplier.objects.get(email=request.user.email)
         purchase_orders = PurchaseOrder.objects.filter(supplier=supplier).order_by('-created_date')
-        
+
         context = {
             'supplier': supplier,
             'purchase_orders': purchase_orders,
         }
-        
+
     except Supplier.DoesNotExist:
         messages.warning(request, "Supplier profile not found. Please contact the administrator to set up your supplier profile.")
         return redirect('supplier_dashboard')
-    
+
     return render(request, 'supplier/purchase_orders.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def supplier_mark_in_transit(request, order_id):
+    """
+    Allow supplier to mark order as in transit
+    """
+    try:
+        # Get supplier
+        supplier = Supplier.objects.get(email=request.user.email)
+
+        # Get the purchase order
+        order = get_object_or_404(PurchaseOrder, id=order_id, supplier=supplier)
+
+        # Check if order can be marked as in transit
+        if order.status != 'payment_confirmed':
+            return JsonResponse({
+                'success': False,
+                'message': 'Order must be payment confirmed to mark as in transit'
+            })
+
+        # Get tracking number from request
+        tracking_number = request.POST.get('tracking_number', '').strip()
+
+        # Mark order as in transit
+        from django.db import transaction
+        from Inventory.models import OrderStatusHistory
+
+        with transaction.atomic():
+            previous_status = order.status
+            order.mark_in_transit(tracking_number)
+
+            # Create status history record
+            OrderStatusHistory.objects.create(
+                purchase_order=order,
+                previous_status=previous_status,
+                new_status=order.status,
+                changed_by=request.user,
+                reason=f'Marked as in transit by supplier{" with tracking: " + tracking_number if tracking_number else ""}',
+                ip_address=request.META.get('REMOTE_ADDR'),
+                user_agent=request.META.get('HTTP_USER_AGENT', '')
+            )
+
+            # Send notification to head manager
+            try:
+                from payments.notification_service import supplier_notification_service
+                supplier_notification_service.send_order_status_change_notification(
+                    order, previous_status, order.status, request.user
+                )
+            except Exception as e:
+                logger.error(f"Failed to send status change notification: {str(e)}")
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Order marked as in transit successfully',
+            'new_status': order.status,
+            'tracking_number': tracking_number
+        })
+
+    except Supplier.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'message': 'Supplier profile not found'
+        }, status=403)
+    except Exception as e:
+        logger.error(f"Error marking order {order_id} as in transit: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'message': 'Unable to update order status'
+        }, status=500)
 
 
 @supplier_profile_required
@@ -722,3 +797,97 @@ def get_setup_next_steps(supplier_exists, account_exists):
         ]
     else:
         return ["Setup complete - all systems ready"]
+
+
+# === API Endpoints for Product Selection ===
+
+@login_required
+@require_http_methods(["GET"])
+def api_warehouse_products(request):
+    """
+    API endpoint to get warehouse products for dropdown selection.
+    Returns products with unique identifiers and availability info.
+    """
+    try:
+        # Get query parameters
+        supplier_id = request.GET.get('supplier_id')
+        category = request.GET.get('category')
+        search = request.GET.get('search', '')
+
+        # Base queryset - only active products with stock
+        products = WarehouseProduct.objects.filter(
+            is_active=True,
+            quantity_in_stock__gt=0
+        )
+
+        # Filter by supplier if specified
+        if supplier_id:
+            products = products.filter(supplier_id=supplier_id)
+
+        # Filter by category if specified
+        if category:
+            products = products.filter(category=category)
+
+        # Search filter
+        if search:
+            products = products.filter(
+                Q(product_name__icontains=search) |
+                Q(product_id__icontains=search) |
+                Q(sku__icontains=search)
+            )
+
+        # Prepare response data
+        product_data = []
+        for product in products.order_by('product_name')[:50]:  # Limit to 50 results
+            product_data.append({
+                'id': product.id,
+                'product_id': product.product_id,
+                'sku': product.sku,
+                'name': product.product_name,
+                'category': product.category,
+                'display_name': f"{product.product_name} - [{product.product_id}]",
+                'unit_price': str(product.unit_price),
+                'quantity_in_stock': product.quantity_in_stock,
+                'supplier_name': product.supplier.name if product.supplier else '',
+                'minimum_order': 1,
+                'maximum_order': min(product.quantity_in_stock, 1000)
+            })
+
+        return JsonResponse({
+            'success': True,
+            'products': product_data,
+            'total_count': len(product_data)
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def api_product_categories(request):
+    """
+    API endpoint to get available product categories.
+    """
+    try:
+        # Get categories from warehouse products
+        categories = WarehouseProduct.objects.filter(
+            is_active=True,
+            quantity_in_stock__gt=0
+        ).values_list('category', flat=True).distinct().order_by('category')
+
+        category_data = [{'value': cat, 'label': cat} for cat in categories if cat]
+
+        return JsonResponse({
+            'success': True,
+            'categories': category_data
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)

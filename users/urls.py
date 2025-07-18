@@ -24,7 +24,9 @@ from .views import (
     # API endpoints for product dropdowns
     get_restock_products, get_transfer_products, get_stores_with_product,
     # Analytics views
-    analytics_dashboard, financial_reports, analytics_api
+    analytics_dashboard, financial_reports, analytics_api,
+    # Transaction history
+    transaction_history
 )
 
 # Import API views
@@ -33,7 +35,8 @@ from .supplier_views import (
     supplier_dashboard, supplier_account, supplier_purchase_orders, supplier_invoices,
     supplier_payments, supplier_transactions, supplier_products, supplier_reports, supplier_settings,
     check_supplier_setup_status, supplier_onboarding, supplier_product_catalog,
-    supplier_add_product, supplier_edit_product, supplier_delete_product, supplier_payment_notifications_api
+    supplier_add_product, supplier_edit_product, supplier_delete_product, supplier_payment_notifications_api,
+    api_warehouse_products, api_product_categories, supplier_mark_in_transit
 )
 
 urlpatterns = [
@@ -66,6 +69,10 @@ urlpatterns = [
     path('api/restock-products/', get_restock_products, name='get_restock_products'),
     path('api/transfer-products/', get_transfer_products, name='get_transfer_products'),
     path('api/stores-with-product/', get_stores_with_product, name='get_stores_with_product'),
+
+    # API endpoints for supplier product selection
+    path('api/warehouse-products/', api_warehouse_products, name='api_warehouse_products'),
+    path('api/product-categories/', api_product_categories, name='api_product_categories'),
 
     # Head Manager request management URLs
     path('head-manager/restock-requests/', head_manager_restock_requests, name='head_manager_restock_requests'),
@@ -131,5 +138,9 @@ urlpatterns = [
     path('supplier/catalog/<int:product_id>/edit/', supplier_edit_product, name='supplier_edit_product'),
     path('supplier/catalog/<int:product_id>/delete/', supplier_delete_product, name='supplier_delete_product'),
     path('supplier/setup-status/', check_supplier_setup_status, name='supplier_setup_status'),
+    path('supplier/orders/<int:order_id>/mark-in-transit/', supplier_mark_in_transit, name='supplier_mark_in_transit'),
     path('supplier/dashboard-test/', lambda request: render(request, 'supplier/dashboard_test.html'), name='supplier_dashboard_test'),
+
+    # Transaction History
+    path('transaction-history/', transaction_history, name='transaction_history'),
 ]

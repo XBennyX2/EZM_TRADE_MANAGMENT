@@ -1447,41 +1447,15 @@ def create_user(request):
                 phone_number=phone_number,
             )
 
-            # Send welcome email with credentials
-            try:
-                subject = "Welcome to EZM Trade Management - Account Created"
-                message = f"""Dear {user.first_name} {user.last_name},
+            # Send welcome email with credentials using enhanced email service
+            from .email_service import email_service
 
-Your account has been created for EZM Trade Management System.
+            email_success, email_message = email_service.send_user_creation_email(user, password)
 
-Login Details:
-- Username: {user.username}
-- Temporary Password: {password}
-- Role: {user.get_role_display()}
-
-Please login at: http://127.0.0.1:8000/users/login/
-
-IMPORTANT: You will be required to change your password on first login for security purposes.
-
-If you have any questions, please contact your administrator.
-
-Best regards,
-EZM Trade Management Team"""
-
-                from_email = settings.DEFAULT_FROM_EMAIL
-                to_email = [user.email]
-
-                send_mail(
-                    subject=subject,
-                    message=message,
-                    from_email=from_email,
-                    recipient_list=to_email,
-                    fail_silently=False
-                )
-
-                messages.success(request, f"User {user.username} created successfully. Welcome email sent to {user.email}.")
-            except Exception as email_error:
-                messages.warning(request, f"User {user.username} created successfully, but email could not be sent: {email_error}")
+            if email_success:
+                messages.success(request, f"User {user.username} created successfully. {email_message}")
+            else:
+                messages.warning(request, f"User {user.username} created successfully, but email could not be sent: {email_message}")
 
             return redirect('manage_users')
         except Exception as e:

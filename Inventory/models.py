@@ -332,6 +332,16 @@ class SupplierProduct(models.Model):
         related_name='catalog_products'
     )
 
+    # Reference to warehouse product (source of truth)
+    warehouse_product = models.ForeignKey(
+        'WarehouseProduct',
+        on_delete=models.CASCADE,
+        related_name='supplier_catalog_entries',
+        help_text="The warehouse product this supplier catalog entry is based on",
+        null=True,
+        blank=True
+    )
+
     # Product Information
     product_name = models.CharField(max_length=200)
     product_code = models.CharField(max_length=50, blank=True)

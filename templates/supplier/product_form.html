@@ -44,11 +44,20 @@
                                 <h5 class="section-title">Basic Information</h5>
                                 <hr class="section-divider">
                             </div>
+
+                            <!-- Product Name Selection -->
                             <div class="col-md-8 mb-3">
                                 <label for="{{ form.product_name.id_for_label }}" class="form-label">
                                     Product Name <span class="text-danger">*</span>
                                 </label>
                                 {{ form.product_name }}
+                                {{ form.warehouse_product }} <!-- Hidden field for warehouse product -->
+                                <div class="form-text">
+                                    <i class="bi bi-shield-check me-1"></i>
+                                    <strong>Select from warehouse inventory:</strong> This dropdown contains only
+                                    products available in the warehouse to prevent spelling errors and ensure
+                                    consistency.
+                                </div>
                                 {% if form.product_name.errors %}
                                 <div class="text-danger">{{ form.product_name.errors.0 }}</div>
                                 {% endif %}
@@ -390,6 +399,10 @@
         const categoryChoice = document.getElementById('category_choice');
         const customCategoryContainer = document.getElementById('custom_category_container');
         const customCategoryInput = document.getElementById('custom_category');
+        const productNameSelect = document.getElementById('product_name_select');
+        const productCodeInput = document.getElementById('{{ form.product_code.id_for_label }}');
+        const descriptionInput = document.getElementById('{{ form.description.id_for_label }}');
+        const unitPriceInput = document.getElementById('{{ form.unit_price.id_for_label }}');
 
         function toggleCustomCategory() {
             if (categoryChoice.value === 'other') {
@@ -403,15 +416,123 @@
             }
         }
 
+        // Handle product name selection
+        function handleProductNameChange() {
+            const selectedProductName = productNameSelect.value;
+
+            if (selectedProductName) {
+                // Get product data from the API using the selected product name
+                fetch(`/users/api/warehouse-products/?search=${encodeURIComponent(selectedProductName)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.products.length > 0) {
+                            // Find the exact product match
+                            const product = data.products.find(p => p.name === selectedProductName) || data.products[0];
+
+                            // Auto-populate other form fields
+                            if (productCodeInput && !productCodeInput.value) {
+                                productCodeInput.value = product.product_id;
+                            }
+                            if (descriptionInput && !descriptionInput.value) {
+                                descriptionInput.value = `${product.name} - Available in warehouse inventory (Stock: ${product.quantity_in_stock})`;
+                            }
+                            if (unitPriceInput && !unitPriceInput.value) {
+                                unitPriceInput.value = product.unit_price;
+                            }
+
+                            // Set category if available
+                            if (categoryChoice && product.category) {
+                                for (let option of categoryChoice.options) {
+                                    if (option.value === product.category) {
+                                        categoryChoice.value = product.category;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            // Show success message
+                            showProductSelectedMessage(product.name, product.quantity_in_stock);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching product data:', error);
+                    });
+            } else {
+                // Clear auto-populated fields when no product is selected
+                clearAutoPopulatedFields();
+            }
+        }
+
+        // Clear auto-populated fields
+        function clearAutoPopulatedFields() {
+            if (productCodeInput) {
+                productCodeInput.value = '';
+            }
+            if (descriptionInput) {
+                descriptionInput.value = '';
+            }
+            if (unitPriceInput) {
+                unitPriceInput.value = '';
+            }
+
+            // Remove any existing success messages
+            const existingMessage = document.querySelector('.product-selected-message');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+        }
+
+        // Show success message when product is selected
+        function showProductSelectedMessage(productName, stock) {
+            // Remove any existing messages
+            const existingMessage = document.querySelector('.product-selected-message');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+
+            // Create success message
+            const message = document.createElement('div');
+            message.className = 'alert alert-success product-selected-message mt-2';
+            message.innerHTML = `
+                <i class="bi bi-check-circle me-2"></i>
+                <strong>Product Selected:</strong> ${productName} (${stock} units in stock)
+                <br><small>Product name selected from warehouse inventory to prevent spelling errors</small>
+            `;
+
+            // Insert after product name field
+            const productNameField = document.querySelector('#product_name_select').closest('.col-md-8');
+            productNameField.appendChild(message);
+
+            // Auto-remove message after 5 seconds
+            setTimeout(() => {
+                if (message.parentNode) {
+                    message.remove();
+                }
+            }, 5000);
+        }
+
         // Initial check
         toggleCustomCategory();
 
         // Listen for changes
         categoryChoice.addEventListener('change', toggleCustomCategory);
 
+        // Listen for product name selection
+        if (productNameSelect) {
+            productNameSelect.addEventListener('change', handleProductNameChange);
+        }
+
         // Form validation
         const form = document.querySelector('form');
         form.addEventListener('submit', function (e) {
+            // Check if product name is selected (CRITICAL for preventing spelling errors)
+            if (!productNameSelect.value) {
+                e.preventDefault();
+                alert('You must select a product name from the dropdown to prevent spelling errors and ensure product consistency.');
+                productNameSelect.focus();
+                return false;
+            }
+
             if (categoryChoice.value === 'other' && !customCategoryInput.value.trim()) {
                 e.preventDefault();
                 alert('Please enter a custom category name.');

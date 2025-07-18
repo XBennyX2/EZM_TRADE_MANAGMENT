@@ -188,12 +188,49 @@ def head_manager_page(request):
         status='pending'
     ).select_related('from_store', 'to_store', 'product', 'requested_by').order_by('-requested_date')[:5]
 
+    # Payment statistics
+    payment_stats = {}
+    try:
+        from payments.models import ChapaTransaction
+        from django.utils import timezone
+        from datetime import timedelta
+
+        today = timezone.now().date()
+        this_month = today.replace(day=1)
+
+        payment_stats = {
+            'total_payments': ChapaTransaction.objects.filter(status='success').count(),
+            'monthly_payments': ChapaTransaction.objects.filter(
+                status='success',
+                paid_at__gte=this_month
+            ).count(),
+            'total_payment_amount': ChapaTransaction.objects.filter(
+                status='success'
+            ).aggregate(total=Sum('amount'))['total'] or 0,
+            'monthly_payment_amount': ChapaTransaction.objects.filter(
+                status='success',
+                paid_at__gte=this_month
+            ).aggregate(total=Sum('amount'))['total'] or 0,
+            'recent_payments': ChapaTransaction.objects.filter(
+                status='success'
+            ).select_related('supplier').order_by('-paid_at')[:5]
+        }
+    except:
+        payment_stats = {
+            'total_payments': 0,
+            'monthly_payments': 0,
+            'total_payment_amount': 0,
+            'monthly_payment_amount': 0,
+            'recent_payments': []
+        }
+
     context = {
         'stores': stores,
         'pending_restock_requests': pending_restock_requests,
         'pending_transfer_requests': pending_transfer_requests,
         'recent_restock_requests': recent_restock_requests,
         'recent_transfer_requests': recent_transfer_requests,
+        'payment_stats': payment_stats,
     }
 
     return render(request, 'mainpages/head_manager_page.html', context)
@@ -2146,3 +2183,138 @@ def analytics_api(request):
         })
 
     return JsonResponse({'error': 'Invalid chart type'}, status=400)
+
+
+@login_required
+def transaction_history(request):
+    """
+    Display comprehensive transaction history including payment transactions
+    """
+    from transactions.models import Transaction, SupplierTransaction
+    from payments.models import ChapaTransaction
+    from django.core.paginator import Paginator
+
+    # Get search and filter parameters
+    search_query = request.GET.get('search', '')
+    transaction_type = request.GET.get('type', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+
+    # Combine different transaction types
+    transactions = []
+
+    # Get regular transactions
+    regular_transactions = Transaction.objects.all()
+    if search_query:
+        regular_transactions = regular_transactions.filter(
+            Q(store__name__icontains=search_query) |
+            Q(payment_type__icontains=search_query)
+        )
+    if transaction_type and transaction_type != 'payment':
+        regular_transactions = regular_transactions.filter(transaction_type=transaction_type)
+
+    for trans in regular_transactions:
+        transactions.append({
+            'id': f"T-{trans.id}",
+            'type': trans.transaction_type,
+            'amount': trans.total_amount,
+            'date': trans.timestamp,
+            'description': f"{trans.transaction_type.title()} at {trans.store.name}",
+            'payment_method': trans.payment_type,
+            'status': 'completed',
+            'source': 'transaction'
+        })
+
+    # Get supplier transactions
+    try:
+        supplier_transactions = SupplierTransaction.objects.all()
+        if search_query:
+            supplier_transactions = supplier_transactions.filter(
+                Q(supplier_account__supplier__name__icontains=search_query) |
+                Q(description__icontains=search_query) |
+                Q(reference_number__icontains=search_query)
+            )
+
+        for trans in supplier_transactions:
+            transactions.append({
+                'id': f"ST-{trans.id}",
+                'type': trans.transaction_type,
+                'amount': trans.amount,
+                'date': trans.created_at,
+                'description': trans.description,
+                'payment_method': 'supplier_account',
+                'status': trans.status,
+                'source': 'supplier_transaction',
+                'supplier': trans.supplier_account.supplier.name
+            })
+    except:
+        pass  # SupplierTransaction model might not exist yet
+
+    # Get payment transactions
+    if not transaction_type or transaction_type == 'payment':
+        try:
+            payment_transactions = ChapaTransaction.objects.filter(status='success')
+            if search_query:
+                payment_transactions = payment_transactions.filter(
+                    Q(chapa_tx_ref__icontains=search_query) |
+                    Q(customer_first_name__icontains=search_query) |
+                    Q(customer_last_name__icontains=search_query) |
+                    Q(supplier__name__icontains=search_query)
+                )
+
+            for trans in payment_transactions:
+                transactions.append({
+                    'id': trans.chapa_tx_ref,
+                    'type': 'payment',
+                    'amount': trans.amount,
+                    'date': trans.paid_at or trans.created_at,
+                    'description': f"Payment to {trans.supplier.name}",
+                    'payment_method': 'chapa_gateway',
+                    'status': trans.status,
+                    'source': 'payment',
+                    'supplier': trans.supplier.name,
+                    'customer': f"{trans.customer_first_name} {trans.customer_last_name}"
+                })
+        except:
+            pass  # ChapaTransaction model might not be accessible
+
+    # Apply date filters
+    if date_from:
+        try:
+            date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+            transactions = [t for t in transactions if t['date'].date() >= date_from_obj]
+        except ValueError:
+            pass
+
+    if date_to:
+        try:
+            date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
+            transactions = [t for t in transactions if t['date'].date() <= date_to_obj]
+        except ValueError:
+            pass
+
+    # Sort by date (newest first)
+    transactions.sort(key=lambda x: x['date'], reverse=True)
+
+    # Paginate
+    paginator = Paginator(transactions, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Calculate totals
+    total_amount = sum(t['amount'] for t in transactions)
+    payment_total = sum(t['amount'] for t in transactions if t['type'] == 'payment')
+
+    context = {
+        'transactions': page_obj,
+        'search_query': search_query,
+        'transaction_type': transaction_type,
+        'date_from': date_from,
+        'date_to': date_to,
+        'total_amount': total_amount,
+        'payment_total': payment_total,
+        'total_count': len(transactions),
+        'page_title': 'Transaction History'
+    }
+
+    return render(request, 'users/transaction_history.html', context)

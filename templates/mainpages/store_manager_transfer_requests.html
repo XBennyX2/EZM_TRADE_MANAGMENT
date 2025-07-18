@@ -268,7 +268,7 @@
     <!-- Requests Table -->
     <div class="ezm-card">
         <div class="card-body">
-            {% if page_obj %}
+            {% if page_obj.object_list %}
             <div class="table-responsive">
                 <table class="table table-hover">
                     <thead>
@@ -329,6 +329,16 @@
                                     <button class="btn btn-danger btn-sm"
                                         onclick="declineTransferRequest({{ request.id }}, '{{ request.request_number }}')">
                                         <i class="bi bi-x-lg"></i> Decline
+                                    </button>
+                                {% elif request.to_store.store_manager == user and request.status == 'approved' %}
+                                    <!-- Incoming approved request - receiving store can mark as completed -->
+                                    <button class="btn btn-primary btn-sm me-1"
+                                        onclick="completeTransferRequest({{ request.id }}, '{{ request.request_number }}', '{{ request.product.name }}', {{ request.requested_quantity }}, '{{ request.from_store.name }}')">
+                                        <i class="bi bi-check2-all"></i> Mark as Completed
+                                    </button>
+                                    <button class="btn btn-outline-primary btn-sm"
+                                        onclick="viewTransferDetails({{request.id}})">
+                                        <i class="bi bi-eye"></i> View
                                     </button>
                                 {% else %}
                                     <!-- Outgoing request or already processed -->
@@ -574,6 +584,19 @@
         const modal = new bootstrap.Modal(document.getElementById('transferDeclineModal'));
         modal.show();
     }
+
+    function completeTransferRequest(requestId, requestNumber, productName, requestedQty, fromStore) {
+        document.getElementById('completion-request-number').textContent = requestNumber;
+        document.getElementById('completion-product-name').textContent = productName;
+        document.getElementById('completion-requested-qty').textContent = requestedQty;
+        document.getElementById('completion-from-store').textContent = fromStore;
+
+        const form = document.getElementById('transferCompletionForm');
+        form.action = '{% url "complete_store_transfer_request" 0 %}'.replace('0', requestId);
+
+        const modal = new bootstrap.Modal(document.getElementById('transferCompletionModal'));
+        modal.show();
+    }
 </script>
 
 <!-- Transfer Request Approval Modal -->
@@ -633,6 +656,42 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-danger">Decline Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Transfer Request Completion Modal -->
+<div class="modal fade" id="transferCompletionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Mark Transfer as Completed</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" id="transferCompletionForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <strong>Request:</strong> <span id="completion-request-number"></span><br>
+                        <strong>Product:</strong> <span id="completion-product-name"></span><br>
+                        <strong>Quantity:</strong> <span id="completion-requested-qty"></span><br>
+                        <strong>From Store:</strong> <span id="completion-from-store"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label for="completion_notes" class="form-label">Completion Notes (Optional)</label>
+                        <textarea class="form-control" id="completion_notes" name="completion_notes" rows="3" placeholder="Add any notes about the completion of this transfer..."></textarea>
+                        <div class="form-text">You can add notes about when and how the products were received.</div>
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Confirm:</strong> By marking this request as completed, you confirm that your store has received the requested products.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Mark as Completed</button>
                 </div>
             </form>
         </div>

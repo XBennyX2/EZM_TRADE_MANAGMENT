@@ -37,4 +37,5 @@ urlpatterns = [
     # Store Manager Transfer Request Approval URLs
     path('manager/approve-transfer-request/<int:request_id>/', views.approve_store_transfer_request, name='approve_store_transfer_request'),
     path('manager/decline-transfer-request/<int:request_id>/', views.decline_store_transfer_request, name='decline_store_transfer_request'),
+    path('manager/complete-transfer-request/<int:request_id>/', views.complete_store_transfer_request, name='complete_store_transfer_request'),
 ]

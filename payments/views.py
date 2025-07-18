@@ -192,6 +192,15 @@ def payment_success(request):
 
                 order_payment.update_status_from_payment()
 
+            # Create transaction records for successful payment
+            from .transaction_service import PaymentTransactionService
+            transaction_result = PaymentTransactionService.create_transaction_from_payment(transaction)
+
+            if transaction_result['success']:
+                logger.info(f"Transaction records created for payment {tx_ref}")
+            else:
+                logger.error(f"Failed to create transaction records for payment {tx_ref}: {transaction_result.get('error')}")
+
             # Log payment completion for payment history
             logger.info(f"Payment completed successfully: {tx_ref} - Amount: {transaction.amount} ETB - Supplier: {transaction.supplier.name} - Customer: {request.user.get_full_name() or request.user.username}")
 
@@ -253,32 +262,41 @@ def payment_completed(request, tx_ref):
     """
     Display payment completed page with transaction details and order summary
     """
-    try:
-        # Get the transaction
-        transaction = ChapaTransaction.objects.get(chapa_tx_ref=tx_ref, user=request.user)
+    from .transaction_service import PaymentTransactionService
 
-        # Ensure the transaction is successful
-        if transaction.status != 'success':
-            messages.error(request, 'Payment not completed yet.')
+    try:
+        # Process payment completion and create transaction records
+        result = PaymentTransactionService.process_payment_completion(tx_ref, request.user)
+
+        if not result['success']:
+            messages.error(request, f"Payment processing error: {result['error']}")
             return redirect('payment_status', tx_ref=tx_ref)
+
+        # Get the processed data
+        chapa_transaction = result['chapa_transaction']
+        display_data = result['display_data']
+        transaction_result = result['transaction_result']
 
         # Get order items if available
         order_items = []
-        if hasattr(transaction, 'purchase_order_payment'):
-            order_payment = transaction.purchase_order_payment
-            # order_items is a JSONField, so it's already a list/dict
+        if hasattr(chapa_transaction, 'purchase_order_payment'):
+            order_payment = chapa_transaction.purchase_order_payment
             order_items = order_payment.order_items or []
 
         context = {
-            'transaction': transaction,
+            'transaction': chapa_transaction,
+            'display_data': display_data,
             'order_items': order_items,
+            'transaction_created': transaction_result.get('success', False),
+            'transaction_record': transaction_result.get('transaction'),
             'page_title': 'Payment Completed'
         }
 
         return render(request, 'payments/payment_completed.html', context)
 
-    except ChapaTransaction.DoesNotExist:
-        messages.error(request, 'Transaction not found.')
+    except Exception as e:
+        logger.error(f"Error in payment_completed view: {str(e)}")
+        messages.error(request, 'An error occurred while processing your payment. Please contact support.')
         return redirect('payment_history')
 
 

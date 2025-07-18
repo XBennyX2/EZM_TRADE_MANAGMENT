@@ -12,6 +12,7 @@ from weasyprint import HTML  # Make sure you have WeasyPrint installed
 from django.contrib import messages
 from django.utils import timezone
 from decimal import Decimal
+from django.db import models
 import json
 
 @login_required
@@ -1217,6 +1218,79 @@ def decline_store_transfer_request(request, request_id):
 
 
 @login_required
+def complete_store_transfer_request(request, request_id):
+    """
+    Handle marking approved transfer requests as completed by the receiving store manager.
+    Only the receiving store manager (to_store) can mark approved requests as completed.
+    """
+    if request.user.role != 'store_manager':
+        messages.error(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
+    try:
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, "You are not assigned to manage any store.")
+        return redirect('store_manager_transfer_requests')
+
+    if request.method == 'POST':
+        from Inventory.models import StoreStockTransferRequest
+        from django.utils import timezone
+        import json
+
+        try:
+            # Get the transfer request - must be TO this store (destination) and approved
+            transfer_request = StoreStockTransferRequest.objects.get(
+                id=request_id,
+                to_store=store,  # This store is the destination (receiving store)
+                status='approved'
+            )
+
+            # Parse data
+            if request.content_type == 'application/json':
+                data = json.loads(request.body)
+                completion_notes = data.get('completion_notes', '').strip()
+            else:
+                completion_notes = request.POST.get('completion_notes', '').strip()
+
+            # Update request status to completed
+            transfer_request.status = 'completed'
+            transfer_request.review_notes = completion_notes or f"Transfer completed by {request.user.get_full_name() or request.user.username}"
+            transfer_request.reviewed_by = request.user
+            transfer_request.reviewed_date = timezone.now()
+            transfer_request.save()
+
+            # Success response
+            success_msg = f"Transfer request {transfer_request.request_number} marked as completed successfully."
+
+            if request.content_type == 'application/json':
+                return JsonResponse({
+                    'success': True,
+                    'message': success_msg,
+                    'request_number': transfer_request.request_number,
+                    'status': transfer_request.status
+                })
+
+            messages.success(request, success_msg)
+
+        except StoreStockTransferRequest.DoesNotExist:
+            error_msg = "Transfer request not found, not approved, or you don't have permission to complete it."
+            if request.content_type == 'application/json':
+                return JsonResponse({'success': False, 'error': error_msg})
+            messages.error(request, error_msg)
+
+        except Exception as e:
+            error_msg = f"Error completing transfer request: {str(e)}"
+            if request.content_type == 'application/json':
+                return JsonResponse({'success': False, 'error': error_msg})
+            messages.error(request, error_msg)
+
+        return redirect('store_manager_transfer_requests')
+
+    return redirect('store_manager_transfer_requests')
+
+
+@login_required
 def get_cart_status(request):
     """
     Get current cart status (AJAX endpoint)
@@ -1568,10 +1642,55 @@ def manage_cashiers(request):
 @login_required
 def store_product_list(request):
     """
-    List all products available in the store.
+    List products available in the specific store manager's store with search functionality.
     """
-    products = Product.objects.all()
+    # Ensure user is a store manager
+    if request.user.role != 'store_manager':
+        messages.error(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
+    try:
+        # Get the store managed by the current user
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, "You are not assigned to manage any store.")
+        return redirect('store_manager_page')
+
+    # Get search term from request
+    search_term = request.GET.get('search', '').strip()
+
+    # Get stock items for this specific store
+    from Inventory.models import Stock
+    stock_queryset = Stock.objects.filter(store=store).select_related('product')
+
+    # Apply search filter if provided
+    if search_term:
+        stock_queryset = stock_queryset.filter(
+            models.Q(product__name__icontains=search_term) |
+            models.Q(product__category__icontains=search_term) |
+            models.Q(product__description__icontains=search_term) |
+            models.Q(product__batch_number__icontains=search_term)
+        )
+
+    # Order by product name for consistent display
+    stock_queryset = stock_queryset.order_by('product__name')
+
+    # Prepare product data with stock information
+    product_data = []
+    for stock in stock_queryset:
+        product_data.append({
+            'product': stock.product,
+            'quantity': stock.quantity,
+            'selling_price': stock.selling_price,
+            'low_stock_threshold': stock.low_stock_threshold,
+            'is_low_stock': stock.quantity <= stock.low_stock_threshold,
+            'stock_id': stock.id
+        })
+
     context = {
-        'products': products
+        'product_data': product_data,
+        'search_term': search_term,
+        'store': store,
+        'total_products': len(product_data)
     }
     return render(request, 'store/product_list.html', context)

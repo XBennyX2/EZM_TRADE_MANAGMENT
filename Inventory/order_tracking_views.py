@@ -30,6 +30,95 @@ logger = logging.getLogger(__name__)
 
 @login_required
 @user_passes_test(is_head_manager)
+def order_tracking_dashboard(request):
+    """
+    Order tracking dashboard for Head Managers
+    """
+    # Get filter parameters
+    status_filter = request.GET.get('status', '')
+    supplier_filter = request.GET.get('supplier', '')
+    search_query = request.GET.get('search', '')
+
+    # Base queryset
+    orders = PurchaseOrder.objects.all().select_related('supplier', 'created_by')
+
+    # Apply filters
+    if status_filter:
+        orders = orders.filter(status=status_filter)
+    if supplier_filter:
+        orders = orders.filter(supplier_id=supplier_filter)
+    if search_query:
+        orders = orders.filter(
+            Q(order_number__icontains=search_query) |
+            Q(supplier__name__icontains=search_query) |
+            Q(payment_reference__icontains=search_query)
+        )
+
+    # Order by most recent
+    orders = orders.order_by('-created_date')
+
+    # Get statistics
+    stats = {
+        'total_orders': PurchaseOrder.objects.count(),
+        'payment_confirmed': PurchaseOrder.objects.filter(status='payment_confirmed').count(),
+        'in_transit': PurchaseOrder.objects.filter(status='in_transit').count(),
+        'delivered': PurchaseOrder.objects.filter(status='delivered').count(),
+        'issues_reported': PurchaseOrder.objects.filter(status='issue_reported').count(),
+    }
+
+    # Get suppliers for filter dropdown
+    from Inventory.models import Supplier
+    suppliers = Supplier.objects.filter(is_active=True).order_by('name')
+
+    context = {
+        'orders': orders,
+        'stats': stats,
+        'suppliers': suppliers,
+        'status_filter': status_filter,
+        'supplier_filter': supplier_filter,
+        'search_query': search_query,
+        'page_title': 'Order Tracking Dashboard'
+    }
+
+    return render(request, 'inventory/order_tracking_dashboard.html', context)
+
+
+@login_required
+@user_passes_test(is_head_manager)
+def order_tracking_detail(request, order_id):
+    """
+    Detailed view of a specific order for tracking
+    """
+    order = get_object_or_404(PurchaseOrder, id=order_id)
+
+    # Get order history
+    status_history = OrderStatusHistory.objects.filter(
+        purchase_order=order
+    ).order_by('-changed_at')
+
+    # Get delivery confirmation if exists
+    delivery_confirmation = None
+    try:
+        delivery_confirmation = DeliveryConfirmation.objects.get(purchase_order=order)
+    except DeliveryConfirmation.DoesNotExist:
+        pass
+
+    # Get issue reports if any
+    issue_reports = IssueReport.objects.filter(purchase_order=order).order_by('-reported_at')
+
+    context = {
+        'order': order,
+        'status_history': status_history,
+        'delivery_confirmation': delivery_confirmation,
+        'issue_reports': issue_reports,
+        'page_title': f'Order Tracking - {order.order_number}'
+    }
+
+    return render(request, 'inventory/order_tracking_detail.html', context)
+
+
+@login_required
+@user_passes_test(is_head_manager)
 def purchase_order_details_api(request, order_id):
     """
     API endpoint to get purchase order details for modals

@@ -293,15 +293,41 @@
             </h3>
             <div class="detail-item">
                 <span class="detail-label">Transaction ID:</span>
-                <span class="detail-value">{{ transaction.chapa_tx_ref }}</span>
+                <span class="detail-value">{{ display_data.transaction_id|default:transaction.chapa_tx_ref }}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Customer Name:</span>
+                <span class="detail-value">
+                    {% if display_data.customer_name %}
+                    {{ display_data.customer_name }}
+                    {% else %}
+                    {{ transaction.customer_first_name }} {{ transaction.customer_last_name }}
+                    {% endif %}
+                </span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Customer Email:</span>
+                <span class="detail-value">
+                    {% if display_data.customer_email %}
+                    {{ display_data.customer_email }}
+                    {% else %}
+                    {{ transaction.customer_email }}
+                    {% endif %}
+                </span>
             </div>
             <div class="detail-item">
                 <span class="detail-label">Payment Date:</span>
-                <span class="detail-value">{{ transaction.paid_at|date:"M d, Y - H:i" }}</span>
+                <span class="detail-value">
+                    {% if display_data.payment_date %}
+                    {{ display_data.payment_date|date:"M d, Y - H:i" }}
+                    {% else %}
+                    {{ transaction.paid_at|date:"M d, Y - H:i" }}
+                    {% endif %}
+                </span>
             </div>
             <div class="detail-item">
                 <span class="detail-label">Payment Method:</span>
-                <span class="detail-value">Chapa Payment Gateway</span>
+                <span class="detail-value">{{ display_data.payment_method|default:"Chapa Payment Gateway" }}</span>
             </div>
             <div class="detail-item">
                 <span class="detail-label">Status:</span>
@@ -320,20 +346,52 @@
             </h3>
             <div class="detail-item">
                 <span class="detail-label">Supplier:</span>
-                <span class="detail-value">{{ transaction.supplier.name }}</span>
+                <span class="detail-value">
+                    {% if display_data.supplier_name %}
+                    {{ display_data.supplier_name }}
+                    {% else %}
+                    {{ transaction.supplier.name }}
+                    {% endif %}
+                </span>
             </div>
             <div class="detail-item">
                 <span class="detail-label">Total Amount:</span>
-                <span class="detail-value">ETB {{ transaction.amount|floatformat:2 }}</span>
+                <span class="detail-value">
+                    ETB {% if display_data.amount %}{{ display_data.amount|floatformat:2 }}{% else %}{{
+                    transaction.amount|floatformat:2 }}{% endif %}
+                </span>
             </div>
             <div class="detail-item">
                 <span class="detail-label">Currency:</span>
-                <span class="detail-value">{{ transaction.currency }}</span>
+                <span class="detail-value">
+                    {% if display_data.currency %}
+                    {{ display_data.currency }}
+                    {% else %}
+                    {{ transaction.currency }}
+                    {% endif %}
+                </span>
             </div>
             <div class="detail-item">
                 <span class="detail-label">Order Date:</span>
-                <span class="detail-value">{{ transaction.created_at|date:"M d, Y - H:i" }}</span>
+                <span class="detail-value">
+                    {% if display_data.order_date %}
+                    {{ display_data.order_date|date:"M d, Y - H:i" }}
+                    {% else %}
+                    {{ transaction.created_at|date:"M d, Y - H:i" }}
+                    {% endif %}
+                </span>
             </div>
+            {% if transaction_created %}
+            <div class="detail-item">
+                <span class="detail-label">Transaction Record:</span>
+                <span class="detail-value">
+                    <span class="status-badge status-success">
+                        <i class="fas fa-database"></i>
+                        Created Successfully
+                    </span>
+                </span>
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -357,7 +415,10 @@
             <div class="item-info">
                 <div class="item-name">Total Amount</div>
             </div>
-            <div class="detail-value">ETB {{ transaction.amount|floatformat:2 }}</div>
+            <div class="detail-value">
+                ETB {% if display_data.amount %}{{ display_data.amount|floatformat:2 }}{% else %}{{
+                transaction.amount|floatformat:2 }}{% endif %}
+            </div>
         </div>
     </div>
     {% endif %}

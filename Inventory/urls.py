@@ -90,4 +90,10 @@ urlpatterns = [
     path('movement-history/<int:product_id>/', fifo_views.inventory_movement_history, name='inventory_movement_history'),
     path('api/fifo-product/<str:product_name>/', fifo_views.get_fifo_product_info, name='get_fifo_product_info'),
     path('batch-management/', fifo_views.batch_management_view, name='batch_management_view'),
+
+    # Order Tracking URLs
+    path('order-tracking/', order_tracking_views.order_tracking_dashboard, name='order_tracking_dashboard'),
+    path('orders/<int:order_id>/confirm-delivery/', order_tracking_views.confirm_delivery, name='confirm_delivery'),
+    path('orders/<int:order_id>/report-issue/', order_tracking_views.report_delivery_issue, name='report_delivery_issue'),
+    path('orders/<int:order_id>/tracking/', order_tracking_views.order_tracking_detail, name='order_tracking_detail'),
 ]

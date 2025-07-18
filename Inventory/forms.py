@@ -206,13 +206,24 @@ class PurchaseOrderItemForm(forms.ModelForm):
     def __init__(self, *args, supplier=None, **kwargs):
         super().__init__(*args, **kwargs)
         if supplier:
-            # Only show products from the selected supplier
+            # Only show products from the selected supplier with stock
             self.fields['warehouse_product'].queryset = WarehouseProduct.objects.filter(
                 supplier=supplier,
-                is_active=True
+                is_active=True,
+                quantity_in_stock__gt=0
             )
         else:
-            self.fields['warehouse_product'].queryset = WarehouseProduct.objects.filter(is_active=True)
+            self.fields['warehouse_product'].queryset = WarehouseProduct.objects.filter(
+                is_active=True,
+                quantity_in_stock__gt=0
+            )
+
+        # Customize the display of warehouse products to show unique identifiers
+        self.fields['warehouse_product'].label_from_instance = self.label_from_instance
+
+    def label_from_instance(self, obj):
+        """Custom label to show product name with unique identifier"""
+        return f"{obj.product_name} - [{obj.product_id}] (Stock: {obj.quantity_in_stock})"
 
 
 # Formset for handling multiple purchase order items
@@ -425,6 +436,25 @@ class SupplierProductForm(forms.ModelForm):
     """
     Form for suppliers to add/edit products in their catalog.
     """
+    # Product name dropdown from warehouse inventory
+    product_name = forms.ChoiceField(
+        choices=[],
+        required=True,
+        widget=forms.Select(attrs={
+            'class': 'form-control product-name-select',
+            'id': 'product_name_select',
+            'data-placeholder': 'Select a product name...'
+        }),
+        help_text="Select a product name from the warehouse inventory to prevent spelling errors"
+    )
+
+    # Hidden field to store the selected warehouse product
+    warehouse_product = forms.ModelChoiceField(
+        queryset=WarehouseProduct.objects.none(),
+        required=False,
+        widget=forms.HiddenInput()
+    )
+
     category_choice = forms.ChoiceField(
         choices=[],
         required=True,
@@ -445,6 +475,35 @@ class SupplierProductForm(forms.ModelForm):
         self.supplier = kwargs.pop('supplier', None)
         super().__init__(*args, **kwargs)
 
+        # Populate product name dropdown from warehouse inventory
+        if self.supplier:
+            # Show products from warehouse that are available and not already in supplier's catalog
+            existing_products = SupplierProduct.objects.filter(
+                supplier=self.supplier
+            ).values_list('warehouse_product_id', flat=True)
+
+            available_products = WarehouseProduct.objects.filter(
+                is_active=True,
+                quantity_in_stock__gt=0
+            ).exclude(id__in=existing_products)
+        else:
+            # Show all available warehouse products
+            available_products = WarehouseProduct.objects.filter(
+                is_active=True,
+                quantity_in_stock__gt=0
+            )
+
+        # Create product name choices from warehouse products
+        product_name_choices = [('', 'Select a product name...')]
+        for product in available_products.order_by('product_name'):
+            # Use product name as both value and display
+            product_name_choices.append((product.product_name, product.product_name))
+
+        self.fields['product_name'].choices = product_name_choices
+
+        # Set the warehouse product queryset for the hidden field
+        self.fields['warehouse_product'].queryset = available_products
+
         # Populate category choices
         categories = ProductCategory.objects.filter(is_active=True).order_by('name')
         category_choices = [('', 'Select a category')]
@@ -456,6 +515,13 @@ class SupplierProductForm(forms.ModelForm):
         # Set default currency to ETB
         self.fields['currency'].initial = 'ETB'
         self.fields['currency'].required = False
+
+        # If editing existing product, set the current product name as selected
+        if self.instance and self.instance.pk:
+            if self.instance.product_name:
+                self.fields['product_name'].initial = self.instance.product_name
+            if self.instance.warehouse_product:
+                self.fields['warehouse_product'].initial = self.instance.warehouse_product
 
         # Set initial value if editing existing product
         if self.instance and self.instance.pk and hasattr(self.instance, 'category'):
@@ -479,6 +545,13 @@ class SupplierProductForm(forms.ModelForm):
     class Meta:
         model = SupplierProduct
         exclude = ['supplier', 'created_date', 'updated_date', 'category']
+
+        # Custom field ordering
+        field_order = [
+            'warehouse_product', 'product_name', 'product_code', 'description',
+            'category_choice', 'custom_category', 'subcategory', 'unit_price',
+            'currency', 'minimum_order_quantity', 'maximum_order_quantity'
+        ]
 
         widgets = {
             # Product Information
@@ -575,6 +648,35 @@ class SupplierProductForm(forms.ModelForm):
         category_choice = cleaned_data.get('category_choice')
         custom_category = cleaned_data.get('custom_category')
         product_code = cleaned_data.get('product_code')
+        product_name = cleaned_data.get('product_name')
+
+        # Ensure product name is selected to prevent spelling errors
+        if not product_name:
+            raise forms.ValidationError(
+                "You must select a product name from the dropdown. "
+                "This prevents spelling errors and ensures product consistency."
+            )
+
+        # Find the corresponding warehouse product for the selected product name
+        try:
+            warehouse_product = WarehouseProduct.objects.get(
+                product_name=product_name,
+                is_active=True,
+                quantity_in_stock__gt=0
+            )
+            cleaned_data['warehouse_product'] = warehouse_product
+        except WarehouseProduct.DoesNotExist:
+            raise forms.ValidationError(
+                f"Product '{product_name}' not found in warehouse inventory or out of stock."
+            )
+        except WarehouseProduct.MultipleObjectsReturned:
+            # If multiple products have the same name, get the first one
+            warehouse_product = WarehouseProduct.objects.filter(
+                product_name=product_name,
+                is_active=True,
+                quantity_in_stock__gt=0
+            ).first()
+            cleaned_data['warehouse_product'] = warehouse_product
 
         # Handle category validation
         if category_choice == 'other':
@@ -623,6 +725,25 @@ class SupplierProductForm(forms.ModelForm):
 
     def save(self, commit=True):
         instance = super().save(commit=False)
+
+        # Get the warehouse product from cleaned data (set in clean method)
+        if hasattr(self, 'cleaned_data') and 'warehouse_product' in self.cleaned_data:
+            warehouse_product = self.cleaned_data['warehouse_product']
+            if warehouse_product:
+                # Ensure product name matches exactly (already validated in clean method)
+                instance.product_name = warehouse_product.product_name
+
+                # Auto-populate other fields if not provided
+                if not instance.product_code:
+                    instance.product_code = warehouse_product.product_id
+                if not instance.description:
+                    instance.description = f"Product from warehouse inventory - {warehouse_product.product_name}"
+                if not instance.unit_price:
+                    instance.unit_price = warehouse_product.unit_price
+
+                # Set the warehouse product reference
+                instance.warehouse_product = warehouse_product
+
         # Set the category from cleaned data
         if hasattr(self, 'cleaned_data') and 'category' in self.cleaned_data:
             instance.category = self.cleaned_data['category']
@@ -726,6 +847,16 @@ class PurchaseRequestItemForm(forms.ModelForm):
             )
         else:
             self.fields['supplier_product'].queryset = SupplierProduct.objects.none()
+
+        # Customize the display of supplier products to show unique identifiers
+        self.fields['supplier_product'].label_from_instance = self.label_from_instance
+
+    def label_from_instance(self, obj):
+        """Custom label to show product name with unique identifier"""
+        warehouse_info = ""
+        if obj.warehouse_product:
+            warehouse_info = f" - [{obj.warehouse_product.product_id}]"
+        return f"{obj.product_name}{warehouse_info} (Code: {obj.product_code})"
 
 
 # Formset for Purchase Request Items

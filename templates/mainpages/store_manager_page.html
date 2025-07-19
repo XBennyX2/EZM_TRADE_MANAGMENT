@@ -16,7 +16,7 @@
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         border: none;
         transition: all 0.3s ease;
-        height: 100%;
+        height: 50%;
     }
 
     .dashboard-card:hover {
@@ -133,159 +133,287 @@
 
     <!-- Sales Analytics Row -->
     <div class="row mb-4">
-        <div class="col-md-3">
+        <div class="col-xl-3 col-md-6 mb-3">
             <div class="stat-card">
-                <h3>${{ total_sales_30_days.total_amount|default:0|floatformat:2 }}</h3>
-                <p>Sales (30 Days)</p>
-                <small>{{ total_sales_30_days.total_transactions|default:0 }} transactions</small>
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h3 class="mb-1">ETB {{ total_sales_30_days.total_amount|default:0|floatformat:2 }}</h3>
+                        <p class="mb-0">Sales (30 Days)</p>
+                        <small class="opacity-75">{{ total_sales_30_days.total_transactions|default:0 }}
+                            transactions</small>
+                    </div>
+                    <div class="ms-3">
+                        <i class="bi bi-graph-up fs-1 opacity-75"></i>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-xl-3 col-md-6 mb-3">
             <div class="stat-card">
-                <h3>${{ total_sales_7_days.total_amount|default:0|floatformat:2 }}</h3>
-                <p>Sales (7 Days)</p>
-                <small>{{ total_sales_7_days.total_transactions|default:0 }} transactions</small>
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h3 class="mb-1">ETB {{ total_sales_7_days.total_amount|default:0|floatformat:2 }}</h3>
+                        <p class="mb-0">Sales (7 Days)</p>
+                        <small class="opacity-75">{{ total_sales_7_days.total_transactions|default:0 }}
+                            transactions</small>
+                    </div>
+                    <div class="ms-3">
+                        <i class="bi bi-calendar-week fs-1 opacity-75"></i>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="stat-card">
-                <h3>{{ low_stock_items|length }}</h3>
-                <p>Low Stock Alerts</p>
-                <small>Items below threshold</small>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="stat-card {% if low_stock_items|length > 0 %}bg-warning text-dark{% endif %}">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h3 class="mb-1">{{ low_stock_items|length }}</h3>
+                        <p class="mb-0">Low Stock Alerts</p>
+                        <small class="opacity-75">Items below threshold</small>
+                    </div>
+                    <div class="ms-3">
+                        <i class="bi bi-exclamation-triangle fs-1 opacity-75"></i>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="stat-card">
-                <h3>{{ pending_restock_count|add:pending_transfer_count }}</h3>
-                <p>Pending Requests</p>
-                <small>{{ pending_restock_count }} restock, {{ pending_transfer_count }} transfer</small>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div
+                class="stat-card {% if pending_restock_count|add:pending_transfer_count > 0 %}bg-info text-white{% endif %}">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h3 class="mb-1">{{ pending_restock_count|add:pending_transfer_count }}</h3>
+                        <p class="mb-0">Pending Requests</p>
+                        <small class="opacity-75">{{ pending_restock_count }} restock, {{ pending_transfer_count }}
+                            transfer</small>
+                    </div>
+                    <div class="ms-3">
+                        <i class="bi bi-clock-history fs-1 opacity-75"></i>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Main Content Row -->
     <div class="row">
-        <!-- Left Column -->
-        <div class="col-lg-8">
+        <!-- Left Column - 50% Width -->
+        <div class="col-lg-6">
             <!-- Most Sold Products -->
             <div class="dashboard-card mb-4">
-                <div class="card-body">
-                    <h5 class="card-title mb-3">
-                        <i class="bi bi-graph-up text-success me-2"></i>
-                        Most Sold Products (30 Days)
-                    </h5>
+                <div class="card-header bg-light border-0">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <h5 class="mb-0">
+                            <i class="bi bi-graph-up text-success me-2"></i>
+                            Top Selling Products
+                        </h5>
+                        <div>
+                            <span class="badge bg-success me-2">{{ most_sold_products|length }} items</span>
+                            <a href="#" class="btn btn-sm btn-outline-primary">View All</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
                     {% if most_sold_products %}
                     <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
+                        <table class="table table-hover mb-0 table-sm">
+                            <thead class="table-light">
                                 <tr>
-                                    <th>Product</th>
-                                    <th>Quantity Sold</th>
-                                    <th>Revenue</th>
+                                    <th class="border-0 ps-3" style="width: 40%;">Product</th>
+                                    <th class="border-0 text-center" style="width: 20%;">Qty</th>
+                                    <th class="border-0 text-center" style="width: 25%;">Revenue</th>
+                                    <th class="border-0 text-center" style="width: 15%;">Trend</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for product in most_sold_products %}
+                                {% for product in most_sold_products|slice:":5" %}
                                 <tr>
-                                    <td>{{ product.product__name }}</td>
-                                    <td>{{ product.total_quantity }}</td>
-                                    <td>${{ product.total_revenue|floatformat:2 }}</td>
+                                    <td class="ps-3 py-2">
+                                        <div class="d-flex align-items-center">
+                                            <div>
+                                                <strong class="d-block">{{ product.product__name|truncatechars:25
+                                                    }}</strong>
+                                                <small class="text-muted">Last 30 days</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center py-2">
+                                        <span class="badge bg-primary">{{ product.total_quantity }}</span>
+                                    </td>
+                                    <td class="text-center py-2">
+                                        <strong class="text-success">ETB {{ product.total_revenue|floatformat:0
+                                            }}</strong>
+                                    </td>
+                                    <td class="text-center py-2">
+                                        <div class="progress" style="height: 6px; width: 100%;">
+                                            <div class="progress-bar bg-success"
+                                                style="width: {% widthratio product.total_quantity most_sold_products.0.total_quantity 100 %}%">
+                                            </div>
+                                        </div>
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
+                    {% if most_sold_products|length > 5 %}
+                    <div class="card-footer bg-light border-0 text-center py-2">
+                        <small class="text-muted">Showing top 5 of {{ most_sold_products|length }} products</small>
+                    </div>
+                    {% endif %}
                     {% else %}
-                    <p class="text-muted">No sales data available for the last 30 days.</p>
+                    <div class="text-center py-4">
+                        <i class="bi bi-graph-down text-muted" style="font-size: 2rem;"></i>
+                        <p class="text-muted mt-2 mb-0">No sales data available</p>
+                    </div>
                     {% endif %}
                 </div>
             </div>
 
             <!-- Recent Transactions -->
             <div class="dashboard-card mb-4">
-                <div class="card-body">
-                    <h5 class="card-title mb-3">
-                        <i class="bi bi-clock-history text-primary me-2"></i>
-                        Recent Transactions
-                    </h5>
+                <div class="card-header bg-light border-0">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <h5 class="mb-0">
+                            <i class="bi bi-clock-history text-primary me-2"></i>
+                            Recent Transactions
+                        </h5>
+                        <div>
+                            <span class="badge bg-primary me-2">{{ recent_transactions|length }} recent</span>
+                            <a href="#" class="btn btn-sm btn-outline-primary">View All</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
                     {% if recent_transactions %}
                     <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
+                        <table class="table table-hover mb-0 table-sm">
+                            <thead class="table-light">
                                 <tr>
-                                    <th>Date</th>
-                                    <th>Type</th>
-                                    <th>Amount</th>
-                                    <th>Payment Method</th>
+                                    <th class="border-0 ps-3" style="width: 30%;">Date</th>
+                                    <th class="border-0 text-center" style="width: 20%;">Type</th>
+                                    <th class="border-0 text-center" style="width: 25%;">Amount</th>
+                                    <th class="border-0 text-center" style="width: 25%;">Payment</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for transaction in recent_transactions %}
+                                {% for transaction in recent_transactions|slice:":6" %}
                                 <tr>
-                                    <td>{{ transaction.timestamp|date:"M d, Y H:i" }}</td>
-                                    <td>
-                                        <span class="badge bg-success">{{ transaction.get_transaction_type_display
-                                            }}</span>
+                                    <td class="ps-3 py-2">
+                                        <div>
+                                            <strong class="d-block">{{ transaction.timestamp|date:"M d" }}</strong>
+                                            <small class="text-muted">{{ transaction.timestamp|date:"H:i" }}</small>
+                                        </div>
                                     </td>
-                                    <td>${{ transaction.total_amount|floatformat:2 }}</td>
-                                    <td>{{ transaction.get_payment_type_display }}</td>
+                                    <td class="text-center py-2">
+                                        <span class="badge bg-success">Sale</span>
+                                    </td>
+                                    <td class="text-center py-2">
+                                        <strong class="text-success">ETB {{ transaction.total_amount|floatformat:0
+                                            }}</strong>
+                                    </td>
+                                    <td class="text-center py-2">
+                                        <span class="badge bg-secondary">{{
+                                            transaction.get_payment_type_display|truncatechars:8 }}</span>
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
+                    {% if recent_transactions|length > 6 %}
+                    <div class="card-footer bg-light border-0 text-center py-2">
+                        <small class="text-muted">Showing last 6 of {{ recent_transactions|length }}
+                            transactions</small>
+                    </div>
+                    {% endif %}
                     {% else %}
-                    <p class="text-muted">No recent transactions.</p>
+                    <div class="text-center py-4">
+                        <i class="bi bi-receipt text-muted" style="font-size: 2rem;"></i>
+                        <p class="text-muted mt-2 mb-0">No recent transactions</p>
+                    </div>
                     {% endif %}
                 </div>
             </div>
         </div>
 
-        <!-- Right Column -->
-        <div class="col-lg-4">
+        <!-- Right Column - 50% Width -->
+        <div class="col-lg-6">
             <!-- Low Stock Alerts -->
             <div class="dashboard-card mb-4">
-                <div class="card-body">
-                    <h5 class="card-title mb-3">
-                        <i class="bi bi-exclamation-triangle text-warning me-2"></i>
-                        Low Stock Alerts
-                    </h5>
-                    {% if low_stock_items %}
-                    {% for stock in low_stock_items %}
-                    <div class="low-stock-alert">
-                        <strong>{{ stock.product.name }}</strong>
-                        <br>
-                        <small>Current: {{ stock.quantity }} | Threshold: {{ stock.low_stock_threshold }}</small>
-                        <button class="btn btn-sm btn-light float-end"
-                            onclick="openRestockModal({{ stock.product.id }}, '{{ stock.product.name }}', {{ stock.quantity }})">
-                            Request Restock
-                        </button>
+                <div class="card-header bg-warning bg-opacity-10 border-0">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <h5 class="mb-0 text-warning">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Low Stock Alerts
+                        </h5>
+                        <span class="badge bg-warning text-dark">{{ low_stock_items|length }}</span>
                     </div>
-                    {% endfor %}
+                </div>
+                <div class="card-body p-0" style="max-height: 300px; overflow-y: auto;">
+                    {% if low_stock_items %}
+                    <div class="list-group list-group-flush">
+                        {% for stock in low_stock_items|slice:":8" %}
+                        <div class="list-group-item border-0 px-3 py-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="flex-grow-1">
+                                    <strong class="d-block">{{ stock.product.name|truncatechars:20 }}</strong>
+                                    <small class="text-muted">
+                                        <span class="badge bg-danger">{{ stock.quantity }}</span> / {{
+                                        stock.low_stock_threshold }}
+                                    </small>
+                                </div>
+                                <button class="btn btn-sm btn-warning ms-2"
+                                    onclick="openRestockModal({{ stock.product.id }}, '{{ stock.product.name }}', {{ stock.quantity }})"
+                                    title="Request Restock">
+                                    <i class="bi bi-plus-circle"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% if low_stock_items|length > 8 %}
+                    <div class="card-footer bg-light border-0 text-center py-2">
+                        <small class="text-muted">Showing 8 of {{ low_stock_items|length }} low stock items</small>
+                    </div>
+                    {% endif %}
                     {% else %}
-                    <p class="text-muted">All products are adequately stocked.</p>
+                    <div class="text-center py-4">
+                        <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
+                        <p class="text-muted mt-2 mb-0">All products adequately stocked</p>
+                    </div>
                     {% endif %}
                 </div>
             </div>
 
             <!-- Quick Actions -->
             <div class="dashboard-card mb-4">
-                <div class="card-body">
-                    <h5 class="card-title mb-3">
+                <div class="card-header bg-light border-0">
+                    <h5 class="mb-0">
                         <i class="bi bi-lightning text-warning me-2"></i>
                         Quick Actions
                     </h5>
-                    <div class="d-grid gap-2">
-                        <button class="btn btn-ezm-primary" data-bs-toggle="modal" data-bs-target="#restockModal">
-                            <i class="bi bi-box-seam me-2"></i>Request Restock
-                        </button>
-                        <button class="btn btn-ezm-secondary" data-bs-toggle="modal" data-bs-target="#transferModal">
-                            <i class="bi bi-arrow-left-right me-2"></i>Request Transfer
-                        </button>
-                        <button class="btn btn-outline-primary" data-bs-toggle="modal"
-                            data-bs-target="#priceUpdateModal">
-                            <i class="bi bi-tag me-2"></i>Update Prices
-                        </button>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <button class="btn btn-ezm-primary w-100" data-bs-toggle="modal"
+                                data-bs-target="#restockModal">
+                                <i class="bi bi-box-seam me-2"></i>Request Restock
+                            </button>
+                        </div>
+                        <div class="col-12">
+                            <button class="btn btn-ezm-secondary w-100" data-bs-toggle="modal"
+                                data-bs-target="#transferModal">
+                                <i class="bi bi-arrow-left-right me-2"></i>Request Transfer
+                            </button>
+                        </div>
+                        <div class="col-12">
+                            <button class="btn btn-outline-primary w-100" data-bs-toggle="modal"
+                                data-bs-target="#priceUpdateModal">
+                                <i class="bi bi-tag me-2"></i>Update Prices
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -407,7 +535,8 @@
                         <select class="form-select" id="to_store_id" name="to_store_id" required disabled>
                             <option value="">First select a product</option>
                         </select>
-                        <div class="form-text" id="store-availability-text">Select a product to see which stores have it in stock</div>
+                        <div class="form-text" id="store-availability-text">Select a product to see which stores have it
+                            in stock</div>
                     </div>
                     <div class="mb-3">
                         <label for="transfer_quantity" class="form-label">Requested Quantity</label>
@@ -456,7 +585,7 @@
                             <option value="">Select a product</option>
                             {% for stock in current_stock %}
                             <option value="{{ stock.id }}" data-price="{{ stock.selling_price }}">{{ stock.product.name
-                                }} (Current: ${{ stock.selling_price }})</option>
+                                }} (Current: ETB {{ stock.selling_price }})</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -496,21 +625,21 @@
 
         if (selectedOption.value) {
             const currentPrice = selectedOption.getAttribute('data-price');
-            currentPriceDisplay.value = '$' + currentPrice;
+            currentPriceDisplay.value = 'ETB ' + currentPrice;
         } else {
             currentPriceDisplay.value = '';
         }
     }
 
     // Enhanced Transfer Request Logic
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const transferProductSelect = document.getElementById('transfer_product_id');
         const transferStoreSelect = document.getElementById('to_store_id');
         const storeAvailabilityText = document.getElementById('store-availability-text');
         const transferQuantityInput = document.getElementById('transfer_quantity');
 
         // Load available products when modal opens
-        document.getElementById('transferModal').addEventListener('show.bs.modal', function() {
+        document.getElementById('transferModal').addEventListener('show.bs.modal', function () {
             loadTransferProducts();
         });
 
@@ -539,7 +668,7 @@
         }
 
         // When product is selected, load stores that have it
-        transferProductSelect.addEventListener('change', function() {
+        transferProductSelect.addEventListener('change', function () {
             const productId = this.value;
 
             if (productId) {
@@ -586,7 +715,7 @@
         });
 
         // When store is selected, set max quantity
-        transferStoreSelect.addEventListener('change', function() {
+        transferStoreSelect.addEventListener('change', function () {
             const selectedOption = this.options[this.selectedIndex];
 
             if (selectedOption.value && transferQuantityInput) {

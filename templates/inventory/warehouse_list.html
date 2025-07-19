@@ -8,6 +8,63 @@
 {% include 'sidebar_navigation.html' %}
 {% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Enhanced Low Stock Indicators */
+    .stock-critical {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        color: white;
+        animation: pulse 2s infinite;
+        font-weight: bold;
+    }
+
+    .stock-warning {
+        background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
+        color: white;
+        animation: pulse 2s infinite;
+        font-weight: bold;
+    }
+
+    .stock-normal {
+        background: linear-gradient(135deg, #198754, #157347);
+        color: white;
+    }
+
+    @keyframes pulse {
+        0% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.7;
+        }
+
+        100% {
+            opacity: 1;
+        }
+    }
+
+    .low-stock-row {
+        background: linear-gradient(135deg, rgba(102, 252, 241, 0.1), rgba(69, 162, 158, 0.1));
+        border-left: 4px solid var(--accent-teal);
+    }
+
+    .critical-stock-row {
+        background: linear-gradient(135deg, rgba(220, 53, 69, 0.1), rgba(200, 35, 51, 0.1));
+        border-left: 4px solid #dc3545;
+    }
+
+    .product-row {
+        transition: all 0.2s ease;
+    }
+
+    .product-row:hover {
+        background-color: rgba(102, 252, 241, 0.05);
+        transform: translateX(2px);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <!-- Header Section -->
@@ -165,7 +222,8 @@
                     </thead>
                     <tbody>
                         {% for product in products %}
-                        <tr>
+                        <tr class="product-row {% if product.quantity_in_stock == 0 %}critical-stock-row{% elif product.quantity_in_stock <= product.minimum_stock_level %}low-stock-row{% endif %}"
+                            data-product-id="{{ product.id }}">
                             <td>
                                 <div class="fw-bold">{{ product.product_name }}</div>
                                 <small class="text-muted">ID: {{ product.product_id }}</small>
@@ -194,20 +252,25 @@
                                 <small class="text-muted">units</small>
                             </td>
                             <td>
-                                <span class="badge bg-warning text-dark">{{ product.minimum_stock_level
-                                    }}</span>
+                                <span class="badge bg-warning text-dark">{{ product.minimum_stock_level }}</span>
                             </td>
                             <td>
                                 <div class="fw-bold">${{ product.unit_price }}</div>
                             </td>
                             <td>
                                 {% if product.quantity_in_stock == 0 %}
-                                <span class="badge bg-danger">Out of Stock</span>
-                                {% elif product.quantity_in_stock <= product.minimum_stock_level %} <span
-                                    class="badge bg-warning text-dark">Low Stock</span>
-                                    {% else %}
-                                    <span class="badge bg-success">In Stock</span>
-                                    {% endif %}
+                                <span class="badge stock-critical">
+                                    <i class="bi bi-x-circle me-1"></i>Out of Stock
+                                </span>
+                                {% elif product.is_low_stock %}
+                                <span class="badge stock-warning">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>Low Stock
+                                </span>
+                                {% else %}
+                                <span class="badge stock-normal">
+                                    <i class="bi bi-check-circle me-1"></i>In Stock
+                                </span>
+                                {% endif %}
                             </td>
                             <td>
                                 <div class="btn-group" role="group">

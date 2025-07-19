@@ -97,7 +97,8 @@ def login_view(request):
                 if user.is_superuser or user.role == 'admin':
                     return redirect('admin_change_password')
                 elif user.role == 'head_manager':
-                    return redirect('head_manager_settings')
+                    # Head Managers go directly to dashboard, not settings
+                    return redirect('head_manager_page')
                 elif user.role == 'store_manager':
                     return redirect('store_manager_settings')
                 elif user.role == 'cashier':

@@ -8,7 +8,12 @@ from .models import Order, FinancialRecord, Store, StoreCashier
 from users.models import CustomUser
 from django.template.loader import render_to_string
 from django.http import HttpResponse
-from weasyprint import HTML  # Make sure you have WeasyPrint installed
+try:
+    from weasyprint import HTML  # Make sure you have WeasyPrint installed
+    WEASYPRINT_AVAILABLE = True
+except (ImportError, OSError):
+    WEASYPRINT_AVAILABLE = False
+    HTML = None
 from django.contrib import messages
 from django.utils import timezone
 from decimal import Decimal

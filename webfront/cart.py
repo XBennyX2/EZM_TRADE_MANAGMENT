@@ -54,18 +54,32 @@ class WebfrontCart:
         for item in cart_data['items']:
             try:
                 # Validate required fields
+                stock_id = item.get('stock_id')
                 product_id = item.get('product_id')
                 quantity = int(item.get('quantity', 0))
-                
-                if not product_id or quantity <= 0:
+
+                if (not stock_id and not product_id) or quantity <= 0:
                     errors.append(f"Invalid item data")
                     continue
-                
-                # Get stock for this store
-                stock = Stock.objects.select_related('product').get(
-                    product_id=product_id,
-                    store=store
-                )
+
+                # Get stock for this store - try by stock_id first, then product_id
+                if stock_id:
+                    try:
+                        stock = Stock.objects.select_related('product').get(
+                            id=stock_id,
+                            store=store
+                        )
+                    except Stock.DoesNotExist:
+                        # Fallback to product_id if stock_id doesn't work
+                        stock = Stock.objects.select_related('product').get(
+                            product_id=product_id,
+                            store=store
+                        )
+                else:
+                    stock = Stock.objects.select_related('product').get(
+                        product_id=product_id,
+                        store=store
+                    )
                 
                 # Check availability
                 if stock.quantity < quantity:
@@ -79,7 +93,8 @@ class WebfrontCart:
                 total_amount += item_total
                 
                 validated_items.append({
-                    'product_id': product_id,
+                    'product_id': stock.product.id,  # Use actual product ID from stock
+                    'stock_id': stock.id,  # Include stock ID for reference
                     'product_name': stock.product.name,
                     'quantity': quantity,
                     'unit_price': stock.selling_price,

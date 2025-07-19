@@ -38,4 +38,13 @@ urlpatterns = [
     path('manager/approve-transfer-request/<int:request_id>/', views.approve_store_transfer_request, name='approve_store_transfer_request'),
     path('manager/decline-transfer-request/<int:request_id>/', views.decline_store_transfer_request, name='decline_store_transfer_request'),
     path('manager/complete-transfer-request/<int:request_id>/', views.complete_store_transfer_request, name='complete_store_transfer_request'),
+
+    # Ticket Management API URLs
+    path('api/tickets/', views.api_tickets_list, name='api_tickets_list'),
+    path('api/tickets/<str:ticket_number>/', views.api_ticket_detail, name='api_ticket_detail'),
+    path('api/tickets/<str:ticket_number>/status/', views.api_ticket_update_status, name='api_ticket_update_status'),
+    path('api/tickets/<str:ticket_number>/process/', views.api_ticket_process, name='api_ticket_process'),
+
+    # Ticket Processing URL
+    path('process-ticket/<str:ticket_number>/', views.process_ticket_to_order, name='process_ticket_to_order'),
 ]

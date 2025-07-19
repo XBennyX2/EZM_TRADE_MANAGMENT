@@ -15,7 +15,7 @@
     <div class="col-12">
       <div class="ezm-card">
         <div class="ezm-card-header">
-          <i class="bi bi-cash-register me-2"></i>Point of Sale System
+          <i class="bi bi-cash-register me-2"></i>Cashier Dashboard
         </div>
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-center">
@@ -32,6 +32,32 @@
       </div>
     </div>
   </div>
+
+  <!-- Navigation Tabs -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <ul class="nav nav-tabs nav-fill" id="cashierTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="pos-tab" data-bs-toggle="tab" data-bs-target="#pos-content" type="button" role="tab">
+            <i class="bi bi-cash-register me-2"></i>Point of Sale
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tickets-tab" data-bs-toggle="tab" data-bs-target="#tickets-content" type="button" role="tab">
+            <i class="bi bi-ticket-perforated me-2"></i>Customer Tickets
+            {% if pending_count > 0 %}
+              <span class="badge bg-danger ms-2">{{ pending_count }}</span>
+            {% endif %}
+          </button>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Tab Content -->
+  <div class="tab-content" id="cashierTabsContent">
+    <!-- POS Tab -->
+    <div class="tab-pane fade show active" id="pos-content" role="tabpanel">
 
   <div class="row">
     <div class="col-lg-8">
@@ -221,6 +247,211 @@
       </div>
     </div>
   </div>
+    </div> <!-- End POS Tab -->
+
+    <!-- Tickets Tab -->
+    <div class="tab-pane fade" id="tickets-content" role="tabpanel">
+      <div class="row">
+        <div class="col-12">
+          <div class="ezm-card">
+            <div class="ezm-card-header">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                  <i class="bi bi-ticket-perforated me-2"></i>Customer Tickets
+                </div>
+                <a href="{% url 'cashier_dashboard' %}" class="btn btn-outline-primary btn-sm">
+                  <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                </a>
+              </div>
+
+              <!-- Search and Filter Controls -->
+              <form method="GET" class="row g-3">
+                <div class="col-md-4">
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-telephone"></i></span>
+                    <input type="text" class="form-control" name="phone" value="{{ phone_search }}"
+                           placeholder="Phone number (e.g., 0927, 8435, 0967849040)"
+                           title="Enter full or partial phone number. Numbers only or with formatting.">
+                    {% if phone_search %}
+                      <a href="{% url 'cashier_dashboard' %}" class="btn btn-outline-secondary" title="Clear search">
+                        <i class="bi bi-x"></i>
+                      </a>
+                    {% endif %}
+                  </div>
+                  <small class="form-text text-muted">Enter any part of the phone number (e.g., "123" will find "+251912309875)</small>
+                </div>
+                <div class="col-md-3">
+                  <select class="form-select" name="status">
+                    {% for value, label in status_choices %}
+                      <option value="{{ value }}" {% if value == status_filter %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <select class="form-select" name="sort">
+                    {% for value, label in sort_choices %}
+                      <option value="{{ value }}" {% if value == sort_order %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search me-1"></i>Search
+                  </button>
+                </div>
+              </form>
+            </div>
+            <div class="card-body">
+              <!-- Search Results Summary -->
+              {% if phone_search or status_filter %}
+                <div class="alert alert-info">
+                  <i class="bi bi-info-circle me-2"></i>
+                  <strong>Search Results:</strong> Found {{ tickets_page.paginator.count }} ticket{{ tickets_page.paginator.count|pluralize }}
+                  {% if phone_search %}
+                    containing phone digits "{{ phone_search }}"
+                  {% endif %}
+                  {% if status_filter %}
+                    {% if phone_search %}and {% endif %}with status "{{ status_filter }}"
+                  {% endif %}
+                  <a href="{% url 'cashier_dashboard' %}" class="btn-close float-end" aria-label="Clear search"></a>
+                </div>
+              {% endif %}
+
+              <!-- Tickets Display -->
+              {% if tickets %}
+                <div class="row">
+                  {% for ticket_data in tickets %}
+                    <div class="col-md-6 col-lg-4 mb-3">
+                      <div class="card ticket-card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                          <small class="text-muted">#{{ ticket_data.ticket.ticket_number }}</small>
+                          <span class="badge bg-{{ ticket_data.status_color }}">
+                            <i class="{{ ticket_data.status_icon }} me-1"></i>{{ ticket_data.ticket.status|upper }}
+                          </span>
+                        </div>
+                        <div class="card-body">
+                          <h6 class="card-title mb-2">
+                            <i class="bi bi-person me-1"></i>{{ ticket_data.ticket.customer_name|default:"Customer" }}
+                          </h6>
+                          <div class="ticket-info mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                              <small class="text-muted">Phone:</small>
+                              <strong class="text-primary">{{ ticket_data.ticket.customer_phone }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                              <small class="text-muted">Items:</small>
+                              <span>{{ ticket_data.total_quantity }} units ({{ ticket_data.items_count }} products)</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                              <small class="text-muted">Total:</small>
+                              <strong class="text-success">ETB {{ ticket_data.ticket.total_amount }}</strong>
+                            </div>
+                          </div>
+                          {% if ticket_data.items_preview %}
+                            <div class="items-preview mb-3">
+                              <small class="text-muted d-block">Items:</small>
+                              <small class="text-truncate d-block">
+                                {% for item in ticket_data.items_preview %}
+                                  {{ item.quantity }}x {{ item.product_name }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                                {% if ticket_data.has_more_items %} +{{ ticket_data.items_count|add:"-2" }} more{% endif %}
+                              </small>
+                            </div>
+                          {% endif %}
+
+                          <!-- Action Buttons -->
+                          <div class="d-flex justify-content-between align-items-center mb-2">
+                            <small class="text-muted">
+                              <i class="bi bi-clock me-1"></i>{{ ticket_data.ticket.created_at|date:"M d, Y H:i" }}
+                            </small>
+                            {% if ticket_data.ticket.confirmed_by %}
+                              <small class="text-info">
+                                <i class="bi bi-person-check me-1"></i>{{ ticket_data.ticket.confirmed_by.get_full_name }}
+                              </small>
+                            {% endif %}
+                          </div>
+
+                          <!-- Process Button -->
+                          {% if ticket_data.ticket.status != 'completed' and ticket_data.ticket.status != 'cancelled' %}
+                            <div class="d-grid">
+                              <a href="{% url 'process_ticket_to_order' ticket_data.ticket.ticket_number %}" class="btn btn-primary btn-sm">
+                                <i class="bi bi-cart-plus me-1"></i>Process Order
+                              </a>
+                            </div>
+                          {% else %}
+                            <div class="d-grid">
+                              {% if ticket_data.ticket.status == 'completed' %}
+                                <button class="btn btn-success btn-sm" disabled>
+                                  <i class="bi bi-check-circle me-1"></i>Completed
+                                </button>
+                              {% else %}
+                                <button class="btn btn-secondary btn-sm" disabled>
+                                  <i class="bi bi-x-circle me-1"></i>Cancelled
+                                </button>
+                              {% endif %}
+                            </div>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+
+                <!-- Pagination -->
+                {% if tickets_page.has_other_pages %}
+                  <div class="d-flex justify-content-center mt-4">
+                    <nav>
+                      <ul class="pagination">
+                        {% if tickets_page.has_previous %}
+                          <li class="page-item">
+                            <a class="page-link" href="?{% if phone_search %}phone={{ phone_search }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}{% if sort_order %}sort={{ sort_order }}&{% endif %}page={{ tickets_page.previous_page_number }}">
+                              <i class="bi bi-chevron-left"></i>
+                            </a>
+                          </li>
+                        {% endif %}
+
+                        {% for num in tickets_page.paginator.page_range %}
+                          {% if tickets_page.number == num %}
+                            <li class="page-item active">
+                              <span class="page-link">{{ num }}</span>
+                            </li>
+                          {% elif num > tickets_page.number|add:'-3' and num < tickets_page.number|add:'3' %}
+                            <li class="page-item">
+                              <a class="page-link" href="?{% if phone_search %}phone={{ phone_search }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}{% if sort_order %}sort={{ sort_order }}&{% endif %}page={{ num }}">{{ num }}</a>
+                            </li>
+                          {% endif %}
+                        {% endfor %}
+
+                        {% if tickets_page.has_next %}
+                          <li class="page-item">
+                            <a class="page-link" href="?{% if phone_search %}phone={{ phone_search }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}{% if sort_order %}sort={{ sort_order }}&{% endif %}page={{ tickets_page.next_page_number }}">
+                              <i class="bi bi-chevron-right"></i>
+                            </a>
+                          </li>
+                        {% endif %}
+                      </ul>
+                    </nav>
+                  </div>
+                {% endif %}
+              {% else %}
+                <div class="text-center py-5">
+                  <i class="bi bi-ticket-perforated" style="font-size: 3rem; color: #6c757d;"></i>
+                  <h5 class="mt-3 text-muted">No tickets found</h5>
+                  <p class="text-muted">
+                    {% if phone_search or status_filter %}
+                      Try adjusting your search criteria or check back later.
+                    {% else %}
+                      Customer tickets will appear here when orders are placed.
+                    {% endif %}
+                  </p>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div> <!-- End Tickets Tab -->
+  </div> <!-- End Tab Content -->
 </div>
 
 <div class="modal fade" id="saleModal" tabindex="-1" aria-labelledby="saleModalLabel" aria-hidden="true">
@@ -334,6 +565,71 @@
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
         <button type="button" class="btn btn-primary" onclick="sendEmailReceipt()">
           <i class="bi bi-send me-2"></i>Send Receipt
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Ticket Processing Modal -->
+<div class="modal fade" id="ticketModal" tabindex="-1" aria-labelledby="ticketModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="ticketModalLabel">
+          <i class="bi bi-ticket-perforated me-2"></i>Process Customer Ticket
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="ticket-details">
+          <!-- Ticket details will be populated here -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-warning" id="updateStatusBtn" onclick="updateTicketStatus()" style="display: none;">
+          <i class="bi bi-clock me-1"></i>Update Status
+        </button>
+        <button type="button" class="btn btn-success" id="processOrderBtn" onclick="processTicketOrder()" style="display: none;">
+          <i class="bi bi-check-circle me-1"></i>Process Order
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Ticket Status Update Modal -->
+<div class="modal fade" id="statusUpdateModal" tabindex="-1" aria-labelledby="statusUpdateModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="statusUpdateModalLabel">Update Ticket Status</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="statusUpdateForm">
+          <div class="mb-3">
+            <label for="newStatus" class="form-label">New Status</label>
+            <select class="form-select" id="newStatus" required>
+              <option value="">Select status...</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="preparing">Preparing</option>
+              <option value="ready">Ready for Pickup</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="statusNotes" class="form-label">Notes (Optional)</label>
+            <textarea class="form-control" id="statusNotes" rows="3" placeholder="Add any notes about this status update..."></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="submitStatusUpdate()">
+          <i class="bi bi-check-circle me-1"></i>Update Status
         </button>
       </div>
     </div>
@@ -557,6 +853,352 @@
     document.getElementById('saleForm').reset();
     document.getElementById('selectedProductInfo').style.display = 'none';
   });
+
+  // Ticket Management Functions
+  let currentTicket = null;
+
+
+
+
+
+  // Display pagination controls
+  function displayPagination(totalPages) {
+    const paginationList = document.getElementById('pagination-list');
+    let html = '';
+
+    // Previous button
+    html += `
+      <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+        <a class="page-link" href="#" onclick="changePage(${currentPage - 1})">
+          <i class="bi bi-chevron-left"></i>
+        </a>
+      </li>
+    `;
+
+    // Page numbers
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      html += `
+        <li class="page-item ${i === currentPage ? 'active' : ''}">
+          <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+        </li>
+      `;
+    }
+
+    // Next button
+    html += `
+      <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+        <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">
+          <i class="bi bi-chevron-right"></i>
+        </a>
+      </li>
+    `;
+
+    paginationList.innerHTML = html;
+  }
+
+  // Change page
+  function changePage(page) {
+    const totalPages = Math.ceil(filteredTickets.length / ticketsPerPage);
+    if (page >= 1 && page <= totalPages) {
+      currentPage = page;
+      displayTicketsWithPagination();
+    }
+  }
+
+  // Get status color for badges
+  function getStatusColor(status) {
+    switch(status) {
+      case 'pending': return 'warning';
+      case 'confirmed': return 'info';
+      case 'preparing': return 'primary';
+      case 'ready': return 'success';
+      case 'completed': return 'success';
+      case 'cancelled': return 'danger';
+      default: return 'secondary';
+    }
+  }
+
+  // Get status icon
+  function getStatusIcon(status) {
+    switch(status) {
+      case 'pending': return '<i class="bi bi-clock"></i>';
+      case 'confirmed': return '<i class="bi bi-check"></i>';
+      case 'preparing': return '<i class="bi bi-gear"></i>';
+      case 'ready': return '<i class="bi bi-check-circle"></i>';
+      case 'completed': return '<i class="bi bi-check-all"></i>';
+      case 'cancelled': return '<i class="bi bi-x-circle"></i>';
+      default: return '<i class="bi bi-question"></i>';
+    }
+  }
+
+
+
+  // View ticket details
+  async function viewTicket(ticketNumber) {
+    try {
+      const response = await fetch(`/stores/api/tickets/${ticketNumber}/`);
+      const data = await response.json();
+
+      if (data.success) {
+        currentTicket = data.ticket;
+        showTicketModal(data.ticket);
+      } else {
+        alert('Failed to load ticket details: ' + data.error);
+      }
+    } catch (error) {
+      alert('Network error. Please try again.');
+    }
+  }
+
+  // Show ticket modal with details
+  function showTicketModal(ticket) {
+    const detailsContainer = document.getElementById('ticket-details');
+    const updateStatusBtn = document.getElementById('updateStatusBtn');
+    const processOrderBtn = document.getElementById('processOrderBtn');
+
+    // Build items list with enhanced information
+    let itemsHtml = '';
+    let totalQuantity = 0;
+
+    ticket.items.forEach((item, index) => {
+      totalQuantity += item.quantity;
+      itemsHtml += `
+        <tr>
+          <td>
+            <div class="d-flex align-items-center">
+              <span class="badge bg-secondary me-2">${index + 1}</span>
+              <div>
+                <div class="fw-bold">${item.product_name}</div>
+                ${item.product_code ? `<small class="text-muted">Code: ${item.product_code}</small>` : ''}
+              </div>
+            </div>
+          </td>
+          <td class="text-center">
+            <span class="badge bg-primary">${item.quantity}</span>
+          </td>
+          <td class="text-end">
+            <span class="text-muted">ETB</span> ${parseFloat(item.unit_price).toFixed(2)}
+          </td>
+          <td class="text-end">
+            <strong class="text-success">ETB ${parseFloat(item.total_price).toFixed(2)}</strong>
+          </td>
+        </tr>
+      `;
+    });
+
+    // Add summary row
+    itemsHtml += `
+      <tr class="table-info">
+        <td><strong>Total</strong></td>
+        <td class="text-center"><strong>${totalQuantity} units</strong></td>
+        <td class="text-end"><strong>${ticket.items_count || 0} products</strong></td>
+        <td class="text-end"><strong class="text-success">ETB ${parseFloat(ticket.total_amount).toFixed(2)}</strong></td>
+      </tr>
+    `;
+
+    detailsContainer.innerHTML = `
+      <div class="row">
+        <div class="col-md-6">
+          <h6><i class="bi bi-person me-2"></i>Customer Information</h6>
+          <div class="card border-0 bg-light">
+            <div class="card-body">
+              <p class="mb-2"><strong>Name:</strong> ${ticket.customer_name || 'Not provided'}</p>
+              <p class="mb-2"><strong>Phone:</strong> <span class="text-primary">${ticket.customer_phone}</span></p>
+              <p class="mb-0"><strong>Status:</strong> <span class="badge bg-${getStatusColor(ticket.status)}">${getStatusIcon(ticket.status)} ${ticket.status.toUpperCase()}</span></p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <h6><i class="bi bi-receipt me-2"></i>Order Information</h6>
+          <div class="card border-0 bg-light">
+            <div class="card-body">
+              <p class="mb-2"><strong>Ticket:</strong> #${ticket.ticket_number}</p>
+              <p class="mb-2"><strong>Store:</strong> ${ticket.store_name || 'N/A'}</p>
+              <p class="mb-2"><strong>Products:</strong> ${ticket.items_count || 0} (${ticket.total_quantity || ticket.total_items} units)</p>
+              <p class="mb-2"><strong>Total Amount:</strong> <span class="text-success fw-bold">ETB ${ticket.total_amount}</span></p>
+              <p class="mb-0"><strong>Created:</strong> ${new Date(ticket.created_at).toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      ${ticket.confirmed_by || ticket.confirmed_at ? `
+        <div class="row mt-3">
+          <div class="col-12">
+            <div class="alert alert-info">
+              <i class="bi bi-info-circle me-2"></i>
+              <strong>Processing Info:</strong>
+              ${ticket.confirmed_by ? `Confirmed by ${ticket.confirmed_by}` : ''}
+              ${ticket.confirmed_at ? ` on ${new Date(ticket.confirmed_at).toLocaleString()}` : ''}
+              ${ticket.ready_at ? ` • Ready at ${new Date(ticket.ready_at).toLocaleString()}` : ''}
+              ${ticket.completed_at ? ` • Completed at ${new Date(ticket.completed_at).toLocaleString()}` : ''}
+            </div>
+          </div>
+        </div>
+      ` : ''}
+
+      ${ticket.notes ? `
+        <div class="row mt-3">
+          <div class="col-12">
+            <h6>Special Instructions</h6>
+            <div class="alert alert-info">${ticket.notes}</div>
+          </div>
+        </div>
+      ` : ''}
+
+      <div class="row mt-3">
+        <div class="col-12">
+          <h6><i class="bi bi-list-ul me-2"></i>Order Items (${ticket.items_count || 0} products)</h6>
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead class="table-light">
+                <tr>
+                  <th width="40%">Product</th>
+                  <th width="15%" class="text-center">Quantity</th>
+                  <th width="20%" class="text-end">Unit Price</th>
+                  <th width="25%" class="text-end">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsHtml}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Show appropriate buttons based on status
+    if (ticket.status === 'pending' || ticket.status === 'confirmed') {
+      updateStatusBtn.style.display = 'inline-block';
+      processOrderBtn.style.display = 'inline-block';
+    } else if (ticket.status === 'preparing' || ticket.status === 'ready') {
+      updateStatusBtn.style.display = 'inline-block';
+      processOrderBtn.style.display = 'none';
+    } else {
+      updateStatusBtn.style.display = 'none';
+      processOrderBtn.style.display = 'none';
+    }
+
+    new bootstrap.Modal(document.getElementById('ticketModal')).show();
+  }
+
+  // Update ticket status
+  function updateTicketStatus() {
+    if (!currentTicket) return;
+
+    // Show status update modal
+    new bootstrap.Modal(document.getElementById('statusUpdateModal')).show();
+  }
+
+  // Submit status update
+  async function submitStatusUpdate() {
+    const newStatus = document.getElementById('newStatus').value;
+    const notes = document.getElementById('statusNotes').value;
+
+    if (!newStatus) {
+      alert('Please select a status');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/stores/api/tickets/${currentTicket.ticket_number}/status/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+          status: newStatus,
+          notes: notes
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Hide status update modal
+        bootstrap.Modal.getInstance(document.getElementById('statusUpdateModal')).hide();
+
+        // Update current ticket
+        currentTicket.status = newStatus;
+
+        // Refresh ticket modal
+        showTicketModal(currentTicket);
+
+        // Refresh tickets list
+        loadTickets();
+
+        alert('Ticket status updated successfully!');
+      } else {
+        alert('Failed to update status: ' + data.error);
+      }
+    } catch (error) {
+      alert('Network error. Please try again.');
+    }
+  }
+
+  // Process ticket order (convert to POS sale)
+  async function processTicketOrder() {
+    if (!currentTicket) return;
+
+    if (!confirm(`Process ticket #${currentTicket.ticket_number} as a POS sale?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/stores/api/tickets/${currentTicket.ticket_number}/process/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken')
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Hide ticket modal
+        bootstrap.Modal.getInstance(document.getElementById('ticketModal')).hide();
+
+        // Refresh tickets list
+        loadTickets();
+
+        // Switch to POS tab
+        document.getElementById('pos-tab').click();
+
+        alert(`Ticket processed successfully! Sale ID: ${data.sale_id}`);
+      } else {
+        alert('Failed to process ticket: ' + data.error);
+      }
+    } catch (error) {
+      alert('Network error. Please try again.');
+    }
+  }
+
+  // Helper function to get CSRF token
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
 </script>
 {% endblock %}
 
@@ -600,6 +1242,181 @@
 
 .select-product-btn:hover {
     transform: scale(1.05);
+}
+
+/* Ticket Cards */
+.ticket-card {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 1px solid #dee2e6;
+}
+
+.ticket-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: #007bff;
+}
+
+.ticket-card .card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    padding: 0.75rem 1rem;
+}
+
+.ticket-card .card-body {
+    padding: 1rem;
+}
+
+.ticket-card .card-title {
+    margin-bottom: 0.5rem;
+    color: #495057;
+}
+
+.ticket-card .card-text {
+    margin-bottom: 0.75rem;
+    line-height: 1.6;
+}
+
+/* Tab styling */
+.nav-tabs .nav-link {
+    border: 1px solid transparent;
+    border-top-left-radius: 0.375rem;
+    border-top-right-radius: 0.375rem;
+    color: #495057;
+    font-weight: 500;
+}
+
+.nav-tabs .nav-link:hover {
+    border-color: #e9ecef #e9ecef #dee2e6;
+    color: #007bff;
+}
+
+.nav-tabs .nav-link.active {
+    color: #007bff;
+    background-color: #fff;
+    border-color: #dee2e6 #dee2e6 #fff;
+}
+
+/* Search and Filter Controls */
+.ezm-card-header .input-group-text {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+}
+
+.ezm-card-header .form-control:focus,
+.ezm-card-header .form-select:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Search Summary */
+#search-summary {
+    border-left: 4px solid #0dcaf0;
+    background-color: #d1ecf1;
+    border-color: #bee5eb;
+}
+
+/* Pagination */
+.pagination .page-link {
+    color: #007bff;
+    border-color: #dee2e6;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+.pagination .page-link:hover {
+    color: #0056b3;
+    background-color: #e9ecef;
+    border-color: #dee2e6;
+}
+
+.pagination .page-item.disabled .page-link {
+    color: #6c757d;
+    background-color: #fff;
+    border-color: #dee2e6;
+}
+
+/* Enhanced ticket cards */
+.ticket-card .card-body .card-text strong {
+    color: #007bff;
+    font-weight: 600;
+}
+
+.ticket-card .ticket-info {
+    font-size: 0.9rem;
+}
+
+.ticket-card .items-preview {
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+    padding: 0.5rem;
+    border-left: 3px solid #007bff;
+}
+
+.ticket-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transition: all 0.2s ease-in-out;
+}
+
+/* Modal enhancements */
+.modal-body .table th {
+    border-top: none;
+    font-weight: 600;
+    color: #495057;
+}
+
+.modal-body .table-info {
+    background-color: #e3f2fd !important;
+}
+
+.modal-body .badge {
+    font-size: 0.75rem;
+}
+
+/* Status badges with icons */
+.badge i {
+    margin-right: 0.25rem;
+}
+
+/* Search form enhancements */
+.form-text {
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+}
+
+.input-group .form-control:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Ticket action buttons */
+.ticket-card .btn {
+    transition: all 0.2s ease-in-out;
+}
+
+.ticket-card .btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.ticket-card .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Process button styling */
+.ticket-card .btn-primary {
+    background: linear-gradient(45deg, #007bff, #0056b3);
+    border: none;
+    font-weight: 500;
+}
+
+.ticket-card .btn-primary:hover {
+    background: linear-gradient(45deg, #0056b3, #004085);
 }
 </style>
 {% endblock %}

@@ -8,7 +8,12 @@
     <div class="col-12">
       <div class="d-flex justify-content-between align-items-center">
         <div>
-          <h2 class="mb-1">New Order</h2>
+          <h2 class="mb-1">
+            New Order
+            {% if ticket_info.from_ticket %}
+              <span class="badge bg-info ms-2">From Ticket #{{ ticket_info.ticket_number }}</span>
+            {% endif %}
+          </h2>
           <p class="text-muted mb-0">Store: {{ store.name }} | Cashier: {{ request.user.first_name }}</p>
         </div>
         <div>
@@ -113,12 +118,12 @@
           <!-- Order Options -->
           <div class="mb-3">
             <label for="customerName" class="form-label">Customer Name</label>
-            <input type="text" class="form-control" id="customerName" placeholder="Walk-in Customer">
+            <input type="text" class="form-control" id="customerName" placeholder="Walk-in Customer" value="{{ ticket_info.customer_name|default:'' }}">
           </div>
 
           <div class="mb-3">
             <label for="customerPhone" class="form-label">Customer Phone (Optional)</label>
-            <input type="tel" class="form-control" id="customerPhone" placeholder="+1 (555) 123-4567">
+            <input type="tel" class="form-control" id="customerPhone" placeholder="+1 (555) 123-4567" value="{{ ticket_info.customer_phone|default:'' }}">
           </div>
 
           <div class="mb-3">
@@ -285,12 +290,160 @@
 // Cart management
 let cart = {{ cart|default:"{'items': [], 'total': 0}"|safe }};
 let selectedProduct = null;
+let currentTicketNumber = null; // Track if this order is from a ticket
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
+    // Check if we have ticket data to load
+    loadTicketDataIfExists();
     updateCartDisplay();
     attachEventListeners();
 });
+
+// Load ticket data from sessionStorage if it exists
+function loadTicketDataIfExists() {
+    const ticketData = sessionStorage.getItem('ticketCartData');
+    if (ticketData) {
+        try {
+            const data = JSON.parse(ticketData);
+
+            // Show notification that we're loading from ticket
+            showNotification(`Loading order from ticket #${data.ticket_number}`, 'info');
+
+            // Store ticket number for later use
+            currentTicketNumber = data.ticket_number;
+
+            // Clear existing cart
+            cart = { items: [], total: 0 };
+
+            // Add each item from ticket to cart
+            data.items.forEach(item => {
+                // Find the product card to get stock information
+                const productCard = document.querySelector(`[data-product-id="${item.product_id}"]`);
+                if (productCard) {
+                    const stock = parseInt(productCard.dataset.stock);
+
+                    // Check if we have enough stock
+                    if (stock >= item.quantity) {
+                        // Add item to cart
+                        const cartItem = {
+                            id: item.product_id,
+                            name: item.product_name,
+                            price: item.price,
+                            quantity: item.quantity,
+                            total: item.price * item.quantity
+                        };
+
+                        cart.items.push(cartItem);
+                        cart.total += cartItem.total;
+                    } else {
+                        showNotification(`Insufficient stock for ${item.product_name}. Available: ${stock}, Required: ${item.quantity}`, 'warning');
+                    }
+                } else {
+                    showNotification(`Product ${item.product_name} not found in current store`, 'warning');
+                }
+            });
+
+            // Fill customer information if provided
+            if (data.customer_name) {
+                const customerNameField = document.getElementById('customerName');
+                if (customerNameField) {
+                    customerNameField.value = data.customer_name;
+                }
+            }
+
+            if (data.customer_phone) {
+                const customerPhoneField = document.getElementById('customerPhone');
+                if (customerPhoneField) {
+                    customerPhoneField.value = data.customer_phone;
+                }
+            }
+
+            // Add visual indicator that this is from a ticket
+            const headerElement = document.querySelector('h2');
+            if (headerElement) {
+                headerElement.innerHTML = `New Order <span class="badge bg-info ms-2">From Ticket #${data.ticket_number}</span>`;
+            }
+
+            // Clear the sessionStorage data
+            sessionStorage.removeItem('ticketCartData');
+
+            // Update cart display
+            updateCartDisplay();
+
+        } catch (error) {
+            console.error('Error loading ticket data:', error);
+            showNotification('Error loading ticket data', 'error');
+            sessionStorage.removeItem('ticketCartData');
+        }
+    }
+}
+
+// Show notification function
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'error' ? 'danger' : type === 'warning' ? 'warning' : type === 'info' ? 'info' : 'success'} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    // Add to page
+    document.body.appendChild(notification);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+// Get CSRF token from cookies
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Update ticket status
+async function updateTicketStatus(ticketNumber, status) {
+    try {
+        const response = await fetch(`/stores/api/tickets/${ticketNumber}/status/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                status: status
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(`Ticket #${ticketNumber} status updated to ${status}`, 'success');
+        } else {
+            console.error('Failed to update ticket status:', data.error);
+            showNotification(`Warning: Failed to update ticket status`, 'warning');
+        }
+    } catch (error) {
+        console.error('Error updating ticket status:', error);
+        showNotification(`Warning: Could not update ticket status`, 'warning');
+    }
+}
 
 // Product search
 document.getElementById('productSearch').addEventListener('input', function(e) {
@@ -467,6 +620,11 @@ document.getElementById('completeOrder').addEventListener('click', function() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            // If this order was from a ticket, update the ticket status
+            if (currentTicketNumber) {
+                updateTicketStatus(currentTicketNumber, 'completed');
+            }
+
             // Show success modal with receipt actions
             showOrderSuccessModal(data);
         } else {

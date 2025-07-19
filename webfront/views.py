@@ -333,12 +333,33 @@ def create_ticket(request):
                 'error': 'Missing required information'
             })
 
-        # Validate phone number format (basic validation)
-        if len(phone_number) < 10:
+        # Validate and clean phone number
+        import re
+
+        # Remove all non-digit characters
+        cleaned_phone = re.sub(r'[^\d]', '', phone_number)
+
+        # Validate phone number format
+        if not cleaned_phone:
             return JsonResponse({
                 'success': False,
-                'error': 'Please enter a valid phone number'
+                'error': 'Please enter your phone number'
             })
+
+        if not cleaned_phone.startswith('09'):
+            return JsonResponse({
+                'success': False,
+                'error': 'Phone number must start with 09 (e.g., 0912345678)'
+            })
+
+        if len(cleaned_phone) != 10:
+            return JsonResponse({
+                'success': False,
+                'error': f'Phone number must be exactly 10 digits. You entered {len(cleaned_phone)} digits.'
+            })
+
+        # Use cleaned phone number
+        phone_number = cleaned_phone
 
         # Create ticket
         result = WebfrontCart.create_ticket(

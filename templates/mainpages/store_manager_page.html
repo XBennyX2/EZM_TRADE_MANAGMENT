@@ -163,6 +163,63 @@
         </div>
     </div>
 
+    <!-- Analytics Quick Access Row -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="dashboard-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-graph-up text-primary me-2"></i>
+                            Analytics & Reports
+                        </h5>
+                        <a href="{% url 'store_manager_analytics' %}" class="btn btn-primary btn-sm">
+                            <i class="bi bi-arrow-right me-1"></i>View All Analytics
+                        </a>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <a href="{% url 'store_manager_sales_report' %}" class="text-decoration-none">
+                                <div class="analytics-quick-card bg-primary text-white">
+                                    <i class="bi bi-file-earmark-text fs-3"></i>
+                                    <h6>Sales Reports</h6>
+                                    <small>Detailed sales analysis</small>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'store_manager_stock_turnover' %}" class="text-decoration-none">
+                                <div class="analytics-quick-card bg-success text-white">
+                                    <i class="bi bi-arrow-repeat fs-3"></i>
+                                    <h6>Stock Turnover</h6>
+                                    <small>Fast & slow moving items</small>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'store_manager_vat_report' %}" class="text-decoration-none">
+                                <div class="analytics-quick-card bg-info text-white">
+                                    <i class="bi bi-calculator fs-3"></i>
+                                    <h6>VAT Reports</h6>
+                                    <small>Tax calculations & breakdown</small>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'store_manager_analytics' %}" class="text-decoration-none">
+                                <div class="analytics-quick-card bg-warning text-dark">
+                                    <i class="bi bi-graph-up fs-3"></i>
+                                    <h6>Analytics Dashboard</h6>
+                                    <small>Performance overview</small>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Main Content Row -->
     <div class="row">
         <!-- Left Column -->
@@ -600,4 +657,37 @@
         });
     });
 </script>
+
+<style>
+.analytics-quick-card {
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    text-align: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.analytics-quick-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.analytics-quick-card h6 {
+    margin: 0.5rem 0 0.25rem 0;
+    font-weight: 600;
+}
+
+.analytics-quick-card small {
+    opacity: 0.9;
+    font-size: 0.75rem;
+}
+
+.analytics-quick-card i {
+    margin-bottom: 0.5rem;
+}
+</style>
 {% endblock %}

@@ -1694,3 +1694,578 @@ def store_product_list(request):
         'total_products': len(product_data)
     }
     return render(request, 'store/product_list.html', context)
+
+
+@login_required
+def store_manager_sales_report(request):
+    """
+    Comprehensive Sales Report with operational reports and analytics.
+    Includes fast/slow moving products, daily activity, and operational logs.
+    """
+    if request.user.role != 'store_manager':
+        messages.error(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
+    try:
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, "You are not assigned to manage any store.")
+        return redirect('store_manager_page')
+
+    from datetime import timedelta
+    from django.db.models import Sum, Count, Avg, F, Q, Case, When, IntegerField
+    from django.utils import timezone
+    from Inventory.models import StoreStockTransferRequest, RestockRequest
+
+    # Get date range from request
+    period = request.GET.get('period', '30')
+    try:
+        days = int(period)
+    except ValueError:
+        days = 30
+
+    end_date = timezone.now().date()
+    start_date = end_date - timedelta(days=days)
+    today = timezone.now().date()
+
+    # Sales summary
+    sales_summary = Transaction.objects.filter(
+        store=store,
+        timestamp__date__gte=start_date
+    ).aggregate(
+        total_sales=Sum('total_amount'),
+        total_transactions=Count('id'),
+        avg_transaction=Avg('total_amount')
+    )
+
+    # Today's sales (Daily Activity Summary)
+    today_sales = Transaction.objects.filter(
+        store=store,
+        timestamp__date=today
+    ).aggregate(
+        today_total=Sum('total_amount'),
+        today_transactions=Count('id')
+    )
+
+    # Units sold today
+    today_units = TransactionOrder.objects.filter(
+        transaction__store=store,
+        transaction__timestamp__date=today
+    ).aggregate(units_sold=Sum('quantity'))['units_sold'] or 0
+
+    # Top 10 Fast Moving Products (by quantity sold)
+    fast_moving_products_raw = TransactionOrder.objects.filter(
+        transaction__store=store,
+        transaction__timestamp__date__gte=start_date
+    ).values(
+        'product__name',
+        'product__category'
+    ).annotate(
+        total_quantity=Sum('quantity'),
+        total_revenue=Sum(F('quantity') * F('price_at_time_of_sale')),
+        transaction_count=Count('transaction', distinct=True)
+    ).order_by('-total_quantity')[:10]
+
+    # Calculate sales velocity in Python
+    fast_moving_products = []
+    for product in fast_moving_products_raw:
+        product['sales_velocity'] = round(product['total_quantity'] / days, 2) if days > 0 else 0
+        fast_moving_products.append(product)
+
+    # Slow Moving/Idle Products (products with low or no sales)
+    all_products_with_sales = TransactionOrder.objects.filter(
+        transaction__store=store,
+        transaction__timestamp__date__gte=start_date
+    ).values_list('product_id', flat=True).distinct()
+
+    # Products in store but not sold (idle products)
+    idle_products = Stock.objects.filter(
+        store=store,
+        quantity__gt=0
+    ).exclude(
+        product_id__in=all_products_with_sales
+    ).select_related('product')[:10]
+
+    # Slow moving products (sold but very low velocity)
+    slow_moving_products_raw = TransactionOrder.objects.filter(
+        transaction__store=store,
+        transaction__timestamp__date__gte=start_date
+    ).values(
+        'product__name',
+        'product__category'
+    ).annotate(
+        total_quantity=Sum('quantity'),
+        total_revenue=Sum(F('quantity') * F('price_at_time_of_sale'))
+    ).order_by('total_quantity')
+
+    # Calculate sales velocity and filter slow moving products
+    slow_moving_products = []
+    for product in slow_moving_products_raw:
+        sales_velocity = round(product['total_quantity'] / days, 2) if days > 0 else 0
+        if sales_velocity < 1:  # Less than 1 unit per day
+            product['sales_velocity'] = sales_velocity
+            slow_moving_products.append(product)
+
+    # Limit to 10 products
+    slow_moving_products = slow_moving_products[:10]
+
+    # Stock Transfer Logs (last 30 days)
+    transfer_logs = StoreStockTransferRequest.objects.filter(
+        Q(from_store=store) | Q(to_store=store),
+        requested_date__date__gte=start_date
+    ).select_related('product', 'from_store', 'to_store', 'requested_by', 'reviewed_by').order_by('-requested_date')[:20]
+
+    # Pending Restock/Transfer Approvals
+    pending_restocks = RestockRequest.objects.filter(
+        store=store,
+        status='pending'
+    ).select_related('product', 'requested_by').order_by('-requested_date')[:10]
+
+    pending_transfers = StoreStockTransferRequest.objects.filter(
+        from_store=store,
+        status='pending'
+    ).select_related('product', 'to_store', 'requested_by').order_by('-requested_date')[:10]
+
+    # Cashier Activity Logs (today) - Note: Transaction model doesn't have cashier field
+    # Using transaction count and total sales for today instead
+    cashier_activity = []  # Empty for now since Transaction model doesn't have cashier field
+
+    # Low Stock Items (KPI)
+    low_stock_items = Stock.objects.filter(
+        store=store,
+        quantity__lte=F('low_stock_threshold'),
+        quantity__gt=0
+    ).select_related('product').count()
+
+    # Sales vs Target (placeholder - can be enhanced with target setting)
+    monthly_target = 50000  # This could be stored in database
+    monthly_sales = Transaction.objects.filter(
+        store=store,
+        timestamp__date__gte=end_date.replace(day=1)  # First day of current month
+    ).aggregate(total=Sum('total_amount'))['total'] or 0
+
+    sales_vs_target_percent = (monthly_sales / monthly_target * 100) if monthly_target > 0 else 0
+
+    # Payment method breakdown
+    payment_methods = Transaction.objects.filter(
+        store=store,
+        timestamp__date__gte=start_date
+    ).values('payment_method').annotate(
+        total_amount=Sum('total_amount'),
+        transaction_count=Count('id')
+    ).order_by('-total_amount')
+
+    # Hourly sales pattern
+    hourly_sales = Transaction.objects.filter(
+        store=store,
+        timestamp__date__gte=start_date
+    ).extra(
+        select={'hour': 'extract(hour from timestamp)'}
+    ).values('hour').annotate(
+        total_sales=Sum('total_amount'),
+        transaction_count=Count('id')
+    ).order_by('hour')
+
+    context = {
+        'store': store,
+        'period_days': days,
+        'start_date': start_date,
+        'end_date': end_date,
+        'today': today,
+
+        # Sales Summary
+        'sales_summary': sales_summary,
+        'today_sales': today_sales,
+        'today_units': today_units,
+
+        # Fast/Slow Moving Products
+        'fast_moving_products': list(fast_moving_products),
+        'slow_moving_products': list(slow_moving_products),
+        'idle_products': idle_products,
+
+        # Operational Reports
+        'transfer_logs': transfer_logs,
+        'pending_restocks': pending_restocks,
+        'pending_transfers': pending_transfers,
+        'cashier_activity': list(cashier_activity),
+
+        # KPIs
+        'low_stock_items': low_stock_items,
+        'monthly_target': monthly_target,
+        'monthly_sales': monthly_sales,
+        'sales_vs_target_percent': round(sales_vs_target_percent, 1),
+
+        # Additional Analytics
+        'payment_methods': list(payment_methods),
+        'hourly_sales': list(hourly_sales),
+    }
+
+    return render(request, 'store/sales_report.html', context)
+
+
+@login_required
+def store_manager_analytics(request):
+    """
+    Enhanced Store Manager Analytics Dashboard with stock turnover, movement analysis, and KPIs.
+    """
+    if request.user.role != 'store_manager':
+        messages.error(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
+    try:
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, "You are not assigned to manage any store.")
+        return redirect('store_manager_page')
+
+    from datetime import datetime, timedelta
+    from django.db.models import Sum, Count, Avg, F, Q, Case, When, DecimalField
+    from django.utils import timezone
+    from decimal import Decimal
+
+    # Date range filters
+    end_date = timezone.now().date()
+    start_date_30 = end_date - timedelta(days=30)
+    start_date_7 = end_date - timedelta(days=7)
+    start_date_90 = end_date - timedelta(days=90)
+    today = timezone.now().date()
+
+    # Sales Analytics
+    sales_30_days = Transaction.objects.filter(
+        store=store,
+        timestamp__date__gte=start_date_30
+    ).aggregate(
+        total_amount=Sum('total_amount'),
+        total_transactions=Count('id'),
+        avg_transaction=Avg('total_amount')
+    )
+
+    sales_7_days = Transaction.objects.filter(
+        store=store,
+        timestamp__date__gte=start_date_7
+    ).aggregate(
+        total_amount=Sum('total_amount'),
+        total_transactions=Count('id')
+    )
+
+    # Today's KPIs
+    today_sales = Transaction.objects.filter(
+        store=store,
+        timestamp__date=today
+    ).aggregate(
+        today_total=Sum('total_amount'),
+        today_transactions=Count('id')
+    )
+
+    # Units sold today
+    today_units = TransactionOrder.objects.filter(
+        transaction__store=store,
+        transaction__timestamp__date=today
+    ).aggregate(units_sold=Sum('quantity'))['units_sold'] or 0
+
+    # Stock Turnover Analysis (90 days)
+    stock_turnover_data = []
+    stock_items = Stock.objects.filter(store=store).select_related('product')
+
+    for stock in stock_items:
+        # Calculate COGS and average inventory for turnover ratio
+        sales_data = TransactionOrder.objects.filter(
+            transaction__store=store,
+            product=stock.product,
+            transaction__timestamp__date__gte=start_date_90
+        ).aggregate(
+            total_sold=Sum('quantity'),
+            total_revenue=Sum(F('quantity') * F('price_at_time_of_sale')),
+            cogs=Sum(F('quantity') * stock.product.price)  # Cost of goods sold
+        )
+
+        total_sold = sales_data['total_sold'] or 0
+        cogs = sales_data['cogs'] or 0
+        current_inventory_value = stock.quantity * stock.product.price
+
+        # Calculate turnover ratio: COGS / Average Inventory
+        # Simplified: using current inventory as average
+        if current_inventory_value > 0:
+            turnover_ratio = float(cogs) / float(current_inventory_value)
+        else:
+            turnover_ratio = float('inf') if total_sold > 0 else 0
+
+        # Calculate movement rate
+        if stock.quantity > 0:
+            movement_rate = total_sold / (stock.quantity + total_sold) * 100
+        else:
+            movement_rate = 100 if total_sold > 0 else 0
+
+        # Time in inventory (days since last restock - simplified)
+        time_in_inventory = 30  # Placeholder - would need restock tracking
+
+        stock_turnover_data.append({
+            'product': stock.product,
+            'current_stock': stock.quantity,
+            'total_sold': total_sold,
+            'turnover_ratio': round(turnover_ratio, 2),
+            'movement_rate': round(movement_rate, 2),
+            'time_in_inventory': time_in_inventory,
+            'is_slow_moving': movement_rate < 30,
+            'stock_value': stock.quantity * stock.selling_price
+        })
+
+    # Sort by turnover ratio
+    stock_turnover_data.sort(key=lambda x: x['turnover_ratio'], reverse=True)
+
+    # Categorize products
+    fast_moving_count = len([item for item in stock_turnover_data if item['movement_rate'] >= 70])
+    slow_moving_count = len([item for item in stock_turnover_data if item['movement_rate'] < 30])
+
+    # Low stock items
+    low_stock_items = Stock.objects.filter(
+        store=store,
+        quantity__lte=F('low_stock_threshold'),
+        quantity__gt=0
+    ).count()
+
+    # Sales vs Target
+    monthly_target = 50000  # Could be configurable
+    monthly_sales = Transaction.objects.filter(
+        store=store,
+        timestamp__date__gte=end_date.replace(day=1)
+    ).aggregate(total=Sum('total_amount'))['total'] or 0
+
+    sales_vs_target_percent = (monthly_sales / monthly_target * 100) if monthly_target > 0 else 0
+
+    # Daily sales for chart (last 30 days)
+    daily_sales = Transaction.objects.filter(
+        store=store,
+        timestamp__date__gte=start_date_30
+    ).extra(
+        select={'day': 'date(timestamp)'}
+    ).values('day').annotate(
+        daily_total=Sum('total_amount'),
+        daily_count=Count('id')
+    ).order_by('day')
+
+    # Movement rate by category
+    category_movement = TransactionOrder.objects.filter(
+        transaction__store=store,
+        transaction__timestamp__date__gte=start_date_30
+    ).values('product__category').annotate(
+        total_quantity=Sum('quantity'),
+        total_revenue=Sum(F('quantity') * F('price_at_time_of_sale'))
+    ).order_by('-total_revenue')
+
+    context = {
+        'store': store,
+        'sales_30_days': sales_30_days,
+        'sales_7_days': sales_7_days,
+        'today_sales': today_sales,
+        'today_units': today_units,
+        'daily_sales': list(daily_sales),
+
+        # Stock Turnover & Movement
+        'stock_turnover_data': stock_turnover_data[:10],  # Top 10
+        'fast_moving_count': fast_moving_count,
+        'slow_moving_count': slow_moving_count,
+        'category_movement': list(category_movement),
+
+        # KPIs
+        'low_stock_items': low_stock_items,
+        'monthly_target': monthly_target,
+        'monthly_sales': monthly_sales,
+        'sales_vs_target_percent': round(sales_vs_target_percent, 1),
+    }
+
+    return render(request, 'store/analytics_dashboard.html', context)
+
+
+@login_required
+def store_manager_stock_turnover(request):
+    """
+    Stock Turnover Analysis with fast, medium, and slow moving products categorization.
+    """
+    if request.user.role != 'store_manager':
+        messages.error(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
+    try:
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, "You are not assigned to manage any store.")
+        return redirect('store_manager_page')
+
+    from datetime import timedelta
+    from django.db.models import Sum, Count, Avg, F, Q
+    from django.utils import timezone
+
+    # Date range (90 days for turnover analysis)
+    end_date = timezone.now().date()
+    start_date = end_date - timedelta(days=90)
+
+    # Get all stock items with sales data
+    stock_items = Stock.objects.filter(store=store).select_related('product')
+
+    turnover_data = []
+    for stock in stock_items:
+        # Calculate sales data for this product
+        sales_data = TransactionOrder.objects.filter(
+            transaction__store=store,
+            product=stock.product,
+            transaction__timestamp__date__gte=start_date
+        ).aggregate(
+            total_sold=Sum('quantity'),
+            total_revenue=Sum(F('quantity') * F('price_at_time_of_sale')),
+            transaction_count=Count('transaction', distinct=True)
+        )
+
+        total_sold = sales_data['total_sold'] or 0
+        total_revenue = sales_data['total_revenue'] or 0
+        transaction_count = sales_data['transaction_count'] or 0
+
+        # Calculate turnover rate (percentage of stock moved)
+        if stock.quantity > 0:
+            turnover_rate = (total_sold / (stock.quantity + total_sold)) * 100
+        else:
+            turnover_rate = 100 if total_sold > 0 else 0
+
+        # Categorize movement
+        if turnover_rate >= 70:
+            movement_category = 'fast'
+        elif turnover_rate >= 30:
+            movement_category = 'medium'
+        else:
+            movement_category = 'slow'
+
+        turnover_data.append({
+            'product': stock.product,
+            'current_stock': stock.quantity,
+            'total_sold': total_sold,
+            'total_revenue': total_revenue,
+            'transaction_count': transaction_count,
+            'turnover_rate': round(turnover_rate, 1),
+            'movement_category': movement_category,
+            'stock_value': stock.quantity * stock.selling_price
+        })
+
+    # Sort by turnover rate
+    turnover_data.sort(key=lambda x: x['turnover_rate'], reverse=True)
+
+    # Categorize for display
+    fast_moving = [item for item in turnover_data if item['movement_category'] == 'fast']
+    medium_moving = [item for item in turnover_data if item['movement_category'] == 'medium']
+    slow_moving = [item for item in turnover_data if item['movement_category'] == 'slow']
+
+    context = {
+        'store': store,
+        'start_date': start_date,
+        'end_date': end_date,
+        'fast_moving': fast_moving,
+        'medium_moving': medium_moving,
+        'slow_moving': slow_moving,
+        'fast_count': len(fast_moving),
+        'medium_count': len(medium_moving),
+        'slow_count': len(slow_moving),
+        'total_products': len(turnover_data)
+    }
+
+    return render(request, 'store/stock_turnover.html', context)
+
+
+@login_required
+def store_manager_vat_report(request):
+    """
+    VAT Report with Ethiopian tax calculations (15% VAT rate).
+    """
+    if request.user.role != 'store_manager':
+        messages.error(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
+    try:
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, "You are not assigned to manage any store.")
+        return redirect('store_manager_page')
+
+    from datetime import timedelta
+    from django.db.models import Sum, Count, F
+    from django.utils import timezone
+    from decimal import Decimal
+
+    # Get date range from request
+    period = request.GET.get('period', '30')
+    try:
+        days = int(period)
+    except ValueError:
+        days = 30
+
+    end_date = timezone.now().date()
+    start_date = end_date - timedelta(days=days)
+
+    # Ethiopian VAT rate (15%)
+    vat_rate = Decimal('0.15')
+
+    # Get all transactions in period
+    transactions = Transaction.objects.filter(
+        store=store,
+        timestamp__date__gte=start_date
+    )
+
+    # Calculate VAT summary
+    total_sales = transactions.aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+
+    # Calculate VAT (assuming prices include VAT)
+    # Net Amount = Total / (1 + VAT Rate)
+    # VAT Amount = Total - Net Amount
+    vat_divisor = Decimal('1') + vat_rate
+    net_amount = total_sales / vat_divisor
+    vat_amount = total_sales - net_amount
+
+    # Daily VAT breakdown
+    daily_vat = transactions.extra(
+        select={'day': 'date(timestamp)'}
+    ).values('day').annotate(
+        daily_total=Sum('total_amount'),
+        transaction_count=Count('id')
+    ).order_by('day')
+
+    # Add VAT calculations to daily data
+    for day_data in daily_vat:
+        day_total = Decimal(str(day_data['daily_total']))
+        day_net = day_total / vat_divisor
+        day_vat = day_total - day_net
+        day_data['net_amount'] = day_net
+        day_data['vat_amount'] = day_vat
+
+    # Product-wise VAT analysis
+    product_vat = TransactionOrder.objects.filter(
+        transaction__store=store,
+        transaction__timestamp__date__gte=start_date
+    ).values(
+        'product__name',
+        'product__category'
+    ).annotate(
+        total_revenue=Sum(F('quantity') * F('price_at_time_of_sale')),
+        total_quantity=Sum('quantity')
+    ).order_by('-total_revenue')[:10]
+
+    # Add VAT calculations to product data
+    for product in product_vat:
+        product_total = Decimal(str(product['total_revenue']))
+        product_net = product_total / vat_divisor
+        product_vat_amt = product_total - product_net
+        product['net_amount'] = product_net
+        product['vat_amount'] = product_vat_amt
+
+    context = {
+        'store': store,
+        'period_days': days,
+        'start_date': start_date,
+        'end_date': end_date,
+        'vat_rate_percent': int(vat_rate * 100),
+        'total_sales': total_sales,
+        'net_amount': net_amount,
+        'vat_amount': vat_amount,
+        'daily_vat': list(daily_vat),
+        'product_vat': list(product_vat),
+        'transaction_count': transactions.count()
+    }
+
+    return render(request, 'store/vat_report.html', context)

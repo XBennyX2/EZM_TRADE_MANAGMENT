@@ -1,0 +1,352 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+{% load math_filters %}
+
+{% block title %}Analytics Dashboard - {{ store.name }}{% endblock %}
+{% block page_title %}Analytics Dashboard{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">Analytics Dashboard</h1>
+                    <p class="text-muted">{{ store.name }} - Performance Overview & Stock Analysis</p>
+                </div>
+                <div>
+                    <a href="{% url 'store_manager_page' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced KPI Cards -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h4>{{ today_units }}</h4>
+                    <p class="mb-0">Units Sold Today</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-warning text-dark">
+                <div class="card-body text-center">
+                    <h4>{{ low_stock_items }}</h4>
+                    <p class="mb-0">Low Stock Items</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h4>{{ sales_vs_target_percent }}%</h4>
+                    <p class="mb-0">Sales vs Target</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>${{ sales_30_days.total_amount|default:0|floatformat:2 }}</h4>
+                            <p class="mb-0">Sales (30 Days)</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-currency-dollar fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-secondary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ sales_30_days.total_transactions|default:0 }}</h4>
+                            <p class="mb-0">Transactions</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-receipt fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stock Movement Summary -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0">Fast Moving Products</h6>
+                </div>
+                <div class="card-body">
+                    <h3 class="text-success">{{ fast_moving_count }}</h3>
+                    <p class="mb-0">Products with ≥70% turnover rate</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0">Slow Moving Products</h6>
+                </div>
+                <div class="card-body">
+                    <h3 class="text-warning">{{ slow_moving_count }}</h3>
+                    <p class="mb-0">Products with <30% turnover rate</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">Monthly Target</h6>
+                </div>
+                <div class="card-body">
+                    <h3 class="text-info">${{ monthly_sales|floatformat:0 }}</h3>
+                    <p class="mb-0">of ${{ monthly_target|floatformat:0 }} target</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts and Analytics Row -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Daily Sales Trend & Stock Turnover Analysis</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="salesChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Movement Rate by Category</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="categoryChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stock Turnover Analysis -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Stock Turnover Analysis (Top 10 Products)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Current Stock</th>
+                                    <th>Sold (90d)</th>
+                                    <th>Turnover Ratio</th>
+                                    <th>Movement Rate</th>
+                                    <th>Time in Inventory</th>
+                                    <th>Stock Value</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in stock_turnover_data %}
+                                <tr>
+                                    <td><strong>{{ item.product.name }}</strong></td>
+                                    <td>{{ item.current_stock }} units</td>
+                                    <td>{{ item.total_sold }} units</td>
+                                    <td>
+                                        <span class="badge {% if item.turnover_ratio > 2 %}bg-success{% elif item.turnover_ratio > 1 %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ item.turnover_ratio }}x
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="progress me-2" style="width: 80px; height: 15px;">
+                                                <div class="progress-bar {% if item.movement_rate >= 70 %}bg-success{% elif item.movement_rate >= 30 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                                     style="width: {{ item.movement_rate }}%"></div>
+                                            </div>
+                                            <span class="small">{{ item.movement_rate }}%</span>
+                                        </div>
+                                    </td>
+                                    <td>{{ item.time_in_inventory }} days</td>
+                                    <td>${{ item.stock_value|floatformat:2 }}</td>
+                                    <td>
+                                        {% if item.is_slow_moving %}
+                                            <span class="badge bg-warning">Slow Moving</span>
+                                        {% else %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="8" class="text-center text-muted">No stock data available</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Performance Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Sales Performance</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>30-Day Total:</strong> ${{ sales_30_days.total_amount|default:0|floatformat:2 }}</li>
+                                <li><strong>7-Day Total:</strong> ${{ sales_7_days.total_amount|default:0|floatformat:2 }}</li>
+                                <li><strong>Daily Average:</strong> {{ sales_30_days.total_amount|default:0|div:30|currency }}</li>
+                                <li><strong>Transaction Count:</strong> {{ sales_30_days.total_transactions|default:0 }}</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Stock Movement Insights</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Fast Moving Items:</strong> {{ fast_moving_count }} products</li>
+                                <li><strong>Slow Moving Items:</strong> {{ slow_moving_count }} products</li>
+                                <li><strong>Low Stock Alerts:</strong> {{ low_stock_items }} items</li>
+                                <li><strong>Target Achievement:</strong> {{ sales_vs_target_percent }}%</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'store_manager_sales_report' %}" class="btn btn-outline-primary">
+                            <i class="bi bi-file-earmark-text me-2"></i>Sales Report
+                        </a>
+                        <a href="{% url 'store_manager_stock_turnover' %}" class="btn btn-outline-success">
+                            <i class="bi bi-arrow-repeat me-2"></i>Stock Turnover
+                        </a>
+                        <a href="{% url 'store_manager_vat_report' %}" class="btn btn-outline-info">
+                            <i class="bi bi-calculator me-2"></i>VAT Report
+                        </a>
+                        <a href="{% url 'store_product_list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-box-seam me-2"></i>Product List
+                        </a>
+                        <hr>
+                        <small class="text-muted">Quick Reports:</small>
+                        <div class="d-grid gap-1 mt-2">
+                            <a href="{% url 'store_manager_sales_report' %}?period=1" class="btn btn-sm btn-outline-primary">Today</a>
+                            <a href="{% url 'store_manager_sales_report' %}?period=7" class="btn btn-sm btn-outline-primary">This Week</a>
+                            <a href="{% url 'store_manager_vat_report' %}?period=30" class="btn btn-sm btn-outline-info">Monthly VAT</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Sales Chart
+const ctx = document.getElementById('salesChart').getContext('2d');
+const dailySalesData = {{ daily_sales|safe }};
+
+const labels = dailySalesData.map(item => item.day);
+const salesData = dailySalesData.map(item => item.daily_total || 0);
+
+new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: labels,
+        datasets: [{
+            label: 'Daily Sales ($)',
+            data: salesData,
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            tension: 0.1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return '$' + value.toFixed(2);
+                    }
+                }
+            }
+        },
+        plugins: {
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return 'Sales: $' + context.parsed.y.toFixed(2);
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Category Movement Chart
+const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+const categoryData = {{ category_movement|safe }};
+
+new Chart(categoryCtx, {
+    type: 'doughnut',
+    data: {
+        labels: categoryData.map(item => item.product__category),
+        datasets: [{
+            data: categoryData.map(item => item.total_revenue),
+            backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#17a2b8']
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom' },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return context.label + ': $' + context.parsed.toFixed(2);
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

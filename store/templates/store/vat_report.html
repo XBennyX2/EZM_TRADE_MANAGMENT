@@ -1,0 +1,327 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+{% load math_filters %}
+
+{% block title %}VAT Report - {{ store.name }}{% endblock %}
+{% block page_title %}VAT Report{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">VAT Report</h1>
+                    <p class="text-muted">{{ store.name }} - Ethiopian VAT ({{ vat_rate_percent }}%) - {{ start_date }} to {{ end_date }}</p>
+                </div>
+                <div>
+                    <a href="{% url 'store_manager_analytics' %}" class="btn btn-outline-primary me-2">
+                        <i class="bi bi-arrow-left me-1"></i>Back to Analytics
+                    </a>
+                    <button onclick="window.print()" class="btn btn-success">
+                        <i class="bi bi-printer me-1"></i>Print Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Period Filter -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h6>Report Period</h6>
+                    <form method="get" class="d-flex gap-2">
+                        <select name="period" class="form-select">
+                            <option value="7" {% if period_days == 7 %}selected{% endif %}>Last 7 Days</option>
+                            <option value="30" {% if period_days == 30 %}selected{% endif %}>Last 30 Days</option>
+                            <option value="90" {% if period_days == 90 %}selected{% endif %}>Last 90 Days</option>
+                            <option value="365" {% if period_days == 365 %}selected{% endif %}>Last Year</option>
+                        </select>
+                        <button type="submit" class="btn btn-primary">Update</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VAT Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ total_sales|currency }}</h4>
+                            <p class="mb-0">Total Sales (Inc. VAT)</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-currency-dollar fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ net_amount|currency }}</h4>
+                            <p class="mb-0">Net Amount (Ex. VAT)</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-receipt fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ vat_amount|currency }}</h4>
+                            <p class="mb-0">VAT Amount ({{ vat_rate_percent }}%)</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-calculator fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ transaction_count }}</h4>
+                            <p class="mb-0">Total Transactions</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-list-check fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">VAT vs Net Amount Breakdown</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="vatChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Daily VAT Trend</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="dailyVatChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily VAT Breakdown -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Daily VAT Breakdown</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Total Sales</th>
+                                    <th>Net Amount</th>
+                                    <th>VAT Amount</th>
+                                    <th>Transactions</th>
+                                    <th>Avg Transaction</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for day in daily_vat %}
+                                <tr>
+                                    <td>{{ day.day|date:"M d, Y" }}</td>
+                                    <td>{{ day.daily_total|currency }}</td>
+                                    <td>{{ day.net_amount|currency }}</td>
+                                    <td><strong>{{ day.vat_amount|currency }}</strong></td>
+                                    <td>{{ day.transaction_count }}</td>
+                                    <td>{{ day.daily_total|div:day.transaction_count|currency }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">No transactions in this period</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product-wise VAT Analysis -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Top Products VAT Analysis</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Category</th>
+                                    <th>Quantity Sold</th>
+                                    <th>Total Revenue</th>
+                                    <th>Net Amount</th>
+                                    <th>VAT Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in product_vat %}
+                                <tr>
+                                    <td><strong>{{ product.product__name }}</strong></td>
+                                    <td><span class="badge bg-secondary">{{ product.product__category }}</span></td>
+                                    <td>{{ product.total_quantity }} units</td>
+                                    <td>{{ product.total_revenue|currency }}</td>
+                                    <td>{{ product.net_amount|currency }}</td>
+                                    <td><strong>{{ product.vat_amount|currency }}</strong></td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">No product sales data</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VAT Information -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h6>VAT Calculation Information</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li><strong>VAT Rate:</strong> {{ vat_rate_percent }}% (Ethiopian Standard)</li>
+                                <li><strong>Calculation Method:</strong> Prices include VAT</li>
+                                <li><strong>Net Amount:</strong> Total Sales ÷ 1.{{ vat_rate_percent }}</li>
+                                <li><strong>VAT Amount:</strong> Total Sales - Net Amount</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="alert alert-info">
+                                <h6>Important Notes:</h6>
+                                <ul class="mb-0">
+                                    <li>All amounts are calculated assuming VAT-inclusive pricing</li>
+                                    <li>This report is for internal analysis purposes</li>
+                                    <li>Consult with tax advisor for official VAT filing</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// VAT Breakdown Chart
+const vatCtx = document.getElementById('vatChart').getContext('2d');
+new Chart(vatCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Net Amount', 'VAT Amount'],
+        datasets: [{
+            data: [{{ net_amount }}, {{ vat_amount }}],
+            backgroundColor: ['#28a745', '#ffc107']
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom' },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return context.label + ': $' + context.parsed.toFixed(2);
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Daily VAT Chart
+const dailyVatCtx = document.getElementById('dailyVatChart').getContext('2d');
+const dailyVatData = {{ daily_vat|safe }};
+new Chart(dailyVatCtx, {
+    type: 'line',
+    data: {
+        labels: dailyVatData.map(item => item.day),
+        datasets: [{
+            label: 'VAT Amount ($)',
+            data: dailyVatData.map(item => item.vat_amount || 0),
+            borderColor: '#ffc107',
+            backgroundColor: 'rgba(255, 193, 7, 0.2)',
+            tension: 0.1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return '$' + value.toFixed(2);
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
+
+<style>
+@media print {
+    .btn, .card-header { display: none !important; }
+    .card { border: none !important; box-shadow: none !important; }
+}
+</style>
+{% endblock %}

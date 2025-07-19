@@ -1,0 +1,405 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+{% load math_filters %}
+
+{% block title %}Sales & Operational Reports - {{ store.name }}{% endblock %}
+{% block page_title %}Sales & Operational Reports{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">Sales & Operational Reports</h1>
+                    <p class="text-muted">{{ store.name }} - {{ start_date }} to {{ end_date }}</p>
+                </div>
+                <div>
+                    <a href="{% url 'store_manager_analytics' %}" class="btn btn-outline-primary me-2">
+                        <i class="bi bi-graph-up me-1"></i>Analytics Dashboard
+                    </a>
+                    <button onclick="window.print()" class="btn btn-success">
+                        <i class="bi bi-printer me-1"></i>Print Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Period Filter -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h6>Report Period</h6>
+                    <form method="get" class="d-flex gap-2">
+                        <select name="period" class="form-select">
+                            <option value="1" {% if period_days == 1 %}selected{% endif %}>Today</option>
+                            <option value="7" {% if period_days == 7 %}selected{% endif %}>Last 7 Days</option>
+                            <option value="30" {% if period_days == 30 %}selected{% endif %}>Last 30 Days</option>
+                            <option value="90" {% if period_days == 90 %}selected{% endif %}>Last 90 Days</option>
+                        </select>
+                        <button type="submit" class="btn btn-primary">Update</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI Dashboard Cards -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h4>{{ today_units }}</h4>
+                    <p class="mb-0">Units Sold Today</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-warning text-dark">
+                <div class="card-body text-center">
+                    <h4>{{ low_stock_items }}</h4>
+                    <p class="mb-0">Low Stock Items</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h4>{{ sales_vs_target_percent }}%</h4>
+                    <p class="mb-0">Sales vs Target</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h4>${{ today_sales.today_total|default:0|floatformat:2 }}</h4>
+                    <p class="mb-0">Today's Sales</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-secondary text-white">
+                <div class="card-body text-center">
+                    <h4>${{ sales_summary.total_sales|default:0|floatformat:2 }}</h4>
+                    <p class="mb-0">Period Total</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs for Different Report Sections -->
+    <div class="card">
+        <div class="card-header">
+            <ul class="nav nav-tabs card-header-tabs" id="reportTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="sales-tab" data-bs-toggle="tab" data-bs-target="#sales" type="button" role="tab">
+                        Sales Summary
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="fast-moving-tab" data-bs-toggle="tab" data-bs-target="#fast-moving" type="button" role="tab">
+                        Fast Moving Products
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="slow-moving-tab" data-bs-toggle="tab" data-bs-target="#slow-moving" type="button" role="tab">
+                        Slow Moving Products
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="operational-tab" data-bs-toggle="tab" data-bs-target="#operational" type="button" role="tab">
+                        Operational Reports
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="activity-tab" data-bs-toggle="tab" data-bs-target="#activity" type="button" role="tab">
+                        Daily Activity
+                    </button>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body">
+            <div class="tab-content" id="reportTabsContent">
+                <!-- Sales Summary Tab -->
+                <div class="tab-pane fade show active" id="sales" role="tabpanel">
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <h5>Sales Performance</h5>
+                            <table class="table table-sm">
+                                <tr><td><strong>Total Sales:</strong></td><td>${{ sales_summary.total_sales|default:0|floatformat:2 }}</td></tr>
+                                <tr><td><strong>Total Transactions:</strong></td><td>{{ sales_summary.total_transactions|default:0 }}</td></tr>
+                                <tr><td><strong>Average Transaction:</strong></td><td>${{ sales_summary.avg_transaction|default:0|floatformat:2 }}</td></tr>
+                                <tr><td><strong>Daily Average:</strong></td><td>{{ sales_summary.total_sales|default:0|div:period_days|currency }}</td></tr>
+                            </table>
+                        </div>
+                        <div class="col-lg-6">
+                            <h5>Payment Methods</h5>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr><th>Method</th><th>Amount</th><th>Count</th><th>%</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for method in payment_methods %}
+                                        <tr>
+                                            <td>{{ method.payment_method|title }}</td>
+                                            <td>${{ method.total_amount|floatformat:2 }}</td>
+                                            <td>{{ method.transaction_count }}</td>
+                                            <td>{{ method.total_amount|percentage:sales_summary.total_sales }}%</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fast Moving Products Tab -->
+                <div class="tab-pane fade" id="fast-moving" role="tabpanel">
+                    <div class="alert alert-success">
+                        <i class="bi bi-trending-up me-2"></i>
+                        <strong>Top 10 Fast Moving Products</strong> - Based on quantity sold and revenue generation
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Product</th>
+                                    <th>Category</th>
+                                    <th>Quantity Sold</th>
+                                    <th>Revenue</th>
+                                    <th>Sales Velocity</th>
+                                    <th>Transactions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in fast_moving_products %}
+                                <tr>
+                                    <td><span class="badge bg-success">#{{ forloop.counter }}</span></td>
+                                    <td><strong>{{ product.product__name }}</strong></td>
+                                    <td><span class="badge bg-secondary">{{ product.product__category }}</span></td>
+                                    <td>{{ product.total_quantity }} units</td>
+                                    <td>${{ product.total_revenue|floatformat:2 }}</td>
+                                    <td>{{ product.sales_velocity|floatformat:1 }} units/day</td>
+                                    <td>{{ product.transaction_count }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="7" class="text-center text-muted">No sales data available</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Slow Moving Products Tab -->
+                <div class="tab-pane fade" id="slow-moving" role="tabpanel">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Slow Moving & Idle Products</strong> - Products requiring attention
+                    </div>
+                    
+                    <h6>Slow Moving Products (Low Sales Velocity)</h6>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr><th>Product</th><th>Category</th><th>Quantity Sold</th><th>Revenue</th><th>Sales Velocity</th></tr>
+                            </thead>
+                            <tbody>
+                                {% for product in slow_moving_products %}
+                                <tr>
+                                    <td><strong>{{ product.product__name }}</strong></td>
+                                    <td><span class="badge bg-secondary">{{ product.product__category }}</span></td>
+                                    <td>{{ product.total_quantity }} units</td>
+                                    <td>${{ product.total_revenue|floatformat:2 }}</td>
+                                    <td><span class="text-warning">{{ product.sales_velocity|floatformat:2 }} units/day</span></td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="5" class="text-center text-muted">No slow moving products</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h6>Idle Products (No Sales in Period)</h6>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr><th>Product</th><th>Category</th><th>Current Stock</th><th>Stock Value</th><th>Action Needed</th></tr>
+                            </thead>
+                            <tbody>
+                                {% for stock in idle_products %}
+                                <tr>
+                                    <td><strong>{{ stock.product.name }}</strong></td>
+                                    <td><span class="badge bg-secondary">{{ stock.product.category }}</span></td>
+                                    <td>{{ stock.quantity }} units</td>
+                                    <td>{{ stock.quantity|mul:stock.selling_price|currency }}</td>
+                                    <td><span class="badge bg-danger">Review/Discount</span></td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="5" class="text-center text-muted">No idle products</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Operational Reports Tab -->
+                <div class="tab-pane fade" id="operational" role="tabpanel">
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <h6>Stock Transfer Logs</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr><th>Date</th><th>Product</th><th>Direction</th><th>Status</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for transfer in transfer_logs %}
+                                        <tr>
+                                            <td>{{ transfer.requested_date|date:"M d" }}</td>
+                                            <td>{{ transfer.product.name|truncatechars:20 }}</td>
+                                            <td>
+                                                {% if transfer.from_store == store %}
+                                                    <span class="text-danger">OUT → {{ transfer.to_store.name }}</span>
+                                                {% else %}
+                                                    <span class="text-success">IN ← {{ transfer.from_store.name }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge 
+                                                    {% if transfer.status == 'completed' %}bg-success
+                                                    {% elif transfer.status == 'approved' %}bg-info
+                                                    {% elif transfer.status == 'pending' %}bg-warning
+                                                    {% else %}bg-danger{% endif %}">
+                                                    {{ transfer.status|title }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr><td colspan="4" class="text-center text-muted">No transfer logs</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <h6>Pending Approvals</h6>
+                            <div class="mb-3">
+                                <strong>Restock Requests ({{ pending_restocks.count }})</strong>
+                                {% for request in pending_restocks %}
+                                <div class="small border-bottom py-1">
+                                    {{ request.product.name }} - {{ request.requested_quantity }} units
+                                </div>
+                                {% empty %}
+                                <div class="text-muted small">No pending restock requests</div>
+                                {% endfor %}
+                            </div>
+                            <div>
+                                <strong>Transfer Requests ({{ pending_transfers.count }})</strong>
+                                {% for request in pending_transfers %}
+                                <div class="small border-bottom py-1">
+                                    {{ request.product.name }} → {{ request.to_store.name }}
+                                </div>
+                                {% empty %}
+                                <div class="text-muted small">No pending transfer requests</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Daily Activity Tab -->
+                <div class="tab-pane fade" id="activity" role="tabpanel">
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <h6>Cashier Activity (Today) <small class="text-muted">- Not Available</small></h6>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr><th>Cashier</th><th>Transactions</th><th>Total Sales</th><th>Avg Transaction</th><th>Performance</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for cashier in cashier_activity %}
+                                        <tr>
+                                            <td><strong>{{ cashier.cashier__first_name }} {{ cashier.cashier__last_name }}</strong></td>
+                                            <td>{{ cashier.transactions_count }}</td>
+                                            <td>${{ cashier.total_sales|floatformat:2 }}</td>
+                                            <td>${{ cashier.avg_transaction|floatformat:2 }}</td>
+                                            <td>
+                                                <div class="progress" style="height: 15px;">
+                                                    <div class="progress-bar bg-success"
+                                                         style="width: {{ cashier.total_sales|percentage:today_sales.today_total }}%">
+                                                        {{ cashier.total_sales|percentage:today_sales.today_total }}%
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr><td colspan="5" class="text-center text-muted">Cashier activity tracking not available (Transaction model doesn't include cashier field)</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <h6>Hourly Sales Pattern</h6>
+                            <canvas id="hourlyChart" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Hourly Sales Chart
+const hourlyCtx = document.getElementById('hourlyChart').getContext('2d');
+const hourlyData = {{ hourly_sales|safe }};
+new Chart(hourlyCtx, {
+    type: 'bar',
+    data: {
+        labels: hourlyData.map(item => item.hour + ':00'),
+        datasets: [{
+            label: 'Sales ($)',
+            data: hourlyData.map(item => item.total_sales || 0),
+            backgroundColor: 'rgba(54, 162, 235, 0.8)'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return '$' + value.toFixed(2);
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
+
+<style>
+@media print {
+    .btn, .nav-tabs { display: none !important; }
+    .card { border: none !important; box-shadow: none !important; }
+    .tab-content > .tab-pane { display: block !important; opacity: 1 !important; }
+}
+</style>
+{% endblock %}

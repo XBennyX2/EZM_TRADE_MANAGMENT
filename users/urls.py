@@ -29,6 +29,12 @@ from .views import (
     transaction_history
 )
 
+# Import store analytics views
+from store.views import (
+    store_manager_analytics, store_manager_sales_report,
+    store_manager_stock_turnover, store_manager_vat_report
+)
+
 # Import API views
 from . import api_views
 from .supplier_views import (
@@ -64,6 +70,12 @@ urlpatterns = [
     path('store-manager/restock-requests/', store_manager_restock_requests, name='store_manager_restock_requests'),
     path('store-manager/transfer-requests/', store_manager_transfer_requests, name='store_manager_transfer_requests'),
     path('store-manager/stock-management/', store_manager_stock_management, name='store_manager_stock_management'),
+
+    # Store Manager Analytics & Reports URLs
+    path('store-manager/analytics/', store_manager_analytics, name='store_manager_analytics'),
+    path('store-manager/sales-report/', store_manager_sales_report, name='store_manager_sales_report'),
+    path('store-manager/stock-turnover/', store_manager_stock_turnover, name='store_manager_stock_turnover'),
+    path('store-manager/vat-report/', store_manager_vat_report, name='store_manager_vat_report'),
 
     # API endpoints for product dropdowns
     path('api/restock-products/', get_restock_products, name='get_restock_products'),

@@ -135,21 +135,33 @@
         </a>
     </li>
     <li class="sidebar-menu-item">
-        <a href="#" data-tooltip="Sales Reports">
+        <a href="{% url 'store_manager_sales_report' %}" data-tooltip="Sales Reports">
             <i class="bi bi-receipt"></i>
             <span>Sales Reports</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'store_manager_analytics' %}" data-tooltip="Store Analytics">
+            <i class="bi bi-graph-up"></i>
+            <span>Store Analytics</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'store_manager_stock_turnover' %}" data-tooltip="Stock Turnover">
+            <i class="bi bi-arrow-repeat"></i>
+            <span>Stock Turnover</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'store_manager_vat_report' %}" data-tooltip="VAT Reports">
+            <i class="bi bi-calculator"></i>
+            <span>VAT Reports</span>
         </a>
     </li>
     <li class="sidebar-menu-item">
         <a href="#" data-tooltip="Request History" onclick="showRequestHistory()">
             <i class="bi bi-clock-history"></i>
             <span>Request History</span>
-        </a>
-    </li>
-    <li class="sidebar-menu-item">
-        <a href="#" data-tooltip="Store Analytics">
-            <i class="bi bi-graph-up"></i>
-            <span>Store Analytics</span>
         </a>
     </li>
 </ul>

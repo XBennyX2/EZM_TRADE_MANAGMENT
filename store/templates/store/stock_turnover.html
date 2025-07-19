@@ -1,0 +1,163 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+{% load math_filters %}
+
+{% block title %}Stock Turnover Analysis - {{ store.name }}{% endblock %}
+{% block page_title %}Stock Turnover Analysis{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">Stock Turnover Analysis</h1>
+                    <p class="text-muted">{{ store.name }} - 90-Day Movement Analysis</p>
+                </div>
+                <div>
+                    <a href="{% url 'store_manager_analytics' %}" class="btn btn-outline-primary me-2">
+                        <i class="bi bi-arrow-left me-1"></i>Back to Analytics
+                    </a>
+                    <button onclick="window.print()" class="btn btn-success">
+                        <i class="bi bi-printer me-1"></i>Print Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h3>{{ fast_count }}</h3>
+                    <p class="mb-0">Fast Moving</p>
+                    <small>≥70% turnover rate</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body text-center">
+                    <h3>{{ medium_count }}</h3>
+                    <p class="mb-0">Medium Moving</p>
+                    <small>30-69% turnover rate</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <h3>{{ slow_count }}</h3>
+                    <p class="mb-0">Slow Moving</p>
+                    <small><30% turnover rate</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h3>{{ total_products }}</h3>
+                    <p class="mb-0">Total Products</p>
+                    <small>In analysis</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabbed Interface -->
+    <div class="card">
+        <div class="card-header">
+            <ul class="nav nav-tabs card-header-tabs" id="turnoverTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="fast-tab" data-bs-toggle="tab" data-bs-target="#fast" type="button" role="tab">
+                        <i class="bi bi-arrow-up-circle text-success me-1"></i>Fast Moving ({{ fast_count }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="medium-tab" data-bs-toggle="tab" data-bs-target="#medium" type="button" role="tab">
+                        <i class="bi bi-dash-circle text-warning me-1"></i>Medium Moving ({{ medium_count }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="slow-tab" data-bs-toggle="tab" data-bs-target="#slow" type="button" role="tab">
+                        <i class="bi bi-arrow-down-circle text-danger me-1"></i>Slow Moving ({{ slow_count }})
+                    </button>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body">
+            <div class="tab-content" id="turnoverTabsContent">
+                <!-- Fast Moving Tab -->
+                <div class="tab-pane fade show active" id="fast" role="tabpanel">
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle me-2"></i>
+                        <strong>Fast Moving Products</strong> - These products have excellent turnover rates (≥70%). Consider increasing stock levels.
+                    </div>
+                    {% include 'store/partials/turnover_table.html' with items=fast_moving %}
+                </div>
+
+                <!-- Medium Moving Tab -->
+                <div class="tab-pane fade" id="medium" role="tabpanel">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Medium Moving Products</strong> - These products have moderate turnover rates (30-69%). Monitor closely for trends.
+                    </div>
+                    {% include 'store/partials/turnover_table.html' with items=medium_moving %}
+                </div>
+
+                <!-- Slow Moving Tab -->
+                <div class="tab-pane fade" id="slow" role="tabpanel">
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-circle me-2"></i>
+                        <strong>Slow Moving Products</strong> - These products have low turnover rates (<30%). Consider promotions or discontinuation.
+                    </div>
+                    {% include 'store/partials/turnover_table.html' with items=slow_moving %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analysis Period Info -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h6>Analysis Information</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li><strong>Analysis Period:</strong> {{ start_date }} to {{ end_date }}</li>
+                                <li><strong>Total Products Analyzed:</strong> {{ total_products }}</li>
+                                <li><strong>Calculation Method:</strong> Turnover Rate = Units Sold / (Current Stock + Units Sold) × 100</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Recommendations</h6>
+                            <ul class="small">
+                                <li><span class="badge bg-success">Fast Moving:</span> Consider increasing stock levels and promoting similar products</li>
+                                <li><span class="badge bg-warning">Medium Moving:</span> Monitor trends and adjust marketing strategies</li>
+                                <li><span class="badge bg-danger">Slow Moving:</span> Consider discounts, promotions, or product discontinuation</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .btn, .nav-tabs { display: none !important; }
+    .card { border: none !important; box-shadow: none !important; }
+    .tab-content > .tab-pane { display: block !important; opacity: 1 !important; }
+}
+</style>
+{% endblock %}

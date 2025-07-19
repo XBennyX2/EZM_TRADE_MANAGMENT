@@ -1,0 +1,61 @@
+{% load math_filters %}
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead class="table-light">
+            <tr>
+                <th>Product</th>
+                <th>Current Stock</th>
+                <th>Sold (90d)</th>
+                <th>Revenue</th>
+                <th>Turnover Rate</th>
+                <th>Stock Value</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>
+                    <strong>{{ item.product.name }}</strong>
+                    <br><small class="text-muted">{{ item.product.category }}</small>
+                </td>
+                <td>{{ item.current_stock }} units</td>
+                <td>{{ item.total_sold }} units</td>
+                <td>{{ item.total_revenue|currency }}</td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <div class="progress me-2" style="width: 80px; height: 15px;">
+                            <div class="progress-bar 
+                                {% if item.movement_category == 'fast' %}bg-success
+                                {% elif item.movement_category == 'medium' %}bg-warning
+                                {% else %}bg-danger{% endif %}" 
+                                style="width: {{ item.turnover_rate }}%"></div>
+                        </div>
+                        <span class="small">{{ item.turnover_rate }}%</span>
+                    </div>
+                </td>
+                <td>{{ item.stock_value|currency }}</td>
+                <td>
+                    {% if item.movement_category == 'slow' %}
+                    <button class="btn btn-sm btn-outline-warning" title="Consider promotion">
+                        <i class="bi bi-megaphone"></i>
+                    </button>
+                    {% elif item.movement_category == 'fast' %}
+                    <button class="btn btn-sm btn-outline-success" title="Consider restocking">
+                        <i class="bi bi-plus-circle"></i>
+                    </button>
+                    {% else %}
+                    <button class="btn btn-sm btn-outline-info" title="Monitor closely">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" class="text-center text-muted">No items in this category</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

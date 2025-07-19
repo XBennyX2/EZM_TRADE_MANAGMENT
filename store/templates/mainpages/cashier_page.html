@@ -183,7 +183,7 @@
             <tr>
               <td><strong>#{{ transaction.id }}</strong></td>
               <td>{{ transaction.timestamp|date:"M d, Y H:i" }}</td>
-              <td><strong>${{ transaction.total_amount }}</strong></td>
+              <td><strong>ETB {{ transaction.total_amount }}</strong></td>
               <td>
                 <span class="badge bg-info">{{ transaction.payment_type|title }}</span>
               </td>

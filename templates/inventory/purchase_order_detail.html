@@ -94,7 +94,8 @@
                                     </p>
 
                                     <h6 class="text-muted">Total Amount</h6>
-                                    <p class="fw-bold text-success fs-5">${{ purchase_order.total_amount|floatformat:2
+                                    <p class="fw-bold text-success fs-5">ETB {{
+                                        purchase_order.total_amount|floatformat:2
                                         }}</p>
                                 </div>
                             </div>
@@ -215,7 +216,7 @@
                             <tfoot class="table-light">
                                 <tr>
                                     <th colspan="4" class="text-end">Total Amount:</th>
-                                    <th class="text-success">${{ purchase_order.total_amount|floatformat:2 }}</th>
+                                    <th class="text-success">ETB {{ purchase_order.total_amount|floatformat:2 }}</th>
                                     <th></th>
                                 </tr>
                             </tfoot>

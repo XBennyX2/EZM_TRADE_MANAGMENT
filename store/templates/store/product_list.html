@@ -11,7 +11,8 @@
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <h1 class="h3 mb-0">Store Products</h1>
-                    <p class="text-muted">{{ store.name }} - {{ total_products }} product{{ total_products|pluralize }}</p>
+                    <p class="text-muted">{{ store.name }} - {{ total_products }} product{{ total_products|pluralize }}
+                    </p>
                 </div>
                 <div>
                     <a href="{% url 'store_manager_page' %}" class="btn btn-outline-primary">
@@ -30,8 +31,9 @@
                     <span class="input-group-text">
                         <i class="bi bi-search"></i>
                     </span>
-                    <input type="text" class="form-control" placeholder="Search by name, category, description, or batch number..."
-                           name="search" value="{{ search_term }}">
+                    <input type="text" class="form-control"
+                        placeholder="Search by name, category, description, or batch number..." name="search"
+                        value="{{ search_term }}">
                     <button class="btn btn-primary" type="submit">Search</button>
                     {% if search_term %}
                     <a href="{% url 'store_product_list' %}" class="btn btn-outline-secondary">
@@ -73,7 +75,8 @@
                                 <div>
                                     <strong>{{ item.product.name }}</strong>
                                     {% if item.product.description %}
-                                    <br><small class="text-muted">{{ item.product.description|truncatewords:10 }}</small>
+                                    <br><small class="text-muted">{{ item.product.description|truncatewords:10
+                                        }}</small>
                                     {% endif %}
                                 </div>
                             </td>
@@ -82,19 +85,21 @@
                             </td>
                             <td>
                                 <div>
-                                    <strong>${{ item.selling_price }}</strong>
+                                    <strong>ETB {{ item.selling_price }}</strong>
                                     {% if item.product.price != item.selling_price %}
-                                    <br><small class="text-muted">Cost: ${{ item.product.price }}</small>
+                                    <br><small class="text-muted">Cost: ETB {{ item.product.price }}</small>
                                     {% endif %}
                                 </div>
                             </td>
                             <td>
                                 <div>
-                                    <span class="badge {% if item.quantity == 0 %}bg-danger{% elif item.is_low_stock %}bg-warning{% else %}bg-success{% endif %}">
+                                    <span
+                                        class="badge {% if item.quantity == 0 %}bg-danger{% elif item.is_low_stock %}bg-warning{% else %}bg-success{% endif %}">
                                         {{ item.quantity }} units
                                     </span>
                                     {% if item.is_low_stock and item.quantity > 0 %}
-                                    <br><small class="text-warning">⚠️ Low Stock (Threshold: {{ item.low_stock_threshold }})</small>
+                                    <br><small class="text-warning">⚠️ Low Stock (Threshold: {{ item.low_stock_threshold
+                                        }})</small>
                                     {% elif item.quantity == 0 %}
                                     <br><small class="text-danger">❌ Out of Stock</small>
                                     {% endif %}
@@ -105,20 +110,20 @@
                                 <small class="text-info">Batch: {{ item.product.batch_number }}</small>
                                 {% endif %}
                                 {% if item.product.expiry_date %}
-                                <br><small class="text-muted">Expires: {{ item.product.expiry_date|date:"M d, Y" }}</small>
+                                <br><small class="text-muted">Expires: {{ item.product.expiry_date|date:"M d, Y"
+                                    }}</small>
                                 {% endif %}
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm" role="group">
                                     <button type="button" class="btn btn-outline-primary"
-                                            onclick="viewProductDetails({{ item.product.id }})"
-                                            title="View Details">
+                                        onclick="viewProductDetails({{ item.product.id }})" title="View Details">
                                         <i class="bi bi-eye"></i>
                                     </button>
                                     {% if item.is_low_stock %}
                                     <button type="button" class="btn btn-outline-warning"
-                                            onclick="requestRestock({{ item.product.id }}, '{{ item.product.name }}')"
-                                            title="Request Restock">
+                                        onclick="requestRestock({{ item.product.id }}, '{{ item.product.name }}')"
+                                        title="Request Restock">
                                         <i class="bi bi-plus-circle"></i>
                                     </button>
                                     {% endif %}
@@ -134,16 +139,16 @@
                 <i class="bi bi-box-seam display-1 text-muted"></i>
                 <h4 class="text-muted mt-3">
                     {% if search_term %}
-                        No products found matching "{{ search_term }}"
+                    No products found matching "{{ search_term }}"
                     {% else %}
-                        No products in your store
+                    No products in your store
                     {% endif %}
                 </h4>
                 <p class="text-muted">
                     {% if search_term %}
-                        Try adjusting your search terms or <a href="{% url 'store_product_list' %}">view all products</a>.
+                    Try adjusting your search terms or <a href="{% url 'store_product_list' %}">view all products</a>.
                     {% else %}
-                        Contact your head manager to add products to your store.
+                    Contact your head manager to add products to your store.
                     {% endif %}
                 </p>
             </div>
@@ -153,16 +158,16 @@
 </div>
 
 <script>
-function viewProductDetails(productId) {
-    // You can implement a modal or redirect to product detail page
-    alert('Product details view - Product ID: ' + productId);
-}
-
-function requestRestock(productId, productName) {
-    if (confirm('Request restock for ' + productName + '?')) {
-        // Redirect to restock request page or open modal
-        window.location.href = '{% url "store_manager_restock_requests" %}';
+    function viewProductDetails(productId) {
+        // You can implement a modal or redirect to product detail page
+        alert('Product details view - Product ID: ' + productId);
     }
-}
+
+    function requestRestock(productId, productName) {
+        if (confirm('Request restock for ' + productName + '?')) {
+            // Redirect to restock request page or open modal
+            window.location.href = '{% url "store_manager_restock_requests" %}';
+        }
+    }
 </script>
 {% endblock %}

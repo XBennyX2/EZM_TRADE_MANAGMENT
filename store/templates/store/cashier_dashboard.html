@@ -20,7 +20,8 @@
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-center">
             <div>
-              <p class="text-muted mb-0">Welcome, {{ request.user.first_name|default:request.user.username }}! | Store: {{ store.name }}</p>
+              <p class="text-muted mb-0">Welcome, {{ request.user.first_name|default:request.user.username }}! | Store:
+                {{ store.name }}</p>
             </div>
             <div>
               <button class="btn btn-primary btn-lg" onclick="startNewSale()">
@@ -38,15 +39,17 @@
     <div class="col-12">
       <ul class="nav nav-tabs nav-fill" id="cashierTabs" role="tablist">
         <li class="nav-item" role="presentation">
-          <button class="nav-link active" id="pos-tab" data-bs-toggle="tab" data-bs-target="#pos-content" type="button" role="tab">
+          <button class="nav-link active" id="pos-tab" data-bs-toggle="tab" data-bs-target="#pos-content" type="button"
+            role="tab">
             <i class="bi bi-cash-register me-2"></i>Point of Sale
           </button>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link" id="tickets-tab" data-bs-toggle="tab" data-bs-target="#tickets-content" type="button" role="tab">
+          <button class="nav-link" id="tickets-tab" data-bs-toggle="tab" data-bs-target="#tickets-content" type="button"
+            role="tab">
             <i class="bi bi-ticket-perforated me-2"></i>Customer Tickets
             {% if pending_count > 0 %}
-              <span class="badge bg-danger ms-2">{{ pending_count }}</span>
+            <span class="badge bg-danger ms-2">{{ pending_count }}</span>
             {% endif %}
           </button>
         </li>
@@ -59,194 +62,196 @@
     <!-- POS Tab -->
     <div class="tab-pane fade show active" id="pos-content" role="tabpanel">
 
-  <div class="row">
-    <div class="col-lg-8">
+      <div class="row">
+        <div class="col-lg-8">
 
-      {% if sell_first_products %}
-      <div class="card mb-4 border-warning">
-        <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
-          <h5 class="mb-0">
-            <i class="bi bi-exclamation-triangle me-2"></i>🔴 SELL FIRST - Expiring Soon
-          </h5>
-          <span class="badge bg-danger">{{ sell_first_products|length }} items</span>
-        </div>
-        <div class="card-body">
-          <div class="alert alert-warning mb-3">
-            <i class="bi bi-info-circle me-2"></i>
-            <strong>FIFO Priority:</strong> These items expire within 30 days. Sell these first to minimize waste!
-          </div>
-          <div class="row">
-            {% for stock in sell_first_products %}
-            <div class="col-md-6 col-lg-4 mb-3">
-              <div class="card h-100 border-warning product-card fifo-priority" data-product-id="{{ stock.product.id }}" data-stock-id="{{ stock.id }}">
-                <div class="card-body d-flex flex-column">
-                  <div class="d-flex justify-content-between align-items-start mb-2">
-                    <h6 class="card-title mb-0">{{ stock.product.name }}</h6>
-                    <span class="badge bg-danger sell-first-badge">SELL FIRST</span>
-                  </div>
-                  <p class="card-text">
-                    <small class="text-muted">{{ stock.product.category }}</small><br>
-                    <strong>Price: ${{ stock.selling_price }}</strong><br>
-                    <span class="badge {% if stock.quantity <= stock.low_stock_threshold %}bg-warning{% else %}bg-success{% endif %}">
-                      Stock: {{ stock.quantity }}
-                    </span><br>
-                    {% if stock.product.batch_number %}
-                      <small><strong>Batch:</strong> {{ stock.product.batch_number }}</small><br>
-                    {% endif %}
-                    {% if stock.product.expiry_date %}
-                      <strong class="text-danger">⚠️ Expires:</strong>
-                      <span class="text-danger">{{ stock.product.expiry_date|date:"M d, Y" }}</span>
-                      {% if stock.days_until_expiry is not None %}
+          {% if sell_first_products %}
+          <div class="card mb-4 border-warning">
+            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+              <h5 class="mb-0">
+                <i class="bi bi-exclamation-triangle me-2"></i>🔴 SELL FIRST - Expiring Soon
+              </h5>
+              <span class="badge bg-danger">{{ sell_first_products|length }} items</span>
+            </div>
+            <div class="card-body">
+              <div class="alert alert-warning mb-3">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>FIFO Priority:</strong> These items expire within 30 days. Sell these first to minimize waste!
+              </div>
+              <div class="row">
+                {% for stock in sell_first_products %}
+                <div class="col-md-6 col-lg-4 mb-3">
+                  <div class="card h-100 border-warning product-card fifo-priority"
+                    data-product-id="{{ stock.product.id }}" data-stock-id="{{ stock.id }}">
+                    <div class="card-body d-flex flex-column">
+                      <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="card-title mb-0">{{ stock.product.name }}</h6>
+                        <span class="badge bg-danger sell-first-badge">SELL FIRST</span>
+                      </div>
+                      <p class="card-text">
+                        <small class="text-muted">{{ stock.product.category }}</small><br>
+                        <strong>Price: ETB {{ stock.selling_price }}</strong><br>
+                        <span
+                          class="badge {% if stock.quantity <= stock.low_stock_threshold %}bg-warning{% else %}bg-success{% endif %}">
+                          Stock: {{ stock.quantity }}
+                        </span><br>
+                        {% if stock.product.batch_number %}
+                        <small><strong>Batch:</strong> {{ stock.product.batch_number }}</small><br>
+                        {% endif %}
+                        {% if stock.product.expiry_date %}
+                        <strong class="text-danger">⚠️ Expires:</strong>
+                        <span class="text-danger">{{ stock.product.expiry_date|date:"M d, Y" }}</span>
+                        {% if stock.days_until_expiry is not None %}
                         <br><small class="text-danger">({{ stock.days_until_expiry }} days left)</small>
-                      {% endif %}
-                    {% endif %}
-                  </p>
-                  <button class="btn btn-warning btn-sm select-product-btn w-100 mt-auto"
-                          data-product-id="{{ stock.product.id }}"
-                          data-product-name="{{ stock.product.name }}"
-                          data-price="{{ stock.selling_price }}"
-                          data-available-stock="{{ stock.quantity }}"
-                          data-batch="{{ stock.product.batch_number|default:'No Batch' }}">
-                    <i class="bi bi-cart-plus me-1"></i>🔴 SELECT FIRST
-                  </button>
+                        {% endif %}
+                        {% endif %}
+                      </p>
+                      <button class="btn btn-warning btn-sm select-product-btn w-100 mt-auto"
+                        data-product-id="{{ stock.product.id }}" data-product-name="{{ stock.product.name }}"
+                        data-price="{{ stock.selling_price }}" data-available-stock="{{ stock.quantity }}"
+                        data-batch="{{ stock.product.batch_number|default:'No Batch' }}">
+                        <i class="bi bi-cart-plus me-1"></i>🔴 SELECT FIRST
+                      </button>
+                    </div>
+                  </div>
                 </div>
+                {% endfor %}
               </div>
             </div>
-            {% endfor %}
           </div>
-        </div>
-      </div>
-      {% endif %}
+          {% endif %}
 
-      {% if regular_products %}
-      <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <h5 class="mb-0">
-            <i class="bi bi-box me-2"></i>Available Products (FIFO Order)
-          </h5>
-          <span class="badge bg-primary">{{ regular_products|length }} items</span>
-        </div>
-        <div class="card-body">
-          <div class="alert alert-info mb-3">
-            <i class="bi bi-info-circle me-2"></i>
-            <strong>FIFO Ordering:</strong> Products are sorted by expiry date, received date, and batch number for optimal inventory rotation.
-          </div>
-          <div class="row">
-            {% for stock in regular_products %}
-            <div class="col-md-6 col-lg-4 mb-3">
-              <div class="card h-100 product-card" data-product-id="{{ stock.product.id }}" data-stock-id="{{ stock.id }}">
-                <div class="card-body d-flex flex-column">
-                  <h6 class="card-title">{{ stock.product.name }}</h6>
-                  <p class="card-text">
-                    <small class="text-muted">{{ stock.product.category }}</small><br>
-                    <strong>Price: ${{ stock.selling_price }}</strong><br>
-                    <span class="badge {% if stock.quantity <= stock.low_stock_threshold %}bg-warning{% else %}bg-success{% endif %}">
-                      Stock: {{ stock.quantity }}
-                    </span><br>
-                    {% if stock.product.batch_number %}
-                      <small><strong>Batch:</strong> {{ stock.product.batch_number }}</small><br>
-                    {% endif %}
-                    {% if stock.product.expiry_date %}
-                      <small><strong>Expires:</strong> {{ stock.product.expiry_date|date:"M d, Y" }}</small>
-                      {% if stock.days_until_expiry is not None %}
+          {% if regular_products %}
+          <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="mb-0">
+                <i class="bi bi-box me-2"></i>Available Products (FIFO Order)
+              </h5>
+              <span class="badge bg-primary">{{ regular_products|length }} items</span>
+            </div>
+            <div class="card-body">
+              <div class="alert alert-info mb-3">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>FIFO Ordering:</strong> Products are sorted by expiry date, received date, and batch number for
+                optimal inventory rotation.
+              </div>
+              <div class="row">
+                {% for stock in regular_products %}
+                <div class="col-md-6 col-lg-4 mb-3">
+                  <div class="card h-100 product-card" data-product-id="{{ stock.product.id }}"
+                    data-stock-id="{{ stock.id }}">
+                    <div class="card-body d-flex flex-column">
+                      <h6 class="card-title">{{ stock.product.name }}</h6>
+                      <p class="card-text">
+                        <small class="text-muted">{{ stock.product.category }}</small><br>
+                        <strong>Price: ETB {{ stock.selling_price }}</strong><br>
+                        <span
+                          class="badge {% if stock.quantity <= stock.low_stock_threshold %}bg-warning{% else %}bg-success{% endif %}">
+                          Stock: {{ stock.quantity }}
+                        </span><br>
+                        {% if stock.product.batch_number %}
+                        <small><strong>Batch:</strong> {{ stock.product.batch_number }}</small><br>
+                        {% endif %}
+                        {% if stock.product.expiry_date %}
+                        <small><strong>Expires:</strong> {{ stock.product.expiry_date|date:"M d, Y" }}</small>
+                        {% if stock.days_until_expiry is not None %}
                         <br><small class="text-muted">({{ stock.days_until_expiry }} days left)</small>
-                      {% endif %}
-                    {% endif %}
-                  </p>
-                  <button class="btn btn-success btn-sm select-product-btn w-100 mt-auto"
-                          data-product-id="{{ stock.product.id }}"
-                          data-product-name="{{ stock.product.name }}"
-                          data-price="{{ stock.selling_price }}"
-                          data-available-stock="{{ stock.quantity }}"
-                          data-batch="{{ stock.product.batch_number|default:'No Batch' }}">
-                    <i class="bi bi-cart-plus me-1"></i>Select Product
-                  </button>
+                        {% endif %}
+                        {% endif %}
+                      </p>
+                      <button class="btn btn-success btn-sm select-product-btn w-100 mt-auto"
+                        data-product-id="{{ stock.product.id }}" data-product-name="{{ stock.product.name }}"
+                        data-price="{{ stock.selling_price }}" data-available-stock="{{ stock.quantity }}"
+                        data-batch="{{ stock.product.batch_number|default:'No Batch' }}">
+                        <i class="bi bi-cart-plus me-1"></i>Select Product
+                      </button>
+                    </div>
+                  </div>
                 </div>
+                {% endfor %}
               </div>
             </div>
-            {% endfor %}
           </div>
-        </div>
-      </div>
-      {% endif %}
-
-      {% if not sell_first_products and not regular_products %}
-      <div class="card">
-        <div class="card-body text-center py-5">
-          <i class="bi bi-box-seam fa-3x text-muted mb-3"></i>
-          <h4>No products available for sale</h4>
-          <p class="text-muted">
-            There are no items that can be sold at this time.
-          </p>
-
-          {% if debug_stats %}
-          <div class="alert alert-info text-start mt-4">
-            <strong>Store Inventory Status:</strong><br>
-            • Total stock items: {{ debug_stats.total_stock_items }}<br>
-            • Available for sale: {{ debug_stats.available_products_count }}<br>
-            • Out of stock: {{ debug_stats.out_of_stock_items }}<br>
-            • Expired items: {{ debug_stats.expired_items }}
-          </div>
-          <p class="text-muted mt-3">
-            {% if debug_stats.total_stock_items == 0 %}
-              <strong>No stock items found.</strong> Your store manager needs to add products to inventory.
-            {% elif debug_stats.available_products_count == 0 %}
-              <strong>All items are either out of stock or have expired.</strong> Your store manager needs to review the inventory.
-            {% else %}
-              <strong>Contact your store manager</strong> to review inventory status.
-            {% endif %}
-          </p>
-          {% else %}
-            <p class="text-muted mt-3">
-              <strong>Contact your store manager</strong> to add products to inventory or restock existing items.
-            </p>
           {% endif %}
-        </div>
-      </div>
-      {% endif %}
-    </div>
 
-    <div class="col-lg-4">
-      <div class="card mb-4">
-        <div class="card-header">
-          <h5 class="mb-0">Quick Actions</h5>
-        </div>
-        <div class="card-body">
-          <div class="d-grid gap-2">
-            <button class="btn btn-primary" onclick="startNewSale()">
-              <i class="bi bi-plus-circle me-2"></i>New Sale
-            </button>
-            <a href="{% url 'cashier_settings' %}" class="btn btn-outline-secondary">
-              <i class="bi bi-gear me-2"></i>Settings
-            </a>
-          </div>
-        </div>
-      </div>
+          {% if not sell_first_products and not regular_products %}
+          <div class="card">
+            <div class="card-body text-center py-5">
+              <i class="bi bi-box-seam fa-3x text-muted mb-3"></i>
+              <h4>No products available for sale</h4>
+              <p class="text-muted">
+                There are no items that can be sold at this time.
+              </p>
 
-      <div class="card">
-        <div class="card-header">
-          <h5 class="mb-0">Recent Sales</h5>
-        </div>
-        <div class="card-body">
-          {% if recent_transactions %}
-          <div class="list-group list-group-flush">
-            {% for transaction in recent_transactions %}
-            <div class="list-group-item d-flex justify-content-between align-items-center">
-              <div>
-                <h6 class="mb-1">#{{ transaction.id }}</h6>
-                <small class="text-muted">{{ transaction.timestamp|date:"M d, H:i" }}</small>
+              {% if debug_stats %}
+              <div class="alert alert-info text-start mt-4">
+                <strong>Store Inventory Status:</strong><br>
+                • Total stock items: {{ debug_stats.total_stock_items }}<br>
+                • Available for sale: {{ debug_stats.available_products_count }}<br>
+                • Out of stock: {{ debug_stats.out_of_stock_items }}<br>
+                • Expired items: {{ debug_stats.expired_items }}
               </div>
-              <span class="badge bg-success">${{ transaction.total_amount }}</span>
+              <p class="text-muted mt-3">
+                {% if debug_stats.total_stock_items == 0 %}
+                <strong>No stock items found.</strong> Your store manager needs to add products to inventory.
+                {% elif debug_stats.available_products_count == 0 %}
+                <strong>All items are either out of stock or have expired.</strong> Your store manager needs to review
+                the inventory.
+                {% else %}
+                <strong>Contact your store manager</strong> to review inventory status.
+                {% endif %}
+              </p>
+              {% else %}
+              <p class="text-muted mt-3">
+                <strong>Contact your store manager</strong> to add products to inventory or restock existing items.
+              </p>
+              {% endif %}
             </div>
-            {% endfor %}
           </div>
-          {% else %}
-          <p class="text-muted text-center">No recent transactions</p>
           {% endif %}
         </div>
+
+        <div class="col-lg-4">
+          <div class="card mb-4">
+            <div class="card-header">
+              <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+              <div class="d-grid gap-2">
+                <button class="btn btn-primary" onclick="startNewSale()">
+                  <i class="bi bi-plus-circle me-2"></i>New Sale
+                </button>
+                <a href="{% url 'cashier_settings' %}" class="btn btn-outline-secondary">
+                  <i class="bi bi-gear me-2"></i>Settings
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h5 class="mb-0">Recent Sales</h5>
+            </div>
+            <div class="card-body">
+              {% if recent_transactions %}
+              <div class="list-group list-group-flush">
+                {% for transaction in recent_transactions %}
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                  <div>
+                    <h6 class="mb-1">#{{ transaction.id }}</h6>
+                    <small class="text-muted">{{ transaction.timestamp|date:"M d, H:i" }}</small>
+                  </div>
+                  <span class="badge bg-success">${{ transaction.total_amount }}</span>
+                </div>
+                {% endfor %}
+              </div>
+              {% else %}
+              <p class="text-muted text-center">No recent transactions</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
     </div> <!-- End POS Tab -->
 
     <!-- Tickets Tab -->
@@ -270,27 +275,28 @@
                   <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-telephone"></i></span>
                     <input type="text" class="form-control" name="phone" value="{{ phone_search }}"
-                           placeholder="Phone number (e.g., 0927, 8435, 0967849040)"
-                           title="Enter full or partial phone number. Numbers only or with formatting.">
+                      placeholder="Phone number (e.g., 0927, 8435, 0967849040)"
+                      title="Enter full or partial phone number. Numbers only or with formatting.">
                     {% if phone_search %}
-                      <a href="{% url 'cashier_dashboard' %}" class="btn btn-outline-secondary" title="Clear search">
-                        <i class="bi bi-x"></i>
-                      </a>
+                    <a href="{% url 'cashier_dashboard' %}" class="btn btn-outline-secondary" title="Clear search">
+                      <i class="bi bi-x"></i>
+                    </a>
                     {% endif %}
                   </div>
-                  <small class="form-text text-muted">Enter any part of the phone number (e.g., "123" will find "+251912309875)</small>
+                  <small class="form-text text-muted">Enter any part of the phone number (e.g., "123" will find
+                    "+251912309875)</small>
                 </div>
                 <div class="col-md-3">
                   <select class="form-select" name="status">
                     {% for value, label in status_choices %}
-                      <option value="{{ value }}" {% if value == status_filter %}selected{% endif %}>{{ label }}</option>
+                    <option value="{{ value }}" {% if value==status_filter %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                   </select>
                 </div>
                 <div class="col-md-3">
                   <select class="form-select" name="sort">
                     {% for value, label in sort_choices %}
-                      <option value="{{ value }}" {% if value == sort_order %}selected{% endif %}>{{ label }}</option>
+                    <option value="{{ value }}" {% if value==sort_order %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                   </select>
                 </div>
@@ -304,147 +310,153 @@
             <div class="card-body">
               <!-- Search Results Summary -->
               {% if phone_search or status_filter %}
-                <div class="alert alert-info">
-                  <i class="bi bi-info-circle me-2"></i>
-                  <strong>Search Results:</strong> Found {{ tickets_page.paginator.count }} ticket{{ tickets_page.paginator.count|pluralize }}
-                  {% if phone_search %}
-                    containing phone digits "{{ phone_search }}"
-                  {% endif %}
-                  {% if status_filter %}
-                    {% if phone_search %}and {% endif %}with status "{{ status_filter }}"
-                  {% endif %}
-                  <a href="{% url 'cashier_dashboard' %}" class="btn-close float-end" aria-label="Clear search"></a>
-                </div>
+              <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Search Results:</strong> Found {{ tickets_page.paginator.count }} ticket{{
+                tickets_page.paginator.count|pluralize }}
+                {% if phone_search %}
+                containing phone digits "{{ phone_search }}"
+                {% endif %}
+                {% if status_filter %}
+                {% if phone_search %}and {% endif %}with status "{{ status_filter }}"
+                {% endif %}
+                <a href="{% url 'cashier_dashboard' %}" class="btn-close float-end" aria-label="Clear search"></a>
+              </div>
               {% endif %}
 
               <!-- Tickets Display -->
               {% if tickets %}
-                <div class="row">
-                  {% for ticket_data in tickets %}
-                    <div class="col-md-6 col-lg-4 mb-3">
-                      <div class="card ticket-card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                          <small class="text-muted">#{{ ticket_data.ticket.ticket_number }}</small>
-                          <span class="badge bg-{{ ticket_data.status_color }}">
-                            <i class="{{ ticket_data.status_icon }} me-1"></i>{{ ticket_data.ticket.status|upper }}
-                          </span>
+              <div class="row">
+                {% for ticket_data in tickets %}
+                <div class="col-md-6 col-lg-4 mb-3">
+                  <div class="card ticket-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                      <small class="text-muted">#{{ ticket_data.ticket.ticket_number }}</small>
+                      <span class="badge bg-{{ ticket_data.status_color }}">
+                        <i class="{{ ticket_data.status_icon }} me-1"></i>{{ ticket_data.ticket.status|upper }}
+                      </span>
+                    </div>
+                    <div class="card-body">
+                      <h6 class="card-title mb-2">
+                        <i class="bi bi-person me-1"></i>{{ ticket_data.ticket.customer_name|default:"Customer" }}
+                      </h6>
+                      <div class="ticket-info mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                          <small class="text-muted">Phone:</small>
+                          <strong class="text-primary">{{ ticket_data.ticket.customer_phone }}</strong>
                         </div>
-                        <div class="card-body">
-                          <h6 class="card-title mb-2">
-                            <i class="bi bi-person me-1"></i>{{ ticket_data.ticket.customer_name|default:"Customer" }}
-                          </h6>
-                          <div class="ticket-info mb-3">
-                            <div class="d-flex justify-content-between mb-1">
-                              <small class="text-muted">Phone:</small>
-                              <strong class="text-primary">{{ ticket_data.ticket.customer_phone }}</strong>
-                            </div>
-                            <div class="d-flex justify-content-between mb-1">
-                              <small class="text-muted">Items:</small>
-                              <span>{{ ticket_data.total_quantity }} units ({{ ticket_data.items_count }} products)</span>
-                            </div>
-                            <div class="d-flex justify-content-between mb-2">
-                              <small class="text-muted">Total:</small>
-                              <strong class="text-success">ETB {{ ticket_data.ticket.total_amount }}</strong>
-                            </div>
-                          </div>
-                          {% if ticket_data.items_preview %}
-                            <div class="items-preview mb-3">
-                              <small class="text-muted d-block">Items:</small>
-                              <small class="text-truncate d-block">
-                                {% for item in ticket_data.items_preview %}
-                                  {{ item.quantity }}x {{ item.product_name }}{% if not forloop.last %}, {% endif %}
-                                {% endfor %}
-                                {% if ticket_data.has_more_items %} +{{ ticket_data.items_count|add:"-2" }} more{% endif %}
-                              </small>
-                            </div>
-                          {% endif %}
-
-                          <!-- Action Buttons -->
-                          <div class="d-flex justify-content-between align-items-center mb-2">
-                            <small class="text-muted">
-                              <i class="bi bi-clock me-1"></i>{{ ticket_data.ticket.created_at|date:"M d, Y H:i" }}
-                            </small>
-                            {% if ticket_data.ticket.confirmed_by %}
-                              <small class="text-info">
-                                <i class="bi bi-person-check me-1"></i>{{ ticket_data.ticket.confirmed_by.get_full_name }}
-                              </small>
-                            {% endif %}
-                          </div>
-
-                          <!-- Process Button -->
-                          {% if ticket_data.ticket.status != 'completed' and ticket_data.ticket.status != 'cancelled' %}
-                            <div class="d-grid">
-                              <a href="{% url 'process_ticket_to_order' ticket_data.ticket.ticket_number %}" class="btn btn-primary btn-sm">
-                                <i class="bi bi-cart-plus me-1"></i>Process Order
-                              </a>
-                            </div>
-                          {% else %}
-                            <div class="d-grid">
-                              {% if ticket_data.ticket.status == 'completed' %}
-                                <button class="btn btn-success btn-sm" disabled>
-                                  <i class="bi bi-check-circle me-1"></i>Completed
-                                </button>
-                              {% else %}
-                                <button class="btn btn-secondary btn-sm" disabled>
-                                  <i class="bi bi-x-circle me-1"></i>Cancelled
-                                </button>
-                              {% endif %}
-                            </div>
-                          {% endif %}
+                        <div class="d-flex justify-content-between mb-1">
+                          <small class="text-muted">Items:</small>
+                          <span>{{ ticket_data.total_quantity }} units ({{ ticket_data.items_count }} products)</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                          <small class="text-muted">Total:</small>
+                          <strong class="text-success">ETB {{ ticket_data.ticket.total_amount }}</strong>
                         </div>
                       </div>
+                      {% if ticket_data.items_preview %}
+                      <div class="items-preview mb-3">
+                        <small class="text-muted d-block">Items:</small>
+                        <small class="text-truncate d-block">
+                          {% for item in ticket_data.items_preview %}
+                          {{ item.quantity }}x {{ item.product_name }}{% if not forloop.last %}, {% endif %}
+                          {% endfor %}
+                          {% if ticket_data.has_more_items %} +{{ ticket_data.items_count|add:"-2" }} more{% endif %}
+                        </small>
+                      </div>
+                      {% endif %}
+
+                      <!-- Action Buttons -->
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <small class="text-muted">
+                          <i class="bi bi-clock me-1"></i>{{ ticket_data.ticket.created_at|date:"M d, Y H:i" }}
+                        </small>
+                        {% if ticket_data.ticket.confirmed_by %}
+                        <small class="text-info">
+                          <i class="bi bi-person-check me-1"></i>{{ ticket_data.ticket.confirmed_by.get_full_name }}
+                        </small>
+                        {% endif %}
+                      </div>
+
+                      <!-- Process Button -->
+                      {% if ticket_data.ticket.status != 'completed' and ticket_data.ticket.status != 'cancelled' %}
+                      <div class="d-grid">
+                        <a href="{% url 'process_ticket_to_order' ticket_data.ticket.ticket_number %}"
+                          class="btn btn-primary btn-sm">
+                          <i class="bi bi-cart-plus me-1"></i>Process Order
+                        </a>
+                      </div>
+                      {% else %}
+                      <div class="d-grid">
+                        {% if ticket_data.ticket.status == 'completed' %}
+                        <button class="btn btn-success btn-sm" disabled>
+                          <i class="bi bi-check-circle me-1"></i>Completed
+                        </button>
+                        {% else %}
+                        <button class="btn btn-secondary btn-sm" disabled>
+                          <i class="bi bi-x-circle me-1"></i>Cancelled
+                        </button>
+                        {% endif %}
+                      </div>
+                      {% endif %}
                     </div>
-                  {% endfor %}
-                </div>
-
-                <!-- Pagination -->
-                {% if tickets_page.has_other_pages %}
-                  <div class="d-flex justify-content-center mt-4">
-                    <nav>
-                      <ul class="pagination">
-                        {% if tickets_page.has_previous %}
-                          <li class="page-item">
-                            <a class="page-link" href="?{% if phone_search %}phone={{ phone_search }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}{% if sort_order %}sort={{ sort_order }}&{% endif %}page={{ tickets_page.previous_page_number }}">
-                              <i class="bi bi-chevron-left"></i>
-                            </a>
-                          </li>
-                        {% endif %}
-
-                        {% for num in tickets_page.paginator.page_range %}
-                          {% if tickets_page.number == num %}
-                            <li class="page-item active">
-                              <span class="page-link">{{ num }}</span>
-                            </li>
-                          {% elif num > tickets_page.number|add:'-3' and num < tickets_page.number|add:'3' %}
-                            <li class="page-item">
-                              <a class="page-link" href="?{% if phone_search %}phone={{ phone_search }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}{% if sort_order %}sort={{ sort_order }}&{% endif %}page={{ num }}">{{ num }}</a>
-                            </li>
-                          {% endif %}
-                        {% endfor %}
-
-                        {% if tickets_page.has_next %}
-                          <li class="page-item">
-                            <a class="page-link" href="?{% if phone_search %}phone={{ phone_search }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}{% if sort_order %}sort={{ sort_order }}&{% endif %}page={{ tickets_page.next_page_number }}">
-                              <i class="bi bi-chevron-right"></i>
-                            </a>
-                          </li>
-                        {% endif %}
-                      </ul>
-                    </nav>
                   </div>
-                {% endif %}
-              {% else %}
-                <div class="text-center py-5">
-                  <i class="bi bi-ticket-perforated" style="font-size: 3rem; color: #6c757d;"></i>
-                  <h5 class="mt-3 text-muted">No tickets found</h5>
-                  <p class="text-muted">
-                    {% if phone_search or status_filter %}
-                      Try adjusting your search criteria or check back later.
-                    {% else %}
-                      Customer tickets will appear here when orders are placed.
-                    {% endif %}
-                  </p>
                 </div>
+                {% endfor %}
+              </div>
+
+              <!-- Pagination -->
+              {% if tickets_page.has_other_pages %}
+              <div class="d-flex justify-content-center mt-4">
+                <nav>
+                  <ul class="pagination">
+                    {% if tickets_page.has_previous %}
+                    <li class="page-item">
+                      <a class="page-link"
+                        href="?{% if phone_search %}phone={{ phone_search }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}{% if sort_order %}sort={{ sort_order }}&{% endif %}page={{ tickets_page.previous_page_number }}">
+                        <i class="bi bi-chevron-left"></i>
+                      </a>
+                    </li>
+                    {% endif %}
+
+                    {% for num in tickets_page.paginator.page_range %}
+                    {% if tickets_page.number == num %}
+                    <li class="page-item active">
+                      <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > tickets_page.number|add:'-3' and num < tickets_page.number|add:'3' %} <li
+                      class="page-item">
+                      <a class="page-link"
+                        href="?{% if phone_search %}phone={{ phone_search }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}{% if sort_order %}sort={{ sort_order }}&{% endif %}page={{ num }}">{{
+                        num }}</a>
+                      </li>
+                      {% endif %}
+                      {% endfor %}
+
+                      {% if tickets_page.has_next %}
+                      <li class="page-item">
+                        <a class="page-link"
+                          href="?{% if phone_search %}phone={{ phone_search }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}{% if sort_order %}sort={{ sort_order }}&{% endif %}page={{ tickets_page.next_page_number }}">
+                          <i class="bi bi-chevron-right"></i>
+                        </a>
+                      </li>
+                      {% endif %}
+                  </ul>
+                </nav>
+              </div>
+              {% endif %}
+              {% else %}
+              <div class="text-center py-5">
+                <i class="bi bi-ticket-perforated" style="font-size: 3rem; color: #6c757d;"></i>
+                <h5 class="mt-3 text-muted">No tickets found</h5>
+                <p class="text-muted">
+                  {% if phone_search or status_filter %}
+                  Try adjusting your search criteria or check back later.
+                  {% else %}
+                  Customer tickets will appear here when orders are placed.
+                  {% endif %}
+                </p>
+              </div>
               {% endif %}
             </div>
           </div>
@@ -479,7 +491,9 @@
             <div class="col-md-6">
               <div class="mb-3">
                 <label for="customerName" class="form-label">Customer Name</label>
-                <input type="text" class="form-control" id="customerName" name="customer_name" required pattern="[A-Za-z\s]+" title="Name should only contain letters and spaces" placeholder="Enter customer's full name">
+                <input type="text" class="form-control" id="customerName" name="customer_name" required
+                  pattern="[A-Za-z\s]+" title="Name should only contain letters and spaces"
+                  placeholder="Enter customer's full name">
                 <div class="invalid-feedback">
                   Name should only contain letters and spaces.
                 </div>
@@ -488,7 +502,10 @@
             <div class="col-md-6">
               <div class="mb-3">
                 <label for="customerPhone" class="form-label">Customer Phone</label>
-                <input type="tel" class="form-control" id="customerPhone" name="customer_phone" required pattern="[\+]?[0-9\s\-\(\)]+" title="Phone should only contain numbers, +, spaces, hyphens, and parentheses" placeholder="e.g., +1234567890 or 0912345678">
+                <input type="tel" class="form-control" id="customerPhone" name="customer_phone" required
+                  pattern="[\+]?[0-9\s\-\(\)]+"
+                  title="Phone should only contain numbers, +, spaces, hyphens, and parentheses"
+                  placeholder="e.g., +1234567890 or 0912345678">
                 <div class="invalid-feedback">
                   Please enter a valid phone number.
                 </div>
@@ -510,7 +527,8 @@
           </div>
 
           <input type="hidden" id="selectedProductId" name="product_id">
-          <input type="hidden" id="selectedStockId" name="stock_id"> </form>
+          <input type="hidden" id="selectedStockId" name="stock_id">
+        </form>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -556,7 +574,8 @@
         <form id="emailForm">
           <div class="mb-3">
             <label for="customerEmail" class="form-label">Customer Email Address</label>
-            <input type="email" class="form-control" id="customerEmail" name="customer_email" required placeholder="Enter customer's email address">
+            <input type="email" class="form-control" id="customerEmail" name="customer_email" required
+              placeholder="Enter customer's email address">
             <div class="form-text">The receipt will be sent to this email address as a PDF attachment.</div>
           </div>
         </form>
@@ -588,10 +607,12 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-warning" id="updateStatusBtn" onclick="updateTicketStatus()" style="display: none;">
+        <button type="button" class="btn btn-warning" id="updateStatusBtn" onclick="updateTicketStatus()"
+          style="display: none;">
           <i class="bi bi-clock me-1"></i>Update Status
         </button>
-        <button type="button" class="btn btn-success" id="processOrderBtn" onclick="processTicketOrder()" style="display: none;">
+        <button type="button" class="btn btn-success" id="processOrderBtn" onclick="processTicketOrder()"
+          style="display: none;">
           <i class="bi bi-check-circle me-1"></i>Process Order
         </button>
       </div>
@@ -600,7 +621,8 @@
 </div>
 
 <!-- Ticket Status Update Modal -->
-<div class="modal fade" id="statusUpdateModal" tabindex="-1" aria-labelledby="statusUpdateModalLabel" aria-hidden="true">
+<div class="modal fade" id="statusUpdateModal" tabindex="-1" aria-labelledby="statusUpdateModalLabel"
+  aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
@@ -622,7 +644,8 @@
           </div>
           <div class="mb-3">
             <label for="statusNotes" class="form-label">Notes (Optional)</label>
-            <textarea class="form-control" id="statusNotes" rows="3" placeholder="Add any notes about this status update..."></textarea>
+            <textarea class="form-control" id="statusNotes" rows="3"
+              placeholder="Add any notes about this status update..."></textarea>
           </div>
         </form>
       </div>
@@ -665,9 +688,9 @@
   }
 
   // Handle product selection from the list
-  document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.select-product-btn').forEach(button => {
-      button.addEventListener('click', function() {
+      button.addEventListener('click', function () {
         selectedProduct = {
           id: this.dataset.productId,
           stockId: this.dataset.stockId, // Crucial for identifying the exact stock item
@@ -721,8 +744,8 @@
   function processSale() {
     const form = document.getElementById('saleForm');
     if (!form.checkValidity()) {
-        form.reportValidity();
-        return;
+      form.reportValidity();
+      return;
     }
 
     const formData = new FormData(form);
@@ -739,30 +762,30 @@
     processBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
 
     fetch("{% url 'process_single_sale' %}", {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-CSRFToken': formData.get('csrfmiddlewaretoken')
-        }
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+      }
     })
-    .then(response => response.json())
-    .then(data => {
+      .then(response => response.json())
+      .then(data => {
         if (data.success) {
-            lastReceiptId = data.receipt_id;
-            bootstrap.Modal.getInstance(document.getElementById('saleModal')).hide();
-            new bootstrap.Modal(document.getElementById('receiptModal')).show();
+          lastReceiptId = data.receipt_id;
+          bootstrap.Modal.getInstance(document.getElementById('saleModal')).hide();
+          new bootstrap.Modal(document.getElementById('receiptModal')).show();
         } else {
-            alert('Error: ' + (data.error || 'Failed to process sale. Please check the inputs.'));
+          alert('Error: ' + (data.error || 'Failed to process sale. Please check the inputs.'));
         }
-    })
-    .catch(error => {
+      })
+      .catch(error => {
         console.error('Error:', error);
         alert('An unexpected error occurred while processing the sale.');
-    })
-    .finally(() => {
+      })
+      .finally(() => {
         processBtn.disabled = false;
         processBtn.innerHTML = 'Process Sale';
-    });
+      });
   }
 
   // Handle receipt options
@@ -781,8 +804,8 @@
   function sendEmailReceipt() {
     const emailForm = document.getElementById('emailForm');
     if (!emailForm.checkValidity()) {
-        emailForm.reportValidity();
-        return;
+      emailForm.reportValidity();
+      return;
     }
 
     const customerEmail = document.getElementById('customerEmail').value.trim();
@@ -794,15 +817,15 @@
     sendBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sending...';
 
     fetch(`/stores/receipt/${lastReceiptId}/email/`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-        },
-        body: JSON.stringify({ email: customerEmail })
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+      },
+      body: JSON.stringify({ email: customerEmail })
     })
-    .then(response => response.json())
-    .then(data => {
+      .then(response => response.json())
+      .then(data => {
         const modalBody = document.querySelector('#emailModal .modal-body');
         const alertDiv = document.createElement('div');
         alertDiv.className = `alert alert-${data.success ? 'success' : 'danger'} alert-dismissible fade show`;
@@ -810,28 +833,28 @@
         modalBody.prepend(alertDiv);
 
         if (data.success) {
-            setTimeout(() => {
-                const emailModal = bootstrap.Modal.getInstance(document.getElementById('emailModal'));
-                if (emailModal) emailModal.hide();
-                finishSale();
-            }, 2500);
+          setTimeout(() => {
+            const emailModal = bootstrap.Modal.getInstance(document.getElementById('emailModal'));
+            if (emailModal) emailModal.hide();
+            finishSale();
+          }, 2500);
         }
-    })
-    .catch(error => {
+      })
+      .catch(error => {
         console.error('Error:', error);
         alert('An error occurred while sending the receipt.');
-    })
-    .finally(() => {
+      })
+      .finally(() => {
         sendBtn.disabled = false;
         sendBtn.innerHTML = originalText;
-    });
+      });
   }
 
   // Finish the sale flow and reload the page to get updated stock
   function finishSale() {
     ['receiptModal', 'emailModal'].forEach(id => {
-        const modalInstance = bootstrap.Modal.getInstance(document.getElementById(id));
-        if (modalInstance) modalInstance.hide();
+      const modalInstance = bootstrap.Modal.getInstance(document.getElementById(id));
+      if (modalInstance) modalInstance.hide();
     });
 
     selectedProduct = null;
@@ -839,17 +862,17 @@
 
     // Reload the page to reflect stock changes
     setTimeout(() => {
-        location.reload();
+      location.reload();
     }, 500);
   }
 
   // Clean up modals when they are hidden to prevent stale data
-  document.getElementById('emailModal').addEventListener('hidden.bs.modal', function() {
+  document.getElementById('emailModal').addEventListener('hidden.bs.modal', function () {
     document.getElementById('emailForm').reset();
     document.querySelectorAll('#emailModal .alert').forEach(alert => alert.remove());
   });
 
-  document.getElementById('saleModal').addEventListener('hidden.bs.modal', function() {
+  document.getElementById('saleModal').addEventListener('hidden.bs.modal', function () {
     document.getElementById('saleForm').reset();
     document.getElementById('selectedProductInfo').style.display = 'none';
   });
@@ -915,7 +938,7 @@
 
   // Get status color for badges
   function getStatusColor(status) {
-    switch(status) {
+    switch (status) {
       case 'pending': return 'warning';
       case 'confirmed': return 'info';
       case 'preparing': return 'primary';
@@ -928,7 +951,7 @@
 
   // Get status icon
   function getStatusIcon(status) {
-    switch(status) {
+    switch (status) {
       case 'pending': return '<i class="bi bi-clock"></i>';
       case 'confirmed': return '<i class="bi bi-check"></i>';
       case 'preparing': return '<i class="bi bi-gear"></i>';
@@ -1205,218 +1228,229 @@
 
 {% block extra_css %}
 <style>
-.product-card {
+  .product-card {
     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
     cursor: pointer;
-}
+  }
 
-.product-card:hover {
+  .product-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 6px 12px rgba(0,0,0,0.1);
-}
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+  }
 
-/* FIFO Priority Styling */
-.fifo-priority {
+  /* FIFO Priority Styling */
+  .fifo-priority {
     border: 2px solid #ffc107 !important;
     box-shadow: 0 0 15px rgba(255, 193, 7, 0.4);
-}
+  }
 
-.fifo-priority:hover {
+  .fifo-priority:hover {
     transform: translateY(-4px);
     box-shadow: 0 8px 20px rgba(255, 193, 7, 0.5);
-}
+  }
 
-.sell-first-badge {
+  .sell-first-badge {
     animation: pulse-warning 1.5s infinite;
-}
+  }
 
-@keyframes pulse-warning {
-    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
-    50% { transform: scale(1.05); box-shadow: 0 0 5px 10px rgba(220, 53, 69, 0); }
-    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
-}
+  @keyframes pulse-warning {
+    0% {
+      transform: scale(1);
+      box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+    }
 
-.select-product-btn {
+    50% {
+      transform: scale(1.05);
+      box-shadow: 0 0 5px 10px rgba(220, 53, 69, 0);
+    }
+
+    100% {
+      transform: scale(1);
+      box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+    }
+  }
+
+  .select-product-btn {
     transition: all 0.2s;
-}
+  }
 
-.select-product-btn:hover {
+  .select-product-btn:hover {
     transform: scale(1.05);
-}
+  }
 
-/* Ticket Cards */
-.ticket-card {
+  /* Ticket Cards */
+  .ticket-card {
     cursor: pointer;
     transition: all 0.3s ease;
     border: 1px solid #dee2e6;
-}
+  }
 
-.ticket-card:hover {
+  .ticket-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     border-color: #007bff;
-}
+  }
 
-.ticket-card .card-header {
+  .ticket-card .card-header {
     background-color: #f8f9fa;
     border-bottom: 1px solid #dee2e6;
     padding: 0.75rem 1rem;
-}
+  }
 
-.ticket-card .card-body {
+  .ticket-card .card-body {
     padding: 1rem;
-}
+  }
 
-.ticket-card .card-title {
+  .ticket-card .card-title {
     margin-bottom: 0.5rem;
     color: #495057;
-}
+  }
 
-.ticket-card .card-text {
+  .ticket-card .card-text {
     margin-bottom: 0.75rem;
     line-height: 1.6;
-}
+  }
 
-/* Tab styling */
-.nav-tabs .nav-link {
+  /* Tab styling */
+  .nav-tabs .nav-link {
     border: 1px solid transparent;
     border-top-left-radius: 0.375rem;
     border-top-right-radius: 0.375rem;
     color: #495057;
     font-weight: 500;
-}
+  }
 
-.nav-tabs .nav-link:hover {
+  .nav-tabs .nav-link:hover {
     border-color: #e9ecef #e9ecef #dee2e6;
     color: #007bff;
-}
+  }
 
-.nav-tabs .nav-link.active {
+  .nav-tabs .nav-link.active {
     color: #007bff;
     background-color: #fff;
     border-color: #dee2e6 #dee2e6 #fff;
-}
+  }
 
-/* Search and Filter Controls */
-.ezm-card-header .input-group-text {
+  /* Search and Filter Controls */
+  .ezm-card-header .input-group-text {
     background-color: #f8f9fa;
     border-color: #dee2e6;
-}
+  }
 
-.ezm-card-header .form-control:focus,
-.ezm-card-header .form-select:focus {
+  .ezm-card-header .form-control:focus,
+  .ezm-card-header .form-select:focus {
     border-color: #007bff;
     box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-}
+  }
 
-/* Search Summary */
-#search-summary {
+  /* Search Summary */
+  #search-summary {
     border-left: 4px solid #0dcaf0;
     background-color: #d1ecf1;
     border-color: #bee5eb;
-}
+  }
 
-/* Pagination */
-.pagination .page-link {
+  /* Pagination */
+  .pagination .page-link {
     color: #007bff;
     border-color: #dee2e6;
-}
+  }
 
-.pagination .page-item.active .page-link {
+  .pagination .page-item.active .page-link {
     background-color: #007bff;
     border-color: #007bff;
-}
+  }
 
-.pagination .page-link:hover {
+  .pagination .page-link:hover {
     color: #0056b3;
     background-color: #e9ecef;
     border-color: #dee2e6;
-}
+  }
 
-.pagination .page-item.disabled .page-link {
+  .pagination .page-item.disabled .page-link {
     color: #6c757d;
     background-color: #fff;
     border-color: #dee2e6;
-}
+  }
 
-/* Enhanced ticket cards */
-.ticket-card .card-body .card-text strong {
+  /* Enhanced ticket cards */
+  .ticket-card .card-body .card-text strong {
     color: #007bff;
     font-weight: 600;
-}
+  }
 
-.ticket-card .ticket-info {
+  .ticket-card .ticket-info {
     font-size: 0.9rem;
-}
+  }
 
-.ticket-card .items-preview {
+  .ticket-card .items-preview {
     background-color: #f8f9fa;
     border-radius: 0.375rem;
     padding: 0.5rem;
     border-left: 3px solid #007bff;
-}
+  }
 
-.ticket-card:hover {
+  .ticket-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     transition: all 0.2s ease-in-out;
-}
+  }
 
-/* Modal enhancements */
-.modal-body .table th {
+  /* Modal enhancements */
+  .modal-body .table th {
     border-top: none;
     font-weight: 600;
     color: #495057;
-}
+  }
 
-.modal-body .table-info {
+  .modal-body .table-info {
     background-color: #e3f2fd !important;
-}
+  }
 
-.modal-body .badge {
+  .modal-body .badge {
     font-size: 0.75rem;
-}
+  }
 
-/* Status badges with icons */
-.badge i {
+  /* Status badges with icons */
+  .badge i {
     margin-right: 0.25rem;
-}
+  }
 
-/* Search form enhancements */
-.form-text {
+  /* Search form enhancements */
+  .form-text {
     font-size: 0.8rem;
     margin-top: 0.25rem;
-}
+  }
 
-.input-group .form-control:focus {
+  .input-group .form-control:focus {
     border-color: #007bff;
     box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-}
+  }
 
-/* Ticket action buttons */
-.ticket-card .btn {
+  /* Ticket action buttons */
+  .ticket-card .btn {
     transition: all 0.2s ease-in-out;
-}
+  }
 
-.ticket-card .btn:hover:not(:disabled) {
+  .ticket-card .btn:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
 
-.ticket-card .btn:disabled {
+  .ticket-card .btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
-}
+  }
 
-/* Process button styling */
-.ticket-card .btn-primary {
+  /* Process button styling */
+  .ticket-card .btn-primary {
     background: linear-gradient(45deg, #007bff, #0056b3);
     border: none;
     font-weight: 500;
-}
+  }
 
-.ticket-card .btn-primary:hover {
+  .ticket-card .btn-primary:hover {
     background: linear-gradient(45deg, #0056b3, #004085);
-}
+  }
 </style>
 {% endblock %}

@@ -43,6 +43,6 @@ def currency(value):
     Usage: {{ value|currency }}
     """
     try:
-        return "${:,.2f}".format(float(value))
+        return "ETB {:,.2f}".format(float(value))
     except (ValueError, TypeError):
-        return "$0.00"
+        return "ETB 0.00"

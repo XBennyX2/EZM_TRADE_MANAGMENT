@@ -19,7 +19,6 @@ urlpatterns = [
     path('cart/', include('utils.cart_urls')),
     path('payments/', include('payments.urls')),
     path('webfront/', include('webfront.urls')),
-    # API endpoints
     path('api/', include('users.api_urls')),
 ]
 

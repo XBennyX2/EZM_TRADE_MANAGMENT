@@ -72,8 +72,8 @@
                     <strong>{{ item.product.name|default:"Product" }}</strong>
                   </td>
                   <td class="text-center">{{ item.quantity }}</td>
-                  <td class="text-end">${{ item.price_at_time_of_sale|floatformat:2 }}</td>
-                  <td class="text-end"><strong>${{ item.subtotal|floatformat:2 }}</strong></td>
+                  <td class="text-end">ETB {{ item.price_at_time_of_sale|floatformat:2 }}</td>
+                  <td class="text-end"><strong>ETB {{ item.subtotal|floatformat:2 }}</strong></td>
                 </tr>
                 {% empty %}
                 <tr>
@@ -91,23 +91,23 @@
               <table class="table table-borderless">
                 <tr>
                   <td>Subtotal:</td>
-                  <td class="text-end">${{ receipt.subtotal|floatformat:2 }}</td>
+                  <td class="text-end">ETB {{ receipt.subtotal|floatformat:2 }}</td>
                 </tr>
                 {% if receipt.discount_amount and receipt.discount_amount > 0 %}
                 <tr>
                   <td>Discount ({{ receipt.discount_percent|floatformat:1 }}%):</td>
-                  <td class="text-end">-${{ receipt.discount_amount|floatformat:2 }}</td>
+                  <td class="text-end">-ETB {{ receipt.discount_amount|floatformat:2 }}</td>
                 </tr>
                 {% endif %}
                 {% if receipt.tax_amount and receipt.tax_amount > 0 %}
                 <tr>
                   <td>Tax (5%):</td>
-                  <td class="text-end">${{ receipt.tax_amount|floatformat:2 }}</td>
+                  <td class="text-end">ETB {{ receipt.tax_amount|floatformat:2 }}</td>
                 </tr>
                 {% endif %}
                 <tr class="border-top">
                   <td><strong>Total Paid:</strong></td>
-                  <td class="text-end"><strong>${{ receipt.total_amount|floatformat:2 }}</strong></td>
+                  <td class="text-end"><strong>ETB {{ receipt.total_amount|floatformat:2 }}</strong></td>
                 </tr>
                 <tr>
                   <td><strong>Payment Method:</strong></td>
@@ -178,64 +178,67 @@
 </div>
 
 <style>
-@media print {
-  .btn, .navbar, .container > .row:first-child {
-    display: none !important;
-  }
-  
-  .card {
-    border: none !important;
-    box-shadow: none !important;
-  }
-  
-  .container {
-    max-width: 100% !important;
-  }
-}
+  @media print {
 
-.receipt-item {
-  border-bottom: 1px dashed #ddd;
-  padding: 8px 0;
-}
+    .btn,
+    .navbar,
+    .container>.row:first-child {
+      display: none !important;
+    }
 
-.receipt-item:last-child {
-  border-bottom: none;
-}
+    .card {
+      border: none !important;
+      box-shadow: none !important;
+    }
+
+    .container {
+      max-width: 100% !important;
+    }
+  }
+
+  .receipt-item {
+    border-bottom: 1px dashed #ddd;
+    padding: 8px 0;
+  }
+
+  .receipt-item:last-child {
+    border-bottom: none;
+  }
 </style>
 
 <script>
-// Auto-focus on print button for keyboard accessibility
-document.addEventListener('DOMContentLoaded', function() {
+  // Auto-focus on print button for keyboard accessibility
+  document.addEventListener('DOMContentLoaded', function () {
     // Add any receipt-specific JavaScript here
 
     // Example: Auto-print functionality
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('print') === 'true') {
-        setTimeout(() => {
-            window.print();
-        }, 500);
+      setTimeout(() => {
+        window.print();
+      }, 500);
     }
-});
+  });
 
-// Email receipt functionality
-document.getElementById('sendEmailBtn').addEventListener('click', function() {
+  // Email receipt functionality
+  document.getElementById('sendEmailBtn').addEventListener('click', function () {
     const email = document.getElementById('customerEmail').value.trim();
     const statusDiv = document.getElementById('emailStatus');
 
     if (!email) {
-        statusDiv.className = 'alert alert-danger';
-        statusDiv.textContent = 'Please enter an email address';
-        statusDiv.style.display = 'block';
-        return;
+      statusDiv.className = 'alert alert-danger';
+      statusDiv.textContent = 'Please enter an email address';
+      statusDiv.style.display = 'block';
+      return;
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-        statusDiv.className = 'alert alert-danger';
-        statusDiv.textContent = 'Please enter a valid email address';
-        statusDiv.style.display = 'block';
-        return;
+      statusDiv.className = 'alert alert-danger';
+      statusDiv.textContent = 'Please enter a valid email address';
+      statusDiv.style.display = 'block';
+      return;
     }
 
     // Show loading
@@ -244,64 +247,64 @@ document.getElementById('sendEmailBtn').addEventListener('click', function() {
     statusDiv.style.display = 'none';
 
     fetch('{% url "email_receipt" receipt.id %}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken')
-        },
-        body: JSON.stringify({
-            email: email
-        })
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken')
+      },
+      body: JSON.stringify({
+        email: email
+      })
     })
-    .then(response => response.json())
-    .then(data => {
+      .then(response => response.json())
+      .then(data => {
         if (data.success) {
-            statusDiv.className = 'alert alert-success';
-            statusDiv.textContent = data.message;
-            statusDiv.style.display = 'block';
-            document.getElementById('customerEmail').value = '';
+          statusDiv.className = 'alert alert-success';
+          statusDiv.textContent = data.message;
+          statusDiv.style.display = 'block';
+          document.getElementById('customerEmail').value = '';
 
-            // Close modal after 2 seconds
-            setTimeout(() => {
-                bootstrap.Modal.getInstance(document.getElementById('emailModal')).hide();
-            }, 2000);
+          // Close modal after 2 seconds
+          setTimeout(() => {
+            bootstrap.Modal.getInstance(document.getElementById('emailModal')).hide();
+          }, 2000);
         } else {
-            statusDiv.className = 'alert alert-danger';
-            statusDiv.textContent = data.error;
-            statusDiv.style.display = 'block';
+          statusDiv.className = 'alert alert-danger';
+          statusDiv.textContent = data.error;
+          statusDiv.style.display = 'block';
         }
-    })
-    .catch(error => {
+      })
+      .catch(error => {
         statusDiv.className = 'alert alert-danger';
         statusDiv.textContent = 'Failed to send email. Please try again.';
         statusDiv.style.display = 'block';
-    })
-    .finally(() => {
+      })
+      .finally(() => {
         this.disabled = false;
         this.innerHTML = '<i class="bi bi-send me-2"></i>Send Receipt';
-    });
-});
+      });
+  });
 
-// Utility function to get CSRF token
-function getCookie(name) {
+  // Utility function to get CSRF token
+  function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
         }
+      }
     }
     return cookieValue;
-}
+  }
 
-// Custom filter for multiplication (since Django templates don't have it built-in)
-// This would normally be handled in the backend, but showing as example
-function calculateItemTotal(quantity, price) {
+  // Custom filter for multiplication (since Django templates don't have it built-in)
+  // This would normally be handled in the backend, but showing as example
+  function calculateItemTotal(quantity, price) {
     return (quantity * price).toFixed(2);
-}
+  }
 </script>
 {% endblock %}

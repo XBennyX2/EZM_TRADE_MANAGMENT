@@ -22,4 +22,9 @@ urlpatterns = [
 
     # API endpoints
     path('api/search/', views.api_stock_search, name='api_stock_search'),
+
+    # Cart and ticket URLs
+    path('api/cart/validate/', views.validate_cart, name='validate_cart'),
+    path('api/cart/create-ticket/', views.create_ticket, name='create_ticket'),
+    path('api/ticket/status/', views.check_ticket_status, name='check_ticket_status'),
 ]

@@ -203,8 +203,9 @@
             z-index: 1000;
             margin-bottom: 0;
             border-radius: 0;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            padding: 0.75rem 1.5rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.95);
         }
 
         .search-title {
@@ -319,6 +320,395 @@
 
         .products-table tbody tr:hover {
             background-color: var(--light-bg);
+        }
+
+        /* Modern Table Styles for Product Stores */
+        .modern-table {
+            background: var(--white);
+            border-radius: 1.5rem;
+            overflow: hidden;
+            box-shadow: var(--shadow-lg);
+            border: none;
+            margin-bottom: 0;
+        }
+
+        .modern-table thead {
+            background: var(--gradient-primary);
+            color: white;
+        }
+
+        .modern-table th {
+            border: none;
+            padding: 1.5rem 1.25rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            vertical-align: middle;
+        }
+
+        .modern-table td {
+            padding: 1.5rem 1.25rem;
+            border: none;
+            border-bottom: 1px solid rgba(229, 231, 235, 0.2);
+            vertical-align: middle;
+        }
+
+        .modern-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .modern-table .store-row {
+            transition: all 0.3s ease;
+        }
+
+        .modern-table .store-row:hover {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(236, 72, 153, 0.05) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Store Information Styling */
+        .store-avatar {
+            width: 45px;
+            height: 45px;
+            background: var(--gradient-secondary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+        }
+
+        .store-name {
+            color: var(--dark-text);
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        /* Location Information */
+        .location-details {
+            font-size: 0.9rem;
+        }
+
+        .address-text {
+            color: var(--medium-text);
+        }
+
+        .phone-link {
+            color: var(--success-color);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .phone-link:hover {
+            color: var(--success-color);
+            text-decoration: underline;
+        }
+
+        /* Quantity Display */
+        .quantity-display {
+            text-align: center;
+        }
+
+        .quantity-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            display: block;
+        }
+
+        /* Price Display */
+        .price-display {
+            text-align: center;
+        }
+
+        .price-amount {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--success-color);
+            display: block;
+        }
+
+        /* Status Badges */
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-low {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .status-medium {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+
+        .status-high {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        /* Update Information */
+        .update-info {
+            text-align: center;
+        }
+
+        .update-date {
+            font-weight: 500;
+            color: var(--medium-text);
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+        }
+
+        .action-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+        }
+
+        .btn-view {
+            background: var(--gradient-primary);
+            color: white;
+        }
+
+        .btn-store {
+            background: var(--gradient-secondary);
+            color: white;
+        }
+
+        .btn-cart {
+            background: var(--gradient-accent);
+            color: white;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px) scale(1.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            color: white;
+        }
+
+        /* Table Footer */
+        .table-footer {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        }
+
+        .table-footer td {
+            padding: 1.5rem 1.25rem;
+            border-top: 2px solid var(--primary-color);
+        }
+
+        .footer-label {
+            color: var(--dark-text);
+        }
+
+        .total-display {
+            text-align: center;
+        }
+
+        .total-number {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            display: block;
+        }
+
+        .footer-spacer {
+            text-align: center;
+            color: var(--medium-text);
+        }
+
+        /* Cart Summary Section */
+        .cart-summary-section {
+            margin-bottom: 2rem;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .cart-summary-section .card {
+            border-width: 2px;
+        }
+
+        .cart-summary-section .card-header {
+            background: var(--gradient-secondary) !important;
+        }
+
+        /* Floating Cart Button */
+        .floating-cart {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            border-radius: 50px;
+            padding: 12px 20px;
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+            cursor: pointer;
+            z-index: 1050;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+            min-width: 140px;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .floating-cart:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 12px 35px rgba(59, 130, 246, 0.4);
+            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+        }
+
+        .floating-cart .cart-icon {
+            position: relative;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .floating-cart .cart-count {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #ff4757;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid white;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .floating-cart .cart-text {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+
+        .floating-cart .cart-label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            opacity: 0.9;
+        }
+
+        .floating-cart .cart-total {
+            font-size: 0.8rem;
+            font-weight: 500;
+            opacity: 0.8;
+        }
+
+        /* Floating cart responsive */
+        @media (max-width: 768px) {
+            .floating-cart {
+                bottom: 15px;
+                left: 15px;
+                padding: 10px 16px;
+                min-width: 120px;
+            }
+
+            .floating-cart .cart-icon {
+                font-size: 1.3rem;
+            }
+
+            .floating-cart .cart-count {
+                width: 18px;
+                height: 18px;
+                font-size: 0.7rem;
+            }
+        }
+
+        /* Custom Notifications */
+        .custom-notification {
+            animation: slideInRight 0.3s ease-out;
+            font-weight: 500;
+        }
+
+        .custom-notification.fade:not(.show) {
+            animation: slideOutRight 0.3s ease-in;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
+        .custom-notification .btn-close {
+            filter: brightness(0) invert(1);
+            opacity: 0.8;
+        }
+
+        .custom-notification .btn-close:hover {
+            opacity: 1;
+        }
+
+        /* Notification responsive */
+        @media (max-width: 768px) {
+            .custom-notification {
+                min-width: 280px !important;
+                max-width: calc(100vw - 40px) !important;
+                right: 15px !important;
+                font-size: 0.9rem;
+            }
         }
 
         /* Quantity Calculator */
@@ -445,9 +835,9 @@
             width: 50px;
             height: 50px;
             background: var(--primary-color);
-            color: white;
             border: none;
             border-radius: 50%;
+            color: white;
             font-size: 1.2rem;
             cursor: pointer;
             opacity: 0;
@@ -472,6 +862,8 @@
             transform: translateY(0);
         }
 
+
+
         /* Mobile adjustments */
         @media (max-width: 768px) {
             .go-to-top {
@@ -480,6 +872,83 @@
                 width: 45px;
                 height: 45px;
                 font-size: 1.1rem;
+            }
+
+            /* Modern Table Mobile Responsiveness */
+            .modern-table th,
+            .modern-table td {
+                padding: 1rem 0.75rem;
+                font-size: 0.85rem;
+            }
+
+            .store-avatar {
+                width: 35px;
+                height: 35px;
+                font-size: 1rem;
+            }
+
+            .store-name {
+                font-size: 0.9rem;
+            }
+
+            .quantity-number {
+                font-size: 1.25rem;
+            }
+
+            .price-amount {
+                font-size: 1.1rem;
+            }
+
+            .status-badge {
+                padding: 0.4rem 0.8rem;
+                font-size: 0.75rem;
+            }
+
+            .action-btn {
+                width: 35px;
+                height: 35px;
+                font-size: 0.9rem;
+            }
+
+            .total-number {
+                font-size: 1.5rem;
+            }
+
+            /* Hide less important columns on mobile */
+            .modern-table .update-cell {
+                display: none;
+            }
+
+            .modern-table th:nth-child(6),
+            .modern-table td:nth-child(6) {
+                display: none;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .modern-table th,
+            .modern-table td {
+                padding: 0.75rem 0.5rem;
+                font-size: 0.8rem;
+            }
+
+            /* Stack store info vertically on very small screens */
+            .store-info .d-flex {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .store-avatar {
+                margin: 0 auto 0.5rem auto;
+            }
+
+            .location-details {
+                font-size: 0.8rem;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+                gap: 0.25rem;
             }
         }
 
@@ -562,6 +1031,50 @@
                 padding: 2rem 0;
             }
         }
+
+        /* Phone validation styling */
+        .form-control.is-valid {
+            border-color: #28a745;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%2328a745' d='m2.3 6.73.8-.77-.8-.77-.8.77.8.77zm1.48-4.97L6.06 4.04l-.8.77L2.98 2.53l-.8.77L.9 2.03l.8-.77 1.28 1.27L5.26.26l.8.77-2.28 2.27z'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right calc(0.375em + 0.1875rem) center;
+            background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+            padding-right: calc(1.5em + 0.75rem);
+        }
+
+        .form-control.is-invalid {
+            border-color: #dc3545;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath d='m5.8 4.6 2.4 2.4m0-2.4L5.8 7'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right calc(0.375em + 0.1875rem) center;
+            background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+            padding-right: calc(1.5em + 0.75rem);
+        }
+
+        .invalid-feedback {
+            display: none;
+            width: 100%;
+            margin-top: 0.25rem;
+            font-size: 0.875em;
+            color: #dc3545;
+            font-weight: 500;
+        }
+
+        .form-control.is-invalid ~ .invalid-feedback {
+            display: block;
+        }
+
+        /* Enhanced form styling */
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+        }
+
+        .form-text {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-top: 0.25rem;
+        }
     </style>
     
     {% block extra_css %}{% endblock %}
@@ -630,6 +1143,14 @@
                         <li class="nav-item">
                             <a class="nav-link" href="#contact">
                                 <i class="bi bi-envelope me-1"></i>Contact
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link position-relative" href="#" onclick="showCart()">
+                                <i class="bi bi-cart3 me-1"></i>My Cart
+                                <span id="cart-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success" style="display: none;">
+                                    0
+                                </span>
                             </a>
                         </li>
                     </ul>
@@ -709,6 +1230,125 @@
         </div>
     </footer>
 
+    <!-- Cart Modal -->
+    <div class="modal fade" id="cartModal" tabindex="-1" aria-labelledby="cartModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cartModalLabel">
+                        <i class="bi bi-cart3 me-2"></i>Your Cart
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="cart-content">
+                        <!-- Cart content will be populated by JavaScript -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-arrow-left me-1"></i>Continue Shopping
+                    </button>
+                    <button type="button" class="btn btn-outline-danger" onclick="clearCart()" id="clear-cart-btn">
+                        <i class="bi bi-trash me-1"></i>Empty Cart
+                    </button>
+                    <button type="button" class="btn btn-success" onclick="proceedToCheckout()" id="checkout-btn">
+                        <i class="bi bi-credit-card me-1"></i>Checkout Now
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Checkout Modal -->
+    <div class="modal fade" id="checkoutModal" tabindex="-1" aria-labelledby="checkoutModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="checkoutModalLabel">
+                        <i class="bi bi-credit-card me-2"></i>Checkout
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="checkout-form">
+                        <div class="mb-3">
+                            <label for="customer-phone" class="form-label">Phone Number *</label>
+                            <input type="tel" class="form-control" id="customer-phone" required
+                                   placeholder="09XXXXXXXX (10 digits starting with 09)"
+                                   pattern="09[0-9]{8}"
+                                   title="Phone number must start with 09 and be exactly 10 digits">
+                            <div class="invalid-feedback" id="phone-error"></div>
+                            <div class="form-text">Enter your Ethiopian phone number (e.g., 0912345678). Spaces and formatting will be automatically removed.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="customer-name" class="form-label">Name (Optional)</label>
+                            <input type="text" class="form-control" id="customer-name"
+                                   placeholder="Enter your name">
+                        </div>
+                        <div class="mb-3">
+                            <label for="order-notes" class="form-label">Special Instructions (Optional)</label>
+                            <textarea class="form-control" id="order-notes" rows="3"
+                                      placeholder="Any special instructions for your order"></textarea>
+                        </div>
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            Your order will be prepared at <strong id="checkout-store-name"></strong>.
+                            You'll receive a ticket number to track your order status.
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i>Cancel Order
+                    </button>
+                    <button type="button" class="btn btn-success btn-lg" onclick="submitOrder()" id="submit-order-btn">
+                        <i class="bi bi-check-circle me-1"></i>Place My Order
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ticket Status Modal -->
+    <div class="modal fade" id="ticketModal" tabindex="-1" aria-labelledby="ticketModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="ticketModalLabel">
+                        <i class="bi bi-ticket-perforated me-2"></i>Order Ticket
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="ticket-content">
+                        <!-- Ticket content will be populated by JavaScript -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i>Close
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="checkTicketStatus()">
+                        <i class="bi bi-search me-1"></i>Check Another Order
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Cart Button -->
+    <div class="floating-cart" id="floatingCart" onclick="showCart()" style="display: none;">
+        <div class="cart-icon">
+            <i class="bi bi-cart3"></i>
+            <span class="cart-count" id="floating-cart-badge">0</span>
+        </div>
+        <div class="cart-text">
+            <span class="cart-label">My Cart</span>
+            <span class="cart-total" id="floating-cart-total">ETB 0.00</span>
+        </div>
+    </div>
+
     <!-- Go to Top Button -->
     <button class="go-to-top" id="goToTopBtn" title="Go to top">
         <i class="bi bi-chevron-up"></i>
@@ -745,6 +1385,715 @@
 
         // Initial check
         toggleGoToTopButton();
+    });
+
+    // Cart functionality
+    let cart = {
+        items: [],
+        store_id: null,
+        store_name: null
+    };
+
+    // Load cart from localStorage
+    function loadCart() {
+        const savedCart = localStorage.getItem('webfront_cart');
+        if (savedCart) {
+            cart = JSON.parse(savedCart);
+        }
+        updateCartDisplay();
+    }
+
+    // Save cart to localStorage
+    function saveCart() {
+        localStorage.setItem('webfront_cart', JSON.stringify(cart));
+        updateCartDisplay();
+    }
+
+    // Add item to cart
+    function addToCart(stockId, productName, price, storeId, storeName, maxQuantity) {
+        // Check if cart is for different store
+        if (cart.store_id && cart.store_id !== storeId) {
+            if (!confirm(`You have items from ${cart.store_name}. Adding items from ${storeName} will clear your current cart. Continue?`)) {
+                return;
+            }
+            cart.items = [];
+        }
+
+        // Set store info
+        cart.store_id = storeId;
+        cart.store_name = storeName;
+
+        // Check if item already exists
+        const existingItem = cart.items.find(item => item.stock_id === stockId);
+
+        if (existingItem) {
+            if (existingItem.quantity < maxQuantity) {
+                existingItem.quantity += 1;
+                showNotification(`Updated ${productName} quantity to ${existingItem.quantity}`, 'success');
+            } else {
+                showNotification(`Maximum available quantity (${maxQuantity}) reached for ${productName}`, 'warning');
+                return;
+            }
+        } else {
+            cart.items.push({
+                stock_id: stockId,
+                product_id: stockId, // Using stock_id as product reference
+                product_name: productName,
+                price: parseFloat(price),
+                quantity: 1,
+                max_quantity: maxQuantity
+            });
+            showNotification(`${productName} added to cart`, 'success');
+        }
+
+        saveCart();
+    }
+
+    // Add item to cart with specific quantity (for store stock page)
+    function addToCartWithQuantity(stockId, productName, price, storeId, storeName, maxQuantity) {
+        const qtyInput = document.getElementById(`qty-${stockId}`);
+        const quantity = parseInt(qtyInput.value) || 1;
+
+        if (quantity < 1) {
+            showNotification('Please enter a valid quantity', 'warning');
+            return;
+        }
+
+        if (quantity > maxQuantity) {
+            showNotification(`Maximum available quantity is ${maxQuantity}`, 'warning');
+            qtyInput.value = maxQuantity;
+            return;
+        }
+
+        // Check if cart is for different store
+        if (cart.store_id && cart.store_id !== storeId) {
+            if (!confirm(`You have items from ${cart.store_name}. Adding items from ${storeName} will clear your current cart. Continue?`)) {
+                return;
+            }
+            cart.items = [];
+        }
+
+        // Set store info
+        cart.store_id = storeId;
+        cart.store_name = storeName;
+
+        // Check if item already exists
+        const existingItem = cart.items.find(item => item.stock_id === stockId);
+
+        if (existingItem) {
+            const newQuantity = existingItem.quantity + quantity;
+            if (newQuantity <= maxQuantity) {
+                existingItem.quantity = newQuantity;
+                showNotification(`Updated ${productName} quantity to ${newQuantity}`, 'success');
+            } else {
+                const addableQuantity = maxQuantity - existingItem.quantity;
+                if (addableQuantity > 0) {
+                    existingItem.quantity = maxQuantity;
+                    showNotification(`Added ${addableQuantity} more ${productName}. Maximum quantity (${maxQuantity}) reached.`, 'warning');
+                } else {
+                    showNotification(`Maximum available quantity (${maxQuantity}) already in cart for ${productName}`, 'warning');
+                    return;
+                }
+            }
+        } else {
+            cart.items.push({
+                stock_id: stockId,
+                product_id: stockId,
+                product_name: productName,
+                price: parseFloat(price),
+                quantity: quantity,
+                max_quantity: maxQuantity
+            });
+            showNotification(`${quantity}x ${productName} added to cart`, 'success');
+        }
+
+        // Reset quantity input
+        qtyInput.value = 1;
+        saveCart();
+    }
+
+    // Remove item from cart
+    function removeFromCart(stockId) {
+        const itemToRemove = cart.items.find(item => item.stock_id === stockId);
+        if (!itemToRemove) {
+            showNotification('Item not found in cart', 'warning');
+            return;
+        }
+
+        const productName = itemToRemove.product_name;
+        const quantity = itemToRemove.quantity;
+
+        cart.items = cart.items.filter(item => item.stock_id !== stockId);
+        if (cart.items.length === 0) {
+            cart.store_id = null;
+            cart.store_name = null;
+        }
+        saveCart();
+
+        // Update cart modal if open
+        updateCartModal();
+
+        // Show success message
+        showNotification(`Removed ${quantity}x ${productName} from cart`, 'success');
+    }
+
+    // Update item quantity
+    function updateQuantity(stockId, quantity) {
+        const item = cart.items.find(item => item.stock_id === stockId);
+        if (!item) {
+            showNotification('Item not found in cart', 'warning');
+            return;
+        }
+
+        const oldQuantity = item.quantity;
+
+        if (quantity <= 0) {
+            removeFromCart(stockId);
+            return;
+        }
+
+        if (quantity > item.max_quantity) {
+            showNotification(`Maximum available quantity is ${item.max_quantity}`, 'warning');
+            // Reset input to max quantity
+            const input = document.querySelector(`input[onchange*="${stockId}"]`);
+            if (input) input.value = item.max_quantity;
+            return;
+        }
+
+        item.quantity = quantity;
+        saveCart();
+
+        // Update cart modal if open
+        updateCartModal();
+
+        // Show feedback for significant changes
+        if (Math.abs(quantity - oldQuantity) > 1) {
+            const change = quantity - oldQuantity;
+            const action = change > 0 ? 'increased' : 'decreased';
+            showNotification(`${item.product_name} quantity ${action} to ${quantity}`, 'info');
+        }
+    }
+
+    // Clear cart
+    function clearCart() {
+        if (cart.items.length === 0) {
+            showNotification('Your cart is already empty', 'info');
+            return;
+        }
+
+        // Show confirmation dialog
+        if (!confirm('Are you sure you want to empty your cart? This action cannot be undone.')) {
+            return;
+        }
+
+        const itemCount = cart.items.reduce((total, item) => total + item.quantity, 0);
+        const storeName = cart.store_name;
+
+        cart = { items: [], store_id: null, store_name: null };
+        localStorage.removeItem('webfront_cart');
+        updateCartDisplay();
+
+        // Update cart modal if open
+        updateCartModal();
+
+        // Show success message
+        showNotification(`Cart cleared! Removed ${itemCount} item${itemCount !== 1 ? 's' : ''} from ${storeName || 'your cart'}`, 'success');
+    }
+
+    // Update cart display
+    function updateCartDisplay() {
+        const cartCount = cart.items.reduce((total, item) => total + item.quantity, 0);
+        const cartTotal = cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+
+        // Update navigation cart badge
+        const cartBadge = document.getElementById('cart-badge');
+        if (cartBadge) {
+            cartBadge.textContent = cartCount;
+            cartBadge.style.display = cartCount > 0 ? 'inline' : 'none';
+        }
+
+        // Update floating cart
+        const floatingCart = document.getElementById('floatingCart');
+        const floatingCartBadge = document.getElementById('floating-cart-badge');
+        const floatingCartTotal = document.getElementById('floating-cart-total');
+
+        if (floatingCart && floatingCartBadge && floatingCartTotal) {
+            if (cartCount > 0) {
+                floatingCart.style.display = 'flex';
+                floatingCartBadge.textContent = cartCount;
+                floatingCartTotal.textContent = `ETB ${cartTotal.toFixed(2)}`;
+            } else {
+                floatingCart.style.display = 'none';
+            }
+        }
+
+        // Update cart total if exists
+        const cartTotalElement = document.getElementById('cart-total');
+        if (cartTotalElement) {
+            cartTotalElement.textContent = `ETB ${cartTotal.toFixed(2)}`;
+        }
+
+        // Update cart summary section (for store stock page)
+        const cartSummary = document.getElementById('cart-summary');
+        if (cartSummary) {
+            if (cartCount > 0 && cart.store_id) {
+                cartSummary.style.display = 'block';
+
+                const summaryItems = document.getElementById('cart-summary-items');
+                const summaryTotal = document.getElementById('cart-summary-total');
+                const summaryStore = document.getElementById('cart-summary-store');
+
+                if (summaryItems) summaryItems.textContent = cartCount;
+                if (summaryTotal) summaryTotal.textContent = `ETB ${cartTotal.toFixed(2)}`;
+                if (summaryStore) summaryStore.textContent = cart.store_name;
+            } else {
+                cartSummary.style.display = 'none';
+            }
+        }
+
+        // Update quick action buttons (for store stock page)
+        const clearStoreCartBtn = document.getElementById('clear-store-cart-btn');
+        const viewCartBtn = document.getElementById('view-cart-btn');
+        const quickCartCount = document.getElementById('quick-cart-count');
+
+        if (clearStoreCartBtn && viewCartBtn) {
+            if (cartCount > 0) {
+                clearStoreCartBtn.style.display = 'inline-block';
+                viewCartBtn.style.display = 'inline-block';
+                if (quickCartCount) quickCartCount.textContent = cartCount;
+            } else {
+                clearStoreCartBtn.style.display = 'none';
+                viewCartBtn.style.display = 'none';
+            }
+        }
+    }
+
+    // Show notification
+    function showNotification(message, type = 'info', duration = 4000) {
+        // Remove existing notifications to prevent stacking
+        const existingNotifications = document.querySelectorAll('.custom-notification');
+        existingNotifications.forEach(notif => notif.remove());
+
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type === 'success' ? 'success' : type === 'warning' ? 'warning' : type === 'danger' ? 'danger' : 'info'} alert-dismissible fade show position-fixed custom-notification`;
+
+        // Position notifications at top right (floating cart is now at bottom left)
+        const topPosition = '20px';
+
+        notification.style.cssText = `
+            top: ${topPosition};
+            right: 20px;
+            z-index: 9998;
+            min-width: 320px;
+            max-width: 400px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            border: none;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+        `;
+
+        // Add icon based on type
+        let icon = '';
+        switch(type) {
+            case 'success': icon = '<i class="bi bi-check-circle-fill me-2"></i>'; break;
+            case 'warning': icon = '<i class="bi bi-exclamation-triangle-fill me-2"></i>'; break;
+            case 'danger': icon = '<i class="bi bi-x-circle-fill me-2"></i>'; break;
+            default: icon = '<i class="bi bi-info-circle-fill me-2"></i>';
+        }
+
+        notification.innerHTML = `
+            <div class="d-flex align-items-center">
+                ${icon}
+                <span class="flex-grow-1">${message}</span>
+                <button type="button" class="btn-close ms-2" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+
+        document.body.appendChild(notification);
+
+        // Auto remove after specified duration
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                }, 150);
+            }
+        }, duration);
+    }
+
+    // Show cart modal
+    function showCart() {
+        updateCartModal();
+        const cartModal = new bootstrap.Modal(document.getElementById('cartModal'));
+        cartModal.show();
+
+        // Show welcome message if cart has items
+        if (cart.items.length > 0) {
+            const itemCount = cart.items.reduce((total, item) => total + item.quantity, 0);
+            const total = cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+            showNotification(`Your cart: ${itemCount} item${itemCount !== 1 ? 's' : ''} • ETB ${total.toFixed(2)}`, 'info');
+        }
+    }
+
+    // Update cart modal content
+    function updateCartModal() {
+        const cartContent = document.getElementById('cart-content');
+        const clearBtn = document.getElementById('clear-cart-btn');
+        const checkoutBtn = document.getElementById('checkout-btn');
+
+        if (cart.items.length === 0) {
+            cartContent.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="bi bi-cart-x display-4 text-muted"></i>
+                    <h5 class="mt-3">Your cart is empty</h5>
+                    <p class="text-muted">Add some products to get started!</p>
+                </div>
+            `;
+            clearBtn.style.display = 'none';
+            checkoutBtn.style.display = 'none';
+            return;
+        }
+
+        clearBtn.style.display = 'inline-block';
+        checkoutBtn.style.display = 'inline-block';
+
+        let cartHtml = `
+            <div class="mb-3">
+                <h6><i class="bi bi-shop me-2"></i>Store: ${cart.store_name}</h6>
+            </div>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Price</th>
+                            <th>Quantity</th>
+                            <th>Total</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        let grandTotal = 0;
+        cart.items.forEach(item => {
+            const itemTotal = item.price * item.quantity;
+            grandTotal += itemTotal;
+            cartHtml += `
+                <tr>
+                    <td>${item.product_name}</td>
+                    <td>ETB ${item.price.toFixed(2)}</td>
+                    <td>
+                        <div class="input-group input-group-sm" style="width: 120px;">
+                            <button class="btn btn-outline-secondary" onclick="updateQuantity(${item.stock_id}, ${item.quantity - 1})">-</button>
+                            <input type="number" class="form-control text-center" value="${item.quantity}"
+                                   min="1" max="${item.max_quantity}"
+                                   onchange="updateQuantity(${item.stock_id}, parseInt(this.value))">
+                            <button class="btn btn-outline-secondary" onclick="updateQuantity(${item.stock_id}, ${item.quantity + 1})">+</button>
+                        </div>
+                    </td>
+                    <td>ETB ${itemTotal.toFixed(2)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-danger" onclick="removeFromCart(${item.stock_id})" title="Remove from cart">
+                            <i class="bi bi-trash me-1"></i>Remove
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        cartHtml += `
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-active">
+                            <th colspan="3">Total</th>
+                            <th>ETB ${grandTotal.toFixed(2)}</th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        `;
+
+        cartContent.innerHTML = cartHtml;
+    }
+
+    // Proceed to checkout
+    function proceedToCheckout() {
+        if (cart.items.length === 0) {
+            showNotification('Your cart is empty. Add some items first!', 'warning');
+            return;
+        }
+
+        const itemCount = cart.items.reduce((total, item) => total + item.quantity, 0);
+        const total = cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+
+        // Hide cart modal and show checkout modal
+        const cartModal = bootstrap.Modal.getInstance(document.getElementById('cartModal'));
+        cartModal.hide();
+
+        // Update checkout modal
+        document.getElementById('checkout-store-name').textContent = cart.store_name;
+
+        // Clear previous form data
+        document.getElementById('customer-phone').value = '';
+        document.getElementById('customer-name').value = '';
+        document.getElementById('order-notes').value = '';
+
+        const checkoutModal = new bootstrap.Modal(document.getElementById('checkoutModal'));
+        checkoutModal.show();
+
+        // Show checkout info
+        showNotification(`Ready to checkout: ${itemCount} item${itemCount !== 1 ? 's' : ''} • ETB ${total.toFixed(2)}`, 'info');
+    }
+
+    // Phone number validation function
+    function validatePhoneNumber(phone) {
+        // Remove all spaces, dashes, parentheses, and other non-digit characters
+        const cleanedPhone = phone.replace(/[^\d]/g, '');
+
+        // Check if phone number is empty after cleaning
+        if (!cleanedPhone) {
+            return {
+                isValid: false,
+                error: 'Please enter your phone number',
+                cleanedPhone: ''
+            };
+        }
+
+        // Check if phone number starts with 09
+        if (!cleanedPhone.startsWith('09')) {
+            return {
+                isValid: false,
+                error: 'Phone number must start with 09 (e.g., 0912345678)',
+                cleanedPhone: cleanedPhone
+            };
+        }
+
+        // Check if phone number has exactly 10 digits
+        if (cleanedPhone.length !== 10) {
+            return {
+                isValid: false,
+                error: `Phone number must be exactly 10 digits. You entered ${cleanedPhone.length} digits.`,
+                cleanedPhone: cleanedPhone
+            };
+        }
+
+        return {
+            isValid: true,
+            error: null,
+            cleanedPhone: cleanedPhone
+        };
+    }
+
+    // Submit order
+    async function submitOrder() {
+        const phoneInput = document.getElementById('customer-phone');
+        const phone = phoneInput.value.trim();
+        const name = document.getElementById('customer-name').value.trim();
+        const notes = document.getElementById('order-notes').value.trim();
+
+        // Validate phone number
+        const phoneValidation = validatePhoneNumber(phone);
+
+        if (!phoneValidation.isValid) {
+            showNotification(phoneValidation.error, 'danger', 5000);
+            phoneInput.focus();
+            phoneInput.classList.add('is-invalid');
+            return;
+        }
+
+        // Update the input field with cleaned phone number
+        phoneInput.value = phoneValidation.cleanedPhone;
+        phoneInput.classList.remove('is-invalid');
+        phoneInput.classList.add('is-valid');
+
+        const submitBtn = document.getElementById('submit-order-btn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Processing...';
+
+        try {
+            const response = await fetch('/webfront/api/cart/create-ticket/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    cart_data: { items: cart.items },
+                    store_id: cart.store_id,
+                    phone_number: phoneValidation.cleanedPhone,
+                    customer_name: name,
+                    notes: notes
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Show immediate success feedback
+                showNotification('Order placed successfully! 🎉', 'success', 2000);
+
+                // Clear cart without confirmation since order was successful
+                const itemCount = cart.items.reduce((total, item) => total + item.quantity, 0);
+                cart = { items: [], store_id: null, store_name: null };
+                localStorage.removeItem('webfront_cart');
+                updateCartDisplay();
+
+                // Hide checkout modal
+                const checkoutModal = bootstrap.Modal.getInstance(document.getElementById('checkoutModal'));
+                checkoutModal.hide();
+
+                // Show ticket success after a brief delay
+                setTimeout(() => {
+                    showTicketSuccess(result.ticket_number, result.message);
+                }, 500);
+            } else {
+                showNotification(result.error || 'Failed to create order. Please try again.', 'danger', 6000);
+            }
+        } catch (error) {
+            console.error('Order submission error:', error);
+            showNotification('Network error. Please check your connection and try again.', 'danger', 6000);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Place Order';
+        }
+    }
+
+    // Show ticket success
+    function showTicketSuccess(ticketNumber, message) {
+        const ticketContent = document.getElementById('ticket-content');
+        ticketContent.innerHTML = `
+            <div class="text-center">
+                <i class="bi bi-check-circle-fill text-success display-4"></i>
+                <h5 class="mt-3 text-success">Order Placed Successfully!</h5>
+                <p class="lead">Ticket #${ticketNumber}</p>
+                <p>${message}</p>
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Save your ticket number to check order status later.
+                </div>
+            </div>
+        `;
+
+        const ticketModal = new bootstrap.Modal(document.getElementById('ticketModal'));
+        ticketModal.show();
+    }
+
+    // Check ticket status
+    async function checkTicketStatus() {
+        const ticketNumber = prompt('Enter your ticket number:');
+        if (!ticketNumber) return;
+
+        try {
+            const response = await fetch('/webfront/api/ticket/status/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    ticket_number: ticketNumber.trim()
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                const ticket = result.ticket;
+                let statusColor = 'primary';
+                if (ticket.status === 'completed') statusColor = 'success';
+                else if (ticket.status === 'cancelled') statusColor = 'danger';
+                else if (ticket.status === 'ready') statusColor = 'warning';
+
+                const ticketContent = document.getElementById('ticket-content');
+                ticketContent.innerHTML = `
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">Ticket #${ticket.ticket_number}</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <strong>Status:</strong>
+                                    <span class="badge bg-${statusColor} ms-2">${ticket.status.toUpperCase()}</span>
+                                </div>
+                                <div class="col-sm-6">
+                                    <strong>Store:</strong> ${ticket.store_name}
+                                </div>
+                                <div class="col-sm-6 mt-2">
+                                    <strong>Total:</strong> ${ticket.total_amount}
+                                </div>
+                                <div class="col-sm-6 mt-2">
+                                    <strong>Items:</strong> ${ticket.total_items}
+                                </div>
+                                <div class="col-12 mt-2">
+                                    <strong>Created:</strong> ${ticket.created_at}
+                                </div>
+                                ${ticket.notes ? `<div class="col-12 mt-2"><strong>Notes:</strong> ${ticket.notes}</div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                const ticketModal = new bootstrap.Modal(document.getElementById('ticketModal'));
+                ticketModal.show();
+            } else {
+                showNotification(result.error || 'Ticket not found', 'warning');
+            }
+        } catch (error) {
+            showNotification('Network error. Please try again.', 'danger');
+        }
+    }
+
+    // Real-time phone number validation
+    function setupPhoneValidation() {
+        const phoneInput = document.getElementById('customer-phone');
+        const phoneError = document.getElementById('phone-error');
+
+        if (!phoneInput) return;
+
+        phoneInput.addEventListener('input', function() {
+            const phone = this.value.trim();
+            const validation = validatePhoneNumber(phone);
+
+            // Clear previous validation classes
+            this.classList.remove('is-valid', 'is-invalid');
+
+            if (phone === '') {
+                // Empty input - neutral state
+                if (phoneError) phoneError.textContent = '';
+                return;
+            }
+
+            if (validation.isValid) {
+                this.classList.add('is-valid');
+                if (phoneError) phoneError.textContent = '';
+            } else {
+                this.classList.add('is-invalid');
+                if (phoneError) phoneError.textContent = validation.error;
+            }
+        });
+
+        // Auto-format phone number on blur
+        phoneInput.addEventListener('blur', function() {
+            const phone = this.value.trim();
+            const validation = validatePhoneNumber(phone);
+
+            if (validation.isValid) {
+                // Format as 09XX XXX XXX for better readability
+                const formatted = validation.cleanedPhone.replace(/(\d{4})(\d{3})(\d{3})/, '$1 $2 $3');
+                this.value = formatted;
+            }
+        });
+    }
+
+    // Load cart on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadCart();
+        setupPhoneValidation();
     });
     </script>
 

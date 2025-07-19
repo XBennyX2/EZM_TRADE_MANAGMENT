@@ -2,18 +2,25 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
 from Inventory.models import Product, Stock
 from transactions.models import Transaction, Receipt, Order as TransactionOrder
 from .models import Order, FinancialRecord, Store, StoreCashier
 from users.models import CustomUser
 from django.template.loader import render_to_string
 from django.http import HttpResponse
-from weasyprint import HTML  # Make sure you have WeasyPrint installed
+try:
+    from weasyprint import HTML  # Make sure you have WeasyPrint installed
+    WEASYPRINT_AVAILABLE = True
+except (ImportError, OSError):
+    WEASYPRINT_AVAILABLE = False
+    HTML = None
 from django.contrib import messages
 from django.utils import timezone
 from decimal import Decimal
 from django.db import models
 import json
+from webfront.models import CustomerTicket, CustomerTicketItem
 
 @login_required
 def process_sale(request):
@@ -460,6 +467,131 @@ def cashier_dashboard(request):
         transaction_type='sale'
     ).order_by('-timestamp')[:5]
 
+    # Get tickets data for the tickets tab
+    from webfront.models import CustomerTicket, CustomerTicketItem
+    from django.core.paginator import Paginator
+    from django.db.models import Q
+
+    # Get search parameters
+    phone_search = request.GET.get('phone', '').strip()
+    status_filter = request.GET.get('status', '').strip()
+    sort_order = request.GET.get('sort', 'newest')
+    page_number = request.GET.get('page', 1)
+
+    # Get store for tickets (use same logic as API)
+    store = None
+    try:
+        cashier = StoreCashier.objects.get(cashier=request.user, is_active=True)
+        store = cashier.store
+    except StoreCashier.DoesNotExist:
+        if hasattr(request.user, 'store') and request.user.store:
+            store = request.user.store
+        else:
+            store = Store.objects.first()
+
+    # Get tickets for this store
+    tickets = CustomerTicket.objects.filter(store=store).select_related('store').prefetch_related('items__product')
+
+    # Apply search filters
+    if phone_search:
+        # Clean the phone search input - remove spaces, dashes, parentheses, plus signs
+        cleaned_phone = ''.join(char for char in phone_search if char.isdigit())
+
+        if cleaned_phone:
+            # For database-agnostic partial phone number search
+            # Get all tickets and filter in Python for better compatibility
+            all_tickets_for_search = tickets.values_list('id', 'customer_phone')
+            matching_ids = []
+
+            for ticket_id, phone in all_tickets_for_search:
+                if phone:
+                    # Remove all non-digit characters from stored phone
+                    phone_digits = ''.join(char for char in phone if char.isdigit())
+                    # Check if search digits are contained in phone digits
+                    if cleaned_phone in phone_digits:
+                        matching_ids.append(ticket_id)
+
+            # Filter tickets by matching IDs
+            if matching_ids:
+                tickets = tickets.filter(id__in=matching_ids)
+            else:
+                # No matches found, return empty queryset
+                tickets = tickets.none()
+        else:
+            # If no digits found, search in the original phone field (for special characters)
+            tickets = tickets.filter(customer_phone__icontains=phone_search)
+
+    if status_filter:
+        tickets = tickets.filter(status=status_filter)
+
+    # Apply sorting
+    if sort_order == 'oldest':
+        tickets = tickets.order_by('created_at')
+    elif sort_order == 'status':
+        tickets = tickets.order_by('status', '-created_at')
+    elif sort_order == 'amount':
+        tickets = tickets.order_by('-total_amount', '-created_at')
+    else:  # newest (default)
+        tickets = tickets.order_by('-created_at')
+
+    # Paginate tickets
+    paginator = Paginator(tickets, 12)  # 12 tickets per page
+    tickets_page = paginator.get_page(page_number)
+
+    # Count pending tickets for badge
+    pending_count = CustomerTicket.objects.filter(
+        store=store,
+        status__in=['pending', 'confirmed']
+    ).count()
+
+    # Helper functions for status display
+    def get_status_color(status):
+        status_colors = {
+            'pending': 'warning',
+            'confirmed': 'info',
+            'preparing': 'primary',
+            'ready': 'success',
+            'completed': 'success',
+            'cancelled': 'danger'
+        }
+        return status_colors.get(status, 'secondary')
+
+    def get_status_icon(status):
+        status_icons = {
+            'pending': 'bi-clock',
+            'confirmed': 'bi-check',
+            'preparing': 'bi-gear',
+            'ready': 'bi-check-circle',
+            'completed': 'bi-check-all',
+            'cancelled': 'bi-x-circle'
+        }
+        return status_icons.get(status, 'bi-question')
+
+    # Enhance tickets with additional data
+    enhanced_tickets = []
+    for ticket in tickets_page:
+        # Calculate total quantity
+        total_quantity = sum(item.quantity for item in ticket.items.all())
+
+        # Get items preview (first 2 items)
+        items_preview = []
+        for item in ticket.items.all()[:2]:
+            items_preview.append({
+                'quantity': item.quantity,
+                'product_name': item.product.name
+            })
+
+        enhanced_ticket = {
+            'ticket': ticket,
+            'total_quantity': total_quantity,
+            'items_count': ticket.items.count(),
+            'items_preview': items_preview,
+            'has_more_items': ticket.items.count() > 2,
+            'status_color': get_status_color(ticket.status),
+            'status_icon': get_status_icon(ticket.status)
+        }
+        enhanced_tickets.append(enhanced_ticket)
+
     # Statistics for dashboard
     total_stock_items = Stock.objects.filter(store=request.user.store).count()
     out_of_stock_items = Stock.objects.filter(store=request.user.store, quantity=0).count()
@@ -476,6 +608,28 @@ def cashier_dashboard(request):
         'recent_transactions': recent_transactions,
         'store': request.user.store,
         'current_date': current_date,
+        # Tickets data
+        'tickets': enhanced_tickets,
+        'tickets_page': tickets_page,
+        'pending_count': pending_count,
+        'phone_search': phone_search,
+        'status_filter': status_filter,
+        'sort_order': sort_order,
+        'status_choices': [
+            ('', 'All Statuses'),
+            ('pending', 'Pending'),
+            ('confirmed', 'Confirmed'),
+            ('preparing', 'Preparing'),
+            ('ready', 'Ready'),
+            ('completed', 'Completed'),
+            ('cancelled', 'Cancelled'),
+        ],
+        'sort_choices': [
+            ('newest', 'Newest First'),
+            ('oldest', 'Oldest First'),
+            ('status', 'By Status'),
+            ('amount', 'By Amount'),
+        ],
         'debug_stats': {
             'total_stock_items': total_stock_items,
             'available_products_count': len(fifo_products),
@@ -628,10 +782,14 @@ def initiate_order(request):
         'quantity', 'selling_price'
     )
 
+    # Get ticket information if this order is from a ticket
+    ticket_info = request.session.get('ticket_info', {})
+
     context = {
         'available_products': list(available_products),
         'cart': request.session.get('cart', {}),
         'store': request.user.store,
+        'ticket_info': ticket_info,
     }
 
     return render(request, 'store/initiate_order.html', context)
@@ -842,9 +1000,27 @@ def complete_order(request):
                 record_type='revenue'
             )
 
-            # Clear cart
+            # Update ticket status if this order was from a ticket
+            ticket_info = request.session.get('ticket_info', {})
+            if ticket_info.get('from_ticket') and ticket_info.get('ticket_number'):
+                try:
+                    ticket = CustomerTicket.objects.get(
+                        ticket_number=ticket_info['ticket_number'],
+                        store=request.user.store
+                    )
+                    ticket.status = 'completed'
+                    ticket.completed_at = timezone.now()
+                    ticket.confirmed_by = request.user
+                    ticket.save()
+                except CustomerTicket.DoesNotExist:
+                    pass  # Ticket not found, continue without error
+
+            # Clear cart and ticket info
             if 'cart' in request.session:
                 del request.session['cart']
+                request.session.modified = True
+            if 'ticket_info' in request.session:
+                del request.session['ticket_info']
                 request.session.modified = True
 
             return JsonResponse({
@@ -1694,3 +1870,470 @@ def store_product_list(request):
         'total_products': len(product_data)
     }
     return render(request, 'store/product_list.html', context)
+
+
+# --- Ticket Management API Views ---
+
+def api_tickets_list(request):
+    """
+    API endpoint to get tickets for the current store with search and filtering
+    """
+    print(f"API tickets list called - Method: {request.method}")
+
+    # Temporarily disable auth for debugging
+    # if request.user.role != 'cashier':
+    #     return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
+
+    try:
+        # Simplified store resolution for debugging
+        store = Store.objects.first()
+        print(f"Found store: {store}")
+
+        if not store:
+            return JsonResponse({
+                'success': False,
+                'error': 'No stores available in the system'
+            }, status=400)
+
+        # Start with all tickets for this store
+        tickets = CustomerTicket.objects.filter(store=store).select_related('store').prefetch_related('items__product')
+        print(f"Found {tickets.count()} tickets for store {store.name}")
+
+        # Apply search filters
+        phone_search = request.GET.get('phone', '').strip()
+        status_filter = request.GET.get('status', '').strip()
+        print(f"Search filters - phone: '{phone_search}', status: '{status_filter}'")
+
+        if phone_search:
+            # Clean the phone search input - remove spaces, dashes, parentheses, plus signs
+            cleaned_phone = ''.join(char for char in phone_search if char.isdigit())
+
+            if cleaned_phone:
+                # For database-agnostic partial phone number search
+                all_tickets_for_search = tickets.values_list('id', 'customer_phone')
+                matching_ids = []
+
+                for ticket_id, phone in all_tickets_for_search:
+                    if phone:
+                        # Remove all non-digit characters from stored phone
+                        phone_digits = ''.join(char for char in phone if char.isdigit())
+                        # Check if search digits are contained in phone digits
+                        if cleaned_phone in phone_digits:
+                            matching_ids.append(ticket_id)
+
+                # Filter tickets by matching IDs
+                if matching_ids:
+                    tickets = tickets.filter(id__in=matching_ids)
+                else:
+                    # No matches found, return empty queryset
+                    tickets = tickets.none()
+            else:
+                # If no digits found, search in the original phone field (for special characters)
+                tickets = tickets.filter(customer_phone__icontains=phone_search)
+
+        if status_filter:
+            tickets = tickets.filter(status=status_filter)
+
+        # Order by creation date (newest first by default)
+        tickets = tickets.order_by('-created_at')
+        print(f"Final ticket count after filters: {tickets.count()}")
+
+        # Count pending tickets (for badge)
+        all_tickets = CustomerTicket.objects.filter(store=store)
+        pending_count = all_tickets.filter(status__in=['pending', 'confirmed']).count()
+        print(f"Pending tickets count: {pending_count}")
+
+        # Serialize tickets with detailed information
+        tickets_data = []
+        for ticket in tickets:
+            # Get ticket items with product details
+            items_data = []
+            for item in ticket.items.select_related('product').all():
+                items_data.append({
+                    'id': item.id,
+                    'product_id': item.product.id,
+                    'product_name': item.product.name,
+                    'product_code': getattr(item.product, 'code', ''),
+                    'quantity': item.quantity,
+                    'unit_price': str(item.unit_price),
+                    'total_price': str(item.total_price),
+                    'created_at': item.created_at.isoformat() if hasattr(item, 'created_at') else ''
+                })
+
+            # Calculate summary information
+            total_quantity = sum(item.quantity for item in ticket.items.all())
+
+            tickets_data.append({
+                'id': ticket.id,
+                'ticket_number': ticket.ticket_number,
+                'customer_name': ticket.customer_name or '',
+                'customer_phone': ticket.customer_phone,
+                'total_amount': str(ticket.total_amount),
+                'total_items': ticket.total_items,
+                'total_quantity': total_quantity,
+                'status': ticket.status,
+                'notes': ticket.notes or '',
+                'store_name': ticket.store.name,
+                'store_id': ticket.store.id,
+                'created_at': ticket.created_at.isoformat(),
+                'updated_at': ticket.updated_at.isoformat(),
+                'confirmed_at': ticket.confirmed_at.isoformat() if ticket.confirmed_at else None,
+                'ready_at': ticket.ready_at.isoformat() if ticket.ready_at else None,
+                'completed_at': ticket.completed_at.isoformat() if ticket.completed_at else None,
+                'confirmed_by': ticket.confirmed_by.get_full_name() if ticket.confirmed_by else None,
+                'items': items_data,
+                'items_count': len(items_data)
+            })
+
+        response_data = {
+            'success': True,
+            'tickets': tickets_data,
+            'pending_count': pending_count
+        }
+        print(f"Returning response with {len(tickets_data)} tickets")
+        return JsonResponse(response_data)
+
+    except Exception as e:
+        print(f"Error in api_tickets_list: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def api_ticket_detail(request, ticket_number):
+    """
+    API endpoint to get detailed ticket information
+    """
+    if request.user.role != 'cashier':
+        return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
+
+    try:
+        # Get cashier's store - try multiple approaches
+        store = None
+
+        try:
+            cashier = StoreCashier.objects.get(cashier=request.user, is_active=True)
+            store = cashier.store
+        except StoreCashier.DoesNotExist:
+            if hasattr(request.user, 'store') and request.user.store:
+                store = request.user.store
+            else:
+                store = Store.objects.first()
+
+        if not store:
+            return JsonResponse({'success': False, 'error': 'Cashier not assigned to any store'}, status=400)
+
+        # Get ticket
+        ticket = CustomerTicket.objects.select_related('store').prefetch_related('items__product').get(
+            ticket_number=ticket_number,
+            store=store
+        )
+
+        # Serialize ticket items with detailed information
+        items_data = []
+        for item in ticket.items.select_related('product').all():
+            items_data.append({
+                'id': item.id,
+                'product_id': item.product.id,
+                'product_name': item.product.name,
+                'product_code': getattr(item.product, 'code', ''),
+                'quantity': item.quantity,
+                'unit_price': str(item.unit_price),
+                'total_price': str(item.total_price),
+                'created_at': item.created_at.isoformat() if hasattr(item, 'created_at') else ''
+            })
+
+        # Calculate summary information
+        total_quantity = sum(item.quantity for item in ticket.items.all())
+
+        ticket_data = {
+            'id': ticket.id,
+            'ticket_number': ticket.ticket_number,
+            'customer_name': ticket.customer_name or '',
+            'customer_phone': ticket.customer_phone,
+            'total_amount': str(ticket.total_amount),
+            'total_items': ticket.total_items,
+            'total_quantity': total_quantity,
+            'status': ticket.status,
+            'notes': ticket.notes or '',
+            'store_name': ticket.store.name,
+            'store_id': ticket.store.id,
+            'created_at': ticket.created_at.isoformat(),
+            'updated_at': ticket.updated_at.isoformat(),
+            'confirmed_at': ticket.confirmed_at.isoformat() if ticket.confirmed_at else None,
+            'ready_at': ticket.ready_at.isoformat() if ticket.ready_at else None,
+            'completed_at': ticket.completed_at.isoformat() if ticket.completed_at else None,
+            'confirmed_by': ticket.confirmed_by.get_full_name() if ticket.confirmed_by else None,
+            'items': items_data,
+            'items_count': len(items_data)
+        }
+
+        return JsonResponse({
+            'success': True,
+            'ticket': ticket_data
+        })
+
+    except CustomerTicket.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Ticket not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_ticket_update_status(request, ticket_number):
+    """
+    API endpoint to update ticket status
+    """
+    if request.user.role != 'cashier':
+        return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+        new_status = data.get('status')
+        notes = data.get('notes', '')
+
+        if not new_status:
+            return JsonResponse({'success': False, 'error': 'Status is required'}, status=400)
+
+        # Validate status
+        valid_statuses = ['pending', 'confirmed', 'preparing', 'ready', 'completed', 'cancelled']
+        if new_status not in valid_statuses:
+            return JsonResponse({'success': False, 'error': 'Invalid status'}, status=400)
+
+        # Get cashier's store
+        store = None
+        try:
+            cashier = StoreCashier.objects.get(cashier=request.user, is_active=True)
+            store = cashier.store
+        except StoreCashier.DoesNotExist:
+            if hasattr(request.user, 'store') and request.user.store:
+                store = request.user.store
+            else:
+                store = Store.objects.first()
+
+        if not store:
+            return JsonResponse({'success': False, 'error': 'Cashier not assigned to any store'}, status=400)
+
+        # Get and update ticket
+        ticket = CustomerTicket.objects.get(ticket_number=ticket_number, store=store)
+
+        old_status = ticket.status
+        ticket.status = new_status
+
+        # Set timestamps based on status
+        if new_status == 'confirmed' and old_status == 'pending':
+            ticket.confirmed_at = timezone.now()
+            ticket.confirmed_by = request.user
+        elif new_status == 'ready':
+            ticket.ready_at = timezone.now()
+        elif new_status == 'completed':
+            ticket.completed_at = timezone.now()
+
+        ticket.save()
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Ticket status updated to {new_status}'
+        })
+
+    except CustomerTicket.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Ticket not found'}, status=404)
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_ticket_process(request, ticket_number):
+    """
+    API endpoint to process ticket as POS sale
+    """
+    if request.user.role != 'cashier':
+        return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
+
+    try:
+        # Get cashier's store
+        store = None
+        try:
+            cashier = StoreCashier.objects.get(cashier=request.user, is_active=True)
+            store = cashier.store
+        except StoreCashier.DoesNotExist:
+            if hasattr(request.user, 'store') and request.user.store:
+                store = request.user.store
+            else:
+                store = Store.objects.first()
+
+        if not store:
+            return JsonResponse({'success': False, 'error': 'Cashier not assigned to any store'}, status=400)
+
+        # Get ticket
+        ticket = CustomerTicket.objects.select_related('store').prefetch_related('items__product', 'items__stock').get(
+            ticket_number=ticket_number,
+            store=store
+        )
+
+        # Check if ticket can be processed
+        if ticket.status not in ['pending', 'confirmed']:
+            return JsonResponse({'success': False, 'error': 'Ticket cannot be processed in current status'}, status=400)
+
+        with transaction.atomic():
+            # Create order
+            order = Order.objects.create(
+                cashier=request.user,
+                store=store,
+                customer_phone=ticket.customer_phone,
+                customer_name=ticket.customer_name,
+                total_amount=ticket.total_amount,
+                notes=f"Processed from ticket #{ticket.ticket_number}. Original notes: {ticket.notes}"
+            )
+
+            # Process each item
+            for ticket_item in ticket.items.all():
+                # Get current stock
+                try:
+                    stock = Stock.objects.get(product=ticket_item.product, store=store)
+
+                    # Check if enough stock is available
+                    if stock.quantity < ticket_item.quantity:
+                        return JsonResponse({
+                            'success': False,
+                            'error': f'Insufficient stock for {ticket_item.product.name}. Available: {stock.quantity}, Required: {ticket_item.quantity}'
+                        }, status=400)
+
+                    # Update stock
+                    stock.quantity -= ticket_item.quantity
+                    stock.save()
+
+                    # Create transaction record
+                    Transaction.objects.create(
+                        product=ticket_item.product,
+                        store=store,
+                        transaction_type='sale',
+                        quantity=ticket_item.quantity,
+                        unit_price=ticket_item.unit_price,
+                        total_amount=ticket_item.total_price,
+                        performed_by=request.user,
+                        notes=f"POS sale from ticket #{ticket.ticket_number}"
+                    )
+
+                except Stock.DoesNotExist:
+                    return JsonResponse({
+                        'success': False,
+                        'error': f'Product {ticket_item.product.name} not available in store stock'
+                    }, status=400)
+
+            # Update ticket status
+            ticket.status = 'completed'
+            ticket.completed_at = timezone.now()
+            ticket.confirmed_by = request.user
+            ticket.save()
+
+            # Create receipt
+            receipt = Receipt.objects.create(
+                order=order,
+                receipt_number=f"R{order.id:06d}",
+                total_amount=order.total_amount,
+                payment_method='cash',  # Default to cash for ticket processing
+                issued_by=request.user
+            )
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Ticket processed successfully',
+            'sale_id': order.id,
+            'receipt_id': receipt.id
+        })
+
+    except CustomerTicket.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Ticket not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def process_ticket_to_order(request, ticket_number):
+    """
+    Process a ticket by loading its data into the cart and redirecting to initiate-order
+    """
+    if request.user.role != 'cashier':
+        messages.error(request, 'Unauthorized access.')
+        return redirect('cashier_dashboard')
+
+    try:
+        # Get store for tickets
+        store = None
+        try:
+            cashier = StoreCashier.objects.get(cashier=request.user, is_active=True)
+            store = cashier.store
+        except StoreCashier.DoesNotExist:
+            if hasattr(request.user, 'store') and request.user.store:
+                store = request.user.store
+            else:
+                store = Store.objects.first()
+
+        if not store:
+            messages.error(request, 'Cashier not assigned to any store.')
+            return redirect('cashier_dashboard')
+
+        # Get ticket
+        ticket = CustomerTicket.objects.select_related('store').prefetch_related('items__product').get(
+            ticket_number=ticket_number,
+            store=store
+        )
+
+        # Check if ticket can be processed
+        if ticket.status in ['completed', 'cancelled']:
+            messages.warning(request, f'Ticket #{ticket_number} cannot be processed as it is already {ticket.status}.')
+            return redirect('cashier_dashboard')
+
+        # Build cart data from ticket
+        cart_items = []
+        for item in ticket.items.all():
+            # Check if product exists in current store stock
+            try:
+                stock = Stock.objects.get(product=item.product, store=store)
+                if stock.quantity >= item.quantity:
+                    cart_items.append({
+                        'product_id': item.product.id,
+                        'product_name': item.product.name,
+                        'price': float(item.unit_price),
+                        'quantity': item.quantity,
+                        'subtotal': float(item.total_price),
+                        'stock_available': stock.quantity
+                    })
+                else:
+                    messages.warning(request, f'Insufficient stock for {item.product.name}. Available: {stock.quantity}, Required: {item.quantity}')
+            except Stock.DoesNotExist:
+                messages.warning(request, f'Product {item.product.name} not available in current store.')
+
+        # Store cart data and ticket info in session
+        request.session['cart'] = {
+            'items': cart_items,
+            'total': sum(item['subtotal'] for item in cart_items)
+        }
+
+        # Store ticket information for order completion
+        request.session['ticket_info'] = {
+            'ticket_number': ticket.ticket_number,
+            'customer_name': ticket.customer_name or '',
+            'customer_phone': ticket.customer_phone or '',
+            'notes': ticket.notes or '',
+            'from_ticket': True
+        }
+
+        # Add success message
+        messages.success(request, f'Ticket #{ticket_number} loaded into cart. Complete the order to process the ticket.')
+
+        # Redirect to initiate-order page
+        return redirect('initiate_order')
+
+    except CustomerTicket.DoesNotExist:
+        messages.error(request, f'Ticket #{ticket_number} not found.')
+        return redirect('cashier_dashboard')
+    except Exception as e:
+        messages.error(request, f'Error processing ticket: {str(e)}')
+        return redirect('cashier_dashboard')

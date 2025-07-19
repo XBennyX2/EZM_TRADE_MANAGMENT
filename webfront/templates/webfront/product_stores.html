@@ -114,89 +114,115 @@
                 <div class="card-body">
                     {% if stocks %}
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover">
-                                <thead class="table-dark">
+                            <table class="table modern-table">
+                                <thead>
                                     <tr>
-                                        <th>Store</th>
-                                        <th>Location</th>
-                                        <th>Quantity</th>
-                                        <th>Selling Price</th>
-                                        <th>Total Value</th>
-                                        <th>Status</th>
-                                        <th>Last Updated</th>
-                                        <th>Actions</th>
+                                        <th><i class="bi bi-shop me-2"></i>Store Information</th>
+                                        <th><i class="bi bi-geo-alt me-2"></i>Location & Contact</th>
+                                        <th><i class="bi bi-box-seam me-2"></i>Available Quantity</th>
+                                        <th><i class="bi bi-currency-dollar me-2"></i>Price</th>
+                                        <th><i class="bi bi-check-circle me-2"></i>Stock Status</th>
+                                        <th><i class="bi bi-clock me-2"></i>Last Updated</th>
+                                        <th><i class="bi bi-gear me-2"></i>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for stock in stocks %}
-                                    <tr>
-                                        <td>
-                                            <strong>{{ stock.store.name }}</strong>
-                                            {% if stock.store.store_manager %}
-                                                <br><small class="text-muted">Manager: {{ stock.store.store_manager.get_full_name|default:stock.store.store_manager.username }}</small>
-                                            {% endif %}
+                                    <tr class="store-row">
+                                        <td class="store-info">
+                                            <div class="d-flex align-items-center">
+                                                <div class="store-avatar me-3">
+                                                    <i class="bi bi-shop"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-1 store-name">{{ stock.store.name }}</h6>
+                                                    {% if stock.store.store_manager %}
+                                                        <small class="text-muted">
+                                                            <i class="bi bi-person-badge me-1"></i>
+                                                            {{ stock.store.store_manager.get_full_name|default:stock.store.store_manager.username }}
+                                                        </small>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
                                         </td>
-                                        <td>
-                                            <small class="text-muted">
-                                                <i class="fas fa-map-marker-alt"></i> {{ stock.store.address }}
+                                        <td class="location-info">
+                                            <div class="location-details">
+                                                <div class="mb-1">
+                                                    <i class="bi bi-geo-alt text-primary me-1"></i>
+                                                    <span class="address-text">{{ stock.store.address }}</span>
+                                                </div>
                                                 {% if stock.store.phone_number %}
-                                                    <br><i class="fas fa-phone"></i> {{ stock.store.phone_number }}
+                                                    <div>
+                                                        <i class="bi bi-telephone text-success me-1"></i>
+                                                        <a href="tel:{{ stock.store.phone_number }}" class="phone-link">
+                                                            {{ stock.store.phone_number }}
+                                                        </a>
+                                                    </div>
                                                 {% endif %}
-                                            </small>
+                                            </div>
                                         </td>
-                                        <td>
-                                            <span class="fw-bold {% if stock.quantity <= stock.low_stock_threshold %}text-danger{% endif %}">
-                                                {{ stock.quantity }}
-                                            </span>
-                                            <br><small class="text-muted">Threshold: {{ stock.low_stock_threshold }}</small>
+                                        <td class="quantity-cell">
+                                            <div class="quantity-display">
+                                                <span class="quantity-number">{{ stock.quantity }}</span>
+                                                <small class="text-muted d-block">units</small>
+                                            </div>
                                         </td>
-                                        <td>
-                                            <span class="fw-bold">ETB {{ stock.selling_price }}</span>
+                                        <td class="price-cell">
+                                            <div class="price-display">
+                                                <span class="price-amount">ETB {{ stock.selling_price }}</span>
+                                                <small class="text-muted d-block">per unit</small>
+                                            </div>
                                         </td>
-                                        <td>
-                                            <span class="fw-bold text-info">ETB {{ stock.quantity|mul:stock.selling_price }}</span>
-                                        </td>
-                                        <td>
-                                            {% if stock.quantity <= stock.low_stock_threshold %}
-                                                <span class="badge bg-danger">Low Stock</span>
+                                        <td class="status-cell">
+                                            {% if stock.quantity <= 10 %}
+                                                <span class="status-badge status-low">
+                                                    <i class="bi bi-exclamation-triangle me-1"></i>Low Stock
+                                                </span>
                                             {% elif stock.quantity <= 50 %}
-                                                <span class="badge bg-warning">Medium</span>
+                                                <span class="status-badge status-medium">
+                                                    <i class="bi bi-dash-circle me-1"></i>Medium Stock
+                                                </span>
                                             {% else %}
-                                                <span class="badge bg-success">In Stock</span>
+                                                <span class="status-badge status-high">
+                                                    <i class="bi bi-check-circle me-1"></i>In Stock
+                                                </span>
                                             {% endif %}
                                         </td>
-                                        <td>
-                                            <small class="text-muted">{{ stock.last_updated|date:"M d, Y H:i" }}</small>
+                                        <td class="update-cell">
+                                            <div class="update-info">
+                                                <span class="update-date">{{ stock.last_updated|date:"M d, Y" }}</span>
+                                                <small class="text-muted d-block">{{ stock.last_updated|date:"H:i" }}</small>
+                                            </div>
                                         </td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                <a href="{% url 'webfront:stock_detail' stock.id %}" 
-                                                   class="btn btn-outline-primary" title="View Details">
-                                                    <i class="fas fa-eye"></i>
+                                        <td class="actions-cell">
+                                            <div class="d-flex gap-2 flex-wrap justify-content-center">
+                                                <a href="{% url 'webfront:stock_detail' stock.id %}"
+                                                   class="btn btn-primary btn-sm">
+                                                    <i class="bi bi-eye me-1"></i>View Details
                                                 </a>
-                                                <a href="{% url 'webfront:store_stock' stock.store.id %}" 
-                                                   class="btn btn-outline-info" title="View Store Stock">
-                                                    <i class="fas fa-store"></i>
+                                                <a href="{% url 'webfront:store_stock' stock.store.id %}"
+                                                   class="btn btn-success btn-sm">
+                                                    <i class="bi bi-shop me-1"></i>Visit Store
                                                 </a>
                                             </div>
                                         </td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
-                                <tfoot class="table-light">
+                                <tfoot class="table-footer">
                                     <tr>
-                                        <th colspan="2">Total Across All Stores</th>
-                                        <th>{{ total_stock }}</th>
-                                        <th>-</th>
-                                        <th>
-                                            ETB {% widthratio total_stock 1 1 as total_value %}
-                                            {% for stock in stocks %}
-                                                {% if forloop.first %}
-                                                    {{ stock.quantity|mul:stock.selling_price|add:0 }}
-                                                {% endif %}
-                                            {% endfor %}
-                                        </th>
-                                        <th colspan="3">-</th>
+                                        <td colspan="2" class="footer-label">
+                                            <strong><i class="bi bi-calculator me-2"></i>Total Across All Stores</strong>
+                                        </td>
+                                        <td class="footer-total">
+                                            <div class="total-display">
+                                                <span class="total-number">{{ total_stock }}</span>
+                                                <small class="text-muted d-block">total units</small>
+                                            </div>
+                                        </td>
+                                        <td colspan="4" class="footer-spacer">
+                                            <span class="text-muted">{{ stocks|length }} store{{ stocks|length|pluralize }} available</span>
+                                        </td>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -225,7 +251,7 @@
                                     <div class="card-body text-center">
                                         <h5>
                                             {% for stock in stocks %}
-                                                {% if stock.quantity <= stock.low_stock_threshold %}
+                                                {% if stock.quantity <= 10 %}
                                                     {% if forloop.first %}1{% else %}{{ forloop.counter }}{% endif %}
                                                 {% endif %}
                                             {% empty %}0{% endfor %}

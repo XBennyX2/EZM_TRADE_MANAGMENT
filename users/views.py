@@ -2086,6 +2086,11 @@ def financial_reports(request):
         'period': period,
         'start_date': start_date,
         'end_date': end_date,
+        # Add shorter variable names for template rendering
+        'margin': financial_metrics.get('overall_margin', 0),
+        'profitable_stores': financial_metrics.get('profitable_stores', 0),
+        'total_stores': financial_metrics.get('stores_count', 0),
+        'best_store': financial_metrics.get('best_performing_store'),
     }
 
     return render(request, 'analytics/financial_reports.html', context)

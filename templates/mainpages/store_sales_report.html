@@ -11,39 +11,20 @@
 
 {% block extra_css %}
 <style>
-    .sales-report-container {
-        background: linear-gradient(135deg, #0B0C10 0%, #1F2833 100%);
-        padding: 20px;
+    /* Page Header Styles */
+    .page-header {
+        margin-bottom: 2rem;
     }
 
-    .report-header {
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 15px;
-        padding: 30px;
-        margin-bottom: 30px;
-        border: 1px solid rgba(102, 252, 241, 0.2);
+    .page-header h1 {
+        color: var(--secondary-dark);
+        font-weight: 600;
+        margin-bottom: 0.5rem;
     }
 
-    .report-title {
-        color: #66FCF1;
-        font-size: 2.5rem;
-        font-weight: 700;
-        margin-bottom: 10px;
-        text-shadow: 0 0 20px rgba(102, 252, 241, 0.3);
-    }
-
-    .report-subtitle {
-        color: #C5C6C7;
-        font-size: 1.2rem;
+    .page-header p {
+        color: #6c757d;
         margin-bottom: 0;
-    }
-
-    .filters-section {
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 15px;
-        padding: 25px;
-        margin-bottom: 30px;
-        border: 1px solid rgba(102, 252, 241, 0.2);
     }
 
     .filter-row {
@@ -458,411 +439,388 @@
 {% endblock %}
 
 {% block content %}
-<div class="sales-report-container">
-    <!-- Report Header -->
-    <div class="report-header">
-        <h1 class="report-title">
-            <i class="bi bi-graph-up-arrow me-3"></i>
-            Sales Report
-        </h1>
-        <p class="report-subtitle">{{ store.name }} - Comprehensive Sales Analysis</p>
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 mb-0 text-gray-800">
+                    <i class="bi bi-graph-up-arrow text-primary me-2"></i>
+                    Sales Report
+                </h1>
+                <p class="text-muted">{{ store.name }} - Comprehensive Sales Analysis</p>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-primary btn-sm" onclick="window.location.reload()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Filters Section -->
-    <div class="filters-section">
-        <h3 style="color: #66FCF1; margin-bottom: 20px;">
+    <div class="ezm-card mb-4">
+        <div class="ezm-card-header">
             <i class="bi bi-funnel me-2"></i>Filter Options
-        </h3>
-        <form method="GET" action="{% url 'store_sales_report' %}">
-            <div class="filter-row">
-                <div class="filter-group">
-                    <label class="filter-label">Start Date</label>
-                    <input type="date" name="start_date" class="filter-input" value="{{ start_date|date:'Y-m-d' }}">
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{% url 'store_sales_report' %}">
+                <div class="row g-3">
+                    <div class="col-md-6 col-lg-2">
+                        <label class="form-label">Start Date</label>
+                        <input type="date" name="start_date" class="form-control" value="{{ start_date|date:'Y-m-d' }}">
+                    </div>
+                    <div class="col-md-6 col-lg-2">
+                        <label class="form-label">End Date</label>
+                        <input type="date" name="end_date" class="form-control" value="{{ end_date|date:'Y-m-d' }}">
+                    </div>
+                    <div class="col-md-6 col-lg-2">
+                        <label class="form-label">Category</label>
+                        <select name="category" class="form-select">
+                            <option value="">All Categories</option>
+                            {% for category in categories %}
+                            <option value="{{ category }}">{{ category }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6 col-lg-2">
+                        <label class="form-label">Payment Method</label>
+                        <select name="payment_method" class="form-select">
+                            <option value="">All Methods</option>
+                            <option value="cash">Cash</option>
+                            <option value="mobile">Mobile Banking</option>
+                            <option value="bank">Bank Transfer</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 col-lg-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-ezm-primary w-100">
+                            <i class="bi bi-search me-2"></i>Apply Filters
+                        </button>
+                    </div>
                 </div>
-                <div class="filter-group">
-                    <label class="filter-label">End Date</label>
-                    <input type="date" name="end_date" class="filter-input" value="{{ end_date|date:'Y-m-d' }}">
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">Category</label>
-                    <select name="category" class="filter-input">
-                        <option value="">All Categories</option>
-                        {% for category in categories %}
-                        <option value="{{ category }}">{{ category }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">Payment Method</label>
-                    <select name="payment_method" class="filter-input">
-                        <option value="">All Methods</option>
-                        <option value="cash">Cash</option>
-                        <option value="mobile">Mobile Banking</option>
-                        <option value="bank">Bank Transfer</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <button type="submit" class="btn-filter">
-                        <i class="bi bi-search me-2"></i>Apply Filters
-                    </button>
-                </div>
-            </div>
-        </form>
+            </form>
+        </div>
+
     </div>
 
     <!-- Summary Statistics -->
-    <div class="summary-cards">
-        <div class="summary-card">
-            <div class="summary-value">{{ total_revenue|currency }}</div>
-            <div class="summary-label">Total Revenue</div>
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="ezm-card text-center">
+                <div class="card-body">
+                    <i class="bi bi-currency-dollar text-success mb-2" style="font-size: 2rem;"></i>
+                    <h4 class="text-success mb-1">{{ total_revenue|currency }}</h4>
+                    <p class="text-muted mb-0">Total Revenue</p>
+                </div>
+            </div>
         </div>
-        <div class="summary-card">
-            <div class="summary-value">{{ total_units_sold|floatformat:0 }}</div>
-            <div class="summary-label">Units Sold</div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="ezm-card text-center">
+                <div class="card-body">
+                    <i class="bi bi-box text-primary mb-2" style="font-size: 2rem;"></i>
+                    <h4 class="text-primary mb-1">{{ total_units_sold|floatformat:0 }}</h4>
+                    <p class="text-muted mb-0">Units Sold</p>
+                </div>
+            </div>
         </div>
-        <div class="summary-card">
-            <div class="summary-value">{{ total_transactions }}</div>
-            <div class="summary-label">Transactions</div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="ezm-card text-center">
+                <div class="card-body">
+                    <i class="bi bi-receipt text-info mb-2" style="font-size: 2rem;"></i>
+                    <h4 class="text-info mb-1">{{ total_transactions }}</h4>
+                    <p class="text-muted mb-0">Transactions</p>
+                </div>
+            </div>
         </div>
-        <div class="summary-card">
-            <div class="summary-value">{{ avg_transaction_value|currency }}</div>
-            <div class="summary-label">Avg Transaction</div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="ezm-card text-center">
+                <div class="card-body">
+                    <i class="bi bi-graph-up text-warning mb-2" style="font-size: 2rem;"></i>
+                    <h4 class="text-warning mb-1">{{ avg_transaction_value|currency }}</h4>
+                    <p class="text-muted mb-0">Avg Transaction</p>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Charts Section -->
     <div class="row mb-4">
         <div class="col-lg-6 mb-4">
-            <div class="data-table-container">
-                <h4 style="color: #66FCF1; margin-bottom: 20px;">
+            <div class="ezm-card">
+                <div class="ezm-card-header">
                     <i class="bi bi-graph-up me-2"></i>Sales Trend
-                </h4>
+                </div>
+                <div class="card-body">
+                    <canvas id="salesTrendChart" width="400" height="200"></canvas>
+                </div>
             </div>
         </div>
         <div class="col-lg-6 mb-4">
-            <div class="data-table-container">
-                <h4 style="color: #66FCF1; margin-bottom: 20px;">
+            <div class="ezm-card">
+                <div class="ezm-card-header">
                     <i class="bi bi-pie-chart me-2"></i>Payment Methods
-                </h4>
+                </div>
+                <div class="card-body">
+                    <canvas id="paymentMethodChart" width="400" height="200"></canvas>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Top Products Section -->
     {% if top_products %}
-    <div class="data-table-container mb-4">
-        <h4 style="color: #66FCF1; margin-bottom: 20px;">
+    <div class="ezm-card mb-4">
+        <div class="ezm-card-header">
             <i class="bi bi-trophy me-2"></i>Top Performing Products
-        </h4>
-        <div class="row">
-            {% for product in top_products|slice:":5" %}
-            <div class="col-md-6 col-lg-4 mb-3">
-                <div
-                    style="background: rgba(102, 252, 241, 0.1); border-radius: 10px; padding: 15px; border: 1px solid rgba(102, 252, 241, 0.2);">
-                    <h6 style="color: #66FCF1; margin-bottom: 10px;">{{ product.name|truncatechars:25 }}</h6>
-                    <p style="color: #C5C6C7; margin-bottom: 5px; font-size: 0.9rem;">
-                        <strong>Revenue:</strong> {{ product.total_revenue|currency }}
-                    </p>
-                    <p style="color: #C5C6C7; margin-bottom: 5px; font-size: 0.9rem;">
-                        <strong>Units Sold:</strong> {{ product.total_quantity }}
-                    </p>
-                    <p style="color: #C5C6C7; margin-bottom: 0; font-size: 0.9rem;">
-                        <strong>Profit:</strong> {{ product.total_profit|currency }}
-                    </p>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for product in top_products|slice:":5" %}
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div
+                        style="background: rgba(102, 252, 241, 0.1); border-radius: 10px; padding: 15px; border: 1px solid rgba(102, 252, 241, 0.2);">
+                        <h6 style="color: #66FCF1; margin-bottom: 10px;">{{ product.name|truncatechars:25 }}</h6>
+                        <p style="color: #C5C6C7; margin-bottom: 5px; font-size: 0.9rem;">
+                            <strong>Revenue:</strong> {{ product.total_revenue|currency }}
+                        </p>
+                        <p style="color: #C5C6C7; margin-bottom: 5px; font-size: 0.9rem;">
+                            <strong>Units Sold:</strong> {{ product.total_quantity }}
+                        </p>
+                        <p style="color: #C5C6C7; margin-bottom: 0; font-size: 0.9rem;">
+                            <strong>Profit:</strong> {{ product.total_profit|currency }}
+                        </p>
+                    </div>
                 </div>
+                {% endfor %}
             </div>
-            {% endfor %}
         </div>
     </div>
     {% endif %}
 
     <!-- Sales Data Table -->
-    <div class="data-table-container">
-        <div class="export-section">
-            <div class="table-info">
-                <i class="bi bi-info-circle me-2"></i>
-                {% if page_obj %}
-                Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ total_sales_count }} sales records
-                {% else %}
-                Showing {{ sales_data|length }} sales records
-                {% endif %}
+    <div class="ezm-card">
+        <div class="ezm-card-header d-flex justify-content-between align-items-center">
+            <div>
+                <i class="bi bi-table me-2"></i>Sales Data
             </div>
-            <div class="export-buttons">
-                <a href="?{{ request.GET.urlencode }}&export=pdf" class="btn-export">
-                    <i class="bi bi-file-earmark-pdf me-2"></i>Export PDF
+            <div class="d-flex gap-2">
+                <a href="?{{ request.GET.urlencode }}&export=pdf" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-file-earmark-pdf me-1"></i>PDF
                 </a>
-                <a href="?{{ request.GET.urlencode }}&export=excel" class="btn-export">
-                    <i class="bi bi-file-earmark-excel me-2"></i>Export Excel
+                <a href="?{{ request.GET.urlencode }}&export=excel" class="btn btn-outline-success btn-sm">
+                    <i class="bi bi-file-earmark-excel me-1"></i>Excel
                 </a>
             </div>
         </div>
+        <div class="card-body p-0">
+            <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
+                <small class="text-muted">
+                    <i class="bi bi-info-circle me-1"></i>
+                    {% if page_obj %}
+                    Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ total_sales_count }} sales records
+                    {% else %}
+                    Showing {{ sales_data|length }} sales records
+                    {% endif %}
+                </small>
+            </div>
 
-        {% if page_obj %}
-        <div class="table-wrapper">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Product</th>
-                        <th>SKU</th>
-                        <th>Category</th>
-                        <th>Supplier</th>
-                        <th>Qty</th>
-                        <th>Unit Price</th>
-                        <th>Total</th>
-                        <th>Profit</th>
-                        <th>Margin %</th>
-                        <th>Stock</th>
-                        <th>Payment</th>
-                        <th>Receipt</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in page_obj %}
-                    <tr>
-                        <td>{{ item.sale_date|date:"M d, Y H:i" }}</td>
-                        <td>{{ item.product_name|truncatechars:25 }}</td>
-                        <td>{{ item.product_sku }}</td>
-                        <td>{{ item.category }}</td>
-                        <td>{{ item.supplier|truncatechars:20 }}</td>
-                        <td>{{ item.quantity_sold }}</td>
-                        <td>{{ item.unit_price|currency }}</td>
-                        <td>{{ item.line_total|currency }}</td>
-                        <td class="{% if item.total_profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
-                            {{ item.total_profit|currency }}
-                        </td>
-                        <td class="{% if item.profit_margin >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
-                            {{ item.profit_margin|floatformat:1 }}%
-                        </td>
-                        <td>{{ item.remaining_stock }}</td>
-                        <td>{{ item.payment_method|title }}</td>
-                        <td>{{ item.receipt_number }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+            {% if page_obj %}
+            <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date</th>
+                            <th>Product</th>
+                            <th>SKU</th>
+                            <th>Category</th>
+                            <th>Supplier</th>
+                            <th>Qty</th>
+                            <th>Unit Price</th>
+                            <th>Total</th>
+                            <th>Profit</th>
+                            <th>Margin %</th>
+                            <th>Stock</th>
+                            <th>Payment</th>
+                            <th>Receipt</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in page_obj %}
+                        <tr>
+                            <td>{{ item.sale_date|date:"M d, Y H:i" }}</td>
+                            <td>{{ item.product_name|truncatechars:25 }}</td>
+                            <td>{{ item.product_sku }}</td>
+                            <td>{{ item.category }}</td>
+                            <td>{{ item.supplier|truncatechars:20 }}</td>
+                            <td>{{ item.quantity_sold }}</td>
+                            <td>{{ item.unit_price|currency }}</td>
+                            <td>{{ item.line_total|currency }}</td>
+                            <td
+                                class="{% if item.total_profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
+                                {{ item.total_profit|currency }}
+                            </td>
+                            <td
+                                class="{% if item.profit_margin >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
+                                {{ item.profit_margin|floatformat:1 }}%
+                            </td>
+                            <td>{{ item.remaining_stock }}</td>
+                            <td>{{ item.payment_method|title }}</td>
+                            <td>{{ item.receipt_number }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
 
-        {% else %}
-        <div class="no-data">
-            <i class="bi bi-inbox display-1 mb-3" style="color: #45A29E;"></i>
-            <p>No sales data found for the selected criteria.</p>
-            <p>Try adjusting your filters or date range.</p>
-        </div>
-        {% endif %}
-    </div>
-</div>
-{% endblock %}
-{% comment %}
-<!-- Pagination Controls -->
-{% if page_obj and paginator.num_pages > 1 %}
-<div class="pagination-container">
-    <div class="pagination-info">
-        Page {{ page_obj.number }} of {{ paginator.num_pages }}
-    </div>
-
-    <div class="pagination-controls">
-        <!-- Page Size Selector -->
-        <div class="page-size-selector">
-            <label for="page-size">Show:</label>
-            <select id="page-size" class="page-size-select" onchange="changePageSize(this.value)">
-                <option value="10">10</option>
-                <option value="25" selected>25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-            </select>
-            <span>per page</span>
-        </div>
-
-        <!-- Previous Button -->
-        {% if page_obj.has_previous %}
-        <a href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page=1"
-            class="pagination-btn" title="First Page">
-            <i class="bi bi-chevron-double-left"></i>
-        </a>
-        <a href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}"
-            class="pagination-btn" title="Previous Page">
-            <i class="bi bi-chevron-left"></i>
-        </a>
-        {% else %}
-        <button class="pagination-btn" disabled title="First Page">
-            <i class="bi bi-chevron-double-left"></i>
-        </button>
-        <button class="pagination-btn" disabled title="Previous Page">
-            <i class="bi bi-chevron-left"></i>
-        </button>
-        {% endif %}
-
-        <!-- Page Numbers -->
-        {% for num in paginator.page_range %}
-        {% if page_obj.number == num %}
-        <span class="pagination-btn current">{{ num }}</span>
-        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %} <a
-            href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}"
-            class="pagination-btn">{{ num }}</a>
-            {% endif %}
-            {% endfor %}
-
-            <!-- Next Button -->
-            {% if page_obj.has_next %}
-            <a href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}"
-                class="pagination-btn" title="Next Page">
-                <i class="bi bi-chevron-right"></i>
-            </a>
-            <a href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ paginator.num_pages }}"
-                class="pagination-btn" title="Last Page">
-                <i class="bi bi-chevron-double-right"></i>
-            </a>
             {% else %}
-            <button class="pagination-btn" disabled title="Next Page">
-                <i class="bi bi-chevron-right"></i>
-            </button>
-            <button class="pagination-btn" disabled title="Last Page">
-                <i class="bi bi-chevron-double-right"></i>
-            </button>
+            <div class="text-center py-5">
+                <i class="bi bi-inbox display-1 mb-3 text-muted"></i>
+                <h5 class="text-muted">No sales data found</h5>
+                <p class="text-muted">No sales data found for the selected criteria. Try adjusting your filters or date
+                    range.</p>
+            </div>
             {% endif %}
+        </div>
     </div>
-</div>
-{% endif %}
-{% endcomment %}
+    {% endblock %}
 
-{% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // Initialize charts
+    {% block extra_js %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Initialize charts
 
-        // Auto-submit form when date inputs change
-    });
+            // Auto-submit form when date inputs change
+        });
 
-    function initializeSalesTrendChart() {
-        const ctx = document.getElementById('salesTrendChart');
-        if (!ctx) return;
+        function initializeSalesTrendChart() {
+            const ctx = document.getElementById('salesTrendChart');
+            if (!ctx) return;
 
-        // Get pre-processed chart data from server
-        try {
-            const chartDataRaw = '{{ chart_data|escapejs }}';
-            const chartData = JSON.parse(chartDataRaw);
-            const salesTrendData = chartData.sales_trend;
-            const sortedDates = salesTrendData.labels;
-            const salesValues = salesTrendData.data;
+            // Get pre-processed chart data from server
+            try {
+                const chartDataRaw = '{{ chart_data|escapejs }}';
+                const chartData = JSON.parse(chartDataRaw);
+                const salesTrendData = chartData.sales_trend;
+                const sortedDates = salesTrendData.labels;
+                const salesValues = salesTrendData.data;
 
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: sortedDates,
-                    datasets: [{
-                        label: 'Daily Sales (ETB)',
-                        data: salesValues,
-                        borderColor: '#66FCF1',
-                        backgroundColor: 'rgba(102, 252, 241, 0.1)',
-                        tension: 0.4,
-                        fill: true,
-                        pointBackgroundColor: '#66FCF1',
-                        pointBorderColor: '#45A29E',
-                        pointHoverBackgroundColor: '#45A29E',
-                        pointHoverBorderColor: '#66FCF1'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            labels: {
-                                color: '#C5C6C7'
-                            }
-                        }
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: sortedDates,
+                        datasets: [{
+                            label: 'Daily Sales (ETB)',
+                            data: salesValues,
+                            borderColor: '#66FCF1',
+                            backgroundColor: 'rgba(102, 252, 241, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            pointBackgroundColor: '#66FCF1',
+                            pointBorderColor: '#45A29E',
+                            pointHoverBackgroundColor: '#45A29E',
+                            pointHoverBorderColor: '#66FCF1'
+                        }]
                     },
-                    scales: {
-                        x: {
-                            ticks: {
-                                color: '#C5C6C7'
-                            },
-                            grid: {
-                                color: 'rgba(197, 198, 199, 0.1)'
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    color: '#C5C6C7'
+                                }
                             }
                         },
-                        y: {
-                            ticks: {
-                                color: '#C5C6C7',
-                                callback: function (value) {
-                                    return 'ETB ' + value.toLocaleString();
+                        scales: {
+                            x: {
+                                ticks: {
+                                    color: '#C5C6C7'
+                                },
+                                grid: {
+                                    color: 'rgba(197, 198, 199, 0.1)'
                                 }
                             },
-                            grid: {
-                                color: 'rgba(197, 198, 199, 0.1)'
-                            }
-                        }
-                    }
-                }
-            });
-        } catch (error) {
-            console.error('Error initializing sales trend chart:', error);
-        }
-    }
-
-    function initializePaymentMethodChart() {
-        const ctx = document.getElementById('paymentMethodChart');
-        if (!ctx) return;
-
-        // Get pre-processed payment method data
-        try {
-            const chartDataRaw = '{{ chart_data|escapejs }}';
-            const chartData = JSON.parse(chartDataRaw);
-            const paymentMethodData = chartData.payment_methods;
-            const labels = paymentMethodData.labels;
-            const data = paymentMethodData.data;
-            const colors = ['#66FCF1', '#45A29E', '#C5C6C7', '#1F2833'];
-
-            new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: data,
-                        backgroundColor: colors,
-                        borderColor: '#0B0C10',
-                        borderWidth: 2,
-                        hoverBorderWidth: 3
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                color: '#C5C6C7',
-                                padding: 20,
-                                usePointStyle: true
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function (context) {
-                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    const percentage = ((context.parsed / total) * 100).toFixed(1);
-                                    return context.label + ': ETB ' + context.parsed.toLocaleString() + ' (' + percentage + '%)';
+                            y: {
+                                ticks: {
+                                    color: '#C5C6C7',
+                                    callback: function (value) {
+                                        return 'ETB ' + value.toLocaleString();
+                                    }
+                                },
+                                grid: {
+                                    color: 'rgba(197, 198, 199, 0.1)'
                                 }
                             }
                         }
                     }
-                }
-            });
-        } catch (error) {
-            console.error('Error initializing payment method chart:', error);
+                });
+            } catch (error) {
+                console.error('Error initializing sales trend chart:', error);
+            }
         }
-    }
 
-    // Function to change page size
-    function changePageSize(newSize) {
-        const url = new URL(window.location);
-        url.searchParams.set('page_size', newSize);
-        url.searchParams.set('page', '1'); // Reset to first page
-        console.log('changePageSize called with newSize:', newSize);
-        window.location.href = url.toString();
-    }
-</script>
-{% endblock %}
+        function initializePaymentMethodChart() {
+            const ctx = document.getElementById('paymentMethodChart');
+            if (!ctx) return;
+
+            // Get pre-processed payment method data
+            try {
+                const chartDataRaw = '{{ chart_data|escapejs }}';
+                const chartData = JSON.parse(chartDataRaw);
+                const paymentMethodData = chartData.payment_methods;
+                const labels = paymentMethodData.labels;
+                const data = paymentMethodData.data;
+                const colors = ['#66FCF1', '#45A29E', '#C5C6C7', '#1F2833'];
+
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: data,
+                            backgroundColor: colors,
+                            borderColor: '#0B0C10',
+                            borderWidth: 2,
+                            hoverBorderWidth: 3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: '#C5C6C7',
+                                    padding: 20,
+                                    usePointStyle: true
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (context) {
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                        return context.label + ': ETB ' + context.parsed.toLocaleString() + ' (' + percentage + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error initializing payment method chart:', error);
+            }
+        }
+
+        // Function to change page size
+        function changePageSize(newSize) {
+            const url = new URL(window.location);
+            url.searchParams.set('page_size', newSize);
+            url.searchParams.set('page', '1'); // Reset to first page
+            console.log('changePageSize called with newSize:', newSize);
+            window.location.href = url.toString();
+        }
+    </script>
+    {% endblock %}

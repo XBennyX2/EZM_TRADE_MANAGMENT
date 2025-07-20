@@ -1082,53 +1082,64 @@ def first_login_password_change(request):
             return redirect('login')
 
     if request.method == 'POST':
-        form = ChangePasswordForm(request.POST)
-        if form.is_valid():
-            current_password = form.cleaned_data['current_password']
-            new_password = form.cleaned_data['new_password']
-            confirm_password = form.cleaned_data['confirm_password']
+        # Get form data directly from POST since template uses different field names
+        current_password = request.POST.get('current_password', '')
+        new_password = request.POST.get('new_password', '')
+        confirm_password = request.POST.get('confirm_password', '')
 
-            # Verify current password
-            if not request.user.check_password(current_password):
-                messages.error(request, 'Current password is incorrect.')
-                return render(request, 'users/first_login_password_change.html', {'form': form})
+        # Basic validation
+        if not current_password or not new_password or not confirm_password:
+            messages.error(request, 'All fields are required.')
+            return render(request, 'users/first_login_password_change.html', {'user': request.user})
 
-            # Verify new passwords match
-            if new_password != confirm_password:
-                messages.error(request, 'New passwords do not match.')
-                return render(request, 'users/first_login_password_change.html', {'form': form})
+        # Verify current password
+        if not request.user.check_password(current_password):
+            messages.error(request, 'Current password is incorrect.')
+            return render(request, 'users/first_login_password_change.html', {'user': request.user})
 
-            # Verify new password is different from current
-            if request.user.check_password(new_password):
-                messages.error(request, 'New password must be different from current password.')
-                return render(request, 'users/first_login_password_change.html', {'form': form})
+        # Verify new passwords match
+        if new_password != confirm_password:
+            messages.error(request, 'New passwords do not match.')
+            return render(request, 'users/first_login_password_change.html', {'user': request.user})
 
-            # Update password and mark first login as complete
-            request.user.set_password(new_password)
-            request.user.is_first_login = False
-            request.user.save()
+        # Verify new password is different from current
+        if request.user.check_password(new_password):
+            messages.error(request, 'New password must be different from current password.')
+            return render(request, 'users/first_login_password_change.html', {'user': request.user})
 
-            # Update session to prevent logout
-            update_session_auth_hash(request, request.user)
+        # Verify password strength (basic validation)
+        if len(new_password) < 8:
+            messages.error(request, 'New password must be at least 8 characters long.')
+            return render(request, 'users/first_login_password_change.html', {'user': request.user})
 
-            messages.success(request, 'Password changed successfully! Welcome to EZM Trade Management.')
+        # Update password and mark first login as complete
+        request.user.set_password(new_password)
+        request.user.is_first_login = False
+        request.user.save()
 
-            # Redirect based on user role
-            if request.user.role == 'admin':
-                return redirect('admin_dashboard')
-            elif request.user.role == 'head_manager':
-                return redirect('head_manager_page')
-            elif request.user.role == 'store_manager':
-                return redirect('store_manager_page')
-            elif request.user.role == 'cashier':
-                return redirect('cashier_page')
-            else:
-                return redirect('dashboard')
-    else:
-        form = ChangePasswordForm()
+        # Update session to prevent logout
+        update_session_auth_hash(request, request.user)
 
+        # Refresh user from database to ensure middleware sees the updated state
+        request.user.refresh_from_db()
+
+        messages.success(request, 'Password changed successfully! Welcome to EZM Trade Management.')
+
+        # Redirect based on user role
+        if request.user.role == 'admin':
+            return redirect('admin_dashboard')
+        elif request.user.role == 'head_manager':
+            return redirect('head_manager_page')
+        elif request.user.role == 'store_manager':
+            return redirect('store_manager_page')
+        elif request.user.role == 'cashier':
+            return redirect('cashier_page')
+        elif request.user.role == 'supplier':
+            return redirect('supplier_dashboard')
+        else:
+            return redirect('login')
+    # For GET requests, just render the template
     context = {
-        'form': form,
         'user': request.user,
     }
     return render(request, 'users/first_login_password_change.html', context)

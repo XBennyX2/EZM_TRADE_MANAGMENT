@@ -27,18 +27,22 @@ class FirstLoginPasswordChangeMiddleware:
             return self.get_response(request)
         
         # Check if user is authenticated and needs to change password
-        if (request.user.is_authenticated and 
-            hasattr(request.user, 'is_first_login') and 
-            request.user.is_first_login and
-            request.path not in allowed_urls):
-            
-            # Don't redirect if already on password change page
-            if request.path != reverse('first_login_password_change'):
-                messages.warning(
-                    request, 
-                    'You must change your password before accessing other features.'
-                )
-                return redirect('first_login_password_change')
+        if (request.user.is_authenticated and
+            hasattr(request.user, 'is_first_login')):
+
+            # Refresh user from database to get latest state
+            request.user.refresh_from_db()
+
+            if (request.user.is_first_login and
+                request.path not in allowed_urls):
+
+                # Don't redirect if already on password change page
+                if request.path != reverse('first_login_password_change'):
+                    messages.warning(
+                        request,
+                        'You must change your password before accessing other features.'
+                    )
+                    return redirect('first_login_password_change')
         
         response = self.get_response(request)
         return response

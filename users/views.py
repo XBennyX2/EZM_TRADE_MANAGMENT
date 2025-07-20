@@ -94,17 +94,8 @@ def login_view(request):
 
             login(request, user)
             if user.is_first_login:
-                if user.is_superuser or user.role == 'admin':
-                    return redirect('admin_change_password')
-                elif user.role == 'head_manager':
-                    # Head Managers go directly to dashboard, not settings
-                    return redirect('head_manager_page')
-                elif user.role == 'store_manager':
-                    return redirect('store_manager_settings')
-                elif user.role == 'cashier':
-                    return redirect('cashier_settings')
-                elif user.role == 'supplier':
-                    return redirect('supplier_settings')
+                # All users go to the unified first login password change page
+                return redirect('first_login_password_change')
             else:
                 if user.is_superuser or user.role == 'admin':
                     return redirect('admin_dashboard')
@@ -890,6 +881,405 @@ def calculate_store_analytics(store):
         })
 
     return analytics
+
+
+@login_required
+def store_sales_report(request):
+    """
+    Comprehensive sales report for Store Managers with filtering, analytics, and export capabilities.
+    """
+    # Ensure user is a store manager
+    if request.user.role != 'store_manager':
+        messages.error(request, 'Access denied. Store Manager role required.')
+        return redirect('store_manager_page')
+
+    # Get the store managed by this user
+    try:
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, 'No store assigned to your account.')
+        return redirect('store_manager_page')
+
+    # Get filter parameters
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    product_category = request.GET.get('category')
+    supplier_id = request.GET.get('supplier')
+    product_id = request.GET.get('product')
+    payment_method = request.GET.get('payment_method')
+    export_format = request.GET.get('export')
+
+    # Set default date range (last 30 days)
+    if not start_date or not end_date:
+        end_date = timezone.now().date()
+        start_date = end_date - timedelta(days=30)
+    else:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+
+    # Build base queryset for sales transactions
+    sales_transactions = Transaction.objects.filter(
+        store=store,
+        transaction_type='sale',
+        timestamp__date__gte=start_date,
+        timestamp__date__lte=end_date
+    ).select_related('store').prefetch_related('orders__product')
+
+    # Apply filters
+    if payment_method:
+        sales_transactions = sales_transactions.filter(payment_type=payment_method)
+
+    # Get detailed sales data with product information
+    sales_data = []
+    total_revenue = Decimal('0.00')
+    total_units_sold = 0
+
+    for transaction in sales_transactions:
+        for order in transaction.orders.all():
+            if order.product:
+                # Apply product filters
+                if product_category and order.product.category != product_category:
+                    continue
+                if supplier_id and str(order.product.supplier_company.id) != supplier_id:
+                    continue
+                if product_id and str(order.product.id) != product_id:
+                    continue
+
+                # Get current stock information
+                try:
+                    current_stock = Stock.objects.get(product=order.product, store=store)
+                    remaining_stock = current_stock.quantity
+                    current_selling_price = current_stock.selling_price
+                except Stock.DoesNotExist:
+                    remaining_stock = 0
+                    current_selling_price = order.price_at_time_of_sale
+
+                # Calculate metrics
+                line_total = order.quantity * order.price_at_time_of_sale
+                cost_price = order.product.price  # Assuming this is cost price
+                profit_per_unit = order.price_at_time_of_sale - cost_price
+                total_profit = profit_per_unit * order.quantity
+                profit_margin = (profit_per_unit / order.price_at_time_of_sale * 100) if order.price_at_time_of_sale > 0 else 0
+
+                sales_data.append({
+                    'transaction_id': transaction.id,
+                    'sale_date': transaction.timestamp,
+                    'product_name': order.product.name,
+                    'product_sku': getattr(order.product, 'sku', f'SKU-{order.product.id}'),
+                    'category': order.product.category,
+                    'supplier': order.product.supplier_company.name if order.product.supplier_company else 'N/A',
+                    'quantity_sold': order.quantity,
+                    'unit_price': order.price_at_time_of_sale,
+                    'cost_price': cost_price,
+                    'line_total': line_total,
+                    'profit_per_unit': profit_per_unit,
+                    'total_profit': total_profit,
+                    'profit_margin': profit_margin,
+                    'remaining_stock': remaining_stock,
+                    'current_selling_price': current_selling_price,
+                    'payment_method': transaction.payment_type,
+                    'receipt_number': transaction.receipt.receipt_number if hasattr(transaction, 'receipt') and transaction.receipt else f'TXN-{transaction.id}',
+                })
+
+                total_revenue += line_total
+                total_units_sold += order.quantity
+
+    # Calculate summary statistics
+    total_transactions = sales_transactions.count()
+    avg_transaction_value = total_revenue / total_transactions if total_transactions > 0 else Decimal('0.00')
+
+    # Get top performing products
+    top_products = {}
+    for item in sales_data:
+        product_name = item['product_name']
+        if product_name not in top_products:
+            top_products[product_name] = {
+                'name': product_name,
+                'total_quantity': 0,
+                'total_revenue': Decimal('0.00'),
+                'total_profit': Decimal('0.00'),
+            }
+        top_products[product_name]['total_quantity'] += item['quantity_sold']
+        top_products[product_name]['total_revenue'] += item['line_total']
+        top_products[product_name]['total_profit'] += item['total_profit']
+
+    # Sort top products by revenue
+    top_products_list = sorted(top_products.values(), key=lambda x: x['total_revenue'], reverse=True)[:10]
+
+    # Get payment method distribution
+    payment_distribution = sales_transactions.values('payment_type').annotate(
+        count=Count('id'),
+        total=Sum('total_amount')
+    ).order_by('-total')
+
+    # Handle export requests
+    if export_format in ['pdf', 'excel']:
+        return export_sales_report(sales_data, {
+            'store': store,
+            'start_date': start_date,
+            'end_date': end_date,
+            'total_revenue': total_revenue,
+            'total_units_sold': total_units_sold,
+            'total_transactions': total_transactions,
+            'avg_transaction_value': avg_transaction_value,
+            'top_products': top_products_list,
+            'payment_distribution': payment_distribution,
+        }, export_format)
+
+    # Get filter options for the form
+    categories = set()
+    suppliers = set()
+    products = set()
+
+    for item in sales_data:
+        categories.add(item['category'])
+        suppliers.add(item['supplier'])
+        products.add((item['product_name'], item['product_sku']))
+
+    context = {
+        'store': store,
+        'sales_data': sales_data,
+        'start_date': start_date,
+        'end_date': end_date,
+        'total_revenue': total_revenue,
+        'total_units_sold': total_units_sold,
+        'total_transactions': total_transactions,
+        'avg_transaction_value': avg_transaction_value,
+        'top_products': top_products_list,
+        'payment_distribution': payment_distribution,
+        'categories': sorted(categories),
+        'suppliers': sorted(suppliers),
+        'products': sorted(products),
+        'selected_category': product_category,
+        'selected_supplier': supplier_id,
+        'selected_product': product_id,
+        'selected_payment_method': payment_method,
+    }
+
+    return render(request, 'mainpages/store_sales_report.html', context)
+
+
+@login_required
+def first_login_password_change(request):
+    """
+    Handle mandatory password change for first-time login users.
+    """
+    # Check if user actually needs to change password
+    if not request.user.is_first_login:
+        messages.info(request, 'Password change not required.')
+        # Redirect based on user role
+        if request.user.role == 'admin':
+            return redirect('admin_dashboard')
+        elif request.user.role == 'head_manager':
+            return redirect('head_manager_page')
+        elif request.user.role == 'store_manager':
+            return redirect('store_manager_page')
+        elif request.user.role == 'cashier':
+            return redirect('cashier_page')
+        elif request.user.role == 'supplier':
+            return redirect('supplier_dashboard')
+        else:
+            return redirect('login')
+
+    if request.method == 'POST':
+        form = ChangePasswordForm(request.POST)
+        if form.is_valid():
+            current_password = form.cleaned_data['current_password']
+            new_password = form.cleaned_data['new_password']
+            confirm_password = form.cleaned_data['confirm_password']
+
+            # Verify current password
+            if not request.user.check_password(current_password):
+                messages.error(request, 'Current password is incorrect.')
+                return render(request, 'users/first_login_password_change.html', {'form': form})
+
+            # Verify new passwords match
+            if new_password != confirm_password:
+                messages.error(request, 'New passwords do not match.')
+                return render(request, 'users/first_login_password_change.html', {'form': form})
+
+            # Verify new password is different from current
+            if request.user.check_password(new_password):
+                messages.error(request, 'New password must be different from current password.')
+                return render(request, 'users/first_login_password_change.html', {'form': form})
+
+            # Update password and mark first login as complete
+            request.user.set_password(new_password)
+            request.user.is_first_login = False
+            request.user.save()
+
+            # Update session to prevent logout
+            update_session_auth_hash(request, request.user)
+
+            messages.success(request, 'Password changed successfully! Welcome to EZM Trade Management.')
+
+            # Redirect based on user role
+            if request.user.role == 'admin':
+                return redirect('admin_dashboard')
+            elif request.user.role == 'head_manager':
+                return redirect('head_manager_page')
+            elif request.user.role == 'store_manager':
+                return redirect('store_manager_page')
+            elif request.user.role == 'cashier':
+                return redirect('cashier_page')
+            else:
+                return redirect('dashboard')
+    else:
+        form = ChangePasswordForm()
+
+    context = {
+        'form': form,
+        'user': request.user,
+    }
+    return render(request, 'users/first_login_password_change.html', context)
+
+
+def export_sales_report(sales_data, summary_data, export_format):
+    """
+    Export sales report data in PDF or Excel format.
+    """
+    if export_format == 'pdf':
+        return export_sales_pdf(sales_data, summary_data)
+    elif export_format == 'excel':
+        return export_sales_excel(sales_data, summary_data)
+    else:
+        return HttpResponse("Invalid export format", status=400)
+
+
+def export_sales_pdf(sales_data, summary_data):
+    """
+    Generate HTML-based PDF sales report (simplified version).
+    """
+    response = HttpResponse(content_type='text/html')
+    response['Content-Disposition'] = f'attachment; filename="sales_report_{summary_data["start_date"]}_{summary_data["end_date"]}.html"'
+
+    # Create HTML content
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Sales Report - {summary_data['store'].name}</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 20px; }}
+            .header {{ text-align: center; margin-bottom: 30px; }}
+            .summary {{ background: #f5f5f5; padding: 20px; margin-bottom: 30px; }}
+            table {{ width: 100%; border-collapse: collapse; }}
+            th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+            th {{ background-color: #4CAF50; color: white; }}
+            .profit-positive {{ color: green; }}
+            .profit-negative {{ color: red; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>Sales Report - {summary_data['store'].name}</h1>
+            <p>Period: {summary_data['start_date']} to {summary_data['end_date']}</p>
+        </div>
+
+        <div class="summary">
+            <h2>Summary Statistics</h2>
+            <p><strong>Total Revenue:</strong> ETB {summary_data['total_revenue']:,.2f}</p>
+            <p><strong>Total Units Sold:</strong> {summary_data['total_units_sold']:,}</p>
+            <p><strong>Total Transactions:</strong> {summary_data['total_transactions']:,}</p>
+            <p><strong>Average Transaction Value:</strong> ETB {summary_data['avg_transaction_value']:,.2f}</p>
+        </div>
+
+        <h2>Detailed Sales Data</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Product</th>
+                    <th>SKU</th>
+                    <th>Category</th>
+                    <th>Qty</th>
+                    <th>Unit Price</th>
+                    <th>Total</th>
+                    <th>Profit</th>
+                    <th>Payment</th>
+                </tr>
+            </thead>
+            <tbody>
+    """
+
+    for item in sales_data:
+        profit_class = "profit-positive" if item['total_profit'] >= 0 else "profit-negative"
+        html_content += f"""
+                <tr>
+                    <td>{item['sale_date'].strftime('%Y-%m-%d %H:%M')}</td>
+                    <td>{item['product_name']}</td>
+                    <td>{item['product_sku']}</td>
+                    <td>{item['category']}</td>
+                    <td>{item['quantity_sold']}</td>
+                    <td>ETB {item['unit_price']:.2f}</td>
+                    <td>ETB {item['line_total']:.2f}</td>
+                    <td class="{profit_class}">ETB {item['total_profit']:.2f}</td>
+                    <td>{item['payment_method'].title()}</td>
+                </tr>
+        """
+
+    html_content += """
+            </tbody>
+        </table>
+    </body>
+    </html>
+    """
+
+    response.write(html_content)
+    return response
+
+
+def export_sales_excel(sales_data, summary_data):
+    """
+    Generate CSV sales report (Excel-compatible).
+    """
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="sales_report_{summary_data["start_date"]}_{summary_data["end_date"]}.csv"'
+
+    writer = csv.writer(response)
+
+    # Write header information
+    writer.writerow([f"Sales Report - {summary_data['store'].name}"])
+    writer.writerow([f"Period: {summary_data['start_date']} to {summary_data['end_date']}"])
+    writer.writerow([])  # Empty row
+
+    # Write summary statistics
+    writer.writerow(['Summary Statistics'])
+    writer.writerow(['Total Revenue', f"ETB {summary_data['total_revenue']:,.2f}"])
+    writer.writerow(['Total Units Sold', f"{summary_data['total_units_sold']:,}"])
+    writer.writerow(['Total Transactions', f"{summary_data['total_transactions']:,}"])
+    writer.writerow(['Average Transaction Value', f"ETB {summary_data['avg_transaction_value']:,.2f}"])
+    writer.writerow([])  # Empty row
+
+    # Write detailed data headers
+    writer.writerow([
+        'Transaction ID', 'Sale Date', 'Product Name', 'SKU', 'Category', 'Supplier',
+        'Quantity Sold', 'Unit Price', 'Cost Price', 'Line Total', 'Profit per Unit',
+        'Total Profit', 'Profit Margin %', 'Remaining Stock', 'Payment Method', 'Receipt Number'
+    ])
+
+    # Write data rows
+    for item in sales_data:
+        writer.writerow([
+            item['transaction_id'],
+            item['sale_date'].strftime('%Y-%m-%d %H:%M'),
+            item['product_name'],
+            item['product_sku'],
+            item['category'],
+            item['supplier'],
+            item['quantity_sold'],
+            f"{item['unit_price']:.2f}",
+            f"{item['cost_price']:.2f}",
+            f"{item['line_total']:.2f}",
+            f"{item['profit_per_unit']:.2f}",
+            f"{item['total_profit']:.2f}",
+            f"{item['profit_margin']:.1f}",
+            item['remaining_stock'],
+            item['payment_method'],
+            item['receipt_number']
+        ])
+
+    return response
 
 
 @login_required
@@ -1759,6 +2149,14 @@ from django.contrib.auth.decorators import user_passes_test
 from django.db.models import Q
 from .forms import ChangeUserRoleForm, CustomUserCreationFormAdmin
 from django.core.paginator import Paginator
+from django.http import HttpResponse, JsonResponse
+from django.db.models import Sum, Count, Avg, Q
+from datetime import datetime, timedelta
+from django.utils import timezone
+import json
+from decimal import Decimal
+import csv
+import io
 
 def is_admin(user):
     return user.is_authenticated and (user.is_superuser or user.role == 'admin')

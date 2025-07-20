@@ -26,7 +26,11 @@ from .views import (
     # Analytics views
     analytics_dashboard, financial_reports, analytics_api,
     # Transaction history
-    transaction_history
+    transaction_history,
+    # Sales report
+    store_sales_report,
+    # First login password change
+    first_login_password_change
 )
 
 # Import API views
@@ -42,6 +46,7 @@ from .supplier_views import (
 urlpatterns = [
     path('login/', login_view, name='login'),
     path('logout/', logout_view, name='logout'),
+    path('first-login-password-change/', first_login_password_change, name='first_login_password_change'),
 
     #admin
      path('admin/manage-users/', manage_users, name='manage_users'),
@@ -64,6 +69,7 @@ urlpatterns = [
     path('store-manager/restock-requests/', store_manager_restock_requests, name='store_manager_restock_requests'),
     path('store-manager/transfer-requests/', store_manager_transfer_requests, name='store_manager_transfer_requests'),
     path('store-manager/stock-management/', store_manager_stock_management, name='store_manager_stock_management'),
+    path('store-manager/sales-report/', store_sales_report, name='store_sales_report'),
 
     # API endpoints for product dropdowns
     path('api/restock-products/', get_restock_products, name='get_restock_products'),

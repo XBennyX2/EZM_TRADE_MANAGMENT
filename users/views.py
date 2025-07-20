@@ -464,6 +464,434 @@ def reject_restock_request(request, request_id):
 
 
 
+def calculate_store_analytics(store):
+    """
+    Calculate comprehensive analytics for a store including performance metrics,
+    inventory analysis, operational analytics, and actionable insights.
+    """
+    from datetime import datetime, timedelta
+    from django.db.models import Sum, Count, Avg, F, Q, Max, Min
+    from django.utils import timezone
+    from decimal import Decimal
+    import json
+
+    now = timezone.now()
+    current_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    previous_month_start = (current_month_start - timedelta(days=1)).replace(day=1)
+    last_30_days = now - timedelta(days=30)
+    last_7_days = now - timedelta(days=7)
+
+    analytics = {}
+
+    try:
+        # 1. STORE PERFORMANCE METRICS
+
+        # Current month revenue
+        current_month_sales = Transaction.objects.filter(
+            store=store,
+            transaction_type='sale',
+            timestamp__gte=current_month_start
+        ).aggregate(
+            total_revenue=Sum('total_amount'),
+            total_transactions=Count('id'),
+            avg_transaction=Avg('total_amount')
+        )
+
+        # Previous month revenue
+        previous_month_sales = Transaction.objects.filter(
+            store=store,
+            transaction_type='sale',
+            timestamp__gte=previous_month_start,
+            timestamp__lt=current_month_start
+        ).aggregate(
+            total_revenue=Sum('total_amount'),
+            total_transactions=Count('id'),
+            avg_transaction=Avg('total_amount')
+        )
+
+        # Calculate trends
+        current_revenue = current_month_sales['total_revenue'] or Decimal('0')
+        previous_revenue = previous_month_sales['total_revenue'] or Decimal('0')
+        revenue_trend = ((current_revenue - previous_revenue) / previous_revenue * 100) if previous_revenue > 0 else 0
+
+        current_transactions = current_month_sales['total_transactions'] or 0
+        previous_transactions = previous_month_sales['total_transactions'] or 0
+        transaction_count_trend = ((current_transactions - previous_transactions) / previous_transactions * 100) if previous_transactions > 0 else 0
+
+        current_avg = current_month_sales['avg_transaction'] or Decimal('0')
+        previous_avg = previous_month_sales['avg_transaction'] or Decimal('0')
+        transaction_value_trend = ((current_avg - previous_avg) / previous_avg * 100) if previous_avg > 0 else 0
+
+        # Daily transactions average
+        days_in_month = (now - current_month_start).days + 1
+        daily_transactions = current_transactions / days_in_month if days_in_month > 0 else 0
+
+        analytics.update({
+            'current_month_revenue': float(current_revenue),
+            'previous_month_revenue': float(previous_revenue),
+            'revenue_trend': float(revenue_trend),
+            'current_month_transactions': current_transactions,
+            'previous_month_transactions': previous_transactions,
+            'transaction_count_trend': float(transaction_count_trend),
+            'current_avg_transaction': float(current_avg),
+            'previous_avg_transaction': float(previous_avg),
+            'transaction_value_trend': float(transaction_value_trend),
+            'avg_transaction_value': float(current_avg),
+            'daily_transactions': int(daily_transactions),
+        })
+
+        # 2. INVENTORY ANALYSIS
+
+        # Stock turnover rate calculation
+        total_stock_value = Stock.objects.filter(store=store).aggregate(
+            total_value=Sum(F('quantity') * F('selling_price'))
+        )['total_value'] or Decimal('0')
+
+        # Calculate inventory turnover (sales / average inventory)
+        inventory_turnover = (float(current_revenue) / float(total_stock_value)) if total_stock_value > 0 else 0
+
+        # Stock-out frequency
+        stock_out_frequency = Stock.objects.filter(
+            store=store,
+            quantity=0,
+            last_updated__gte=current_month_start
+        ).count()
+
+        # Customer satisfaction (based on return rates)
+        total_sales_count = current_transactions
+        return_count = Transaction.objects.filter(
+            store=store,
+            transaction_type='refund',
+            timestamp__gte=current_month_start
+        ).count()
+
+        customer_satisfaction = ((total_sales_count - return_count) / total_sales_count * 100) if total_sales_count > 0 else 100
+
+        analytics.update({
+            'inventory_turnover': inventory_turnover,
+            'stock_out_frequency': stock_out_frequency,
+            'customer_satisfaction': customer_satisfaction,
+        })
+
+        # 3. PEAK HOURS/DAYS ANALYSIS
+
+        # Peak hour analysis
+        hourly_sales = Transaction.objects.filter(
+            store=store,
+            transaction_type='sale',
+            timestamp__gte=last_30_days
+        ).extra(
+            select={'hour': 'EXTRACT(hour FROM timestamp)'}
+        ).values('hour').annotate(
+            total_sales=Sum('total_amount'),
+            transaction_count=Count('id')
+        ).order_by('-total_sales')
+
+        peak_hour = f"{hourly_sales[0]['hour']:02d}:00" if hourly_sales else "14:00"
+        peak_sales = float(hourly_sales[0]['total_sales']) if hourly_sales else 0
+
+        # Peak day analysis
+        daily_sales = Transaction.objects.filter(
+            store=store,
+            transaction_type='sale',
+            timestamp__gte=last_7_days
+        ).extra(
+            select={'weekday': 'EXTRACT(dow FROM timestamp)'}
+        ).values('weekday').annotate(
+            total_sales=Sum('total_amount')
+        ).order_by('-total_sales')
+
+        weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+        peak_day = weekdays[int(daily_sales[0]['weekday'])] if daily_sales else "Saturday"
+
+        analytics.update({
+            'peak_hour': peak_hour,
+            'peak_day': peak_day,
+            'peak_sales': peak_sales,
+        })
+
+        # 4. CHART DATA PREPARATION
+
+        # Sales trend data (last 30 days)
+        sales_trend_data = []
+        sales_trend_labels = []
+        for i in range(30):
+            date = (now - timedelta(days=29-i)).date()
+            day_sales = Transaction.objects.filter(
+                store=store,
+                transaction_type='sale',
+                timestamp__date=date
+            ).aggregate(total=Sum('total_amount'))['total'] or 0
+
+            sales_trend_data.append(float(day_sales))
+            sales_trend_labels.append(date.strftime('%m/%d'))
+
+        # Peak hours data
+        peak_hours_labels = ['9AM', '10AM', '11AM', '12PM', '1PM', '2PM', '3PM', '4PM', '5PM']
+        peak_hours_data = []
+        for hour in range(9, 18):  # 9 AM to 5 PM
+            hour_sales = Transaction.objects.filter(
+                store=store,
+                transaction_type='sale',
+                timestamp__gte=last_30_days,
+                timestamp__hour=hour
+            ).aggregate(total=Sum('total_amount'))['total'] or 0
+            peak_hours_data.append(float(hour_sales))
+
+        # Payment method data
+        payment_methods = Transaction.objects.filter(
+            store=store,
+            transaction_type='sale',
+            timestamp__gte=last_30_days
+        ).values('payment_type').annotate(
+            count=Count('id'),
+            total=Sum('total_amount')
+        )
+
+        payment_method_labels = []
+        payment_method_data = []
+        total_transactions = sum(pm['count'] for pm in payment_methods)
+
+        for pm in payment_methods:
+            payment_method_labels.append(pm['payment_type'].title())
+            percentage = (pm['count'] / total_transactions * 100) if total_transactions > 0 else 0
+            payment_method_data.append(round(percentage, 1))
+
+        # 5. INVENTORY INSIGHTS
+
+        # Top performing products
+        top_products = []
+        try:
+            from transactions.models import Order
+            top_product_sales = Order.objects.filter(
+                transaction__store=store,
+                transaction__transaction_type='sale',
+                transaction__timestamp__gte=last_30_days
+            ).values('product__name', 'product__id').annotate(
+                total_quantity=Sum('quantity'),
+                revenue=Sum(F('quantity') * F('price_at_time_of_sale')),
+                turnover_rate=F('revenue') / F('product__stock__selling_price')
+            ).order_by('-revenue')[:5]
+
+            for product in top_product_sales:
+                top_products.append({
+                    'name': product['product__name'],
+                    'id': product['product__id'],
+                    'turnover_rate': float(product['turnover_rate'] or 0),
+                    'revenue': float(product['revenue'] or 0)
+                })
+        except:
+            # Fallback if Order model is not available
+            pass
+
+        # Expiring products
+        expiring_products = []
+        try:
+            from datetime import date
+            expiring_stock = Stock.objects.filter(
+                store=store,
+                product__expiry_date__isnull=False,
+                product__expiry_date__lte=date.today() + timedelta(days=30),
+                quantity__gt=0
+            ).select_related('product')[:5]
+
+            for stock in expiring_stock:
+                days_to_expiry = (stock.product.expiry_date - date.today()).days
+                expiring_products.append({
+                    'name': stock.product.name,
+                    'expiry_date': stock.product.expiry_date,
+                    'days_to_expiry': max(0, days_to_expiry)
+                })
+        except:
+            pass
+
+        # Slow moving products
+        slow_moving_products = []
+        try:
+            # Products with no sales in last 30 days
+            products_with_sales = Order.objects.filter(
+                transaction__store=store,
+                transaction__transaction_type='sale',
+                transaction__timestamp__gte=last_30_days
+            ).values_list('product_id', flat=True).distinct()
+
+            slow_moving_stock = Stock.objects.filter(
+                store=store,
+                quantity__gt=0
+            ).exclude(product_id__in=products_with_sales).select_related('product')[:5]
+
+            for stock in slow_moving_stock:
+                slow_moving_products.append({
+                    'name': stock.product.name,
+                    'current_stock': stock.quantity,
+                    'days_since_sale': 30  # Simplified
+                })
+        except:
+            pass
+
+        # Reorder recommendations
+        reorder_recommendations = []
+        try:
+            low_stock_items = Stock.objects.filter(
+                store=store,
+                quantity__lte=F('low_stock_threshold'),
+                quantity__gt=0
+            ).select_related('product')[:5]
+
+            for stock in low_stock_items:
+                suggested_quantity = max(stock.low_stock_threshold * 2, 10)
+                reorder_recommendations.append({
+                    'name': stock.product.name,
+                    'id': stock.product.id,
+                    'suggested_quantity': suggested_quantity
+                })
+        except:
+            pass
+
+        # 6. OPERATIONAL ANALYTICS
+
+        # Return analysis
+        return_rate = 0
+        most_returned_product = "N/A"
+        return_value = 0
+
+        try:
+            total_sales = current_transactions
+            total_returns = Transaction.objects.filter(
+                store=store,
+                transaction_type='refund',
+                timestamp__gte=current_month_start
+            ).count()
+
+            return_rate = (total_returns / total_sales * 100) if total_sales > 0 else 0
+
+            return_transactions = Transaction.objects.filter(
+                store=store,
+                transaction_type='refund',
+                timestamp__gte=current_month_start
+            ).aggregate(total_value=Sum('total_amount'))
+
+            return_value = float(return_transactions['total_value'] or 0)
+        except:
+            pass
+
+        # 7. INSIGHTS AND RECOMMENDATIONS
+
+        insights = []
+
+        # Revenue trend insight
+        if revenue_trend > 10:
+            insights.append({
+                'icon': 'graph-up',
+                'title': 'Excellent Revenue Growth',
+                'description': f'Your store revenue has increased by {revenue_trend:.1f}% this month. Keep up the great work!',
+                'action': None,
+                'action_text': None
+            })
+        elif revenue_trend < -10:
+            insights.append({
+                'icon': 'graph-down',
+                'title': 'Revenue Decline Alert',
+                'description': f'Revenue has decreased by {abs(revenue_trend):.1f}% this month. Consider promotional strategies.',
+                'action': 'showPromotionModal()',
+                'action_text': 'Plan Promotion'
+            })
+
+        # Inventory turnover insight
+        if inventory_turnover < 1:
+            insights.append({
+                'icon': 'boxes',
+                'title': 'Slow Inventory Movement',
+                'description': 'Your inventory turnover rate is below optimal. Consider reviewing product mix and pricing.',
+                'action': 'window.location.href="/store/stock-management/"',
+                'action_text': 'Review Inventory'
+            })
+
+        # Stock-out insight
+        if stock_out_frequency > 5:
+            insights.append({
+                'icon': 'exclamation-triangle',
+                'title': 'Frequent Stock-outs',
+                'description': f'You\'ve had {stock_out_frequency} stock-outs this month. Improve inventory planning.',
+                'action': 'window.location.href="/store/restock-requests/"',
+                'action_text': 'Request Restock'
+            })
+
+        # Performance goals
+        revenue_goal = 50000  # Example goal
+        revenue_goal_percentage = min((float(current_revenue) / revenue_goal * 100), 100) if revenue_goal > 0 else 0
+        satisfaction_goal_percentage = min((customer_satisfaction / 95 * 100), 100)
+        turnover_goal_percentage = min((inventory_turnover / 4.0 * 100), 100)
+
+        analytics.update({
+            # Chart data
+            'sales_trend_labels': json.dumps(sales_trend_labels),
+            'sales_trend_data': json.dumps(sales_trend_data),
+            'peak_hours_labels': json.dumps(peak_hours_labels),
+            'peak_hours_data': json.dumps(peak_hours_data),
+            'payment_method_labels': json.dumps(payment_method_labels),
+            'payment_method_data': json.dumps(payment_method_data),
+
+            # Inventory data
+            'top_products': top_products,
+            'expiring_products': expiring_products,
+            'slow_moving_products': slow_moving_products,
+            'reorder_recommendations': reorder_recommendations,
+
+            # Operational data
+            'return_rate': return_rate,
+            'most_returned_product': most_returned_product,
+            'return_value': return_value,
+
+            # Insights
+            'insights': insights,
+
+            # Goals
+            'revenue_goal': revenue_goal,
+            'revenue_goal_percentage': revenue_goal_percentage,
+            'satisfaction_goal_percentage': satisfaction_goal_percentage,
+            'turnover_goal_percentage': turnover_goal_percentage,
+        })
+
+    except Exception as e:
+        # Handle any database errors gracefully
+        print(f"Analytics calculation error: {e}")
+        analytics.update({
+            'current_month_revenue': 0,
+            'revenue_trend': 0,
+            'avg_transaction_value': 0,
+            'transaction_value_trend': 0,
+            'daily_transactions': 0,
+            'transaction_count_trend': 0,
+            'inventory_turnover': 0,
+            'stock_out_frequency': 0,
+            'customer_satisfaction': 100,
+            'peak_hour': "14:00",
+            'peak_day': "Saturday",
+            'peak_sales': 0,
+            'sales_trend_labels': json.dumps([]),
+            'sales_trend_data': json.dumps([]),
+            'peak_hours_labels': json.dumps(['9AM', '10AM', '11AM', '12PM', '1PM', '2PM', '3PM', '4PM', '5PM']),
+            'peak_hours_data': json.dumps([0, 0, 0, 0, 0, 0, 0, 0, 0]),
+            'payment_method_labels': json.dumps(['Cash', 'Card']),
+            'payment_method_data': json.dumps([70, 30]),
+            'top_products': [],
+            'expiring_products': [],
+            'slow_moving_products': [],
+            'reorder_recommendations': [],
+            'return_rate': 0,
+            'most_returned_product': "N/A",
+            'return_value': 0,
+            'insights': [],
+            'revenue_goal': 50000,
+            'revenue_goal_percentage': 0,
+            'satisfaction_goal_percentage': 100,
+            'turnover_goal_percentage': 0,
+        })
+
+    return analytics
+
+
 @login_required
 def store_manager_page(request):
     """
@@ -493,13 +921,6 @@ def store_manager_page(request):
     last_30_days = today - timedelta(days=30)
     last_7_days = today - timedelta(days=7)
 
-    # Recent sales and transactions (last 30 days)
-    recent_transactions = Transaction.objects.filter(
-        store=store,
-        transaction_type='sale',
-        timestamp__date__gte=last_30_days
-    ).order_by('-timestamp')[:10]
-
     # Sales analytics
     total_sales_30_days = Transaction.objects.filter(
         store=store,
@@ -518,19 +939,6 @@ def store_manager_page(request):
         total_amount=Sum('total_amount'),
         total_transactions=Count('id')
     )
-
-    # Most sold product analytics (based on order quantities)
-    most_sold_products = Order.objects.filter(
-        transaction__store=store,
-        transaction__transaction_type='sale',
-        transaction__timestamp__date__gte=last_30_days
-    ).values(
-        'product__name',
-        'product__id'
-    ).annotate(
-        total_quantity=Sum('quantity'),
-        total_revenue=Sum(F('quantity') * F('price_at_time_of_sale'))
-    ).order_by('-total_quantity')[:5]
 
     # Low stock alerts
     low_stock_items = Stock.objects.filter(
@@ -587,13 +995,14 @@ def store_manager_page(request):
     # in warehouse, other stores, or needs to be ordered from suppliers
     restock_available_products = Product.objects.all().order_by('name')
 
+    # Comprehensive Analytics Data
+    analytics = calculate_store_analytics(store)
+
     context = {
         'store': store,
         'cashier_assignment': cashier_assignment,
-        'recent_transactions': recent_transactions,
         'total_sales_30_days': total_sales_30_days,
         'total_sales_7_days': total_sales_7_days,
-        'most_sold_products': most_sold_products,
         'low_stock_items': low_stock_items,
         'current_stock': current_stock,
         'restock_available_products': restock_available_products,  # Products for restock dropdown
@@ -602,6 +1011,7 @@ def store_manager_page(request):
         'pending_restock_count': pending_restock_count,
         'pending_transfer_count': pending_transfer_count,
         'other_stores': other_stores,
+        'analytics': analytics,  # Comprehensive analytics data
     }
 
     return render(request, 'mainpages/store_manager_page.html', context)

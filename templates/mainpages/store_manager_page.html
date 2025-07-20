@@ -1,5 +1,6 @@
 {% extends 'base_sidebar.html' %}
 {% load static %}
+{% load analytics_extras %}
 
 {% block title %}Store Manager Dashboard{% endblock %}
 {% block page_title %}Store Manager Dashboard{% endblock %}
@@ -10,37 +11,277 @@
 
 {% block extra_css %}
 <style>
-    .dashboard-card {
+    .analytics-card {
         background: var(--white);
         border-radius: 12px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         border: none;
         transition: all 0.3s ease;
-        height: 50%;
+        margin-bottom: 1.5rem;
     }
 
-    .dashboard-card:hover {
+    .analytics-card:hover {
         transform: translateY(-2px);
         box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+        border: none;
+        transition: all 0.3s ease;
+        margin-bottom: 1.5rem;
     }
 
-    .stat-card {
+    .metric-card {
         background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
         color: white;
         border-radius: 12px;
         padding: 1.5rem;
         margin-bottom: 1rem;
+        position: relative;
+        overflow: hidden;
     }
 
-    .stat-card h3 {
-        font-size: 2rem;
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 100px;
+        height: 100px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        transform: translate(30px, -30px);
+    }
+
+    .metric-card h3 {
+        font-size: 2.2rem;
         font-weight: 700;
+        margin-bottom: 0.5rem;
+        position: relative;
+        z-index: 2;
+    }
+
+    .metric-card p {
+        margin: 0;
+        opacity: 0.9;
+        position: relative;
+        z-index: 2;
+    }
+
+    .metric-card .metric-icon {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        font-size: 2.5rem;
+        opacity: 0.3;
+        z-index: 1;
+    }
+
+    .trend-indicator {
+        display: inline-flex;
+        align-items: center;
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-top: 0.5rem;
+    }
+
+    .trend-up {
+        color: #10b981;
+    }
+
+    .trend-down {
+        color: #ef4444;
+    }
+
+    .trend-neutral {
+        color: #6b7280;
+    }
+
+    .progress-bar-custom {
+        height: 8px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.2);
+        overflow: hidden;
+        margin-top: 0.5rem;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin: 1rem 0;
+    }
+
+    .chart-small {
+        height: 200px;
+    }
+
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .kpi-item {
+        background: var(--white);
+        border-radius: 8px;
+        padding: 1rem;
+        border-left: 4px solid var(--accent-teal);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .kpi-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: var(--primary-dark);
+        margin-bottom: 0.25rem;
+    }
+
+    .kpi-label {
+        font-size: 0.9rem;
+        color: var(--secondary-dark);
         margin-bottom: 0.5rem;
     }
 
-    .stat-card p {
-        margin: 0;
-        opacity: 0.9;
+    .status-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+    }
+
+    .status-excellent {
+        background: #10b981;
+    }
+
+    .status-good {
+        background: #3b82f6;
+    }
+
+    .status-warning {
+        background: #f59e0b;
+    }
+
+    .status-critical {
+        background: #ef4444;
+    }
+
+    .insight-card {
+        background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-left: 4px solid var(--accent-cyan);
+    }
+
+    .insight-title {
+        font-weight: 600;
+        color: var(--primary-dark);
+        margin-bottom: 0.5rem;
+    }
+
+    .insight-text {
+        color: var(--secondary-dark);
+        font-size: 0.9rem;
+        line-height: 1.4;
+    }
+
+    .comparison-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+    }
+
+    .comparison-table th,
+    .comparison-table td {
+        padding: 0.75rem;
+        text-align: left;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .comparison-table th {
+        background: var(--light-gray);
+        font-weight: 600;
+        color: var(--primary-dark);
+    }
+
+    .performance-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .badge-excellent {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .badge-good {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .badge-average {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .badge-poor {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .analytics-tabs {
+        border-bottom: 2px solid #e5e7eb;
+        margin-bottom: 2rem;
+    }
+
+    .analytics-tab {
+        display: inline-block;
+        padding: 0.75rem 1.5rem;
+        background: none;
+        border: none;
+        color: var(--secondary-dark);
+        font-weight: 500;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        transition: all 0.3s ease;
+    }
+
+    .analytics-tab.active {
+        color: var(--accent-teal);
+        border-bottom-color: var(--accent-teal);
+    }
+
+    .analytics-tab:hover {
+        color: var(--accent-teal);
+    }
+
+    .tab-content {
+        display: none !important;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .tab-content.active {
+        display: block !important;
+        opacity: 1;
+    }
+
+    /* Ensure charts are visible when tab is active */
+    .tab-content.active .chart-container {
+        visibility: visible;
+    }
+
+    .tab-content .chart-container {
+        visibility: hidden;
     }
 
     .low-stock-alert {
@@ -97,26 +338,18 @@
         font-weight: 500;
     }
 
-    .table-responsive {
-        border-radius: 8px;
-        overflow: hidden;
+    .spin {
+        animation: spin 1s linear infinite;
     }
 
-    .table th {
-        background: var(--secondary-dark);
-        color: white;
-        border: none;
-        font-weight: 600;
-    }
+    @keyframes spin {
+        from {
+            transform: rotate(0deg);
+        }
 
-    .modal-header {
-        background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
-        color: white;
-        border-bottom: none;
-    }
-
-    .modal-header .btn-close {
-        filter: invert(1);
+        to {
+            transform: rotate(360deg);
+        }
     }
 </style>
 {% endblock %}
@@ -126,607 +359,530 @@
     <!-- Page Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <h1 class="h3 mb-0 text-gray-800">Store Manager Dashboard</h1>
-            <p class="text-muted">Managing {{ store.name }}</p>
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 text-gray-800">
+                        <i class="bi bi-graph-up-arrow text-primary me-2"></i>
+                        Store Analytics Dashboard
+                    </h1>
+                    <p class="text-muted">{{ store.name }} - Comprehensive Performance Analysis</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary btn-sm" onclick="refreshAnalytics()">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="exportReport()">
+                        <i class="bi bi-download me-1"></i>Export
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Sales Analytics Row -->
-    <div class="row mb-4">
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="stat-card">
-                <div class="d-flex align-items-center">
-                    <div class="flex-grow-1">
-                        <h3 class="mb-1">ETB {{ total_sales_30_days.total_amount|default:0|floatformat:2 }}</h3>
-                        <p class="mb-0">Sales (30 Days)</p>
-                        <small class="opacity-75">{{ total_sales_30_days.total_transactions|default:0 }}
-                            transactions</small>
-                    </div>
-                    <div class="ms-3">
-                        <i class="bi bi-graph-up fs-1 opacity-75"></i>
-                    </div>
-                </div>
+    <!-- Key Performance Indicators -->
+    <div class="kpi-grid">
+        <div class="kpi-item">
+            <div class="kpi-value">ETB {{ analytics.current_month_revenue|default:0|floatformat:0 }}</div>
+            <div class="kpi-label">Current Month Revenue</div>
+            <div class="trend-indicator {% if analytics.revenue_trend >= 0 %}trend-up{% else %}trend-down{% endif %}">
+                <i class="bi bi-{% if analytics.revenue_trend >= 0 %}arrow-up{% else %}arrow-down{% endif %} me-1"></i>
+                {{ analytics.revenue_trend|default:0|floatformat:1 }}% vs last month
             </div>
         </div>
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="stat-card">
-                <div class="d-flex align-items-center">
-                    <div class="flex-grow-1">
-                        <h3 class="mb-1">ETB {{ total_sales_7_days.total_amount|default:0|floatformat:2 }}</h3>
-                        <p class="mb-0">Sales (7 Days)</p>
-                        <small class="opacity-75">{{ total_sales_7_days.total_transactions|default:0 }}
-                            transactions</small>
-                    </div>
-                    <div class="ms-3">
-                        <i class="bi bi-calendar-week fs-1 opacity-75"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="stat-card {% if low_stock_items|length > 0 %}bg-warning text-dark{% endif %}">
-                <div class="d-flex align-items-center">
-                    <div class="flex-grow-1">
-                        <h3 class="mb-1">{{ low_stock_items|length }}</h3>
-                        <p class="mb-0">Low Stock Alerts</p>
-                        <small class="opacity-75">Items below threshold</small>
-                    </div>
-                    <div class="ms-3">
-                        <i class="bi bi-exclamation-triangle fs-1 opacity-75"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-md-6 mb-3">
+
+        <div class="kpi-item">
+            <div class="kpi-value">{{ analytics.avg_transaction_value|default:0|floatformat:0 }}</div>
+            <div class="kpi-label">Avg Transaction Value</div>
             <div
-                class="stat-card {% if pending_restock_count|add:pending_transfer_count > 0 %}bg-info text-white{% endif %}">
-                <div class="d-flex align-items-center">
-                    <div class="flex-grow-1">
-                        <h3 class="mb-1">{{ pending_restock_count|add:pending_transfer_count }}</h3>
-                        <p class="mb-0">Pending Requests</p>
-                        <small class="opacity-75">{{ pending_restock_count }} restock, {{ pending_transfer_count }}
-                            transfer</small>
+                class="trend-indicator {% if analytics.transaction_value_trend >= 0 %}trend-up{% else %}trend-down{% endif %}">
+                <i
+                    class="bi bi-{% if analytics.transaction_value_trend >= 0 %}arrow-up{% else %}arrow-down{% endif %} me-1"></i>
+                {{ analytics.transaction_value_trend|default:0|floatformat:1 }}%
+            </div>
+        </div>
+
+        <div class="kpi-item">
+            <div class="kpi-value">{{ analytics.daily_transactions|default:0 }}</div>
+            <div class="kpi-label">Daily Avg Transactions</div>
+            <div
+                class="trend-indicator {% if analytics.transaction_count_trend >= 0 %}trend-up{% else %}trend-down{% endif %}">
+                <i
+                    class="bi bi-{% if analytics.transaction_count_trend >= 0 %}arrow-up{% else %}arrow-down{% endif %} me-1"></i>
+                {{ analytics.transaction_count_trend|default:0|floatformat:1 }}%
+            </div>
+        </div>
+
+        <div class="kpi-item">
+            <div class="kpi-value">{{ analytics.inventory_turnover|default:0|floatformat:1 }}</div>
+            <div class="kpi-label">Inventory Turnover Rate</div>
+            <span
+                class="status-indicator {% if analytics.inventory_turnover >= 4 %}status-excellent{% elif analytics.inventory_turnover >= 2 %}status-good{% elif analytics.inventory_turnover >= 1 %}status-warning{% else %}status-critical{% endif %}"></span>
+            <small class="text-muted">
+                {% if analytics.inventory_turnover >= 4 %}Excellent
+                {% elif analytics.inventory_turnover >= 2 %}Good
+                {% elif analytics.inventory_turnover >= 1 %}Average
+                {% else %}Needs Attention{% endif %}
+            </small>
+        </div>
+
+        <div class="kpi-item">
+            <div class="kpi-value">{{ analytics.stock_out_frequency|default:0 }}</div>
+            <div class="kpi-label">Stock-outs This Month</div>
+            <span class="status-indicator {{ analytics.stock_out_frequency|stock_status_class }}"></span>
+            <small class="text-muted">{{ analytics.stock_out_frequency|stock_status_text }}</small>
+        </div>
+
+        <div class="kpi-item">
+            <div class="kpi-value">{{ analytics.customer_satisfaction|default:0|floatformat:1 }}%</div>
+            <div class="kpi-label">Customer Satisfaction</div>
+            <span
+                class="status-indicator {% if analytics.customer_satisfaction >= 90 %}status-excellent{% elif analytics.customer_satisfaction >= 80 %}status-good{% elif analytics.customer_satisfaction >= 70 %}status-warning{% else %}status-critical{% endif %}"></span>
+            <small class="text-muted">Based on return rates</small>
+        </div>
+    </div>
+
+    <!-- Analytics Tabs -->
+    <div class="analytics-tabs">
+        <button class="analytics-tab active" data-tab="performance" onclick="showTab('performance', this)">
+            <i class="bi bi-graph-up me-1"></i>Performance
+        </button>
+        <button class="analytics-tab" data-tab="inventory" onclick="showTab('inventory', this)">
+            <i class="bi bi-boxes me-1"></i>Inventory
+        </button>
+        <button class="analytics-tab" data-tab="operations" onclick="showTab('operations', this)">
+            <i class="bi bi-gear me-1"></i>Operations
+        </button>
+        <button class="analytics-tab" data-tab="insights" onclick="showTab('insights', this)">
+            <i class="bi bi-lightbulb me-1"></i>Insights
+        </button>
+    </div>
+
+    <!-- Performance Analytics Tab -->
+    <div id="performance-tab" class="tab-content active">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="analytics-card">
+                    <div class="card-header bg-light border-0">
+                        <h5 class="mb-0">
+                            <i class="bi bi-graph-up me-2"></i>
+                            Sales Performance Trends
+                        </h5>
                     </div>
-                    <div class="ms-3">
-                        <i class="bi bi-clock-history fs-1 opacity-75"></i>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="salesTrendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="analytics-card">
+                    <div class="card-header bg-light border-0">
+                        <h5 class="mb-0">
+                            <i class="bi bi-clock me-2"></i>
+                            Peak Hours Analysis
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container chart-small">
+                            <canvas id="peakHoursChart"></canvas>
+                        </div>
+                        <div class="mt-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted">Peak Hour:</span>
+                                <strong>{{ analytics.peak_hour|default:"2:00 PM" }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted">Peak Day:</span>
+                                <strong>{{ analytics.peak_day|default:"Saturday" }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-muted">Avg Peak Sales:</span>
+                                <strong>ETB {{ analytics.peak_sales|default:0|floatformat:0 }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="analytics-card">
+                    <div class="card-header bg-light border-0">
+                        <h5 class="mb-0">
+                            <i class="bi bi-calendar-range me-2"></i>
+                            Monthly Comparison
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <table class="comparison-table">
+                            <thead>
+                                <tr>
+                                    <th>Metric</th>
+                                    <th>Current Month</th>
+                                    <th>Previous Month</th>
+                                    <th>Change</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Revenue</td>
+                                    <td>ETB {{ analytics.current_month_revenue|default:0|floatformat:0 }}</td>
+                                    <td>ETB {{ analytics.previous_month_revenue|default:0|floatformat:0 }}</td>
+                                    <td>
+                                        <span
+                                            class="trend-indicator {% if analytics.revenue_trend >= 0 %}trend-up{% else %}trend-down{% endif %}">
+                                            {{ analytics.revenue_trend|default:0|floatformat:1 }}%
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Transactions</td>
+                                    <td>{{ analytics.current_month_transactions|default:0 }}</td>
+                                    <td>{{ analytics.previous_month_transactions|default:0 }}</td>
+                                    <td>
+                                        <span
+                                            class="trend-indicator {% if analytics.transaction_count_trend >= 0 %}trend-up{% else %}trend-down{% endif %}">
+                                            {{ analytics.transaction_count_trend|default:0|floatformat:1 }}%
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Avg Transaction</td>
+                                    <td>ETB {{ analytics.current_avg_transaction|default:0|floatformat:0 }}</td>
+                                    <td>ETB {{ analytics.previous_month_revenue|default:0|floatformat:0 }}</td>
+                                    <td>
+                                        <span
+                                            class="trend-indicator {% if analytics.transaction_value_trend >= 0 %}trend-up{% else %}trend-down{% endif %}">
+                                            {{ analytics.transaction_value_trend|default:0|floatformat:1 }}%
+                                        </span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="analytics-card">
+                    <div class="card-header bg-light border-0">
+                        <h5 class="mb-0">
+                            <i class="bi bi-credit-card me-2"></i>
+                            Payment Methods
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container chart-small">
+                            <canvas id="paymentMethodsChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Main Content Row -->
-    <div class="row">
-        <!-- Left Column - 50% Width -->
-        <div class="col-lg-6">
-            <!-- Most Sold Products -->
-            <div class="dashboard-card mb-4">
-                <div class="card-header bg-light border-0">
-                    <div class="d-flex align-items-center justify-content-between">
+    <!-- Inventory Analytics Tab -->
+    <div id="inventory-tab" class="tab-content">
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="analytics-card">
+                    <div class="card-header bg-light border-0">
                         <h5 class="mb-0">
-                            <i class="bi bi-graph-up text-success me-2"></i>
-                            Top Selling Products
+                            <i class="bi bi-pie-chart me-2"></i>
+                            Inventory Value by Category
                         </h5>
-                        <div>
-                            <span class="badge bg-success me-2">{{ most_sold_products|length }} items</span>
-                            <a href="#" class="btn btn-sm btn-outline-primary">View All</a>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container chart-small">
+                            <canvas id="inventoryValueChart"></canvas>
                         </div>
                     </div>
-                </div>
-                <div class="card-body p-0">
-                    {% if most_sold_products %}
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0 table-sm">
-                            <thead class="table-light">
-                                <tr>
-                                    <th class="border-0 ps-3" style="width: 40%;">Product</th>
-                                    <th class="border-0 text-center" style="width: 20%;">Qty</th>
-                                    <th class="border-0 text-center" style="width: 25%;">Revenue</th>
-                                    <th class="border-0 text-center" style="width: 15%;">Trend</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for product in most_sold_products|slice:":5" %}
-                                <tr>
-                                    <td class="ps-3 py-2">
-                                        <div class="d-flex align-items-center">
-                                            <div>
-                                                <strong class="d-block">{{ product.product__name|truncatechars:25
-                                                    }}</strong>
-                                                <small class="text-muted">Last 30 days</small>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="text-center py-2">
-                                        <span class="badge bg-primary">{{ product.total_quantity }}</span>
-                                    </td>
-                                    <td class="text-center py-2">
-                                        <strong class="text-success">ETB {{ product.total_revenue|floatformat:0
-                                            }}</strong>
-                                    </td>
-                                    <td class="text-center py-2">
-                                        <div class="progress" style="height: 6px; width: 100%;">
-                                            <div class="progress-bar bg-success"
-                                                style="width: {% widthratio product.total_quantity most_sold_products.0.total_quantity 100 %}%">
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% if most_sold_products|length > 5 %}
-                    <div class="card-footer bg-light border-0 text-center py-2">
-                        <small class="text-muted">Showing top 5 of {{ most_sold_products|length }} products</small>
-                    </div>
-                    {% endif %}
-                    {% else %}
-                    <div class="text-center py-4">
-                        <i class="bi bi-graph-down text-muted" style="font-size: 2rem;"></i>
-                        <p class="text-muted mt-2 mb-0">No sales data available</p>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
-
-            <!-- Recent Transactions -->
-            <div class="dashboard-card mb-4">
-                <div class="card-header bg-light border-0">
-                    <div class="d-flex align-items-center justify-content-between">
+            <div class="col-lg-6">
+                <div class="analytics-card">
+                    <div class="card-header bg-light border-0">
                         <h5 class="mb-0">
-                            <i class="bi bi-clock-history text-primary me-2"></i>
-                            Recent Transactions
+                            <i class="bi bi-speedometer2 me-2"></i>
+                            Top Performing Products
                         </h5>
-                        <div>
-                            <span class="badge bg-primary me-2">{{ recent_transactions|length }} recent</span>
-                            <a href="#" class="btn btn-sm btn-outline-primary">View All</a>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Turnover Rate</th>
+                                        <th>Revenue</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for product in analytics.top_products|slice:":5" %}
+                                    <tr>
+                                        <td>{{ product.name|truncatechars:20 }}</td>
+                                        <td>{{ product.turnover_rate|floatformat:1 }}</td>
+                                        <td>ETB {{ product.revenue|floatformat:0 }}</td>
+                                        <td>
+                                            <span
+                                                class="performance-badge {% if product.turnover_rate >= 4 %}badge-excellent{% elif product.turnover_rate >= 2 %}badge-good{% elif product.turnover_rate >= 1 %}badge-average{% else %}badge-poor{% endif %}">
+                                                {% if product.turnover_rate >= 4 %}Excellent
+                                                {% elif product.turnover_rate >= 2 %}Good
+                                                {% elif product.turnover_rate >= 1 %}Average
+                                                {% else %}Poor{% endif %}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted">No data available</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                </div>
-                <div class="card-body p-0">
-                    {% if recent_transactions %}
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0 table-sm">
-                            <thead class="table-light">
-                                <tr>
-                                    <th class="border-0 ps-3" style="width: 30%;">Date</th>
-                                    <th class="border-0 text-center" style="width: 20%;">Type</th>
-                                    <th class="border-0 text-center" style="width: 25%;">Amount</th>
-                                    <th class="border-0 text-center" style="width: 25%;">Payment</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for transaction in recent_transactions|slice:":6" %}
-                                <tr>
-                                    <td class="ps-3 py-2">
-                                        <div>
-                                            <strong class="d-block">{{ transaction.timestamp|date:"M d" }}</strong>
-                                            <small class="text-muted">{{ transaction.timestamp|date:"H:i" }}</small>
-                                        </div>
-                                    </td>
-                                    <td class="text-center py-2">
-                                        <span class="badge bg-success">Sale</span>
-                                    </td>
-                                    <td class="text-center py-2">
-                                        <strong class="text-success">ETB {{ transaction.total_amount|floatformat:0
-                                            }}</strong>
-                                    </td>
-                                    <td class="text-center py-2">
-                                        <span class="badge bg-secondary">{{
-                                            transaction.get_payment_type_display|truncatechars:8 }}</span>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% if recent_transactions|length > 6 %}
-                    <div class="card-footer bg-light border-0 text-center py-2">
-                        <small class="text-muted">Showing last 6 of {{ recent_transactions|length }}
-                            transactions</small>
-                    </div>
-                    {% endif %}
-                    {% else %}
-                    <div class="text-center py-4">
-                        <i class="bi bi-receipt text-muted" style="font-size: 2rem;"></i>
-                        <p class="text-muted mt-2 mb-0">No recent transactions</p>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
 
-        <!-- Right Column - 50% Width -->
-        <div class="col-lg-6">
-            <!-- Low Stock Alerts -->
-            <div class="dashboard-card mb-4">
-                <div class="card-header bg-warning bg-opacity-10 border-0">
-                    <div class="d-flex align-items-center justify-content-between">
+        <div class="row">
+            <div class="col-lg-4">
+                <div class="analytics-card">
+                    <div class="card-header bg-warning bg-opacity-10 border-0">
                         <h5 class="mb-0 text-warning">
                             <i class="bi bi-exclamation-triangle me-2"></i>
-                            Low Stock Alerts
+                            Expiring Soon
                         </h5>
-                        <span class="badge bg-warning text-dark">{{ low_stock_items|length }}</span>
                     </div>
-                </div>
-                <div class="card-body p-0" style="max-height: 300px; overflow-y: auto;">
-                    {% if low_stock_items %}
-                    <div class="list-group list-group-flush">
-                        {% for stock in low_stock_items|slice:":8" %}
-                        <div class="list-group-item border-0 px-3 py-2">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div class="flex-grow-1">
-                                    <strong class="d-block">{{ stock.product.name|truncatechars:20 }}</strong>
-                                    <small class="text-muted">
-                                        <span class="badge bg-danger">{{ stock.quantity }}</span> / {{
-                                        stock.low_stock_threshold }}
-                                    </small>
+                    <div class="card-body">
+                        {% if analytics.expiring_products %}
+                        <div class="list-group list-group-flush">
+                            {% for product in analytics.expiring_products|slice:":5" %}
+                            <div class="list-group-item border-0 px-0 py-2">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <strong class="d-block">{{ product.name|truncatechars:15 }}</strong>
+                                        <small class="text-muted">{{ product.expiry_date|date:"M d, Y" }}</small>
+                                    </div>
+                                    <span class="badge bg-warning text-dark">{{ product.days_to_expiry }} days</span>
                                 </div>
-                                <button class="btn btn-sm btn-warning ms-2"
-                                    onclick="openRestockModal({{ stock.product.id }}, '{{ stock.product.name }}', {{ stock.quantity }})"
-                                    title="Request Restock">
-                                    <i class="bi bi-plus-circle"></i>
-                                </button>
                             </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% if low_stock_items|length > 8 %}
-                    <div class="card-footer bg-light border-0 text-center py-2">
-                        <small class="text-muted">Showing 8 of {{ low_stock_items|length }} low stock items</small>
-                    </div>
-                    {% endif %}
-                    {% else %}
-                    <div class="text-center py-4">
-                        <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
-                        <p class="text-muted mt-2 mb-0">All products adequately stocked</p>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Quick Actions -->
-            <div class="dashboard-card mb-4">
-                <div class="card-header bg-light border-0">
-                    <h5 class="mb-0">
-                        <i class="bi bi-lightning text-warning me-2"></i>
-                        Quick Actions
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="row g-2">
-                        <div class="col-12">
-                            <button class="btn btn-ezm-primary w-100" data-bs-toggle="modal"
-                                data-bs-target="#restockModal">
-                                <i class="bi bi-box-seam me-2"></i>Request Restock
-                            </button>
-                        </div>
-                        <div class="col-12">
-                            <button class="btn btn-ezm-secondary w-100" data-bs-toggle="modal"
-                                data-bs-target="#transferModal">
-                                <i class="bi bi-arrow-left-right me-2"></i>Request Transfer
-                            </button>
-                        </div>
-                        <div class="col-12">
-                            <button class="btn btn-outline-primary w-100" data-bs-toggle="modal"
-                                data-bs-target="#priceUpdateModal">
-                                <i class="bi bi-tag me-2"></i>Update Prices
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Recent Requests -->
-            <div class="dashboard-card">
-                <div class="card-body">
-                    <h5 class="card-title mb-3">
-                        <i class="bi bi-list-check text-info me-2"></i>
-                        Recent Requests
-                    </h5>
-                    {% if recent_restock_requests or recent_transfer_requests %}
-                    <div class="list-group list-group-flush">
-                        {% for request in recent_restock_requests %}
-                        <div class="list-group-item border-0 px-0">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong>Restock: {{ request.product.name }}</strong>
-                                    <br>
-                                    <small class="text-muted">{{ request.requested_date|date:"M d, Y" }}</small>
-                                </div>
-                                <span class="request-badge badge-{{ request.status }}">{{ request.get_status_display
-                                    }}</span>
-                            </div>
-                        </div>
-                        {% endfor %}
-                        {% for request in recent_transfer_requests %}
-                        <div class="list-group-item border-0 px-0">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong>Transfer: {{ request.product.name }}</strong>
-                                    <br>
-                                    <small class="text-muted">{{ request.requested_date|date:"M d, Y" }}</small>
-                                </div>
-                                <span class="request-badge badge-{{ request.status }}">{{ request.get_status_display
-                                    }}</span>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <p class="text-muted">No recent requests.</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Restock Request Modal -->
-<div class="modal fade" id="restockModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Request Restock</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="post" action="{% url 'submit_restock_request' %}">
-                {% csrf_token %}
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="product_id" class="form-label">Product</label>
-                        <select class="form-select" id="product_id" name="product_id" required>
-                            <option value="">Select a product</option>
-                            {% for product in restock_available_products %}
-                            <option value="{{ product.id }}">{{ product.name }} - {{ product.category }}</option>
                             {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="requested_quantity" class="form-label">Requested Quantity</label>
-                        <input type="number" class="form-control" id="requested_quantity" name="requested_quantity"
-                            min="1" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="priority" class="form-label">Priority</label>
-                        <select class="form-select" id="priority" name="priority">
-                            <option value="low">Low</option>
-                            <option value="medium" selected>Medium</option>
-                            <option value="high">High</option>
-                            <option value="urgent">Urgent</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="reason" class="form-label">Reason</label>
-                        <textarea class="form-control" id="reason" name="reason" rows="3"
-                            placeholder="Explain why this restock is needed..."></textarea>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-3">
+                            <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
+                            <p class="text-muted mt-2 mb-0">No products expiring soon</p>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-ezm-primary">Submit Request</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Transfer Request Modal -->
-<div class="modal fade" id="transferModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Request Stock Transfer</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="post" action="{% url 'submit_transfer_request' %}">
-                {% csrf_token %}
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="transfer_product_id" class="form-label">Product to Request *</label>
-                        <select class="form-select" id="transfer_product_id" name="product_id" required>
-                            <option value="">Select a product you want to receive</option>
-                        </select>
-                        <div class="form-text">Choose the product you want to transfer to your store</div>
+            <div class="col-lg-4">
+                <div class="analytics-card">
+                    <div class="card-header bg-danger bg-opacity-10 border-0">
+                        <h5 class="mb-0 text-danger">
+                            <i class="bi bi-arrow-down-circle me-2"></i>
+                            Slow Moving Items
+                        </h5>
                     </div>
-                    <div class="mb-3">
-                        <label for="to_store_id" class="form-label">Transfer From *</label>
-                        <select class="form-select" id="to_store_id" name="to_store_id" required disabled>
-                            <option value="">First select a product</option>
-                        </select>
-                        <div class="form-text" id="store-availability-text">Select a product to see which stores have it
-                            in stock</div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="transfer_quantity" class="form-label">Requested Quantity</label>
-                        <input type="number" class="form-control" id="transfer_quantity" name="requested_quantity"
-                            min="1" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="transfer_priority" class="form-label">Priority</label>
-                        <select class="form-select" id="transfer_priority" name="priority">
-                            <option value="low">Low</option>
-                            <option value="medium" selected>Medium</option>
-                            <option value="high">High</option>
-                            <option value="urgent">Urgent</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="transfer_reason" class="form-label">Reason</label>
-                        <textarea class="form-control" id="transfer_reason" name="reason" rows="3"
-                            placeholder="Explain why this transfer is needed..."></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-ezm-primary">Submit Request</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Price Update Modal -->
-<div class="modal fade" id="priceUpdateModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Update Product Price</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="post" action="{% url 'update_product_price' %}">
-                {% csrf_token %}
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="stock_id" class="form-label">Product</label>
-                        <select class="form-select" id="stock_id" name="stock_id" required
-                            onchange="updateCurrentPrice()">
-                            <option value="">Select a product</option>
-                            {% for stock in current_stock %}
-                            <option value="{{ stock.id }}" data-price="{{ stock.selling_price }}">{{ stock.product.name
-                                }} (Current: ETB {{ stock.selling_price }})</option>
+                    <div class="card-body">
+                        {% if analytics.slow_moving_products %}
+                        <div class="list-group list-group-flush">
+                            {% for product in analytics.slow_moving_products|slice:":5" %}
+                            <div class="list-group-item border-0 px-0 py-2">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <strong class="d-block">{{ product.name|truncatechars:15 }}</strong>
+                                        <small class="text-muted">{{ product.days_since_sale }} days since last
+                                            sale</small>
+                                    </div>
+                                    <span class="badge bg-danger">{{ product.current_stock }}</span>
+                                </div>
+                            </div>
                             {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="current_price_display" class="form-label">Current Price</label>
-                        <input type="text" class="form-control" id="current_price_display" readonly>
-                    </div>
-                    <div class="mb-3">
-                        <label for="new_price" class="form-label">New Price</label>
-                        <input type="number" class="form-control" id="new_price" name="new_price" step="0.01" min="0.01"
-                            required>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-3">
+                            <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
+                            <p class="text-muted mt-2 mb-0">All products moving well</p>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-ezm-primary">Update Price</button>
+            </div>
+            <div class="col-lg-4">
+                <div class="analytics-card">
+                    <div class="card-header bg-info bg-opacity-10 border-0">
+                        <h5 class="mb-0 text-info">
+                            <i class="bi bi-graph-up me-2"></i>
+                            Reorder Recommendations
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% if analytics.reorder_recommendations %}
+                        <div class="list-group list-group-flush">
+                            {% for product in analytics.reorder_recommendations|slice:":5" %}
+                            <div class="list-group-item border-0 px-0 py-2">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <strong class="d-block">{{ product.name|truncatechars:15 }}</strong>
+                                        <small class="text-muted">Suggested: {{ product.suggested_quantity }}
+                                            units</small>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-primary"
+                                        onclick="quickReorder('{{ product.id }}', '{{ product.suggested_quantity }}')">
+                                        <i class="bi bi-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="text-center py-3">
+                            <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
+                            <p class="text-muted mt-2 mb-0">No reorders needed</p>
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
-            </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Operations Analytics Tab -->
+    <div id="operations-tab" class="tab-content">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="analytics-card">
+                    <div class="card-header bg-light border-0">
+                        <h5 class="mb-0">
+                            <i class="bi bi-people me-2"></i>
+                            Cashier Performance
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Cashier</th>
+                                        <th>Transactions/Hour</th>
+                                        <th>Accuracy Rate</th>
+                                        <th>Total Sales</th>
+                                        <th>Performance</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for cashier in analytics.cashier_performance|slice:":5" %}
+                                    <tr>
+                                        <td>{{ cashier.name }}</td>
+                                        <td>{{ cashier.transactions_per_hour|floatformat:1 }}</td>
+                                        <td>{{ cashier.accuracy_rate|floatformat:1 }}%</td>
+                                        <td>ETB {{ cashier.total_sales|floatformat:0 }}</td>
+                                        <td>
+                                            <span
+                                                class="performance-badge {% if cashier.performance_score >= 90 %}badge-excellent{% elif cashier.performance_score >= 80 %}badge-good{% elif cashier.performance_score >= 70 %}badge-average{% else %}badge-poor{% endif %}">
+                                                {% if cashier.performance_score >= 90 %}Excellent
+                                                {% elif cashier.performance_score >= 80 %}Good
+                                                {% elif cashier.performance_score >= 70 %}Average
+                                                {% else %}Needs Improvement{% endif %}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted">No cashier data available</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="analytics-card">
+                    <div class="card-header bg-light border-0">
+                        <h5 class="mb-0">
+                            <i class="bi bi-graph-down me-2"></i>
+                            Return Analysis
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container chart-small">
+                            <canvas id="returnAnalysisChart"></canvas>
+                        </div>
+                        <div class="mt-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted">Return Rate:</span>
+                                <strong>{{ analytics.return_rate|default:0|floatformat:1 }}%</strong>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted">Most Returned:</span>
+                                <strong>{{ analytics.most_returned_product|default:"N/A" }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-muted">Return Value:</span>
+                                <strong>ETB {{ analytics.return_value|default:0|floatformat:0 }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="analytics-card">
+                    <div class="card-header bg-light border-0">
+                        <h5 class="mb-0">
+                            <i class="bi bi-clock me-2"></i>
+                            Customer Traffic Patterns
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container chart-small">
+                            <canvas id="trafficPatternsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="analytics-card">
+                    <div class="card-header bg-light border-0">
+                        <h5 class="mb-0">
+                            <i class="bi bi-credit-card-2-front me-2"></i>
+                            Payment Method Trends
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            {% for method in analytics.payment_methods %}
+                            <div class="col-6 mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="text-muted">{{ method.name }}:</span>
+                                    <strong>{{ method.percentage|floatformat:1 }}%</strong>
+                                </div>
+                                <div class="progress-bar-custom">
+                                    <div class="progress-fill"
+                                        style="width: {{ method.percentage|stringformat:'s' }}%;">
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="col-12 text-center text-muted">
+                                No payment data available
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-    function openRestockModal(productId, productName, currentStock) {
-        document.getElementById('product_id').value = productId;
-        document.getElementById('requested_quantity').focus();
-        var modal = new bootstrap.Modal(document.getElementById('restockModal'));
-        modal.show();
-    }
-
-    function updateCurrentPrice() {
-        const select = document.getElementById('stock_id');
-        const currentPriceDisplay = document.getElementById('current_price_display');
-        const selectedOption = select.options[select.selectedIndex];
-
-        if (selectedOption.value) {
-            const currentPrice = selectedOption.getAttribute('data-price');
-            currentPriceDisplay.value = 'ETB ' + currentPrice;
-        } else {
-            currentPriceDisplay.value = '';
-        }
-    }
-
-    // Enhanced Transfer Request Logic
-    document.addEventListener('DOMContentLoaded', function () {
-        const transferProductSelect = document.getElementById('transfer_product_id');
-        const transferStoreSelect = document.getElementById('to_store_id');
-        const storeAvailabilityText = document.getElementById('store-availability-text');
-        const transferQuantityInput = document.getElementById('transfer_quantity');
-
-        // Load available products when modal opens
-        document.getElementById('transferModal').addEventListener('show.bs.modal', function () {
-            loadTransferProducts();
-        });
-
-        // Load products available for transfer
-        function loadTransferProducts() {
-            fetch('{% url "get_transfer_products" %}')
-                .then(response => response.json())
-                .then(data => {
-                    transferProductSelect.innerHTML = '<option value="">Select a product you want to receive</option>';
-
-                    if (data.products && data.products.length > 0) {
-                        data.products.forEach(product => {
-                            const option = document.createElement('option');
-                            option.value = product.id;
-                            option.textContent = `${product.name} - ${product.category}`;
-                            transferProductSelect.appendChild(option);
-                        });
-                    } else {
-                        transferProductSelect.innerHTML = '<option value="">No products available for transfer</option>';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading transfer products:', error);
-                    transferProductSelect.innerHTML = '<option value="">Error loading products</option>';
-                });
-        }
-
-        // When product is selected, load stores that have it
-        transferProductSelect.addEventListener('change', function () {
-            const productId = this.value;
-
-            if (productId) {
-                // Reset and disable store select while loading
-                transferStoreSelect.innerHTML = '<option value="">Loading stores...</option>';
-                transferStoreSelect.disabled = true;
-                storeAvailabilityText.textContent = 'Loading available stores...';
-
-                // Fetch stores that have this product
-                fetch(`{% url "get_stores_with_product" %}?product_id=${productId}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        transferStoreSelect.innerHTML = '<option value="">Select source store</option>';
-
-                        if (data.stores && data.stores.length > 0) {
-                            data.stores.forEach(store => {
-                                const option = document.createElement('option');
-                                option.value = store.id;
-                                option.textContent = `${store.name} (${store.available_quantity} available)`;
-                                option.setAttribute('data-available-quantity', store.available_quantity);
-                                transferStoreSelect.appendChild(option);
-                            });
-
-                            transferStoreSelect.disabled = false;
-                            storeAvailabilityText.innerHTML = `<strong>${data.product_name}</strong> is available in ${data.stores.length} store(s)`;
-                        } else {
-                            transferStoreSelect.innerHTML = '<option value="">No stores have this product</option>';
-                            storeAvailabilityText.textContent = 'This product is not available in any other stores';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error loading stores:', error);
-                        transferStoreSelect.innerHTML = '<option value="">Error loading stores</option>';
-                        transferStoreSelect.disabled = false;
-                        storeAvailabilityText.textContent = 'Error loading store availability';
-                    });
-            } else {
-                // Reset when no product selected
-                transferStoreSelect.innerHTML = '<option value="">First select a product</option>';
-                transferStoreSelect.disabled = true;
-                storeAvailabilityText.textContent = 'Select a product to see which stores have it in stock';
-                if (transferQuantityInput) transferQuantityInput.removeAttribute('max');
-            }
-        });
-
-        // When store is selected, set max quantity
-        transferStoreSelect.addEventListener('change', function () {
-            const selectedOption = this.options[this.selectedIndex];
-
-            if (selectedOption.value && transferQuantityInput) {
-                const availableQuantity = selectedOption.getAttribute('data-available-quantity');
-                transferQuantityInput.max = availableQuantity;
-                transferQuantityInput.focus();
-                storeAvailabilityText.innerHTML = `Maximum available: <strong>${availableQuantity}</strong> units`;
-            } else if (transferQuantityInput) {
-                transferQuantityInput.removeAttribute('max');
-            }
-        });
-    });
-</script>
 {% endblock %}

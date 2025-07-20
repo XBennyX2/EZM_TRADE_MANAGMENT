@@ -1853,13 +1853,27 @@ def store_product_list(request):
 
     # Prepare product data with stock information
     product_data = []
+    in_stock_count = 0
+    low_stock_count = 0
+    out_of_stock_count = 0
+
     for stock in stock_queryset:
+        is_low_stock = stock.quantity <= stock.low_stock_threshold
+
+        # Count statistics
+        if stock.quantity == 0:
+            out_of_stock_count += 1
+        elif is_low_stock:
+            low_stock_count += 1
+        else:
+            in_stock_count += 1
+
         product_data.append({
             'product': stock.product,
             'quantity': stock.quantity,
             'selling_price': stock.selling_price,
             'low_stock_threshold': stock.low_stock_threshold,
-            'is_low_stock': stock.quantity <= stock.low_stock_threshold,
+            'is_low_stock': is_low_stock,
             'stock_id': stock.id
         })
 
@@ -1867,7 +1881,10 @@ def store_product_list(request):
         'product_data': product_data,
         'search_term': search_term,
         'store': store,
-        'total_products': len(product_data)
+        'total_products': len(product_data),
+        'in_stock_count': in_stock_count,
+        'low_stock_count': low_stock_count,
+        'out_of_stock_count': out_of_stock_count,
     }
     return render(request, 'store/product_list.html', context)
 

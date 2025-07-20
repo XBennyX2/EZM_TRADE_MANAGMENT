@@ -1,21 +1,102 @@
-{% extends 'base.html' %}
+{% extends 'base_sidebar.html' %}
 {% load static %}
 
 {% block title %}Store Products - {{ store.name }}{% endblock %}
+{% block page_title %}Store Products{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .ezm-card {
+        background: var(--white);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        border: none;
+        transition: all 0.3s ease;
+    }
+
+    .ezm-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    .btn-ezm-primary {
+        background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+        border: none;
+        color: white;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-ezm-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 252, 241, 0.4);
+        color: white;
+    }
+
+    .btn-ezm-secondary {
+        background: var(--secondary-dark);
+        border: none;
+        color: white;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 500;
+    }
+
+    .table th {
+        background: var(--secondary-dark);
+        color: white;
+        border: none;
+        font-weight: 600;
+    }
+
+    .search-card {
+        background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
+        color: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .search-card .form-control {
+        border: none;
+        border-radius: 8px;
+    }
+
+    .search-card .btn {
+        border-radius: 8px;
+    }
+
+    .product-stats {
+        background: var(--light-gray);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Header -->
+    <!-- Page Header -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h1 class="h3 mb-0">Store Products</h1>
-                    <p class="text-muted">{{ store.name }} - {{ total_products }} product{{ total_products|pluralize }}
-                    </p>
+                    <h1 class="h3 mb-0 text-gray-800">
+                        <i class="bi bi-box-seam text-primary me-2"></i>
+                        Store Products
+                    </h1>
+                    <p class="text-muted mb-0">{{ store.name }} - {{ total_products }} product{{
+                        total_products|pluralize }}</p>
                 </div>
                 <div>
-                    <a href="{% url 'store_manager_page' %}" class="btn btn-outline-primary">
+                    <a href="{% url 'store_manager_page' %}" class="btn btn-ezm-secondary">
                         <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
                     </a>
                 </div>
@@ -23,69 +104,121 @@
         </div>
     </div>
 
-    <!-- Search Section -->
+    <!-- Product Statistics -->
     <div class="row mb-4">
-        <div class="col-md-8">
-            <form method="get" class="d-flex">
-                <div class="input-group">
-                    <span class="input-group-text">
-                        <i class="bi bi-search"></i>
-                    </span>
-                    <input type="text" class="form-control"
-                        placeholder="Search by name, category, description, or batch number..." name="search"
-                        value="{{ search_term }}">
-                    <button class="btn btn-primary" type="submit">Search</button>
-                    {% if search_term %}
-                    <a href="{% url 'store_product_list' %}" class="btn btn-outline-secondary">
-                        <i class="bi bi-x-circle me-1"></i>Clear
-                    </a>
-                    {% endif %}
+        <div class="col-md-3">
+            <div class="ezm-card">
+                <div class="card-body text-center">
+                    <h3 class="text-primary">{{ total_products }}</h3>
+                    <p class="text-muted mb-0">Total Products</p>
                 </div>
-            </form>
+            </div>
         </div>
-        <div class="col-md-4 text-end">
-            {% if search_term %}
-            <small class="text-muted">
-                Showing results for "<strong>{{ search_term }}</strong>"
-            </small>
-            {% endif %}
+        <div class="col-md-3">
+            <div class="ezm-card">
+                <div class="card-body text-center">
+                    <h3 class="text-success">{{ in_stock_count|default:0 }}</h3>
+                    <p class="text-muted mb-0">In Stock</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="ezm-card">
+                <div class="card-body text-center">
+                    <h3 class="text-warning">{{ low_stock_count|default:0 }}</h3>
+                    <p class="text-muted mb-0">Low Stock</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="ezm-card">
+                <div class="card-body text-center">
+                    <h3 class="text-danger">{{ out_of_stock_count|default:0 }}</h3>
+                    <p class="text-muted mb-0">Out of Stock</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Section -->
+    <div class="search-card">
+        <div class="row">
+            <div class="col-md-8">
+                <form method="get" class="d-flex">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white">
+                            <i class="bi bi-search text-primary"></i>
+                        </span>
+                        <input type="text" class="form-control"
+                            placeholder="Search by name, category, description, or batch number..." name="search"
+                            value="{{ search_term }}">
+                        <button class="btn btn-light text-primary fw-bold" type="submit">Search</button>
+                        {% if search_term %}
+                        <a href="{% url 'store_product_list' %}" class="btn btn-outline-light">
+                            <i class="bi bi-x-circle me-1"></i>Clear
+                        </a>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+            <div class="col-md-4 d-flex align-items-center">
+                {% if search_term %}
+                <small class="text-white opacity-75">
+                    Showing results for "<strong>{{ search_term }}</strong>"
+                </small>
+                {% else %}
+                <small class="text-white opacity-75">
+                    Search through your store inventory
+                </small>
+                {% endif %}
+            </div>
         </div>
     </div>
 
     <!-- Products Table -->
-    <div class="card">
-        <div class="card-body">
+    <div class="ezm-card">
+        <div class="card-header bg-light border-0">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-list-ul me-2"></i>
+                    Product Inventory
+                </h5>
+                <small class="text-muted">{{ total_products }} items found</small>
+            </div>
+        </div>
+        <div class="card-body p-0">
             {% if product_data %}
             <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead class="table-light">
+                <table class="table table-hover mb-0">
+                    <thead>
                         <tr>
-                            <th>Product Details</th>
+                            <th class="ps-3">Product Details</th>
                             <th>Category</th>
                             <th>Pricing</th>
                             <th>Stock Status</th>
                             <th>Batch Info</th>
-                            <th>Actions</th>
+                            <th class="text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for item in product_data %}
-                        <tr class="{% if item.is_low_stock %}table-warning{% endif %}">
-                            <td>
+                        <tr
+                            class="{% if item.is_low_stock %}table-warning{% elif item.quantity == 0 %}table-danger{% endif %}">
+                            <td class="ps-3">
                                 <div>
-                                    <strong>{{ item.product.name }}</strong>
+                                    <strong class="d-block">{{ item.product.name }}</strong>
                                     {% if item.product.description %}
-                                    <br><small class="text-muted">{{ item.product.description|truncatewords:10
-                                        }}</small>
+                                    <small class="text-muted">{{ item.product.description|truncatewords:8 }}</small>
                                     {% endif %}
                                 </div>
                             </td>
                             <td>
-                                <span class="badge bg-secondary">{{ item.product.category }}</span>
+                                <span class="badge" style="background: var(--accent-teal); color: white;">{{
+                                    item.product.category }}</span>
                             </td>
                             <td>
                                 <div>
-                                    <strong>ETB {{ item.selling_price }}</strong>
+                                    <strong class="text-success">ETB {{ item.selling_price }}</strong>
                                     {% if item.product.price != item.selling_price %}
                                     <br><small class="text-muted">Cost: ETB {{ item.product.price }}</small>
                                     {% endif %}
@@ -94,27 +227,26 @@
                             <td>
                                 <div>
                                     <span
-                                        class="badge {% if item.quantity == 0 %}bg-danger{% elif item.is_low_stock %}bg-warning{% else %}bg-success{% endif %}">
+                                        class="badge {% if item.quantity == 0 %}bg-danger{% elif item.is_low_stock %}bg-warning text-dark{% else %}bg-success{% endif %}">
                                         {{ item.quantity }} units
                                     </span>
                                     {% if item.is_low_stock and item.quantity > 0 %}
-                                    <br><small class="text-warning">⚠️ Low Stock (Threshold: {{ item.low_stock_threshold
-                                        }})</small>
+                                    <br><small class="text-warning"><i class="bi bi-exclamation-triangle"></i> Low Stock
+                                        (Threshold: {{ item.low_stock_threshold }})</small>
                                     {% elif item.quantity == 0 %}
-                                    <br><small class="text-danger">❌ Out of Stock</small>
+                                    <br><small class="text-danger"><i class="bi bi-x-circle"></i> Out of Stock</small>
                                     {% endif %}
                                 </div>
                             </td>
                             <td>
                                 {% if item.product.batch_number %}
-                                <small class="text-info">Batch: {{ item.product.batch_number }}</small>
+                                <small class="text-info d-block">Batch: {{ item.product.batch_number }}</small>
                                 {% endif %}
                                 {% if item.product.expiry_date %}
-                                <br><small class="text-muted">Expires: {{ item.product.expiry_date|date:"M d, Y"
-                                    }}</small>
+                                <small class="text-muted">Expires: {{ item.product.expiry_date|date:"M d, Y" }}</small>
                                 {% endif %}
                             </td>
-                            <td>
+                            <td class="text-center">
                                 <div class="btn-group btn-group-sm" role="group">
                                     <button type="button" class="btn btn-outline-primary"
                                         onclick="viewProductDetails({{ item.product.id }})" title="View Details">
@@ -127,6 +259,13 @@
                                         <i class="bi bi-plus-circle"></i>
                                     </button>
                                     {% endif %}
+                                    {% if item.quantity > 0 %}
+                                    <button type="button" class="btn btn-outline-info"
+                                        onclick="requestTransfer({{ item.product.id }}, '{{ item.product.name }}')"
+                                        title="Request Transfer">
+                                        <i class="bi bi-arrow-left-right"></i>
+                                    </button>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>
@@ -136,7 +275,7 @@
             </div>
             {% else %}
             <div class="text-center py-5">
-                <i class="bi bi-box-seam display-1 text-muted"></i>
+                <i class="bi bi-box-seam display-1" style="color: var(--accent-teal);"></i>
                 <h4 class="text-muted mt-3">
                     {% if search_term %}
                     No products found matching "{{ search_term }}"
@@ -146,28 +285,65 @@
                 </h4>
                 <p class="text-muted">
                     {% if search_term %}
-                    Try adjusting your search terms or <a href="{% url 'store_product_list' %}">view all products</a>.
+                    Try adjusting your search terms or <a href="{% url 'store_product_list' %}"
+                        class="text-decoration-none" style="color: var(--accent-teal);">view all products</a>.
                     {% else %}
                     Contact your head manager to add products to your store.
                     {% endif %}
                 </p>
+                {% if not search_term %}
+                <a href="{% url 'store_manager_page' %}" class="btn btn-ezm-primary mt-3">
+                    <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+                </a>
+                {% endif %}
             </div>
             {% endif %}
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
     function viewProductDetails(productId) {
-        // You can implement a modal or redirect to product detail page
-        alert('Product details view - Product ID: ' + productId);
+        // Enhanced product details view
+        alert('Product details view - Product ID: ' + productId + '\n\nThis feature will show detailed product information including:\n- Full description\n- Stock history\n- Pricing details\n- Supplier information');
     }
 
     function requestRestock(productId, productName) {
-        if (confirm('Request restock for ' + productName + '?')) {
-            // Redirect to restock request page or open modal
+        if (confirm('Request restock for ' + productName + '?\n\nThis will redirect you to the restock request page where you can specify quantity and priority.')) {
+            // Redirect to restock request page
             window.location.href = '{% url "store_manager_restock_requests" %}';
         }
     }
+
+    function requestTransfer(productId, productName) {
+        if (confirm('Request transfer for ' + productName + '?\n\nThis will redirect you to the transfer request page where you can specify source store and quantity.')) {
+            // Redirect to transfer request page
+            window.location.href = '{% url "store_manager_transfer_requests" %}';
+        }
+    }
+
+    // Add some interactive enhancements
+    document.addEventListener('DOMContentLoaded', function () {
+        // Add hover effects to product rows
+        const productRows = document.querySelectorAll('tbody tr');
+        productRows.forEach(row => {
+            row.addEventListener('mouseenter', function () {
+                this.style.transform = 'translateX(5px)';
+                this.style.transition = 'transform 0.2s ease';
+            });
+
+            row.addEventListener('mouseleave', function () {
+                this.style.transform = 'translateX(0)';
+            });
+        });
+
+        // Auto-focus search input
+        const searchInput = document.querySelector('input[name="search"]');
+        if (searchInput && !searchInput.value) {
+            searchInput.focus();
+        }
+    });
 </script>
 {% endblock %}

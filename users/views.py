@@ -909,6 +909,18 @@ def store_sales_report(request):
     payment_method = request.GET.get('payment_method')
     export_format = request.GET.get('export')
 
+    # Get pagination parameters
+    page = request.GET.get('page', 1)
+    page_size = request.GET.get('page_size', 25)
+    try:
+        page = int(page)
+        page_size = int(page_size)
+        if page_size not in [10, 25, 50, 100]:
+            page_size = 25
+    except (ValueError, TypeError):
+        page = 1
+        page_size = 25
+
     # Set default date range (last 30 days)
     if not start_date or not end_date:
         end_date = timezone.now().date()
@@ -1036,9 +1048,53 @@ def store_sales_report(request):
         suppliers.add(item['supplier'])
         products.add((item['product_name'], item['product_sku']))
 
+    # Pre-process chart data to avoid large JavaScript generation
+    from collections import defaultdict
+    import json
+
+    # Process sales trend data
+    sales_by_date = defaultdict(float)
+    payment_methods = defaultdict(float)
+
+    for item in sales_data:
+        # Sales trend data
+        date_key = item['sale_date'].strftime('%Y-%m-%d')
+        sales_by_date[date_key] += float(item['line_total'])
+
+        # Payment method data
+        payment_methods[item['payment_method']] += float(item['line_total'])
+
+    # Prepare chart data
+    chart_data = {
+        'sales_trend': {
+            'labels': sorted(sales_by_date.keys()),
+            'data': [sales_by_date[date] for date in sorted(sales_by_date.keys())]
+        },
+        'payment_methods': {
+            'labels': [method.title() for method in payment_methods.keys()],
+            'data': list(payment_methods.values())
+        }
+    }
+
+    # Implement pagination for sales data
+    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+
+    paginator = Paginator(sales_data, page_size)
+    try:
+        paginated_sales_data = paginator.page(page)
+    except PageNotAnInteger:
+        paginated_sales_data = paginator.page(1)
+    except EmptyPage:
+        paginated_sales_data = paginator.page(paginator.num_pages)
+
     context = {
         'store': store,
-        'sales_data': sales_data,
+        'sales_data': paginated_sales_data,
+        'paginator': paginator,
+        'page_obj': paginated_sales_data,
+        'total_sales_count': len(sales_data),
+        'page_size': page_size,
+        'chart_data': json.dumps(chart_data),
         'start_date': start_date,
         'end_date': end_date,
         'total_revenue': total_revenue,

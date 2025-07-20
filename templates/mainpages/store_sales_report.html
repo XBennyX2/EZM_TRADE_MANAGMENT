@@ -3,12 +3,16 @@
 {% load analytics_extras %}
 
 {% block title %}Sales Report - {{ store.name }}{% endblock %}
+{% block page_title %}Sales Report{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
 
 {% block extra_css %}
 <style>
     .sales-report-container {
         background: linear-gradient(135deg, #0B0C10 0%, #1F2833 100%);
-        min-height: 100vh;
         padding: 20px;
     }
 
@@ -160,12 +164,207 @@
         padding: 25px;
         border: 1px solid rgba(102, 252, 241, 0.2);
         overflow-x: auto;
+        margin-bottom: 20px;
+    }
+
+    .table-wrapper {
+        max-height: 500px;
+        overflow-y: auto;
+        border-radius: 10px;
+        border: 1px solid rgba(102, 252, 241, 0.2);
+        background: rgba(255, 255, 255, 0.02);
+        position: relative;
+    }
+
+    /* Dynamic height based on content */
+    .table-wrapper table {
+        min-height: auto;
+    }
+
+    /* Ensure table doesn't create unnecessary space */
+    .table-wrapper:empty {
+        display: none;
+    }
+
+    .table-wrapper::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .table-wrapper::-webkit-scrollbar-track {
+        background: rgba(27, 40, 51, 0.5);
+        border-radius: 4px;
+    }
+
+    .table-wrapper::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, #45A29E 0%, #66FCF1 100%);
+        border-radius: 4px;
+    }
+
+    .table-wrapper::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(135deg, #66FCF1 0%, #45A29E 100%);
+    }
+
+    /* Responsive table height */
+    @media (max-height: 800px) {
+        .table-wrapper {
+            max-height: 400px;
+        }
+    }
+
+    @media (max-height: 600px) {
+        .table-wrapper {
+            max-height: 300px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .table-wrapper {
+            max-height: 350px;
+        }
+    }
+
+    .pagination-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 20px;
+        padding: 15px 0;
+        border-top: 1px solid rgba(102, 252, 241, 0.2);
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+
+    .pagination-info {
+        color: #C5C6C7;
+        font-size: 0.9rem;
+        min-width: 150px;
+    }
+
+    .pagination-controls {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .pagination-btn {
+        background: linear-gradient(135deg, #45A29E 0%, #66FCF1 100%);
+        color: #0B0C10;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 0.9rem;
+        min-width: 40px;
+        text-align: center;
+    }
+
+    .pagination-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 3px 10px rgba(69, 162, 158, 0.4);
+        color: #0B0C10;
+        text-decoration: none;
+    }
+
+    .pagination-btn:disabled {
+        background: rgba(197, 198, 199, 0.3);
+        color: rgba(197, 198, 199, 0.6);
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    .pagination-btn.current {
+        background: #66FCF1;
+        color: #0B0C10;
+        font-weight: bold;
+        box-shadow: 0 2px 8px rgba(102, 252, 241, 0.3);
+    }
+
+    .page-size-selector {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #C5C6C7;
+        font-size: 0.9rem;
+    }
+
+    .page-size-select {
+        background: rgba(255, 255, 255, 0.1);
+        color: #C5C6C7;
+        border: 1px solid rgba(102, 252, 241, 0.3);
+        border-radius: 6px;
+        padding: 5px 10px;
+        font-size: 0.9rem;
+    }
+
+    @media (max-width: 768px) {
+        .pagination-container {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+        }
+
+        .pagination-controls {
+            justify-content: center;
+        }
+
+        .pagination-info {
+            text-align: center;
+            min-width: auto;
+        }
     }
 
     .data-table {
         width: 100%;
         border-collapse: collapse;
-        margin-top: 20px;
+        margin: 0;
+        min-width: 800px;
+        /* Ensure table doesn't get too cramped */
+    }
+
+    /* Responsive table adjustments */
+    @media (max-width: 1200px) {
+        .data-table {
+            font-size: 0.9rem;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 8px 6px;
+        }
+    }
+
+    @media (max-width: 992px) {
+        .data-table {
+            font-size: 0.8rem;
+            min-width: 700px;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 6px 4px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .data-table {
+            font-size: 0.75rem;
+            min-width: 600px;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 4px 3px;
+        }
+
+        .data-table-container {
+            padding: 15px;
+        }
     }
 
     .data-table th {
@@ -289,9 +488,7 @@
                     <select name="category" class="filter-input">
                         <option value="">All Categories</option>
                         {% for category in categories %}
-                        <option value="{{ category }}" {% if category==selected_category %}selected{% endif %}>
-                            {{ category }}
-                        </option>
+                        <option value="{{ category }}">{{ category }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -299,11 +496,9 @@
                     <label class="filter-label">Payment Method</label>
                     <select name="payment_method" class="filter-input">
                         <option value="">All Methods</option>
-                        <option value="cash" {% if selected_payment_method=='cash' %}selected{% endif %}>Cash</option>
-                        <option value="mobile" {% if selected_payment_method=='mobile' %}selected{% endif %}>Mobile
-                            Banking</option>
-                        <option value="bank" {% if selected_payment_method=='bank' %}selected{% endif %}>Bank Transfer
-                        </option>
+                        <option value="cash">Cash</option>
+                        <option value="mobile">Mobile Banking</option>
+                        <option value="bank">Bank Transfer</option>
                     </select>
                 </div>
                 <div class="filter-group">
@@ -342,7 +537,6 @@
                 <h4 style="color: #66FCF1; margin-bottom: 20px;">
                     <i class="bi bi-graph-up me-2"></i>Sales Trend
                 </h4>
-                <canvas id="salesTrendChart" width="400" height="200"></canvas>
             </div>
         </div>
         <div class="col-lg-6 mb-4">
@@ -350,7 +544,6 @@
                 <h4 style="color: #66FCF1; margin-bottom: 20px;">
                     <i class="bi bi-pie-chart me-2"></i>Payment Methods
                 </h4>
-                <canvas id="paymentMethodChart" width="400" height="200"></canvas>
             </div>
         </div>
     </div>
@@ -388,7 +581,11 @@
         <div class="export-section">
             <div class="table-info">
                 <i class="bi bi-info-circle me-2"></i>
+                {% if page_obj %}
+                Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ total_sales_count }} sales records
+                {% else %}
                 Showing {{ sales_data|length }} sales records
+                {% endif %}
             </div>
             <div class="export-buttons">
                 <a href="?{{ request.GET.urlencode }}&export=pdf" class="btn-export">
@@ -400,8 +597,8 @@
             </div>
         </div>
 
-        {% if sales_data %}
-        <div style="max-height: 600px; overflow-y: auto;">
+        {% if page_obj %}
+        <div class="table-wrapper">
             <table class="data-table">
                 <thead>
                     <tr>
@@ -421,7 +618,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for item in sales_data %}
+                    {% for item in page_obj %}
                     <tr>
                         <td>{{ item.sale_date|date:"M d, Y H:i" }}</td>
                         <td>{{ item.product_name|truncatechars:25 }}</td>
@@ -445,6 +642,7 @@
                 </tbody>
             </table>
         </div>
+
         {% else %}
         <div class="no-data">
             <i class="bi bi-inbox display-1 mb-3" style="color: #45A29E;"></i>
@@ -455,150 +653,216 @@
     </div>
 </div>
 {% endblock %}
+{% comment %}
+<!-- Pagination Controls -->
+{% if page_obj and paginator.num_pages > 1 %}
+<div class="pagination-container">
+    <div class="pagination-info">
+        Page {{ page_obj.number }} of {{ paginator.num_pages }}
+    </div>
+
+    <div class="pagination-controls">
+        <!-- Page Size Selector -->
+        <div class="page-size-selector">
+            <label for="page-size">Show:</label>
+            <select id="page-size" class="page-size-select" onchange="changePageSize(this.value)">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+            <span>per page</span>
+        </div>
+
+        <!-- Previous Button -->
+        {% if page_obj.has_previous %}
+        <a href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page=1"
+            class="pagination-btn" title="First Page">
+            <i class="bi bi-chevron-double-left"></i>
+        </a>
+        <a href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}"
+            class="pagination-btn" title="Previous Page">
+            <i class="bi bi-chevron-left"></i>
+        </a>
+        {% else %}
+        <button class="pagination-btn" disabled title="First Page">
+            <i class="bi bi-chevron-double-left"></i>
+        </button>
+        <button class="pagination-btn" disabled title="Previous Page">
+            <i class="bi bi-chevron-left"></i>
+        </button>
+        {% endif %}
+
+        <!-- Page Numbers -->
+        {% for num in paginator.page_range %}
+        {% if page_obj.number == num %}
+        <span class="pagination-btn current">{{ num }}</span>
+        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %} <a
+            href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}"
+            class="pagination-btn">{{ num }}</a>
+            {% endif %}
+            {% endfor %}
+
+            <!-- Next Button -->
+            {% if page_obj.has_next %}
+            <a href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}"
+                class="pagination-btn" title="Next Page">
+                <i class="bi bi-chevron-right"></i>
+            </a>
+            <a href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ paginator.num_pages }}"
+                class="pagination-btn" title="Last Page">
+                <i class="bi bi-chevron-double-right"></i>
+            </a>
+            {% else %}
+            <button class="pagination-btn" disabled title="Next Page">
+                <i class="bi bi-chevron-right"></i>
+            </button>
+            <button class="pagination-btn" disabled title="Last Page">
+                <i class="bi bi-chevron-double-right"></i>
+            </button>
+            {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endcomment %}
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         // Initialize charts
-        initializeSalesTrendChart();
-        initializePaymentMethodChart();
 
         // Auto-submit form when date inputs change
-        const dateInputs = document.querySelectorAll('input[type="date"]');
-        dateInputs.forEach(input => {
-            input.addEventListener('change', function () {
-                // Optional: Auto-submit on date change
-                // this.form.submit();
-            });
-        });
     });
 
     function initializeSalesTrendChart() {
         const ctx = document.getElementById('salesTrendChart');
         if (!ctx) return;
 
-        // Prepare data from sales_data
-        const salesByDate = {};
-        {% for item in sales_data %}
-        const date = '{{ item.sale_date|date:"Y-m-d" }}';
-        if (!salesByDate[date]) {
-            salesByDate[date] = 0;
-        }
-        salesByDate[date] += {{ item.line_total }
-    };
-    {% endfor %}
+        // Get pre-processed chart data from server
+        try {
+            const chartDataRaw = '{{ chart_data|escapejs }}';
+            const chartData = JSON.parse(chartDataRaw);
+            const salesTrendData = chartData.sales_trend;
+            const sortedDates = salesTrendData.labels;
+            const salesValues = salesTrendData.data;
 
-    const sortedDates = Object.keys(salesByDate).sort();
-    const salesValues = sortedDates.map(date => salesByDate[date]);
-
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: sortedDates,
-            datasets: [{
-                label: 'Daily Sales (ETB)',
-                data: salesValues,
-                borderColor: '#66FCF1',
-                backgroundColor: 'rgba(102, 252, 241, 0.1)',
-                tension: 0.4,
-                fill: true,
-                pointBackgroundColor: '#66FCF1',
-                pointBorderColor: '#45A29E',
-                pointHoverBackgroundColor: '#45A29E',
-                pointHoverBorderColor: '#66FCF1'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    labels: {
-                        color: '#C5C6C7'
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    ticks: {
-                        color: '#C5C6C7'
-                    },
-                    grid: {
-                        color: 'rgba(197, 198, 199, 0.1)'
-                    }
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sortedDates,
+                    datasets: [{
+                        label: 'Daily Sales (ETB)',
+                        data: salesValues,
+                        borderColor: '#66FCF1',
+                        backgroundColor: 'rgba(102, 252, 241, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: '#66FCF1',
+                        pointBorderColor: '#45A29E',
+                        pointHoverBackgroundColor: '#45A29E',
+                        pointHoverBorderColor: '#66FCF1'
+                    }]
                 },
-                y: {
-                    ticks: {
-                        color: '#C5C6C7',
-                        callback: function (value) {
-                            return 'ETB ' + value.toLocaleString();
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#C5C6C7'
+                            }
                         }
                     },
-                    grid: {
-                        color: 'rgba(197, 198, 199, 0.1)'
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: '#C5C6C7'
+                            },
+                            grid: {
+                                color: 'rgba(197, 198, 199, 0.1)'
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                color: '#C5C6C7',
+                                callback: function (value) {
+                                    return 'ETB ' + value.toLocaleString();
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(197, 198, 199, 0.1)'
+                            }
+                        }
                     }
                 }
-            }
+            });
+        } catch (error) {
+            console.error('Error initializing sales trend chart:', error);
         }
-    });
     }
 
     function initializePaymentMethodChart() {
         const ctx = document.getElementById('paymentMethodChart');
         if (!ctx) return;
 
-        // Prepare payment method data
-        const paymentMethods = {};
-        {% for item in sales_data %}
-        const method = '{{ item.payment_method }}';
-        if (!paymentMethods[method]) {
-            paymentMethods[method] = 0;
-        }
-        paymentMethods[method] += {{ item.line_total }
-    };
-    {% endfor %}
+        // Get pre-processed payment method data
+        try {
+            const chartDataRaw = '{{ chart_data|escapejs }}';
+            const chartData = JSON.parse(chartDataRaw);
+            const paymentMethodData = chartData.payment_methods;
+            const labels = paymentMethodData.labels;
+            const data = paymentMethodData.data;
+            const colors = ['#66FCF1', '#45A29E', '#C5C6C7', '#1F2833'];
 
-    const labels = Object.keys(paymentMethods).map(method => method.charAt(0).toUpperCase() + method.slice(1));
-    const data = Object.values(paymentMethods);
-    const colors = ['#66FCF1', '#45A29E', '#C5C6C7', '#1F2833'];
-
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: data,
-                backgroundColor: colors,
-                borderColor: '#0B0C10',
-                borderWidth: 2,
-                hoverBorderWidth: 3
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        color: '#C5C6C7',
-                        padding: 20,
-                        usePointStyle: true
-                    }
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors,
+                        borderColor: '#0B0C10',
+                        borderWidth: 2,
+                        hoverBorderWidth: 3
+                    }]
                 },
-                tooltip: {
-                    callbacks: {
-                        label: function (context) {
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((context.parsed / total) * 100).toFixed(1);
-                            return context.label + ': ETB ' + context.parsed.toLocaleString() + ' (' + percentage + '%)';
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#C5C6C7',
+                                padding: 20,
+                                usePointStyle: true
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                    return context.label + ': ETB ' + context.parsed.toLocaleString() + ' (' + percentage + '%)';
+                                }
+                            }
                         }
                     }
                 }
-            }
+            });
+        } catch (error) {
+            console.error('Error initializing payment method chart:', error);
         }
-    });
+    }
+
+    // Function to change page size
+    function changePageSize(newSize) {
+        const url = new URL(window.location);
+        url.searchParams.set('page_size', newSize);
+        url.searchParams.set('page', '1'); // Reset to first page
+        console.log('changePageSize called with newSize:', newSize);
+        window.location.href = url.toString();
     }
 </script>
 {% endblock %}

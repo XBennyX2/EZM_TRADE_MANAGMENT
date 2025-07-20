@@ -1748,6 +1748,135 @@ def assign_cashier(request, store_id=None):
 
 
 @login_required
+def create_cashier(request):
+    """
+    Store manager creates a new cashier account
+    """
+    if request.user.role != 'store_manager':
+        messages.error(request, "Access denied. Store manager role required.")
+        return redirect('login')
+
+    try:
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, "You are not assigned to manage any store.")
+        return redirect('store_manager_page')
+
+    if request.method == 'POST':
+        # Get form data
+        username = request.POST.get('username', '').strip()
+        first_name = request.POST.get('first_name', '').strip()
+        last_name = request.POST.get('last_name', '').strip()
+        email = request.POST.get('email', '').strip()
+        phone_number = request.POST.get('phone_number', '').strip()
+        password = request.POST.get('password', '').strip()
+        confirm_password = request.POST.get('confirm_password', '').strip()
+
+        # Validation
+        errors = []
+        if not username:
+            errors.append("Username is required.")
+        elif CustomUser.objects.filter(username=username).exists():
+            errors.append("Username already exists.")
+
+        if not email:
+            errors.append("Email is required.")
+        elif CustomUser.objects.filter(email=email).exists():
+            errors.append("Email already exists.")
+
+        if not password:
+            errors.append("Password is required.")
+        elif len(password) < 8:
+            errors.append("Password must be at least 8 characters long.")
+        elif password != confirm_password:
+            errors.append("Passwords do not match.")
+
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            return render(request, 'store/create_cashier.html', {'store': store})
+
+        # Create cashier
+        try:
+            cashier = CustomUser.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name,
+                phone_number=phone_number,
+                role='cashier',
+                store=store,
+                is_first_login=True
+            )
+
+            # Create StoreCashier record
+            StoreCashier.objects.create(
+                store=store,
+                cashier=cashier,
+                is_active=True
+            )
+
+            messages.success(request, f"Successfully created cashier account for {cashier.get_full_name() or cashier.username}")
+            return redirect('manage_cashiers')
+
+        except Exception as e:
+            messages.error(request, f"Error creating cashier: {str(e)}")
+
+    context = {
+        'store': store,
+    }
+    return render(request, 'store/create_cashier.html', context)
+
+
+@login_required
+def edit_cashier(request, cashier_id):
+    """
+    Store manager edits a cashier's information
+    """
+    if request.user.role != 'store_manager':
+        messages.error(request, "Access denied. Store manager role required.")
+        return redirect('login')
+
+    try:
+        store = Store.objects.get(store_manager=request.user)
+        cashier = get_object_or_404(CustomUser, id=cashier_id, store=store, role='cashier')
+    except Store.DoesNotExist:
+        messages.error(request, "You are not assigned to manage any store.")
+        return redirect('store_manager_page')
+
+    if request.method == 'POST':
+        # Update cashier information
+        first_name = request.POST.get('first_name', '').strip()
+        last_name = request.POST.get('last_name', '').strip()
+        email = request.POST.get('email', '').strip()
+        phone_number = request.POST.get('phone_number', '').strip()
+        is_active = request.POST.get('is_active') == 'on'
+
+        # Validate email uniqueness
+        if email and CustomUser.objects.filter(email=email).exclude(id=cashier.id).exists():
+            messages.error(request, "A user with this email already exists.")
+            return render(request, 'store/edit_cashier.html', {'cashier': cashier, 'store': store})
+
+        # Update cashier
+        cashier.first_name = first_name
+        cashier.last_name = last_name
+        cashier.email = email
+        cashier.phone_number = phone_number
+        cashier.is_active = is_active
+        cashier.save()
+
+        messages.success(request, f"Successfully updated {cashier.get_full_name() or cashier.username}'s information.")
+        return redirect('manage_cashiers')
+
+    context = {
+        'cashier': cashier,
+        'store': store,
+    }
+    return render(request, 'store/edit_cashier.html', context)
+
+
+@login_required
 def remove_cashier(request, cashier_id):
     """
     Store manager removes a cashier from their store

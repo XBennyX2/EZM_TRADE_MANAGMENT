@@ -12,15 +12,112 @@ from django.conf import settings
 from django.utils import timezone
 from typing import Dict, List, Optional, Tuple
 
+# SendGrid imports (optional)
+try:
+    from sendgrid import SendGridAPIClient
+    from sendgrid.helpers.mail import Mail, From, To, Subject, PlainTextContent, HtmlContent
+    SENDGRID_AVAILABLE = True
+except ImportError:
+    SENDGRID_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 class EZMEmailService:
     """Enhanced email service with comprehensive error handling and logging"""
-    
+
     def __init__(self):
         self.from_email = settings.DEFAULT_FROM_EMAIL
         self.company_name = "EZM Trade Management"
-        
+        self.sendgrid_api_key = getattr(settings, 'SENDGRID_API_KEY', None)
+        self.use_sendgrid_api = SENDGRID_AVAILABLE and self.sendgrid_api_key
+
+        if self.use_sendgrid_api:
+            self.sendgrid_client = SendGridAPIClient(api_key=self.sendgrid_api_key)
+            logger.info("SendGrid API client initialized")
+        else:
+            logger.info("Using Django SMTP backend for email")
+
+    def _send_email_via_sendgrid_api(self, to_email: str, subject: str, plain_content: str, html_content: str = None) -> Tuple[bool, str]:
+        """Send email using SendGrid API directly"""
+        try:
+            from_email = From(self.from_email, self.company_name)
+            to_email_obj = To(to_email)
+            subject_obj = Subject(subject)
+            plain_text_content = PlainTextContent(plain_content)
+
+            # Create mail object
+            if html_content:
+                html_content_obj = HtmlContent(html_content)
+                mail = Mail(from_email, to_email_obj, subject_obj, plain_text_content, html_content_obj)
+            else:
+                mail = Mail(from_email, to_email_obj, subject_obj, plain_text_content)
+
+            # Send email
+            response = self.sendgrid_client.send(mail)
+
+            if response.status_code in [200, 201, 202]:
+                logger.info(f"SendGrid API email sent successfully to {to_email} (status: {response.status_code})")
+                return True, f"Email sent successfully via SendGrid API"
+            else:
+                logger.error(f"SendGrid API error: {response.status_code} - {response.body}")
+                return False, f"SendGrid API error: {response.status_code}"
+
+        except Exception as e:
+            logger.error(f"SendGrid API exception: {e}")
+            return False, f"SendGrid API exception: {e}"
+
+    def _send_email_via_smtp(self, to_email: str, subject: str, plain_content: str, html_content: str = None) -> Tuple[bool, str]:
+        """Send email using Django SMTP backend with network error handling"""
+        try:
+            if html_content:
+                # Send HTML email with plain text fallback
+                msg = EmailMultiAlternatives(
+                    subject=subject,
+                    body=plain_content,
+                    from_email=self.from_email,
+                    to=[to_email]
+                )
+                msg.attach_alternative(html_content, "text/html")
+                msg.send()
+            else:
+                # Send plain text email
+                send_mail(
+                    subject=subject,
+                    message=plain_content,
+                    from_email=self.from_email,
+                    recipient_list=[to_email],
+                    fail_silently=False
+                )
+
+            logger.info(f"SMTP email sent successfully to {to_email}")
+            return True, f"Email sent successfully via SMTP"
+
+        except ConnectionError as e:
+            logger.error(f"SMTP connection error: {e}")
+            return False, f"Network connection error: {e}"
+        except OSError as e:
+            if "Network is unreachable" in str(e):
+                logger.error(f"Network unreachable: {e}")
+                return False, f"Network unreachable - check internet connection"
+            else:
+                logger.error(f"SMTP OS error: {e}")
+                return False, f"SMTP OS error: {e}"
+        except Exception as e:
+            logger.error(f"SMTP email exception: {e}")
+            return False, f"SMTP email exception: {e}"
+
+    def send_email(self, to_email: str, subject: str, plain_content: str, html_content: str = None) -> Tuple[bool, str]:
+        """Universal email sending method that tries SendGrid API first, then falls back to SMTP"""
+        if self.use_sendgrid_api:
+            success, message = self._send_email_via_sendgrid_api(to_email, subject, plain_content, html_content)
+            if success:
+                return success, message
+            else:
+                logger.warning(f"SendGrid API failed, falling back to SMTP: {message}")
+
+        # Fallback to SMTP
+        return self._send_email_via_smtp(to_email, subject, plain_content, html_content)
+
     def send_user_creation_email(self, user, password: str) -> Tuple[bool, str]:
         """
         Send welcome email to newly created user with login credentials
@@ -70,29 +167,14 @@ Best regards,
             except Exception as template_error:
                 logger.warning(f"HTML template not found for user creation email: {template_error}")
             
-            # Send email
-            if html_content:
-                # Send HTML email with plain text fallback
-                msg = EmailMultiAlternatives(
-                    subject=subject,
-                    body=message,
-                    from_email=self.from_email,
-                    to=[user.email]
-                )
-                msg.attach_alternative(html_content, "text/html")
-                msg.send()
+            # Send email using universal method
+            success, message_result = self.send_email(user.email, subject, message, html_content)
+
+            if success:
+                logger.info(f"User creation email sent successfully to {user.email} for user {user.username}")
+                return True, f"Welcome email sent to {user.email}"
             else:
-                # Send plain text email
-                send_mail(
-                    subject=subject,
-                    message=message,
-                    from_email=self.from_email,
-                    recipient_list=[user.email],
-                    fail_silently=False
-                )
-            
-            logger.info(f"User creation email sent successfully to {user.email} for user {user.username}")
-            return True, f"Welcome email sent to {user.email}"
+                return False, message_result
             
         except Exception as e:
             error_msg = f"Failed to send user creation email to {user.email}: {str(e)}"
@@ -341,29 +423,14 @@ Best regards,
             except Exception as template_error:
                 logger.warning(f"HTML template not found for account reset email: {template_error}")
 
-            # Send email to the new temporary email
-            if html_content:
-                # Send HTML email with plain text fallback
-                msg = EmailMultiAlternatives(
-                    subject=subject,
-                    body=message,
-                    from_email=self.from_email,
-                    to=[user.email]  # Send to new temporary email
-                )
-                msg.attach_alternative(html_content, "text/html")
-                msg.send()
-            else:
-                # Send plain text email
-                send_mail(
-                    subject=subject,
-                    message=message,
-                    from_email=self.from_email,
-                    recipient_list=[user.email],  # Send to new temporary email
-                    fail_silently=False
-                )
+            # Send email using universal method
+            success, message_result = self.send_email(user.email, subject, message, html_content)
 
-            logger.info(f"Account reset email sent successfully to {user.email}")
-            return True, f"Account reset email sent to {user.email}"
+            if success:
+                logger.info(f"Account reset email sent successfully to {user.email}")
+                return True, f"Account reset email sent to {user.email}"
+            else:
+                return False, message_result
 
         except Exception as e:
             logger.error(f"Failed to send account reset email to {user.email}: {e}")

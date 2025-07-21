@@ -14,6 +14,9 @@ from django.db import models
 from django.db.models import Sum, Count, Avg, F, Q
 from django.utils import timezone
 from datetime import datetime, timedelta
+import logging
+
+logger = logging.getLogger(__name__)
 from decimal import Decimal
 import json
 import logging
@@ -85,12 +88,19 @@ def login_view(request):
 
     if request.method == 'POST':
         form = CustomLoginForm(data=request.POST)
+        username_attempted = request.POST.get('username', '')
+
         if form.is_valid():
             user = form.get_user()
 
             if not user.is_active:
+                # Log failed login due to inactive account
+                log_login_attempt(request, username_attempted, user, 'failed', 'Account inactive')
                 messages.error(request, "Your account is inactive. Please contact the administrator.")
                 return redirect('login')
+
+            # Log successful login
+            log_login_attempt(request, username_attempted, user, 'success')
 
             login(request, user)
             if user.is_first_login:
@@ -116,6 +126,8 @@ def login_view(request):
                     messages.warning(request, "No role assigned. Contact admin.")
                     return redirect('login')
         else:
+            # Log failed login attempt
+            log_login_attempt(request, username_attempted, None, 'failed', 'Invalid credentials')
             messages.error(request, "Invalid email or password.")
     else:
         form = CustomLoginForm()
@@ -129,6 +141,7 @@ def logout_view(request):
     return redirect('login')
 
 from django.contrib.auth import get_user_model
+from .models import LoginLog, AccountReset
 
 User = get_user_model()
 @login_required
@@ -2225,8 +2238,116 @@ from decimal import Decimal
 import csv
 import io
 
+def get_client_ip(request):
+    """Get the client's IP address from the request"""
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
+
+
+def log_login_attempt(request, username_attempted, user=None, status='failed', failure_reason=''):
+    """Log login attempt for admin audit purposes"""
+    try:
+        LoginLog.objects.create(
+            user=user,
+            username_attempted=username_attempted,
+            login_status=status,
+            ip_address=get_client_ip(request),
+            user_agent=request.META.get('HTTP_USER_AGENT', ''),
+            user_role=user.role if user else '',
+            failure_reason=failure_reason
+        )
+    except Exception as e:
+        # Don't let logging errors break the login process
+        logger.error(f"Failed to log login attempt: {e}")
+        pass
+
+
 def is_admin(user):
     return user.is_authenticated and (user.is_superuser or user.role == 'admin')
+
+@user_passes_test(is_admin)
+def admin_login_logs(request):
+    """Admin page to view login logs with filtering and sorting"""
+    search_query = request.GET.get('search', '')
+    status_filter = request.GET.get('status', '')
+    role_filter = request.GET.get('role', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    sort_by = request.GET.get('sort', '-login_timestamp')
+    page_number = request.GET.get('page')
+
+    # Get all login logs
+    logs = LoginLog.objects.all().select_related('user')
+
+    # Apply filters
+    if search_query:
+        logs = logs.filter(
+            Q(username_attempted__icontains=search_query) |
+            Q(user__first_name__icontains=search_query) |
+            Q(user__last_name__icontains=search_query) |
+            Q(ip_address__icontains=search_query)
+        )
+
+    if status_filter:
+        logs = logs.filter(login_status=status_filter)
+
+    if role_filter:
+        logs = logs.filter(user_role=role_filter)
+
+    if date_from:
+        try:
+            from_date = datetime.strptime(date_from, '%Y-%m-%d')
+            logs = logs.filter(login_timestamp__gte=from_date)
+        except ValueError:
+            pass
+
+    if date_to:
+        try:
+            to_date = datetime.strptime(date_to, '%Y-%m-%d')
+            # Add one day to include the entire day
+            to_date = to_date.replace(hour=23, minute=59, second=59)
+            logs = logs.filter(login_timestamp__lte=to_date)
+        except ValueError:
+            pass
+
+    # Apply sorting
+    valid_sort_fields = ['login_timestamp', '-login_timestamp', 'username_attempted',
+                        '-username_attempted', 'login_status', '-login_status',
+                        'user_role', '-user_role']
+    if sort_by in valid_sort_fields:
+        logs = logs.order_by(sort_by)
+    else:
+        logs = logs.order_by('-login_timestamp')
+
+    # Pagination
+    paginator = Paginator(logs, 25)  # Show 25 logs per page
+    page_obj = paginator.get_page(page_number)
+
+    # Get statistics
+    total_logs = logs.count()
+    successful_logs = logs.filter(login_status='success').count()
+    failed_logs = logs.filter(login_status='failed').count()
+
+    context = {
+        'page_obj': page_obj,
+        'total_logs': total_logs,
+        'successful_logs': successful_logs,
+        'failed_logs': failed_logs,
+        'search_query': search_query,
+        'status_filter': status_filter,
+        'role_filter': role_filter,
+        'date_from': date_from,
+        'date_to': date_to,
+        'sort_by': sort_by,
+        'role_choices': CustomUser.ROLE_CHOICES,
+    }
+
+    return render(request, 'admin/login_logs.html', context)
+
 
 @user_passes_test(is_admin)
 def manage_users(request):
@@ -2363,6 +2484,90 @@ def change_user_role(request, user_id):
     else:
         form = ChangeUserRoleForm(instance=target_user)
     return render(request, 'admin/change_user_role.html', {'form': form, 'target_user': target_user})
+
+@user_passes_test(is_admin)
+def reset_user_account(request, user_id):
+    """Reset user account with new temporary credentials"""
+    target_user = get_object_or_404(User, id=user_id)
+
+    # Prevent admin from resetting their own account
+    if target_user == request.user:
+        messages.error(request, "You cannot reset your own account.")
+        return redirect('manage_users')
+
+    # Prevent resetting superuser accounts by non-superusers
+    if target_user.is_superuser and not request.user.is_superuser:
+        messages.error(request, "You cannot reset a superuser account.")
+        return redirect('manage_users')
+
+    if request.method == 'POST':
+        reset_reason = request.POST.get('reset_reason', '')
+
+        try:
+            # Store old email for audit trail
+            old_email = target_user.email
+
+            # Generate new temporary credentials
+            import secrets
+            import string
+
+            # Generate temporary email
+            timestamp = timezone.now().strftime('%Y%m%d%H%M%S')
+            temp_email = f"temp_{target_user.username}_{timestamp}@ezm-temp.local"
+
+            # Generate temporary password
+            alphabet = string.ascii_letters + string.digits
+            temp_password = ''.join(secrets.choice(alphabet) for i in range(12))
+
+            # Update user account
+            target_user.email = temp_email
+            target_user.set_password(temp_password)
+            target_user.is_first_login = True
+            target_user.is_active = True
+            target_user.save()
+
+            # Create account reset record
+            AccountReset.objects.create(
+                user=target_user,
+                reset_by=request.user,
+                old_email=old_email,
+                new_email=temp_email,
+                temporary_password=target_user.password,  # Store hashed password
+                reset_reason=reset_reason
+            )
+
+            # Log the account reset as a login log entry
+            log_login_attempt(request, temp_email, target_user, 'success', f'Account reset by {request.user.username}')
+
+            # Send email notification with new credentials
+            from .email_service import EZMEmailService
+            email_service = EZMEmailService()
+
+            success, message = email_service.send_account_reset_email(
+                target_user, temp_password, old_email, request.user
+            )
+
+            if success:
+                messages.success(request,
+                    f"Account for '{target_user.username}' has been reset successfully. "
+                    f"New credentials have been sent to {temp_email}.")
+            else:
+                messages.warning(request,
+                    f"Account reset completed but email notification failed: {message}. "
+                    f"Temporary email: {temp_email}, Password: {temp_password}")
+
+            return redirect('manage_users')
+
+        except Exception as e:
+            messages.error(request, f"Error resetting account: {e}")
+            return redirect('manage_users')
+
+    # For GET requests, show confirmation form
+    context = {
+        'target_user': target_user,
+    }
+    return render(request, 'admin/reset_user_account.html', context)
+
 
 @user_passes_test(is_admin)
 def delete_user(request, user_id):

@@ -280,6 +280,95 @@ Best regards,
             logger.error(error_msg)
             return False, error_msg
     
+    def send_account_reset_email(self, user, temporary_password: str, old_email: str, reset_by_user) -> Tuple[bool, str]:
+        """
+        Send account reset notification email with new temporary credentials
+
+        Args:
+            user: User instance whose account was reset
+            temporary_password: New temporary password
+            old_email: Previous email address
+            reset_by_user: Admin user who performed the reset
+
+        Returns:
+            Tuple[bool, str]: (success, message)
+        """
+        try:
+            subject = f"Account Reset - {self.company_name}"
+
+            # Prepare context for email template
+            context = {
+                'user': user,
+                'temporary_password': temporary_password,
+                'old_email': old_email,
+                'reset_by_user': reset_by_user,
+                'company_name': self.company_name,
+                'login_url': 'http://127.0.0.1:8000/users/login/',
+                'role_display': user.get_role_display(),
+            }
+
+            # Create plain text message
+            message = f"""Dear {user.first_name} {user.last_name},
+
+Your account in {self.company_name} has been reset by an administrator.
+
+Account Reset Details:
+- Reset by: {reset_by_user.first_name} {reset_by_user.last_name} ({reset_by_user.username})
+- Previous email: {old_email}
+- New temporary email: {user.email}
+- Temporary password: {temporary_password}
+- Your role: {user.get_role_display()}
+
+IMPORTANT SECURITY NOTICE:
+1. This is a temporary password that must be changed on your first login
+2. You will be required to set a new password before accessing the system
+3. Please keep these credentials secure and do not share them
+
+To access your account:
+1. Go to: {context['login_url']}
+2. Login with your new temporary email and password
+3. You will be prompted to change your password immediately
+
+If you have any questions or did not expect this account reset, please contact your system administrator immediately.
+
+Best regards,
+{self.company_name} Team"""
+
+            # Try to render HTML template if it exists
+            html_content = None
+            try:
+                html_content = render_to_string('users/emails/account_reset.html', context)
+            except Exception as template_error:
+                logger.warning(f"HTML template not found for account reset email: {template_error}")
+
+            # Send email to the new temporary email
+            if html_content:
+                # Send HTML email with plain text fallback
+                msg = EmailMultiAlternatives(
+                    subject=subject,
+                    body=message,
+                    from_email=self.from_email,
+                    to=[user.email]  # Send to new temporary email
+                )
+                msg.attach_alternative(html_content, "text/html")
+                msg.send()
+            else:
+                # Send plain text email
+                send_mail(
+                    subject=subject,
+                    message=message,
+                    from_email=self.from_email,
+                    recipient_list=[user.email],  # Send to new temporary email
+                    fail_silently=False
+                )
+
+            logger.info(f"Account reset email sent successfully to {user.email}")
+            return True, f"Account reset email sent to {user.email}"
+
+        except Exception as e:
+            logger.error(f"Failed to send account reset email to {user.email}: {e}")
+            return False, f"Failed to send account reset email: {e}"
+
     def test_email_configuration(self) -> Tuple[bool, str]:
         """
         Test email configuration by sending a test email

@@ -1251,7 +1251,7 @@ class RestockRequest(models.Model):
     requested_quantity = models.PositiveIntegerField(help_text="Quantity requested for restock")
     current_stock = models.PositiveIntegerField(help_text="Current stock level at time of request")
     priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='medium')
-    reason = models.TextField(help_text="Reason for restock request")
+    reason = models.TextField(blank=True, default="", help_text="Reason for restock request")
 
     # Request tracking
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
@@ -1513,7 +1513,7 @@ class StoreStockTransferRequest(models.Model):
     to_store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='incoming_transfer_requests')
     requested_quantity = models.PositiveIntegerField(help_text="Quantity requested for transfer")
     priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='medium')
-    reason = models.TextField(help_text="Reason for stock transfer request")
+    reason = models.TextField(blank=True, default="", help_text="Reason for stock transfer request")
 
     # Request tracking
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')

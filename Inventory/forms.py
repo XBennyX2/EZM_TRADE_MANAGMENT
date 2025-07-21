@@ -909,7 +909,7 @@ class RestockRequestForm(forms.ModelForm):
     """
     class Meta:
         model = RestockRequest
-        fields = ['product', 'requested_quantity', 'priority', 'reason']
+        fields = ['product', 'requested_quantity', 'priority']
 
         widgets = {
             'product': forms.Select(attrs={
@@ -926,19 +926,12 @@ class RestockRequestForm(forms.ModelForm):
                 'class': 'form-control',
                 'required': True
             }),
-            'reason': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'Explain why this restock is needed...',
-                'required': True
-            }),
         }
 
         labels = {
             'product': 'Product *',
             'requested_quantity': 'Requested Quantity *',
             'priority': 'Priority Level *',
-            'reason': 'Justification *',
         }
 
     def __init__(self, *args, **kwargs):
@@ -983,14 +976,7 @@ class RestockRequestForm(forms.ModelForm):
             raise forms.ValidationError("Requested quantity must be greater than 0.")
         return quantity
 
-    def clean_reason(self):
-        """Validate reason is not empty and has minimum length"""
-        reason = self.cleaned_data.get('reason', '').strip()
-        if not reason:
-            raise forms.ValidationError("Please provide a reason for this restock request.")
-        if len(reason) < 10:
-            raise forms.ValidationError("Please provide a more detailed reason (at least 10 characters).")
-        return reason
+
 
 
 class StoreStockTransferRequestForm(forms.ModelForm):
@@ -999,7 +985,7 @@ class StoreStockTransferRequestForm(forms.ModelForm):
     """
     class Meta:
         model = StoreStockTransferRequest
-        fields = ['product', 'to_store', 'requested_quantity', 'priority', 'reason']
+        fields = ['product', 'to_store', 'requested_quantity', 'priority']
 
         widgets = {
             'product': forms.Select(attrs={

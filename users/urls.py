@@ -14,7 +14,7 @@ from .views import (
     admin_settings, admin_edit_profile, admin_change_password, head_manager_settings,
     head_manager_change_password, head_manager_edit_profile,
     store_manager_settings, store_manager_change_password, cashier_settings, cashier_edit_profile, cashier_change_password,
-    CustomPasswordChangeView,
+    CustomPasswordChangeView, admin_login_logs, reset_user_account,
     # Store Manager request views
     submit_restock_request, submit_transfer_request, update_product_price,
     store_manager_restock_requests, store_manager_transfer_requests, store_manager_stock_management,
@@ -54,7 +54,9 @@ urlpatterns = [
     path('admin/user/<int:user_id>/change-role/', change_user_role, name='change_user_role'),
     path('admin/user/<int:user_id>/delete/', delete_user, name='delete_user'),
     path('admin/user/<int:user_id>/', view_user_detail, name='view_user_detail'),
+    path('admin/user/<int:user_id>/reset/', reset_user_account, name='reset_user_account'),
     path('admin/create-user/', create_user, name='create_user'),
+    path('admin/login-logs/', admin_login_logs, name='admin_login_logs'),
 
     # Role-based pages
     path('admin-dashboard/', admin_dashboard, name='admin_dashboard'),

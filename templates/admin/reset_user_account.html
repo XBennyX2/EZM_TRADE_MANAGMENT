@@ -1,0 +1,184 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
+{% block title %}Reset User Account{% endblock %}
+{% block page_title %}Reset User Account{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="ezm-card">
+                <div class="ezm-card-header">
+                    <i class="bi bi-shield-exclamation me-2"></i>Reset User Account
+                </div>
+                <div class="card-body">
+                    <!-- Warning Section -->
+                    <div class="alert alert-warning border-0 mb-4"
+                        style="background: rgba(255, 193, 7, 0.1); color: #856404; border-left: 4px solid #ffc107 !important;">
+                        <div class="d-flex align-items-start">
+                            <i class="bi bi-exclamation-triangle-fill me-3 mt-1" style="font-size: 1.2rem;"></i>
+                            <div>
+                                <h6 class="mb-2"><strong>Account Reset Warning</strong></h6>
+                                <p class="mb-2">You are about to reset the account for <strong>{{ target_user.username }}</strong>. This action will:</p>
+                                <ul class="mb-0">
+                                    <li>Generate a new temporary email address</li>
+                                    <li>Create a new temporary password</li>
+                                    <li>Force the user to change their password on next login</li>
+                                    <li>Send new credentials to the temporary email</li>
+                                    <li>Create an audit trail of this reset action</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- User Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card border-0" style="background-color: rgba(var(--bs-light-rgb), 0.5);">
+                                <div class="card-body">
+                                    <h6 class="card-title mb-3">
+                                        <i class="bi bi-person-circle me-2"></i>User Information
+                                    </h6>
+                                    <div class="row">
+                                        <div class="col-sm-5"><strong>Username:</strong></div>
+                                        <div class="col-sm-7">{{ target_user.username }}</div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-sm-5"><strong>Full Name:</strong></div>
+                                        <div class="col-sm-7">{{ target_user.first_name }} {{ target_user.last_name }}</div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-sm-5"><strong>Current Email:</strong></div>
+                                        <div class="col-sm-7">{{ target_user.email }}</div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-sm-5"><strong>Role:</strong></div>
+                                        <div class="col-sm-7">
+                                            <span class="badge bg-secondary">{{ target_user.get_role_display }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-sm-5"><strong>Status:</strong></div>
+                                        <div class="col-sm-7">
+                                            {% if target_user.is_active %}
+                                                <span class="badge bg-success">Active</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Inactive</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card border-0" style="background-color: rgba(var(--bs-info-rgb), 0.1);">
+                                <div class="card-body">
+                                    <h6 class="card-title mb-3">
+                                        <i class="bi bi-info-circle me-2"></i>Reset Process
+                                    </h6>
+                                    <div class="small">
+                                        <p class="mb-2"><strong>What will happen:</strong></p>
+                                        <ol class="mb-0">
+                                            <li>New temporary email will be generated</li>
+                                            <li>New secure password will be created</li>
+                                            <li>User will be marked for mandatory password change</li>
+                                            <li>Email notification will be sent with new credentials</li>
+                                            <li>Reset action will be logged for audit purposes</li>
+                                        </ol>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Reset Form -->
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="mb-4">
+                            <label for="reset_reason" class="form-label">
+                                <i class="bi bi-chat-text me-1"></i>Reset Reason <span class="text-muted">(Optional)</span>
+                            </label>
+                            <textarea name="reset_reason" id="reset_reason" class="form-control" rows="3"
+                                placeholder="Enter the reason for resetting this account (e.g., user forgot credentials, security concern, etc.)"></textarea>
+                            <div class="form-text">This reason will be recorded in the audit trail.</div>
+                        </div>
+
+                        <!-- Confirmation Checkbox -->
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" type="checkbox" id="confirmReset" required>
+                            <label class="form-check-label" for="confirmReset">
+                                <strong>I understand the consequences and want to proceed with resetting this account</strong>
+                            </label>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex gap-3">
+                            <button type="submit" class="btn btn-danger" id="resetButton" disabled>
+                                <i class="bi bi-shield-exclamation me-2"></i>Reset Account
+                            </button>
+                            <a href="{% url 'manage_users' %}" class="btn btn-ezm-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const confirmCheckbox = document.getElementById('confirmReset');
+    const resetButton = document.getElementById('resetButton');
+    
+    confirmCheckbox.addEventListener('change', function() {
+        resetButton.disabled = !this.checked;
+    });
+    
+    // Add confirmation dialog
+    resetButton.addEventListener('click', function(e) {
+        if (!confirm('Are you absolutely sure you want to reset this user account? This action cannot be undone.')) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
+
+<style>
+.card-title {
+    color: var(--accent-teal);
+    font-weight: 600;
+}
+
+.row {
+    margin-bottom: 0.5rem;
+}
+
+.form-check-input:checked {
+    background-color: var(--accent-teal);
+    border-color: var(--accent-teal);
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+    border-color: #bd2130;
+}
+
+.btn-danger:disabled {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    opacity: 0.65;
+}
+</style>
+{% endblock %}

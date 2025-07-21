@@ -405,10 +405,7 @@
                             <option value="urgent">Urgent - Critical need</option>
                         </select>
                     </div>
-                    <div class="mb-3">
-                        <label for="restock_reason" class="form-label">Justification *</label>
-                        <textarea class="form-control" id="restock_reason" name="reason" rows="3" required></textarea>
-                    </div>
+
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -464,10 +461,7 @@
                             <option value="urgent">Urgent - Critical need</option>
                         </select>
                     </div>
-                    <div class="mb-3">
-                        <label for="transfer_reason" class="form-label">Justification *</label>
-                        <textarea class="form-control" id="transfer_reason" name="reason" rows="3" required></textarea>
-                    </div>
+
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -524,7 +518,6 @@
     function requestRestock(productId, productName, currentStock) {
         document.getElementById('restock_product_id').value = productId;
         document.getElementById('restock_quantity').value = '';
-        document.getElementById('restock_reason').value = `Low stock alert: ${productName} has only ${currentStock} units remaining.`;
 
         const modal = new bootstrap.Modal(document.getElementById('restockModal'));
         modal.show();
@@ -535,7 +528,6 @@
         document.getElementById('transfer_product_id').value = productId;
         document.getElementById('transfer_quantity').value = '';
         document.getElementById('transfer_quantity').max = currentStock;
-        document.getElementById('transfer_reason').value = `Transfer request for ${productName}.`;
 
         const modal = new bootstrap.Modal(document.getElementById('transferModal'));
         modal.show();

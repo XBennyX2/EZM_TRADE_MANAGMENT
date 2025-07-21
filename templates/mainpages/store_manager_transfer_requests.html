@@ -292,17 +292,17 @@
                             <td>
                                 <div class="transfer-direction">
                                     {% if request.from_store.store_manager == user %}
-                                        <!-- Incoming request - other store requesting from us -->
-                                        <span class="badge bg-warning text-dark">
-                                            <i class="bi bi-arrow-down-circle me-1"></i>INCOMING
-                                        </span><br>
-                                        <small class="text-muted">{{ request.to_store.name }} requesting from us</small>
+                                    <!-- Incoming request - other store requesting from us -->
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="bi bi-arrow-down-circle me-1"></i>INCOMING
+                                    </span><br>
+                                    <small class="text-muted">{{ request.to_store.name }} requesting from us</small>
                                     {% else %}
-                                        <!-- Outgoing request - we requested from other store -->
-                                        <span class="badge bg-info">
-                                            <i class="bi bi-arrow-up-circle me-1"></i>OUTGOING
-                                        </span><br>
-                                        <small class="text-muted">We requested from {{ request.from_store.name }}</small>
+                                    <!-- Outgoing request - we requested from other store -->
+                                    <span class="badge bg-info">
+                                        <i class="bi bi-arrow-up-circle me-1"></i>OUTGOING
+                                    </span><br>
+                                    <small class="text-muted">We requested from {{ request.from_store.name }}</small>
                                     {% endif %}
                                 </div>
                             </td>
@@ -321,31 +321,31 @@
                             <td>{{ request.requested_date|date:"M d, Y H:i" }}</td>
                             <td>
                                 {% if request.from_store.store_manager == user and request.status == 'pending' %}
-                                    <!-- Incoming request - this store needs to approve -->
-                                    <button class="btn btn-success btn-sm me-1"
-                                        onclick="approveTransferRequest({{ request.id }}, '{{ request.request_number }}', '{{ request.product.name }}', {{ request.requested_quantity }}, '{{ request.to_store.name }}')">
-                                        <i class="bi bi-check-lg"></i> Approve
-                                    </button>
-                                    <button class="btn btn-danger btn-sm"
-                                        onclick="declineTransferRequest({{ request.id }}, '{{ request.request_number }}')">
-                                        <i class="bi bi-x-lg"></i> Decline
-                                    </button>
+                                <!-- Incoming request - this store needs to approve -->
+                                <button class="btn btn-success btn-sm me-1"
+                                    onclick="approveTransferRequest({{ request.id }}, '{{ request.request_number }}', '{{ request.product.name }}', {{ request.requested_quantity }}, '{{ request.to_store.name }}')">
+                                    <i class="bi bi-check-lg"></i> Approve
+                                </button>
+                                <button class="btn btn-danger btn-sm"
+                                    onclick="declineTransferRequest({{ request.id }}, '{{ request.request_number }}')">
+                                    <i class="bi bi-x-lg"></i> Decline
+                                </button>
                                 {% elif request.to_store.store_manager == user and request.status == 'approved' %}
-                                    <!-- Incoming approved request - receiving store can mark as completed -->
-                                    <button class="btn btn-primary btn-sm me-1"
-                                        onclick="completeTransferRequest({{ request.id }}, '{{ request.request_number }}', '{{ request.product.name }}', {{ request.requested_quantity }}, '{{ request.from_store.name }}')">
-                                        <i class="bi bi-check2-all"></i> Mark as Completed
-                                    </button>
-                                    <button class="btn btn-outline-primary btn-sm"
-                                        onclick="viewTransferDetails({{request.id}})">
-                                        <i class="bi bi-eye"></i> View
-                                    </button>
+                                <!-- Incoming approved request - receiving store can mark as completed -->
+                                <button class="btn btn-primary btn-sm me-1"
+                                    onclick="completeTransferRequest({{ request.id }}, '{{ request.request_number }}', '{{ request.product.name }}', {{ request.requested_quantity }}, '{{ request.from_store.name }}')">
+                                    <i class="bi bi-check2-all"></i> Mark as Completed
+                                </button>
+                                <button class="btn btn-outline-primary btn-sm"
+                                    onclick="viewTransferDetails({{request.id}})">
+                                    <i class="bi bi-eye"></i> View
+                                </button>
                                 {% else %}
-                                    <!-- Outgoing request or already processed -->
-                                    <button class="btn btn-outline-primary btn-sm"
-                                        onclick="viewTransferDetails({{request.id}})">
-                                        <i class="bi bi-eye"></i> View
-                                    </button>
+                                <!-- Outgoing request or already processed -->
+                                <button class="btn btn-outline-primary btn-sm"
+                                    onclick="viewTransferDetails({{request.id}})">
+                                    <i class="bi bi-eye"></i> View
+                                </button>
                                 {% endif %}
                             </td>
                         </tr>
@@ -448,12 +448,7 @@
                             <option value="urgent">Urgent - Critical need</option>
                         </select>
                     </div>
-                    <div class="mb-3">
-                        <label for="transfer_reason" class="form-label">Transfer Justification *</label>
-                        <textarea class="form-control" id="transfer_reason" name="reason" rows="3"
-                            placeholder="Explain why this transfer is needed..." required></textarea>
-                        <div class="form-text">Provide a clear reason for this transfer request.</div>
-                    </div>
+
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -535,15 +530,6 @@
     document.querySelector('#transferRequestModal form').addEventListener('submit', function (e) {
         const productSelect = document.getElementById('transfer_product_id');
         const quantityInput = document.getElementById('transfer_quantity');
-        const reason = document.getElementById('transfer_reason').value.trim();
-
-        // Check if reason is detailed enough
-        if (reason.length < 10) {
-            e.preventDefault();
-            alert('Please provide a more detailed reason (at least 10 characters).');
-            document.getElementById('transfer_reason').focus();
-            return false;
-        }
 
         // Check if quantity doesn't exceed available stock
         if (productSelect.value && quantityInput.value) {
@@ -618,11 +604,13 @@
                     </div>
                     <div class="mb-3">
                         <label for="approved_quantity" class="form-label">Approved Quantity</label>
-                        <input type="number" class="form-control" id="approved_quantity" name="approved_quantity" min="1" required>
+                        <input type="number" class="form-control" id="approved_quantity" name="approved_quantity"
+                            min="1" required>
                     </div>
                     <div class="mb-3">
                         <label for="approval_notes" class="form-label">Notes (Optional)</label>
-                        <textarea class="form-control" id="approval_notes" name="review_notes" rows="3" placeholder="Any additional notes..."></textarea>
+                        <textarea class="form-control" id="approval_notes" name="review_notes" rows="3"
+                            placeholder="Any additional notes..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -649,8 +637,10 @@
                         <strong>Request:</strong> <span id="decline-request-number"></span>
                     </div>
                     <div class="mb-3">
-                        <label for="decline_reason" class="form-label">Reason for Declining <span class="text-danger">*</span></label>
-                        <textarea class="form-control" id="decline_reason" name="reason" rows="4" required placeholder="Please provide a reason for declining this request..."></textarea>
+                        <label for="decline_reason" class="form-label">Reason for Declining <span
+                                class="text-danger">*</span></label>
+                        <textarea class="form-control" id="decline_reason" name="reason" rows="4" required
+                            placeholder="Please provide a reason for declining this request..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -681,12 +671,14 @@
                     </div>
                     <div class="mb-3">
                         <label for="completion_notes" class="form-label">Completion Notes (Optional)</label>
-                        <textarea class="form-control" id="completion_notes" name="completion_notes" rows="3" placeholder="Add any notes about the completion of this transfer..."></textarea>
+                        <textarea class="form-control" id="completion_notes" name="completion_notes" rows="3"
+                            placeholder="Add any notes about the completion of this transfer..."></textarea>
                         <div class="form-text">You can add notes about when and how the products were received.</div>
                     </div>
                     <div class="alert alert-warning">
                         <i class="bi bi-exclamation-triangle me-2"></i>
-                        <strong>Confirm:</strong> By marking this request as completed, you confirm that your store has received the requested products.
+                        <strong>Confirm:</strong> By marking this request as completed, you confirm that your store has
+                        received the requested products.
                     </div>
                 </div>
                 <div class="modal-footer">

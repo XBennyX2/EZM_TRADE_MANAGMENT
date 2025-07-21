@@ -27,15 +27,9 @@
 
         <button type="button" id="add-product" class="btn btn-secondary">Add Product</button>
 
-        <div class="mb-3">
-            <label for="discount" class="form-label">Discount (%):</label>
-            <input type="number" id="discount" name="discount" value="0" min="0" max="100" class="form-control">
-        </div>
 
-        <div class="mb-3 form-check">
-            <input type="checkbox" id="taxable" name="taxable" class="form-check-input">
-            <label class="form-check-label" for="taxable">Taxable</label>
-        </div>
+
+
 
         <div id="totals" class="alert alert-info">
             <p>Subtotal: <span id="subtotal">0.00</span></p>
@@ -99,11 +93,8 @@
 
         attachEventListeners();
 
-        const discountInput = document.getElementById('discount');
-        const taxableCheckbox = document.getElementById('taxable');
         const subtotalSpan = document.getElementById('subtotal');
         const taxSpan = document.getElementById('tax');
-        const discountAmountSpan = document.getElementById('discount-amount');
         const totalSpan = document.getElementById('total');
 
         function calculateTotals() {
@@ -121,23 +112,17 @@
                         const price = parseFloat(data.price);
                         subtotal += price * quantity;
 
-                        const discount = parseFloat(discountInput.value);
-                        let discountAmount = subtotal * (discount / 100);
-                        subtotal -= discountAmount;
-                        const taxable = taxableCheckbox.checked;
-                        let tax = taxable ? subtotal * 0.05 : 0; // Assuming 5% tax
+                        let tax = subtotal * 0.15; // Always apply 15% tax
                         let total = subtotal + tax;
 
                         subtotalSpan.textContent = subtotal.toFixed(2);
                         taxSpan.textContent = tax.toFixed(2);
-                        discountAmountSpan.textContent = discountAmount.toFixed(2);
                         totalSpan.textContent = total.toFixed(2);
                     });
             });
         }
 
-        discountInput.addEventListener('input', calculateTotals);
-        taxableCheckbox.addEventListener('change', calculateTotals);
+        // No discount input to listen to
 
         // Initial calculation
         calculateTotals();

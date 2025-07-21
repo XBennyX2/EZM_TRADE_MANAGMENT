@@ -135,7 +135,8 @@ body {
 }
 
 .sidebar-menu-item a:hover,
-.sidebar-menu-item a.active {
+.sidebar-menu-item a.active,
+.sidebar-menu-item.active a {
     background-color: rgba(102, 252, 241, 0.1);
     color: var(--accent-cyan);
     border-left-color: var(--accent-cyan);

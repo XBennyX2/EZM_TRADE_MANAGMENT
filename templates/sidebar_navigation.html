@@ -139,40 +139,16 @@
 <!-- Cashier Sidebar -->
 {% elif user.role == 'cashier' %}
 <ul>
-    <li class="sidebar-menu-item">
-        <a href="{% url 'cashier_page' %}" data-tooltip="Dashboard">
-            <i class="bi bi-speedometer2"></i>
-            <span>Dashboard</span>
-        </a>
-    </li>
-    <li class="sidebar-menu-item">
-        <a href="{% url 'cashier_dashboard' %}" data-tooltip="Point of Sale">
+    <li class="sidebar-menu-item{% if request.resolver_match.url_name == 'initiate_order' %} active{% endif %}">
+        <a href="{% url 'initiate_order' %}" data-tooltip="Point of Sale Dashboard">
             <i class="bi bi-cash-register"></i>
             <span>Point of Sale</span>
         </a>
     </li>
-    <li class="sidebar-menu-item">
-        <a href="{% url 'initiate_order' %}" data-tooltip="New Sale">
-            <i class="bi bi-cart-plus"></i>
-            <span>New Sale</span>
-        </a>
-    </li>
-    <li class="sidebar-menu-item">
-        <a href="#" data-tooltip="Transaction History">
+    <li class="sidebar-menu-item{% if request.resolver_match.url_name == 'cashier_transactions' %} active{% endif %}">
+        <a href="{% url 'cashier_transactions' %}" data-tooltip="Transaction Details">
             <i class="bi bi-receipt"></i>
-            <span>Transaction History</span>
-        </a>
-    </li>
-    <li class="sidebar-menu-item">
-        <a href="#" data-tooltip="Product Lookup">
-            <i class="bi bi-box-seam"></i>
-            <span>Product Lookup</span>
-        </a>
-    </li>
-    <li class="sidebar-menu-item">
-        <a href="#" data-tooltip="Daily Reports">
-            <i class="bi bi-clock-history"></i>
-            <span>Daily Reports</span>
+            <span>Transaction Details</span>
         </a>
     </li>
 </ul>

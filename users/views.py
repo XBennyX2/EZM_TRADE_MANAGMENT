@@ -2209,8 +2209,8 @@ def cashier_page(request):
             'message': 'Please wait for your store manager to assign you to a store.'
         })
 
-    # Cashier is assigned to a store, redirect to the proper dashboard
-    return redirect('cashier_dashboard')
+    # Cashier is assigned to a store, redirect to the unified cashier interface
+    return redirect('initiate_order')
 
 from django.contrib.auth.decorators import user_passes_test
 from django.db.models import Q
@@ -3173,3 +3173,95 @@ def transaction_history(request):
     }
 
     return render(request, 'users/transaction_history.html', context)
+
+
+@login_required
+def warehouse_products_api(request):
+    """
+    API endpoint to provide warehouse products for supplier dropdown selection.
+    Returns products that are active, in stock, and not already in supplier's catalog.
+    """
+    from Inventory.models import SupplierProduct
+
+    # Get search query parameter
+    search_query = request.GET.get('search', '').strip()
+
+    # Get supplier from request user
+    supplier = None
+    if hasattr(request.user, 'supplier_profile'):
+        supplier = request.user.supplier_profile.supplier
+
+    try:
+        # Base queryset: active warehouse products with stock
+        queryset = WarehouseProduct.objects.filter(
+            is_active=True,
+            quantity_in_stock__gt=0,
+            is_discontinued=False
+        )
+
+        # Exclude products already in supplier's catalog
+        if supplier:
+            existing_products = SupplierProduct.objects.filter(
+                supplier=supplier,
+                warehouse_product__isnull=False
+            ).values_list('warehouse_product_id', flat=True)
+
+            queryset = queryset.exclude(id__in=existing_products)
+
+        # Apply search filter if provided
+        if search_query:
+            queryset = queryset.filter(
+                Q(product_name__icontains=search_query) |
+                Q(product_id__icontains=search_query) |
+                Q(sku__icontains=search_query) |
+                Q(category__icontains=search_query)
+            )
+
+        # Limit results for performance
+        queryset = queryset[:50]
+
+        # Prepare response data
+        products = []
+        for product in queryset:
+            # Determine stock status
+            if product.quantity_in_stock <= product.reorder_point:
+                stock_status = 'low_stock'
+                stock_label = 'Low Stock'
+            elif product.quantity_in_stock <= product.minimum_stock_level:
+                stock_status = 'limited_stock'
+                stock_label = 'Limited Stock'
+            else:
+                stock_status = 'in_stock'
+                stock_label = 'In Stock'
+
+            products.append({
+                'id': product.id,
+                'product_id': product.product_id,
+                'name': product.product_name,
+                'sku': product.sku,
+                'category': product.category,
+                'quantity_in_stock': product.quantity_in_stock,
+                'unit_price': float(product.unit_price),
+                'stock_status': stock_status,
+                'stock_label': stock_label,
+                'supplier_name': product.supplier.name if product.supplier else '',
+                'description': product.description or '',
+                'display_text': f"{product.product_name} ({product.sku}) - {product.category}",
+                'availability_info': f"{stock_label} ({product.quantity_in_stock} units)"
+            })
+
+        return JsonResponse({
+            'success': True,
+            'products': products,
+            'count': len(products),
+            'search_query': search_query
+        })
+
+    except Exception as e:
+        logger.error(f"Error in warehouse_products_api: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Failed to fetch warehouse products',
+            'products': [],
+            'count': 0
+        })

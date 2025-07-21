@@ -6,11 +6,11 @@ from transactions.models import Transaction
 from decimal import Decimal
 
 SETTINGS_CHOICES = [
-    ('Pipes', 'Pipes'),
-    ('Electric Wire', 'Electric Wire'),
-    ('Cement', 'Cement'),
-    ('Ceramics', 'Ceramics'),
-    ('Glass and Finishing Materials', 'Glass and Finishing Materials'),
+    ('Plumbing', 'Plumbing Supplies'),
+    ('Electrical', 'Electrical Components'),
+    ('Cement', 'Cement and Masonry Materials'),
+    ('Hardware', 'Hardware and Tools'),
+    ('Paint', 'Paint and Finishing Materials'),
 ]
 
 PRODUCT_TYPE_CHOICES = [

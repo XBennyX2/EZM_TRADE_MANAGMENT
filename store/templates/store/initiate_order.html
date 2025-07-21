@@ -1,73 +1,216 @@
-{% extends 'base.html' %}
-{% block title %}New Order - {{ store.name }}{% endblock %}
-
+{% extends 'base_sidebar.html' %}
+{% load static %}
+{% block title %}Order - {{ store.name }}{% endblock %}
+{% block page_title %}Order{% endblock %}
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
 {% block content %}
-<div class="container mt-4">
+
+<div class="container-fluid">
   <!-- Header -->
   <div class="row mb-4">
     <div class="col-12">
-      <div class="d-flex justify-content-between align-items-center">
-        <div>
-          <h2 class="mb-1">
-            New Order
-            {% if ticket_info.from_ticket %}
-            <span class="badge bg-info ms-2">From Ticket #{{ ticket_info.ticket_number }}</span>
-            {% endif %}
-          </h2>
-          <p class="text-muted mb-0">Store: {{ store.name }} | Cashier: {{ request.user.first_name }}</p>
-        </div>
-        <div>
-          <a href="{% url 'cashier_dashboard' %}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
-          </a>
+      <div class="ezm-card">
+        <div class="ezm-card-header d-flex justify-content-between align-items-center">
+          <div>
+            <h3 class="mb-1 text-white">
+              <i class="bi bi-cart-plus me-2" style="color: #66FCF1;"></i>Order
+            </h3>
+            <p class="mb-0" style="color: #C5C6C7;">Store: {{ store.name }} | Cashier: {{ request.user.first_name }}</p>
+          </div>
+
         </div>
       </div>
     </div>
   </div>
 
+  <!-- Customer Tickets Section -->
+  {% if pending_count > 0 %}
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="ezm-card">
+        <div class="ezm-card-header">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 text-white">
+              <i class="bi bi-ticket-perforated me-2" style="color: #66FCF1;"></i>Customer Tickets
+              <span class="badge ms-2" style="background-color: #dc3545;">{{ pending_count }} pending</span>
+            </h5>
+            <button class="btn btn-ezm-secondary btn-sm" onclick="toggleTicketsSection()">
+              <i class="bi bi-chevron-down me-1" id="tickets-toggle-icon"></i>
+              <span id="tickets-toggle-text">Show Tickets</span>
+            </button>
+          </div>
+        </div>
+        <div class="card-body" id="tickets-section" style="background-color: #1F2833; display: none;">
+          <!-- Search and Filter Controls -->
+          <form method="GET" class="row g-3 mb-4">
+            <div class="col-md-4">
+              <div class="input-group">
+                <span class="input-group-text" style="background-color: #45A29E; border-color: #45A29E; color: white;">
+                  <i class="bi bi-telephone"></i>
+                </span>
+                <input type="text" class="form-control" name="phone" value="{{ phone_search }}"
+                  placeholder="Phone number search"
+                  style="background-color: #0B0C10; border-color: #45A29E; color: #C5C6C7;">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <select class="form-select" name="status"
+                style="background-color: #0B0C10; border-color: #45A29E; color: #C5C6C7;">
+                {% for value, label in status_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <select class="form-select" name="sort"
+                style="background-color: #0B0C10; border-color: #45A29E; color: #C5C6C7;">
+                {% for value, label in sort_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-2">
+              <button type="submit" class="btn btn-ezm-primary w-100">
+                <i class="bi bi-search me-1"></i>Search
+              </button>
+            </div>
+          </form>
+
+          <!-- Tickets Display -->
+          {% if tickets %}
+          <div class="row">
+            {% for ticket_data in tickets %}
+            <div class="col-md-6 col-xl-4 mb-3">
+              <div class="ezm-card h-100 ticket-card" style="transition: all 0.3s ease;">
+                <div class="card-header d-flex justify-content-between align-items-center"
+                  style="background-color: #0B0C10; border-bottom: 1px solid #45A29E;">
+                  <small style="color: #C5C6C7;">#{{ ticket_data.ticket.ticket_number }}</small>
+                  <span class="badge bg-{{ ticket_data.status_color }}">
+                    <i class="{{ ticket_data.status_icon }} me-1"></i>{{ ticket_data.ticket.status|upper }}
+                  </span>
+                </div>
+                <div class="card-body" style="background-color: #1F2833;">
+                  <h6 class="card-title mb-2 text-white">
+                    <i class="bi bi-person me-1"></i>{{ ticket_data.ticket.customer_name|default:"Customer" }}
+                  </h6>
+                  <div class="ticket-info mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                      <small style="color: #C5C6C7;">Phone:</small>
+                      <strong style="color: #66FCF1;">{{ ticket_data.ticket.customer_phone }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                      <small style="color: #C5C6C7;">Items:</small>
+                      <span style="color: #C5C6C7;">{{ ticket_data.total_quantity }} units ({{ ticket_data.items_count
+                        }} products)</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                      <small style="color: #C5C6C7;">Total:</small>
+                      <strong style="color: #45A29E;">ETB {{ ticket_data.ticket.total_amount }}</strong>
+                    </div>
+                  </div>
+                  {% if ticket_data.items_preview %}
+                  <div class="items-preview mb-3">
+                    <small style="color: #C5C6C7;" class="d-block">Items:</small>
+                    <small style="color: #C5C6C7;" class="text-truncate d-block">
+                      {% for item in ticket_data.items_preview %}
+                      {{ item.quantity }}x {{ item.product_name }}{% if not forloop.last %}, {% endif %}
+                      {% endfor %}
+                      {% if ticket_data.has_more_items %} +{{ ticket_data.items_count|add:"-2" }} more{% endif %}
+                    </small>
+                  </div>
+                  {% endif %}
+
+                  <!-- Process Button -->
+                  {% if ticket_data.ticket.status != 'completed' and ticket_data.ticket.status != 'cancelled' %}
+                  <div class="d-grid">
+                    <button class="btn btn-ezm-primary btn-sm"
+                      onclick="processTicketToCart('{{ ticket_data.ticket.ticket_number }}')">
+                      <i class="bi bi-cart-plus me-1"></i>Process Order
+                    </button>
+                  </div>
+                  {% else %}
+                  <div class="d-grid">
+                    {% if ticket_data.ticket.status == 'completed' %}
+                    <button class="btn btn-success btn-sm" disabled>
+                      <i class="bi bi-check-circle me-1"></i>Completed
+                    </button>
+                    {% else %}
+                    <button class="btn btn-secondary btn-sm" disabled>
+                      <i class="bi bi-x-circle me-1"></i>Cancelled
+                    </button>
+                    {% endif %}
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="text-center py-4">
+            <i class="bi bi-ticket-perforated fs-2" style="color: #C5C6C7;"></i>
+            <p class="mt-2 mb-0" style="color: #C5C6C7;">No tickets found</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <div class="row">
     <!-- Product Selection -->
     <div class="col-lg-8">
-      <div class="card">
-        <div class="card-header">
-          <h5 class="mb-0">Select Products</h5>
+      <div class="ezm-card">
+        <div class="ezm-card-header">
+          <h5 class="mb-0 text-white">
+            <i class="bi bi-grid-3x3-gap me-2" style="color: #66FCF1;"></i>Select Products
+          </h5>
         </div>
-        <div class="card-body">
+        <div class="card-body" style="background-color: #1F2833;">
           <!-- Search Bar -->
-          <div class="mb-3">
+          <div class="mb-4">
             <div class="input-group">
-              <span class="input-group-text"><i class="bi bi-search"></i></span>
-              <input type="text" class="form-control" id="productSearch" placeholder="Search products...">
+              <span class="input-group-text" style="background-color: #45A29E; border-color: #45A29E; color: white;">
+                <i class="bi bi-search"></i>
+              </span>
+              <input type="text" class="form-control" id="productSearch" placeholder="Search products..."
+                style="border-color: #45A29E; background-color: #0B0C10; color: #C5C6C7;">
             </div>
           </div>
 
           <!-- Product Grid -->
           <div class="row" id="productGrid">
             {% for product in available_products %}
-            <div class="col-md-6 col-lg-4 mb-3 product-item" data-name="{{ product.product__name|lower }}">
-              <div class="card h-100 product-card" style="cursor: pointer;" data-product-id="{{ product.product__id }}"
-                data-product-name="{{ product.product__name }}" data-price="{{ product.selling_price }}"
-                data-stock="{{ product.quantity }}">
-                <div class="card-body text-center">
-                  <div class="mb-2">
-                    <i class="bi bi-box-seam fs-1 text-primary"></i>
+            <div class="col-md-6 col-xl-4 mb-3 product-item" data-name="{{ product.product__name|lower }}">
+              <div class="ezm-card h-100 product-card" style="cursor: pointer; transition: all 0.3s ease;"
+                data-product-id="{{ product.product__id }}" data-product-name="{{ product.product__name }}"
+                data-price="{{ product.selling_price }}" data-stock="{{ product.quantity }}">
+                <div class="card-body text-center" style="background-color: #0B0C10;">
+                  <div class="mb-3">
+                    <i class="bi bi-box-seam fs-1" style="color: #66FCF1;"></i>
                   </div>
-                  <h6 class="card-title">{{ product.product__name }}</h6>
-                  <p class="card-text">
-                    <strong class="text-success">${{ product.selling_price }}</strong><br>
-                    <small class="text-muted">Stock: {{ product.quantity }}</small>
-                  </p>
-                  <button class="btn btn-primary btn-sm add-to-cart-btn">
-                    <i class="bi bi-plus-circle me-1"></i>Add to Cart
+                  <h6 class="card-title text-white mb-2">{{ product.product__name }}</h6>
+                  <div class="mb-3">
+                    <div class="badge mb-2" style="background-color: #45A29E; font-size: 0.9rem;">
+                      ETB {{ product.selling_price }}
+                    </div>
+                    <br>
+                    <small style="color: #C5C6C7;">Stock: {{ product.quantity }} units</small>
+                  </div>
+                  <button class="btn btn-ezm-primary btn-sm add-to-cart-btn w-100">
+                    <i class="bi bi-cart-plus me-1"></i>Add to Cart
                   </button>
                 </div>
               </div>
             </div>
             {% empty %}
             <div class="col-12">
-              <div class="text-center py-4">
-                <i class="bi bi-box fs-1 text-muted"></i>
-                <p class="text-muted mt-2">No products available in stock</p>
+              <div class="text-center py-5">
+                <i class="bi bi-box fs-1" style="color: #C5C6C7;"></i>
+                <p class="mt-3" style="color: #C5C6C7;">No products available in stock</p>
               </div>
             </div>
             {% endfor %}
@@ -78,83 +221,85 @@
 
     <!-- Shopping Cart -->
     <div class="col-lg-4">
-      <div class="card sticky-top" style="top: 20px;">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <h5 class="mb-0">Shopping Cart</h5>
-          <button class="btn btn-sm btn-outline-danger" id="clearCart">
+      <div class="ezm-card sticky-top" style="top: 20px;">
+        <div class="ezm-card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0 text-white">
+            <i class="bi bi-cart3 me-2" style="color: #66FCF1;"></i>Shopping Cart
+          </h5>
+          <button class="btn btn-sm" id="clearCart"
+            style="background-color: #dc3545; border-color: #dc3545; color: white;">
             <i class="bi bi-trash"></i>
           </button>
         </div>
-        <div class="card-body">
-          <div id="cartItems">
+        <div class="card-body" style="background-color: #1F2833;">
+          <div id="cartItems" style="min-height: 120px;">
             <!-- Cart items will be populated here -->
+            <div class="text-center py-4">
+              <i class="bi bi-cart-x fs-2" style="color: #C5C6C7;"></i>
+              <p class="mt-2 mb-0" style="color: #C5C6C7;">Cart is empty</p>
+            </div>
           </div>
 
-          <hr>
+          <hr style="border-color: #45A29E;">
 
           <!-- Order Summary -->
-          <div class="mb-3">
-            <div class="d-flex justify-content-between">
+          <div class="mb-4">
+            <div class="d-flex justify-content-between mb-2" style="color: #C5C6C7;">
               <span>Subtotal:</span>
-              <span id="subtotal">$0.00</span>
+              <span id="subtotal" style="color: #66FCF1;">ETB 0.00</span>
             </div>
-            <div class="d-flex justify-content-between">
-              <span>Discount:</span>
-              <span id="discountAmount">$0.00</span>
+            <div class="d-flex justify-content-between mb-2" style="color: #C5C6C7;">
+              <span>Tax (15%):</span>
+              <span id="taxAmount" style="color: #66FCF1;">ETB 0.00</span>
             </div>
-            <div class="d-flex justify-content-between">
-              <span>Tax:</span>
-              <span id="taxAmount">$0.00</span>
-            </div>
-            <hr>
-            <div class="d-flex justify-content-between fw-bold">
+            <hr style="border-color: #45A29E;">
+            <div class="d-flex justify-content-between fw-bold" style="color: #66FCF1; font-size: 1.1rem;">
               <span>Total:</span>
-              <span id="totalAmount">$0.00</span>
+              <span id="totalAmount">ETB 0.00</span>
             </div>
           </div>
 
           <!-- Order Options -->
           <div class="mb-3">
-            <label for="customerName" class="form-label">Customer Name</label>
+            <label for="customerName" class="form-label" style="color: #C5C6C7;">Customer Name</label>
             <input type="text" class="form-control" id="customerName" placeholder="Walk-in Customer"
-              value="{{ ticket_info.customer_name|default:'' }}">
-          </div>
-
-          <div class="mb-3">
-            <label for="customerPhone" class="form-label">Customer Phone (Optional)</label>
-            <input type="tel" class="form-control" id="customerPhone" placeholder="+1 (555) 123-4567"
-              value="{{ ticket_info.customer_phone|default:'' }}">
-          </div>
-
-          <div class="mb-3">
-            <label for="discountPercent" class="form-label">Discount (%)</label>
-            <input type="number" class="form-control" id="discountPercent" min="0" max="100" value="0">
-          </div>
-
-          <div class="mb-3">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="taxable">
-              <label class="form-check-label" for="taxable">
-                Apply Tax (5%)
-              </label>
+              value="{{ ticket_info.customer_name|default:'Walk-in Customer' }}" pattern="[A-Za-z\s\-']+"
+              title="Only letters, spaces, hyphens, and apostrophes are allowed"
+              style="background-color: #0B0C10; border-color: #45A29E; color: #C5C6C7;">
+            <div class="invalid-feedback" id="customerNameError" style="display: none; color: #dc3545;">
+              Please enter a valid name (letters only)
             </div>
           </div>
 
           <div class="mb-3">
-            <label for="paymentType" class="form-label">Payment Method</label>
-            <select class="form-select" id="paymentType">
+            <label for="customerPhone" class="form-label" style="color: #C5C6C7;">Customer Phone (Optional)</label>
+            <input type="tel" class="form-control" id="customerPhone" placeholder="0911234567 or +251911234567"
+              value="{{ ticket_info.customer_phone|default:'' }}" pattern="^(\+251|251|0)?[79]\d{8}$"
+              title="Enter a valid Ethiopian phone number"
+              style="background-color: #0B0C10; border-color: #45A29E; color: #C5C6C7;">
+            <div class="invalid-feedback" id="customerPhoneError" style="display: none; color: #dc3545;">
+              Please enter a valid Ethiopian phone number
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="paymentType" class="form-label" style="color: #C5C6C7;">Payment Method</label>
+            <select class="form-select" id="paymentType"
+              style="background-color: #0B0C10; border-color: #45A29E; color: #C5C6C7;">
               <option value="cash">Cash</option>
               <option value="mobile">Mobile Banking</option>
               <option value="bank">Bank Transfer</option>
             </select>
           </div>
 
+
+
           <!-- Action Buttons -->
           <div class="d-grid gap-2">
-            <button class="btn btn-success" id="completeOrder" disabled>
+            <button class="btn btn-ezm-primary" id="completeOrder" disabled>
               <i class="bi bi-check-circle me-2"></i>Complete Order
             </button>
-            <button class="btn btn-outline-secondary" id="saveForLater">
+            <button class="btn btn-ezm-secondary" id="saveForLater">
               <i class="bi bi-bookmark me-2"></i>Save for Later
             </button>
           </div>
@@ -164,43 +309,46 @@
   </div>
 </div>
 
+<!-- Hidden input for cart data -->
+<input type="hidden" id="cartData" value="{{ cart|default:'{}'|escapejs }}">
+
 <!-- Order Success Modal -->
 <div class="modal fade" id="orderSuccessModal" tabindex="-1">
   <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header bg-success text-white">
-        <h5 class="modal-title">
+    <div class="modal-content" style="background-color: #1F2833; border: 1px solid #45A29E;">
+      <div class="modal-header" style="background-color: #45A29E; border-bottom: 1px solid #66FCF1;">
+        <h5 class="modal-title text-white">
           <i class="bi bi-check-circle me-2"></i>Order Completed Successfully!
         </h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body" style="background-color: #1F2833;">
         <div class="text-center mb-4">
-          <i class="bi bi-receipt fs-1 text-success"></i>
-          <h4 class="mt-2">Receipt #<span id="receiptNumber"></span></h4>
-          <p class="text-muted">Total: $<span id="orderTotal"></span></p>
+          <i class="bi bi-receipt fs-1" style="color: #66FCF1;"></i>
+          <h4 class="mt-2 text-white">Receipt #<span id="receiptNumber" style="color: #66FCF1;"></span></h4>
+          <p style="color: #C5C6C7;">Total: ETB <span id="orderTotal" style="color: #66FCF1;"></span></p>
         </div>
 
         <div class="row">
           <div class="col-md-6">
-            <div class="card border-primary">
-              <div class="card-body text-center">
-                <i class="bi bi-download fs-2 text-primary"></i>
-                <h6 class="mt-2">Download Receipt</h6>
-                <p class="small text-muted">Get a PDF copy of the receipt</p>
-                <button class="btn btn-primary" id="downloadReceiptBtn">
+            <div class="ezm-card">
+              <div class="card-body text-center" style="background-color: #0B0C10;">
+                <i class="bi bi-download fs-2" style="color: #66FCF1;"></i>
+                <h6 class="mt-2 text-white">Download Receipt</h6>
+                <p class="small" style="color: #C5C6C7;">Get a PDF copy of the receipt</p>
+                <button class="btn btn-ezm-primary" id="downloadReceiptBtn">
                   <i class="bi bi-download me-2"></i>Download PDF
                 </button>
               </div>
             </div>
           </div>
           <div class="col-md-6">
-            <div class="card border-info">
-              <div class="card-body text-center">
-                <i class="bi bi-envelope fs-2 text-info"></i>
-                <h6 class="mt-2">Email Receipt</h6>
-                <p class="small text-muted">Send receipt to customer's email</p>
-                <button class="btn btn-info" id="emailReceiptBtn">
+            <div class="ezm-card">
+              <div class="card-body text-center" style="background-color: #0B0C10;">
+                <i class="bi bi-envelope fs-2" style="color: #45A29E;"></i>
+                <h6 class="mt-2 text-white">Email Receipt</h6>
+                <p class="small" style="color: #C5C6C7;">Send receipt to customer's email</p>
+                <button class="btn btn-ezm-secondary" id="emailReceiptBtn">
                   <i class="bi bi-envelope me-2"></i>Email Receipt
                 </button>
               </div>
@@ -208,11 +356,11 @@
           </div>
         </div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-success" id="newOrderBtn">
-          <i class="bi bi-plus-circle me-2"></i>New Order
+      <div class="modal-footer" style="background-color: #1F2833; border-top: 1px solid #45A29E;">
+        <button type="button" class="btn btn-ezm-primary" id="newOrderBtn">
+          <i class="bi bi-plus-circle me-2"></i>Order
         </button>
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-ezm-secondary" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
   </div>
@@ -221,24 +369,25 @@
 <!-- Email Receipt Modal -->
 <div class="modal fade" id="emailModal" tabindex="-1">
   <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">
-          <i class="bi bi-envelope me-2"></i>Email Receipt
+    <div class="modal-content" style="background-color: #1F2833; border: 1px solid #45A29E;">
+      <div class="modal-header" style="background-color: #0B0C10; border-bottom: 1px solid #45A29E;">
+        <h5 class="modal-title text-white">
+          <i class="bi bi-envelope me-2" style="color: #66FCF1;"></i>Email Receipt
         </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body" style="background-color: #1F2833;">
         <div class="mb-3">
-          <label for="customerEmail" class="form-label">Customer Email Address</label>
-          <input type="email" class="form-control" id="customerEmail" placeholder="customer@example.com" required>
-          <div class="form-text">Enter the customer's email address to send the receipt</div>
+          <label for="customerEmail" class="form-label" style="color: #C5C6C7;">Customer Email Address</label>
+          <input type="email" class="form-control" id="customerEmail" placeholder="customer@example.com" required
+            style="background-color: #0B0C10; border-color: #45A29E; color: #C5C6C7;">
+          <div class="form-text" style="color: #C5C6C7;">Enter the customer's email address to send the receipt</div>
         </div>
         <div id="emailStatus" class="alert" style="display: none;"></div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary" id="sendEmailBtn">
+      <div class="modal-footer" style="background-color: #1F2833; border-top: 1px solid #45A29E;">
+        <button type="button" class="btn btn-ezm-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-ezm-primary" id="sendEmailBtn">
           <i class="bi bi-send me-2"></i>Send Receipt
         </button>
       </div>
@@ -249,47 +398,301 @@
 <!-- Quantity Modal -->
 <div class="modal fade" id="quantityModal" tabindex="-1">
   <div class="modal-dialog modal-sm">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Select Quantity</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <div class="modal-content" style="background-color: #1F2833; border: 1px solid #45A29E;">
+      <div class="modal-header" style="background-color: #0B0C10; border-bottom: 1px solid #45A29E;">
+        <h5 class="modal-title text-white">
+          <i class="bi bi-plus-circle me-2" style="color: #66FCF1;"></i>Select Quantity
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body" style="background-color: #1F2833;">
         <div class="mb-3">
-          <label for="quantityInput" class="form-label">Quantity</label>
-          <input type="number" class="form-control" id="quantityInput" min="1" value="1">
-          <small class="text-muted">Available: <span id="availableStock"></span></small>
+          <label for="quantityInput" class="form-label" style="color: #C5C6C7;">Quantity</label>
+          <input type="number" class="form-control" id="quantityInput" min="1" value="1"
+            style="background-color: #0B0C10; border-color: #45A29E; color: #C5C6C7;">
+          <small style="color: #C5C6C7;">Available: <span id="availableStock" style="color: #66FCF1;"></span>
+            units</small>
         </div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary" id="confirmAddToCart">Add to Cart</button>
+      <div class="modal-footer" style="background-color: #1F2833; border-top: 1px solid #45A29E;">
+        <button type="button" class="btn btn-ezm-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-ezm-primary" id="confirmAddToCart">
+          <i class="bi bi-cart-plus me-2"></i>Add to Cart
+        </button>
       </div>
     </div>
   </div>
 </div>
 
 <style>
+  /* EZM Theme Variables */
+  :root {
+    --ezm-dark: #0B0C10;
+    --ezm-dark-blue: #1F2833;
+    --ezm-light-gray: #C5C6C7;
+    --ezm-cyan: #66FCF1;
+    --ezm-teal: #45A29E;
+  }
+
+  /* Product Card Hover Effects */
+  .product-card {
+    border: 1px solid var(--ezm-teal);
+    transition: all 0.3s ease;
+    background: linear-gradient(135deg, var(--ezm-dark) 0%, var(--ezm-dark-blue) 100%);
+  }
+
   .product-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(102, 252, 241, 0.2);
+    border-color: var(--ezm-cyan);
+    background: linear-gradient(135deg, var(--ezm-dark-blue) 0%, var(--ezm-dark) 100%);
+  }
+
+  .product-card:hover .btn-ezm-primary {
+    background: linear-gradient(135deg, var(--ezm-cyan) 0%, var(--ezm-teal) 100%);
+    transform: scale(1.05);
+  }
+
+  /* Cart Item Styling */
+  .cart-item {
+    border-bottom: 1px solid var(--ezm-teal);
+    padding: 15px 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(102, 252, 241, 0.05) 50%, transparent 100%);
+    border-radius: 8px;
+    margin-bottom: 10px;
     transition: all 0.3s ease;
   }
 
-  .cart-item {
-    border-bottom: 1px solid #eee;
-    padding: 10px 0;
+  .cart-item:hover {
+    background: linear-gradient(90deg, rgba(69, 162, 158, 0.1) 0%, rgba(102, 252, 241, 0.1) 50%, rgba(69, 162, 158, 0.1) 100%);
+    transform: translateX(5px);
   }
 
   .cart-item:last-child {
     border-bottom: none;
   }
+
+  /* Search Input Focus Effect */
+  #productSearch:focus {
+    border-color: var(--ezm-cyan);
+    box-shadow: 0 0 0 0.2rem rgba(102, 252, 241, 0.25);
+    background-color: var(--ezm-dark-blue);
+  }
+
+  /* Form Input Focus Effects */
+  .form-control:focus,
+  .form-select:focus {
+    border-color: var(--ezm-cyan) !important;
+    box-shadow: 0 0 0 0.2rem rgba(102, 252, 241, 0.25) !important;
+  }
+
+  /* Sticky Cart Animation */
+  .sticky-top {
+    animation: slideInRight 0.5s ease-out;
+  }
+
+  @keyframes slideInRight {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  /* Product Grid Animation */
+  .product-item {
+    animation: fadeInUp 0.6s ease-out;
+    animation-fill-mode: both;
+  }
+
+  .product-item:nth-child(1) {
+    animation-delay: 0.1s;
+  }
+
+  .product-item:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .product-item:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+
+  .product-item:nth-child(4) {
+    animation-delay: 0.4s;
+  }
+
+  .product-item:nth-child(5) {
+    animation-delay: 0.5s;
+  }
+
+  .product-item:nth-child(6) {
+    animation-delay: 0.6s;
+  }
+
+  @keyframes fadeInUp {
+    from {
+      transform: translateY(30px);
+      opacity: 0;
+    }
+
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  /* Button Hover Effects */
+  .btn-ezm-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(102, 252, 241, 0.4);
+  }
+
+  .btn-ezm-secondary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(69, 162, 158, 0.4);
+  }
+
+  /* Modal Backdrop */
+  .modal-backdrop {
+    background-color: rgba(11, 12, 16, 0.8);
+  }
+
+  /* Scrollbar Styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--ezm-dark);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--ezm-teal);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--ezm-cyan);
+  }
+
+  /* Loading Animation for Buttons */
+  .btn-loading {
+    position: relative;
+    color: transparent !important;
+  }
+
+  .btn-loading::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid transparent;
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* Sidebar Layout Adjustments */
+  .main-content {
+    background: linear-gradient(135deg, #0B0C10 0%, #1F2833 100%) !important;
+    min-height: 100vh;
+  }
+
+  .content-area {
+    background: transparent;
+  }
+
+  /* Ticket Card Styling */
+  .ticket-card {
+    border: 1px solid var(--ezm-teal);
+    transition: all 0.3s ease;
+    background: linear-gradient(135deg, var(--ezm-dark) 0%, var(--ezm-dark-blue) 100%);
+  }
+
+  .ticket-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(102, 252, 241, 0.15);
+    border-color: var(--ezm-cyan);
+  }
+
+  .ticket-info {
+    font-size: 0.9rem;
+  }
+
+  .items-preview {
+    background: rgba(69, 162, 158, 0.1);
+    border-radius: 6px;
+    padding: 8px;
+  }
+
+  /* Tickets section toggle animation */
+  #tickets-section {
+    transition: all 0.3s ease;
+  }
+
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    .container-fluid {
+      padding-left: 15px;
+      padding-right: 15px;
+    }
+
+    .product-card {
+      margin-bottom: 20px;
+    }
+
+    .sticky-top {
+      position: relative !important;
+      top: auto !important;
+      margin-top: 30px;
+    }
+
+    .ticket-card {
+      margin-bottom: 15px;
+    }
+  }
+
+  /* Ensure proper spacing with sidebar */
+  @media (min-width: 769px) {
+    .container-fluid {
+      padding-left: 20px;
+      padding-right: 20px;
+    }
+  }
 </style>
 
 <script>
   // Cart management
-  let cart = {{ cart|default: "{'items': [], 'total': 0}" | safe }};
   let selectedProduct = null;
+  let cart;
+  try {
+    const cartDataElement = document.getElementById('cartData');
+    const cartDataValue = cartDataElement ? cartDataElement.value : '{}';
+    cart = JSON.parse(cartDataValue || '{}');
+    if (!cart.items) cart.items = [];
+    if (!cart.total) cart.total = 0;
+  } catch (error) {
+    console.error('Error parsing cart data:', error);
+    cart = { items: [], total: 0 };
+  }
   let currentTicketNumber = null; // Track if this order is from a ticket
 
   // Initialize
@@ -307,11 +710,8 @@
       try {
         const data = JSON.parse(ticketData);
 
-        // Show notification that we're loading from ticket
-        showNotification(`Loading order from ticket #${data.ticket_number}`, 'info');
-
-        // Store ticket number for later use
-        currentTicketNumber = data.ticket_number;
+        // Show notification that we're loading order
+        showNotification('Loading order items', 'info');
 
         // Clear existing cart
         cart = { items: [], total: 0 };
@@ -359,10 +759,10 @@
           }
         }
 
-        // Add visual indicator that this is from a ticket
-        const headerElement = document.querySelector('h2');
+        // Update header to show we're processing an order
+        const headerElement = document.querySelector('h3');
         if (headerElement) {
-          headerElement.innerHTML = `New Order <span class="badge bg-info ms-2">From Ticket #${data.ticket_number}</span>`;
+          headerElement.innerHTML = `<i class="bi bi-cart-plus me-2" style="color: #66FCF1;"></i>Order`;
         }
 
         // Clear the sessionStorage data
@@ -420,7 +820,15 @@
   // Update ticket status
   async function updateTicketStatus(ticketNumber, status) {
     try {
-      const response = await fetch(`/stores/api/tickets/${ticketNumber}/status/`, {
+      // Ensure fetch is available and properly scoped
+      const fetchFunction = window.fetch || fetch;
+      if (!fetchFunction) {
+        console.error('Fetch API not available');
+        showNotification('Browser does not support required features', 'error');
+        return;
+      }
+
+      const response = await fetchFunction(`/stores/api/tickets/${ticketNumber}/status/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -497,31 +905,54 @@
 
   // Add to cart API call
   function addToCart(productId, quantity) {
-    fetch('{% url "add_to_cart" %}', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': getCookie('csrftoken')
-      },
-      body: JSON.stringify({
+    console.log('Adding to cart:', { productId, quantity }); // Debug log
+
+    // Use XMLHttpRequest as a fallback to avoid fetch context issues
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '{% url "add_to_cart" %}', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState === 4) {
+        try {
+          if (xhr.status === 200) {
+            const data = JSON.parse(xhr.responseText);
+            console.log('Response data:', data); // Debug log
+            if (data.success) {
+              cart = data.cart;
+              updateCartDisplay();
+              showNotification(data.message, 'success');
+            } else {
+              showNotification(data.error || 'Unknown error occurred', 'error');
+            }
+          } else {
+            console.error('HTTP error! status:', xhr.status);
+            showNotification(`Error adding to cart: HTTP ${xhr.status}`, 'error');
+          }
+        } catch (error) {
+          console.error('Response parsing error:', error);
+          showNotification('Error processing server response', 'error');
+        }
+      }
+    };
+
+    xhr.onerror = function () {
+      console.error('Network error');
+      showNotification('Network error. Please check your connection.', 'error');
+    };
+
+    try {
+      xhr.send(JSON.stringify({
         product_id: productId,
         quantity: quantity
-      })
-    })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          cart = data.cart;
-          updateCartDisplay();
-          showToast(data.message, 'success');
-        } else {
-          showToast(data.error, 'error');
-        }
-      })
-      .catch(error => {
-        showToast('Error adding to cart', 'error');
-      });
+      }));
+    } catch (error) {
+      console.error('Request send error:', error);
+      showNotification('Error sending request: ' + error.message, 'error');
+    }
   }
+
 
   // Update cart display
   function updateCartDisplay() {
@@ -529,18 +960,22 @@
     cartItems.innerHTML = '';
 
     if (cart.items && cart.items.length > 0) {
-      cart.items.forEach(item => {
+      cart.items.forEach((item, index) => {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'cart-item';
+        itemDiv.style.animationDelay = `${index * 0.1}s`;
         itemDiv.innerHTML = `
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="mb-1">${item.product_name}</h6>
-                        <small class="text-muted">$${item.price} x ${item.quantity}</small>
+                        <h6 class="mb-1 text-white">${item.product_name}</h6>
+                        <small style="color: #C5C6C7;">ETB ${item.price} x ${item.quantity}</small>
                     </div>
                     <div class="text-end">
-                        <div>$${item.subtotal.toFixed(2)}</div>
-                        <button class="btn btn-sm btn-outline-danger" onclick="removeFromCart(${item.product_id})">
+                        <div class="mb-2" style="color: #66FCF1; font-weight: bold;">ETB ${item.subtotal.toFixed(2)}</div>
+                        <button class="btn btn-sm" onclick="removeFromCart(${item.product_id})"
+                                style="background-color: #dc3545; border-color: #dc3545; color: white;"
+                                onmouseover="this.style.backgroundColor='#c82333'"
+                                onmouseout="this.style.backgroundColor='#dc3545'">
                             <i class="bi bi-trash"></i>
                         </button>
                     </div>
@@ -551,7 +986,12 @@
 
       document.getElementById('completeOrder').disabled = false;
     } else {
-      cartItems.innerHTML = '<p class="text-muted text-center">Cart is empty</p>';
+      cartItems.innerHTML = `
+        <div class="text-center py-4">
+          <i class="bi bi-cart-x fs-2" style="color: #C5C6C7;"></i>
+          <p class="mt-2 mb-0" style="color: #C5C6C7;">Cart is empty</p>
+        </div>
+      `;
       document.getElementById('completeOrder').disabled = true;
     }
 
@@ -561,79 +1001,431 @@
   // Update totals
   function updateTotals() {
     const subtotal = cart.total || 0;
-    const discountPercent = parseFloat(document.getElementById('discountPercent').value) || 0;
-    const discountAmount = subtotal * (discountPercent / 100);
-    const taxableAmount = subtotal - discountAmount;
-    const taxAmount = document.getElementById('taxable').checked ? taxableAmount * 0.05 : 0;
-    const total = taxableAmount + taxAmount;
+    const taxAmount = subtotal * 0.15; // Always apply 15% tax
+    const total = subtotal + taxAmount;
 
     document.getElementById('subtotal').textContent = `ETB ${subtotal.toFixed(2)}`;
-    document.getElementById('discountAmount').textContent = `ETB ${discountAmount.toFixed(2)}`;
     document.getElementById('taxAmount').textContent = `ETB ${taxAmount.toFixed(2)}`;
     document.getElementById('totalAmount').textContent = `ETB ${total.toFixed(2)}`;
   }
 
   // Event listeners for total updates
-  document.getElementById('discountPercent').addEventListener('input', updateTotals);
-  document.getElementById('taxable').addEventListener('change', updateTotals);
+  // No discount field to listen to anymore
+
+  // Customer name validation (only letters, spaces, hyphens, apostrophes)
+  document.getElementById('customerName').addEventListener('input', function (e) {
+    const value = e.target.value;
+    const namePattern = /^[A-Za-z\s\-']*$/;
+    const errorDiv = document.getElementById('customerNameError');
+
+    if (value && !namePattern.test(value)) {
+      e.target.classList.add('is-invalid');
+      errorDiv.style.display = 'block';
+      // Remove invalid characters
+      e.target.value = value.replace(/[^A-Za-z\s\-']/g, '');
+    } else {
+      e.target.classList.remove('is-invalid');
+      errorDiv.style.display = 'none';
+    }
+  });
+
+  // Customer phone validation (only numbers and specific format)
+  document.getElementById('customerPhone').addEventListener('input', function (e) {
+    const value = e.target.value;
+    const phonePattern = /^(\+251|251|0)?[79]\d{0,8}$/;
+    const errorDiv = document.getElementById('customerPhoneError');
+
+    // Allow only numbers, +, and specific prefixes
+    const cleanValue = value.replace(/[^\d+]/g, '');
+
+    if (cleanValue !== value) {
+      e.target.value = cleanValue;
+    }
+
+    if (cleanValue && !phonePattern.test(cleanValue)) {
+      e.target.classList.add('is-invalid');
+      errorDiv.style.display = 'block';
+    } else {
+      e.target.classList.remove('is-invalid');
+      errorDiv.style.display = 'none';
+    }
+  });
+
+  // Validate phone number format on blur
+  document.getElementById('customerPhone').addEventListener('blur', function (e) {
+    const value = e.target.value.trim();
+    const fullPhonePattern = /^(\+251|251|0)?[79]\d{8}$/;
+    const errorDiv = document.getElementById('customerPhoneError');
+
+    if (value && !fullPhonePattern.test(value)) {
+      e.target.classList.add('is-invalid');
+      errorDiv.style.display = 'block';
+      errorDiv.textContent = 'Please enter a complete Ethiopian phone number (e.g., 0911234567)';
+    } else {
+      e.target.classList.remove('is-invalid');
+      errorDiv.style.display = 'none';
+    }
+  });
+
+  // Ticket functionality
+  function toggleTicketsSection() {
+    const section = document.getElementById('tickets-section');
+    const icon = document.getElementById('tickets-toggle-icon');
+    const text = document.getElementById('tickets-toggle-text');
+
+    if (section.style.display === 'none') {
+      section.style.display = 'block';
+      icon.className = 'bi bi-chevron-up me-1';
+      text.textContent = 'Hide Tickets';
+    } else {
+      section.style.display = 'none';
+      icon.className = 'bi bi-chevron-down me-1';
+      text.textContent = 'Show Tickets';
+    }
+  }
+
+  // Process ticket to cart
+  async function processTicketToCart(ticketNumber) {
+    try {
+      // Show loading state
+      const button = event.target;
+      const originalText = button.innerHTML;
+      button.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Processing...';
+      button.disabled = true;
+
+      // Fetch ticket data
+      // Ensure fetch is available and properly scoped
+      const fetchFunction = window.fetch || fetch;
+      if (!fetchFunction) {
+        console.error('Fetch API not available');
+        showNotification('Browser does not support required features', 'error');
+        return;
+      }
+
+      const response = await fetchFunction(`/stores/api/tickets/${ticketNumber}/`);
+      const data = await response.json();
+
+      if (data.success) {
+        const ticket = data.ticket;
+
+        // Clear current cart
+        cart = { items: [], total: 0 };
+
+        // Add ticket items to cart
+        for (const item of ticket.items) {
+          const cartItem = {
+            product_id: item.product_id,
+            product_name: item.product_name,
+            price: parseFloat(item.unit_price),
+            quantity: item.quantity,
+            subtotal: parseFloat(item.total_price)
+          };
+          cart.items.push(cartItem);
+        }
+
+        // Update cart total
+        cart.total = ticket.total_amount;
+
+        // Pre-fill customer information
+        document.getElementById('customerName').value = ticket.customer_name || 'Walk-in Customer';
+        document.getElementById('customerPhone').value = ticket.customer_phone || '';
+
+        // Update cart display
+        updateCartDisplay();
+        updateTotals();
+
+        // Set ticket tracking
+        currentTicketNumber = ticketNumber;
+
+        // Show success message
+        showNotification(`Ticket #${ticketNumber} loaded successfully! ${ticket.items.length} items added to cart.`, 'success');
+
+        // Hide tickets section
+        document.getElementById('tickets-section').style.display = 'none';
+        document.getElementById('tickets-toggle-icon').className = 'bi bi-chevron-down me-1';
+        document.getElementById('tickets-toggle-text').textContent = 'Show Tickets';
+
+      } else {
+        showNotification('Failed to load ticket: ' + data.error, 'error');
+      }
+    } catch (error) {
+      console.error('Error processing ticket:', error);
+      showNotification('Network error. Please try again.', 'error');
+    } finally {
+      // Restore button state
+      button.innerHTML = originalText;
+      button.disabled = false;
+    }
+  }
+
+  // Unified notification function
+  function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    const alertType = type === 'error' ? 'danger' : type === 'warning' ? 'warning' : type === 'info' ? 'info' : 'success';
+    notification.className = `alert alert-${alertType} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+      ${message}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    // Add to page
+    document.body.appendChild(notification);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.remove();
+      }
+    }, 5000);
+  }
+
+  // Alias for backward compatibility
+  function showToast(message, type) {
+    showNotification(message, type);
+  }
 
   // Remove from cart
   function removeFromCart(productId) {
-    fetch('{% url "remove_from_cart" %}', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': getCookie('csrftoken')
-      },
-      body: JSON.stringify({
-        product_id: productId
-      })
-    })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          cart = data.cart;
-          updateCartDisplay();
-          showToast(data.message, 'success');
+    // Use XMLHttpRequest to avoid fetch context issues
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '{% url "remove_from_cart" %}', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState === 4) {
+        try {
+          if (xhr.status === 200) {
+            const data = JSON.parse(xhr.responseText);
+            if (data.success) {
+              cart = data.cart;
+              updateCartDisplay();
+              showNotification(data.message, 'success');
+            } else {
+              showNotification(data.error || 'Error removing item', 'error');
+            }
+          } else {
+            console.error('HTTP error! status:', xhr.status);
+            showNotification(`Error removing item: HTTP ${xhr.status}`, 'error');
+          }
+        } catch (error) {
+          console.error('Response parsing error:', error);
+          showNotification('Error processing server response', 'error');
         }
-      });
+      }
+    };
+
+    xhr.onerror = function () {
+      console.error('Network error');
+      showNotification('Network error. Please check your connection.', 'error');
+    };
+
+    try {
+      xhr.send(JSON.stringify({
+        product_id: productId
+      }));
+    } catch (error) {
+      console.error('Request send error:', error);
+      showNotification('Error sending request: ' + error.message, 'error');
+    }
   }
+
 
   // Complete order
   document.getElementById('completeOrder').addEventListener('click', function () {
+    console.log('Complete order button clicked'); // Debug log
+
+    // Validate customer data before proceeding
+    const customerName = document.getElementById('customerName').value.trim();
+    const customerPhone = document.getElementById('customerPhone').value.trim();
+
+    // Validate customer name
+    const namePattern = /^[A-Za-z\s\-']+$/;
+    if (customerName && !namePattern.test(customerName)) {
+      showNotification('Please enter a valid customer name (letters only)', 'error');
+      document.getElementById('customerName').focus();
+      return;
+    }
+
+    // Validate customer phone if provided
+    const phonePattern = /^(\+251|251|0)?[79]\d{8}$/;
+    if (customerPhone && !phonePattern.test(customerPhone)) {
+      showNotification('Please enter a valid Ethiopian phone number', 'error');
+      document.getElementById('customerPhone').focus();
+      return;
+    }
+
+    // Show loading state
+    const button = this;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Processing...';
+    button.disabled = true;
+
     const orderData = {
       customer_name: document.getElementById('customerName').value || 'Walk-in Customer',
       customer_phone: document.getElementById('customerPhone').value || '',
-      discount: parseFloat(document.getElementById('discountPercent').value) || 0,
-      taxable: document.getElementById('taxable').checked,
+      discount: 0, // No discount
+      taxable: true, // Always apply tax
       payment_type: document.getElementById('paymentType').value
     };
 
-    fetch('{% url "complete_order" %}', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': getCookie('csrftoken')
-      },
-      body: JSON.stringify(orderData)
-    })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          // If this order was from a ticket, update the ticket status
-          if (currentTicketNumber) {
-            updateTicketStatus(currentTicketNumber, 'completed');
-          }
+    console.log('Order data:', orderData); // Debug log
 
-          // Show success modal with receipt actions
-          showOrderSuccessModal(data);
-        } else {
-          showToast(data.error, 'error');
+    // Use XMLHttpRequest to avoid fetch context issues
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '{% url "complete_order" %}', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+
+    // Set timeout (30 seconds)
+    xhr.timeout = 30000;
+
+    xhr.ontimeout = function () {
+      console.error('Request timeout');
+      showNotification('Request timed out. Please try again.', 'error');
+    };
+
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState === 4) {
+        try {
+          console.log('Complete order response status:', xhr.status);
+          console.log('Complete order response headers:', xhr.getAllResponseHeaders());
+          console.log('Complete order response text:', xhr.responseText);
+
+          if (xhr.status === 200) {
+            // Check if response is empty
+            if (!xhr.responseText || xhr.responseText.trim() === '') {
+              console.error('Empty response from server');
+              showNotification('Server returned empty response', 'error');
+              return;
+            }
+
+            // Check content type
+            const contentType = xhr.getResponseHeader('Content-Type');
+            console.log('Response Content-Type:', contentType);
+
+            if (contentType && !contentType.includes('application/json')) {
+              console.warn('Response is not JSON:', contentType);
+              console.log('Non-JSON response:', xhr.responseText.substring(0, 500));
+              showNotification('Server returned non-JSON response. Check console for details.', 'error');
+              return;
+            }
+
+            // Try to parse JSON with better error handling
+            let data;
+            try {
+              data = JSON.parse(xhr.responseText);
+            } catch (parseError) {
+              console.error('JSON parse error:', parseError);
+              console.error('Response text that failed to parse:', xhr.responseText);
+              showNotification('Invalid response format from server', 'error');
+              return;
+            }
+
+            console.log('Parsed order completion data:', data);
+
+            // Check for success in multiple ways
+            const isSuccess = data.success === true ||
+              data.success === 'true' ||
+              (data.transaction_id && data.receipt_id) ||
+              data.message === 'Order completed successfully';
+
+            console.log('Order success check:', {
+              'data.success': data.success,
+              'has transaction_id': !!data.transaction_id,
+              'has receipt_id': !!data.receipt_id,
+              'message': data.message,
+              'isSuccess': isSuccess
+            });
+
+            if (isSuccess) {
+              // Clear cart
+              cart = { items: [], total: 0 };
+              updateCartDisplay();
+
+              // Show success message and receipt
+              showNotification('Order completed successfully!', 'success');
+
+              // Store receipt data for modal
+              window.currentReceipt = data.receipt || data;
+
+              // Show order success modal
+              const orderSuccessModalElement = document.getElementById('orderSuccessModal');
+              if (orderSuccessModalElement) {
+                const orderSuccessModal = new bootstrap.Modal(orderSuccessModalElement);
+
+                // Populate order success modal with receipt data
+                const receiptNumberElement = document.getElementById('receiptNumber');
+                const orderTotalElement = document.getElementById('orderTotal');
+
+                if (receiptNumberElement) {
+                  receiptNumberElement.textContent = data.receipt?.receipt_number || `R${data.receipt_id || 'Unknown'}`;
+                }
+                if (orderTotalElement) {
+                  orderTotalElement.textContent = parseFloat(data.total_amount || 0).toFixed(2);
+                }
+
+                orderSuccessModal.show();
+              } else {
+                console.error('Order success modal not found');
+                showNotification('Order completed successfully! Receipt created.', 'success');
+              }
+
+              // Clear form
+              document.getElementById('customerName').value = '';
+              document.getElementById('customerPhone').value = '';
+              document.getElementById('paymentType').value = 'cash';
+              updateTotals();
+            } else {
+              showNotification(data.error || 'Error completing order', 'error');
+              // Restore button state
+              button.innerHTML = originalText;
+              button.disabled = false;
+            }
+          } else {
+            console.error('HTTP error! status:', xhr.status);
+            showNotification(`Error completing order: HTTP ${xhr.status}`, 'error');
+            // Restore button state
+            button.innerHTML = originalText;
+            button.disabled = false;
+          }
+        } catch (error) {
+          console.error('Response parsing error:', error);
+          showNotification('Error processing server response', 'error');
+          // Restore button state
+          button.innerHTML = originalText;
+          button.disabled = false;
         }
-      })
-      .catch(error => {
-        showToast('Error completing order', 'error');
-      });
+      }
+    };
+
+    xhr.onerror = function () {
+      console.error('Network error');
+      showNotification('Network error. Please check your connection.', 'error');
+      // Restore button state
+      button.innerHTML = originalText;
+      button.disabled = false;
+    };
+
+    xhr.ontimeout = function () {
+      console.error('Request timeout');
+      showNotification('Request timed out. Please try again.', 'error');
+      // Restore button state
+      button.innerHTML = originalText;
+      button.disabled = false;
+    };
+
+    try {
+      xhr.send(JSON.stringify(orderData));
+    } catch (error) {
+      console.error('Request send error:', error);
+      showNotification('Error sending request: ' + error.message, 'error');
+      // Restore button state
+      button.innerHTML = originalText;
+      button.disabled = false;
+    }
   });
 
   // Show order success modal
@@ -658,8 +1450,10 @@
 
   // Download receipt
   document.getElementById('downloadReceiptBtn').addEventListener('click', function () {
-    if (window.currentReceipt) {
-      window.open(window.currentReceipt.pdfUrl, '_blank');
+    if (window.currentReceipt && window.currentReceipt.id) {
+      window.open(`/stores/receipt/${window.currentReceipt.id}/pdf/`, '_blank');
+    } else {
+      showNotification('Receipt data not available', 'error');
     }
   });
 
@@ -694,53 +1488,70 @@
     this.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Sending...';
     statusDiv.style.display = 'none';
 
-    fetch(`/stores/receipt/${window.currentReceipt.id}/email/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': getCookie('csrftoken')
-      },
-      body: JSON.stringify({
-        email: email
-      })
-    })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          statusDiv.className = 'alert alert-success';
-          statusDiv.textContent = data.message;
-          statusDiv.style.display = 'block';
-          document.getElementById('customerEmail').value = '';
+    // Ensure fetch is available and properly scoped
+    const fetchFunction = window.fetch || fetch;
+    if (!fetchFunction) {
+      console.error('Fetch API not available');
+      statusDiv.className = 'alert alert-danger';
+      statusDiv.textContent = 'Browser does not support required features';
+      statusDiv.style.display = 'block';
+      return;
+    }
 
-          // Close modal after 2 seconds
-          setTimeout(() => {
-            bootstrap.Modal.getInstance(document.getElementById('emailModal')).hide();
-          }, 2000);
-        } else {
+    try {
+      fetchFunction(`/stores/receipt/${window.currentReceipt.id}/email/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+          email: email
+        })
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            statusDiv.className = 'alert alert-success';
+            statusDiv.textContent = data.message;
+            statusDiv.style.display = 'block';
+            document.getElementById('customerEmail').value = '';
+
+            // Close modal after 2 seconds
+            setTimeout(() => {
+              bootstrap.Modal.getInstance(document.getElementById('emailModal')).hide();
+            }, 2000);
+          } else {
+            statusDiv.className = 'alert alert-danger';
+            statusDiv.textContent = data.error;
+            statusDiv.style.display = 'block';
+          }
+        })
+        .catch(error => {
           statusDiv.className = 'alert alert-danger';
-          statusDiv.textContent = data.error;
+          statusDiv.textContent = 'Failed to send email. Please try again.';
           statusDiv.style.display = 'block';
-        }
-      })
-      .catch(error => {
-        statusDiv.className = 'alert alert-danger';
-        statusDiv.textContent = 'Failed to send email. Please try again.';
-        statusDiv.style.display = 'block';
-      })
-      .finally(() => {
-        this.disabled = false;
-        this.innerHTML = '<i class="bi bi-send me-2"></i>Send Receipt';
-      });
+        })
+        .finally(() => {
+          this.disabled = false;
+          this.innerHTML = '<i class="bi bi-send me-2"></i>Send Receipt';
+        });
+    } catch (error) {
+      console.error('Email setup error:', error);
+      statusDiv.className = 'alert alert-danger';
+      statusDiv.textContent = 'Error setting up email request: ' + error.message;
+      statusDiv.style.display = 'block';
+      this.disabled = false;
+      this.innerHTML = '<i class="bi bi-send me-2"></i>Send Receipt';
+    }
   });
 
-  // New order button
+  // Order button
   document.getElementById('newOrderBtn').addEventListener('click', function () {
     bootstrap.Modal.getInstance(document.getElementById('orderSuccessModal')).hide();
     // Reset form
     document.getElementById('customerName').value = '';
     document.getElementById('customerPhone').value = '';
-    document.getElementById('discountPercent').value = '0';
-    document.getElementById('taxable').checked = false;
     document.getElementById('paymentType').value = 'cash';
     updateTotals();
   });
@@ -753,33 +1564,8 @@
     }
   });
 
-  // Utility functions
-  function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-      const cookies = document.cookie.split(';');
-      for (let i = 0; i < cookies.length; i++) {
-        const cookie = cookies[i].trim();
-        if (cookie.substring(0, name.length + 1) === (name + '=')) {
-          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-          break;
-        }
-      }
-    }
-    return cookieValue;
-  }
+  // Utility functions are defined above
 
-  function showToast(message, type) {
-    // Simple toast notification
-    const toast = document.createElement('div');
-    toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} position-fixed`;
-    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999;';
-    toast.textContent = message;
-    document.body.appendChild(toast);
 
-    setTimeout(() => {
-      toast.remove();
-    }, 3000);
-  }
 </script>
 {% endblock %}

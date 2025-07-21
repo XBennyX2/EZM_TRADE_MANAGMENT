@@ -22,7 +22,7 @@ from .views import (
     head_manager_restock_requests,
     approve_restock_request, reject_restock_request,
     # API endpoints for product dropdowns
-    get_restock_products, get_transfer_products, get_stores_with_product,
+    get_restock_products, get_transfer_products, get_stores_with_product, warehouse_products_api,
     # Analytics views
     analytics_dashboard, financial_reports, analytics_api,
     # Transaction history
@@ -77,7 +77,8 @@ urlpatterns = [
     path('api/stores-with-product/', get_stores_with_product, name='get_stores_with_product'),
 
     # API endpoints for supplier product selection
-    path('api/warehouse-products/', api_warehouse_products, name='api_warehouse_products'),
+    path('api/warehouse-products/', warehouse_products_api, name='warehouse_products_api'),
+    path('api/warehouse-products-legacy/', api_warehouse_products, name='api_warehouse_products'),
     path('api/product-categories/', api_product_categories, name='api_product_categories'),
 
     # Head Manager request management URLs

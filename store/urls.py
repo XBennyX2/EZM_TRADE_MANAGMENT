@@ -16,13 +16,13 @@ urlpatterns = [
     path('showrooms/<int:pk>/delete/', views.ShowroomDeleteView.as_view(), name='showroom_delete'),
 
 # Cashier Order System URLs
-    path('cashier/dashboard/', views.cashier_dashboard, name='cashier_dashboard'),
     path('process-single-sale/', views.process_single_sale, name='process_single_sale'),
     path('cashier/initiate-order/', views.initiate_order, name='initiate_order'),
     path('cashier/add-to-cart/', views.add_to_cart, name='add_to_cart'),
     path('cashier/remove-from-cart/', views.remove_from_cart, name='remove_from_cart'),
     path('cashier/complete-order/', views.complete_order, name='complete_order'),
     path('cashier/cart-status/', views.get_cart_status, name='get_cart_status'),
+    path('cashier/transactions/', views.cashier_transactions, name='cashier_transactions'),
     path('receipt/<int:receipt_id>/', views.view_receipt, name='view_receipt'),
     path('receipt/<int:receipt_id>/pdf/', views.generate_receipt_pdf, name='generate_receipt_pdf'),
     path('receipt/<int:receipt_id>/email/', views.email_receipt, name='email_receipt'),
@@ -49,4 +49,5 @@ urlpatterns = [
 
     # Ticket Processing URL
     path('process-ticket/<str:ticket_number>/', views.process_ticket_to_order, name='process_ticket_to_order'),
+    path('api/tickets/<str:ticket_number>/', views.get_ticket_api, name='get_ticket_api'),
 ]

@@ -566,28 +566,28 @@ def calculate_store_analytics(store):
 
         # 3. PEAK HOURS/DAYS ANALYSIS
 
-        # Peak hour analysis
+        # Peak hour analysis (SQLite compatible)
         hourly_sales = Transaction.objects.filter(
             store=store,
             transaction_type='sale',
             timestamp__gte=last_30_days
         ).extra(
-            select={'hour': 'EXTRACT(hour FROM timestamp)'}
+            select={'hour': "strftime('%%H', timestamp)"}
         ).values('hour').annotate(
             total_sales=Sum('total_amount'),
             transaction_count=Count('id')
         ).order_by('-total_sales')
 
-        peak_hour = f"{hourly_sales[0]['hour']:02d}:00" if hourly_sales else "14:00"
+        peak_hour = f"{hourly_sales[0]['hour']}:00" if hourly_sales else "14:00"
         peak_sales = float(hourly_sales[0]['total_sales']) if hourly_sales else 0
 
-        # Peak day analysis
+        # Peak day analysis (SQLite compatible)
         daily_sales = Transaction.objects.filter(
             store=store,
             transaction_type='sale',
             timestamp__gte=last_7_days
         ).extra(
-            select={'weekday': 'EXTRACT(dow FROM timestamp)'}
+            select={'weekday': "strftime('%%w', timestamp)"}
         ).values('weekday').annotate(
             total_sales=Sum('total_amount')
         ).order_by('-total_sales')
@@ -952,7 +952,7 @@ def store_sales_report(request):
                 # Apply product filters
                 if product_category and order.product.category != product_category:
                     continue
-                if supplier_id and str(order.product.supplier_company.id) != supplier_id:
+                if supplier_id and order.product.supplier_company != supplier_id:
                     continue
                 if product_id and str(order.product.id) != product_id:
                     continue
@@ -979,7 +979,7 @@ def store_sales_report(request):
                     'product_name': order.product.name,
                     'product_sku': getattr(order.product, 'sku', f'SKU-{order.product.id}'),
                     'category': order.product.category,
-                    'supplier': order.product.supplier_company.name if order.product.supplier_company else 'N/A',
+                    'supplier': order.product.supplier_company if order.product.supplier_company else 'N/A',
                     'quantity_sold': order.quantity,
                     'unit_price': order.price_at_time_of_sale,
                     'cost_price': cost_price,
@@ -990,7 +990,7 @@ def store_sales_report(request):
                     'remaining_stock': remaining_stock,
                     'current_selling_price': current_selling_price,
                     'payment_method': transaction.payment_type,
-                    'receipt_number': transaction.receipt.receipt_number if hasattr(transaction, 'receipt') and transaction.receipt else f'TXN-{transaction.id}',
+                    'receipt_number': f'R{transaction.receipt.id:06d}' if hasattr(transaction, 'receipt') and transaction.receipt else f'TXN-{transaction.id}',
                 })
 
                 total_revenue += line_total

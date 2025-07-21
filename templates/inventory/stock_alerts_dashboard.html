@@ -3,31 +3,41 @@
 
 {% block title %}Stock Alerts Dashboard{% endblock %}
 
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
 {% block extra_css %}
 <style>
     .alert-card {
         border-left: 4px solid var(--accent-teal);
         transition: all 0.3s ease;
     }
+
     .alert-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
+
     .stock-level-critical {
         color: #dc3545;
         font-weight: bold;
     }
+
     .stock-level-low {
         color: #fd7e14;
         font-weight: bold;
     }
+
     .stock-level-normal {
         color: #28a745;
     }
+
     .threshold-input {
         width: 80px;
         display: inline-block;
     }
+
     .stats-card {
         background: linear-gradient(135deg, var(--primary-dark), var(--secondary-dark));
         color: white;
@@ -35,6 +45,7 @@
         padding: 1.5rem;
         text-align: center;
     }
+
     .stats-number {
         font-size: 2rem;
         font-weight: bold;
@@ -101,8 +112,8 @@
             <form method="GET" class="row g-3">
                 <div class="col-md-4">
                     <label for="search" class="form-label">Search Products</label>
-                    <input type="text" class="form-control" id="search" name="search" 
-                           value="{{ search_query }}" placeholder="Product name, SKU, or supplier">
+                    <input type="text" class="form-control" id="search" name="search" value="{{ search_query }}"
+                        placeholder="Product name, SKU, or supplier">
                 </div>
                 <div class="col-md-3">
                     <label for="category" class="form-label">Category</label>
@@ -161,18 +172,18 @@
                                 <span class="badge bg-secondary">{{ product.category|title }}</span>
                             </td>
                             <td>
-                                <span class="{% if product.quantity_in_stock == 0 %}stock-level-critical{% elif product.quantity_in_stock <= 5 %}stock-level-low{% else %}stock-level-normal{% endif %}">
+                                <span
+                                    class="{% if product.quantity_in_stock == 0 %}stock-level-critical{% elif product.quantity_in_stock <= 5 %}stock-level-low{% else %}stock-level-normal{% endif %}">
                                     {{ product.quantity_in_stock }} units
                                 </span>
                             </td>
                             <td>
                                 <div class="d-flex align-items-center">
-                                    <input type="number" class="form-control threshold-input me-2" 
-                                           value="{{ product.minimum_stock_level }}" 
-                                           min="0" max="{{ product.maximum_stock_level }}"
-                                           id="threshold-{{ product.id }}">
-                                    <button class="btn btn-sm btn-outline-primary" 
-                                            onclick="updateThreshold({{ product.id }})">
+                                    <input type="number" class="form-control threshold-input me-2"
+                                        value="{{ product.minimum_stock_level }}" min="0"
+                                        max="{{ product.maximum_stock_level }}" id="threshold-{{ product.id }}">
+                                    <button class="btn btn-sm btn-outline-primary"
+                                        onclick="updateThreshold({{ product.id }})">
                                         <i class="bi bi-check"></i>
                                     </button>
                                 </div>
@@ -182,12 +193,13 @@
                                 <small class="text-muted">{{ product.supplier.contact_person }}</small>
                             </td>
                             <td>
-                                <small class="text-muted">{{ product.warehouse_location|default:"Not specified" }}</small>
+                                <small class="text-muted">{{ product.warehouse_location|default:"Not specified"
+                                    }}</small>
                             </td>
                             <td>
                                 <div class="btn-group" role="group">
-                                    <button class="btn btn-sm btn-outline-primary" 
-                                            onclick="createRestockRequest({{ product.id }})">
+                                    <button class="btn btn-sm btn-outline-primary"
+                                        onclick="createRestockRequest({{ product.id }})">
                                         <i class="bi bi-plus-circle me-1"></i>Restock
                                     </button>
                                     <a href="#" class="btn btn-sm btn-outline-info">
@@ -208,27 +220,31 @@
                     <ul class="pagination">
                         {% if page_obj.has_previous %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}">Previous</a>
+                            <a class="page-link"
+                                href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}">Previous</a>
                         </li>
                         {% endif %}
-                        
+
                         {% for num in page_obj.paginator.page_range %}
                         {% if page_obj.number == num %}
                         <li class="page-item active">
                             <span class="page-link">{{ num }}</span>
                         </li>
-                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}">{{ num }}</a>
-                        </li>
-                        {% endif %}
-                        {% endfor %}
-                        
-                        {% if page_obj.has_next %}
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}">Next</a>
-                        </li>
-                        {% endif %}
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %} <li
+                            class="page-item">
+                            <a class="page-link"
+                                href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}">{{
+                                num }}</a>
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+
+                            {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link"
+                                    href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}">Next</a>
+                            </li>
+                            {% endif %}
                     </ul>
                 </nav>
             </div>
@@ -271,7 +287,8 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="bulkUpdateThresholds()">Update Thresholds</button>
+                <button type="button" class="btn btn-primary" onclick="bulkUpdateThresholds()">Update
+                    Thresholds</button>
             </div>
         </div>
     </div>
@@ -280,84 +297,84 @@
 
 {% block extra_js %}
 <script>
-function updateThreshold(productId) {
-    const threshold = document.getElementById(`threshold-${productId}`).value;
-    
-    fetch(`/inventory/update-threshold/${productId}/`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-        },
-        body: `threshold=${threshold}`
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showAlert('success', data.message);
-        } else {
-            showAlert('danger', data.error);
-        }
-    })
-    .catch(error => {
-        showAlert('danger', 'Error updating threshold');
-    });
-}
+    function updateThreshold(productId) {
+        const threshold = document.getElementById(`threshold-${productId}`).value;
 
-function bulkUpdateThresholds() {
-    const form = document.getElementById('bulkUpdateForm');
-    const formData = new FormData(form);
-    
-    fetch('/inventory/bulk-update-thresholds/', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-        },
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showAlert('success', data.message);
-            bootstrap.Modal.getInstance(document.getElementById('bulkUpdateModal')).hide();
-            setTimeout(() => location.reload(), 1500);
-        } else {
-            showAlert('danger', data.error);
-        }
-    })
-    .catch(error => {
-        showAlert('danger', 'Error updating thresholds');
-    });
-}
+        fetch(`/inventory/update-threshold/${productId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: `threshold=${threshold}`
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('success', data.message);
+                } else {
+                    showAlert('danger', data.error);
+                }
+            })
+            .catch(error => {
+                showAlert('danger', 'Error updating threshold');
+            });
+    }
 
-function checkLowStock() {
-    showAlert('info', 'Checking for low stock products...');
-    // This would trigger the management command via AJAX
-    setTimeout(() => {
-        location.reload();
-    }, 2000);
-}
+    function bulkUpdateThresholds() {
+        const form = document.getElementById('bulkUpdateForm');
+        const formData = new FormData(form);
 
-function createRestockRequest(productId) {
-    // Redirect to restock request creation
-    window.location.href = `/inventory/restock-request/create/?product=${productId}`;
-}
+        fetch('/inventory/bulk-update-thresholds/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('success', data.message);
+                    bootstrap.Modal.getInstance(document.getElementById('bulkUpdateModal')).hide();
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showAlert('danger', data.error);
+                }
+            })
+            .catch(error => {
+                showAlert('danger', 'Error updating thresholds');
+            });
+    }
 
-function showAlert(type, message) {
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-    alertDiv.innerHTML = `
+    function checkLowStock() {
+        showAlert('info', 'Checking for low stock products...');
+        // This would trigger the management command via AJAX
+        setTimeout(() => {
+            location.reload();
+        }, 2000);
+    }
+
+    function createRestockRequest(productId) {
+        // Redirect to restock request creation
+        window.location.href = `/inventory/restock-request/create/?product=${productId}`;
+    }
+
+    function showAlert(type, message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        alertDiv.innerHTML = `
         ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
-    document.body.appendChild(alertDiv);
-    
-    setTimeout(() => {
-        if (alertDiv.parentNode) {
-            alertDiv.parentNode.removeChild(alertDiv);
-        }
-    }, 5000);
-}
+        document.body.appendChild(alertDiv);
+
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.parentNode.removeChild(alertDiv);
+            }
+        }, 5000);
+    }
 </script>
 {% endblock %}

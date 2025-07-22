@@ -484,27 +484,25 @@ class SupplierProductForm(forms.ModelForm):
     """
     Form for suppliers to add/edit products in their catalog.
     """
-    # Product name dropdown from warehouse inventory
-    product_name = forms.ChoiceField(
-        choices=[],
+    # Product name as free text input
+    product_name = forms.CharField(
+        max_length=255,
         required=True,
-        widget=forms.Select(attrs={
-            'class': 'form-control product-name-select',
-            'id': 'product_name_select',
-            'data-placeholder': 'Select a product name...'
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'id': 'product_name_input',
+            'placeholder': 'Enter product name...',
+            'autocomplete': 'off'
         }),
-        help_text="Select a product name from the warehouse inventory to prevent spelling errors"
+        help_text="Enter any product name you want to offer"
     )
 
-    # Hidden field to store the selected warehouse product
+    # Optional warehouse product reference (for existing warehouse products)
     warehouse_product = forms.ModelChoiceField(
         queryset=WarehouseProduct.objects.all(),
-        required=True,
+        required=False,
         widget=forms.HiddenInput(),
-        error_messages={
-            'required': 'You must select a product from the warehouse inventory.',
-            'invalid_choice': 'Please select a valid warehouse product.'
-        }
+        help_text="Optional reference to warehouse product if applicable"
     )
 
     category_choice = forms.ChoiceField(
@@ -527,34 +525,10 @@ class SupplierProductForm(forms.ModelForm):
         self.supplier = kwargs.pop('supplier', None)
         super().__init__(*args, **kwargs)
 
-        # Populate product name dropdown from warehouse inventory
-        if self.supplier:
-            # Show products from warehouse that are available and not already in supplier's catalog
-            existing_products = SupplierProduct.objects.filter(
-                supplier=self.supplier
-            ).values_list('warehouse_product_id', flat=True)
-
-            available_products = WarehouseProduct.objects.filter(
-                is_active=True,
-                quantity_in_stock__gt=0
-            ).exclude(id__in=existing_products)
-        else:
-            # Show all available warehouse products
-            available_products = WarehouseProduct.objects.filter(
-                is_active=True,
-                quantity_in_stock__gt=0
-            )
-
-        # Create product name choices from warehouse products
-        product_name_choices = [('', 'Select a product name...')]
-        for product in available_products.order_by('product_name'):
-            # Use product name as both value and display
-            product_name_choices.append((product.product_name, product.product_name))
-
-        self.fields['product_name'].choices = product_name_choices
-
-        # Set the warehouse product queryset for the hidden field
-        self.fields['warehouse_product'].queryset = available_products
+        # Set up warehouse product queryset for optional reference
+        self.fields['warehouse_product'].queryset = WarehouseProduct.objects.filter(
+            is_active=True
+        )
 
         # Populate construction-related category choices
         construction_categories = [
@@ -714,47 +688,50 @@ class SupplierProductForm(forms.ModelForm):
         product_code = cleaned_data.get('product_code')
         product_name = cleaned_data.get('product_name')
 
-        # Get warehouse product from form data (should be set by dynamic dropdown)
+        # Get warehouse product from form data (optional)
         warehouse_product = cleaned_data.get('warehouse_product')
 
-        # Ensure warehouse product is selected to prevent spelling errors
-        if not warehouse_product:
-            raise forms.ValidationError(
-                "You must select a product from the warehouse inventory. "
-                "This prevents spelling errors and ensures product consistency."
-            )
+        # Validate product name is provided
+        if not product_name or not product_name.strip():
+            raise forms.ValidationError("Product name is required.")
 
-        # Validate warehouse product is still available
-        if not warehouse_product.is_active:
-            raise forms.ValidationError(
-                f"Product '{warehouse_product.product_name}' is no longer active."
-            )
-
-        if warehouse_product.quantity_in_stock <= 0:
-            raise forms.ValidationError(
-                f"Product '{warehouse_product.product_name}' is out of stock."
-            )
-
-        # Check for duplicates if supplier is provided
-        if self.supplier:
-            existing = SupplierProduct.objects.filter(
-                supplier=self.supplier,
-                warehouse_product=warehouse_product
-            ).exclude(pk=self.instance.pk if self.instance.pk else None)
-
-            if existing.exists():
+        # If warehouse product is selected, validate it
+        if warehouse_product:
+            # Validate warehouse product is still available
+            if not warehouse_product.is_active:
                 raise forms.ValidationError(
-                    f"You have already added '{warehouse_product.product_name}' to your catalog."
+                    f"Product '{warehouse_product.product_name}' is no longer active."
                 )
 
-        # Ensure product name matches warehouse product
-        if product_name and product_name != warehouse_product.product_name:
-            raise forms.ValidationError(
-                "Product name must match the selected warehouse product."
-            )
+            if warehouse_product.quantity_in_stock <= 0:
+                raise forms.ValidationError(
+                    f"Product '{warehouse_product.product_name}' is out of stock."
+                )
 
-        # Set product name from warehouse product to ensure consistency
-        cleaned_data['product_name'] = warehouse_product.product_name
+            # Check for duplicates if supplier is provided
+            if self.supplier:
+                existing = SupplierProduct.objects.filter(
+                    supplier=self.supplier,
+                    warehouse_product=warehouse_product
+                ).exclude(pk=self.instance.pk if self.instance.pk else None)
+
+                if existing.exists():
+                    raise forms.ValidationError(
+                        f"You have already added '{warehouse_product.product_name}' to your catalog."
+                    )
+
+        # Check for duplicate product names for this supplier (regardless of warehouse product)
+        if self.supplier and product_name:
+            existing_by_name = SupplierProduct.objects.filter(
+                supplier=self.supplier,
+                product_name__iexact=product_name.strip()
+            ).exclude(pk=self.instance.pk if self.instance.pk else None)
+
+            if existing_by_name.exists():
+                raise forms.ValidationError(
+                    f"You already have a product named '{product_name}' in your catalog. "
+                    "Please use a different product name."
+                )
 
         # Handle category validation
         if category_choice == 'other':
@@ -804,14 +781,11 @@ class SupplierProductForm(forms.ModelForm):
     def save(self, commit=True):
         instance = super().save(commit=False)
 
-        # Get the warehouse product from cleaned data (set in clean method)
+        # Get the warehouse product from cleaned data (optional)
         if hasattr(self, 'cleaned_data') and 'warehouse_product' in self.cleaned_data:
             warehouse_product = self.cleaned_data['warehouse_product']
             if warehouse_product:
-                # Ensure product name matches exactly (already validated in clean method)
-                instance.product_name = warehouse_product.product_name
-
-                # Auto-populate other fields if not provided
+                # Auto-populate other fields if not provided (but don't override user input)
                 if not instance.product_code:
                     instance.product_code = warehouse_product.product_id
                 if not instance.description:
@@ -826,7 +800,7 @@ class SupplierProductForm(forms.ModelForm):
         if hasattr(self, 'cleaned_data') and 'category' in self.cleaned_data:
             instance.category = self.cleaned_data['category']
 
-        # Set the product code from cleaned data
+        # Set the product code from cleaned data (auto-generated if not provided)
         if hasattr(self, 'cleaned_data') and 'product_code' in self.cleaned_data:
             instance.product_code = self.cleaned_data['product_code']
 

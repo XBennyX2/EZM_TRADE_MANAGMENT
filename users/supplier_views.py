@@ -108,10 +108,90 @@ def supplier_dashboard(request):
             is_active=True
         )
 
-    # Get recent transactions
-    recent_transactions = SupplierTransaction.objects.filter(
+    # Get comprehensive recent transactions from all sources
+    from payments.models import ChapaTransaction, PurchaseOrderPayment
+    from django.db.models import Q
+    from itertools import chain
+    from operator import attrgetter
+
+    # Get all transaction types for this supplier
+    chapa_transactions = ChapaTransaction.objects.filter(
+        supplier=supplier
+    ).order_by('-created_at')[:5]
+
+    purchase_order_payments = PurchaseOrderPayment.objects.filter(
+        supplier=supplier
+    ).order_by('-created_at')[:5]
+
+    supplier_transactions = SupplierTransaction.objects.filter(
         supplier_account=supplier_account
-    ).order_by('-transaction_date')[:10]
+    ).order_by('-transaction_date')[:5]
+
+    supplier_payments = SupplierPayment.objects.filter(
+        supplier_transaction__supplier_account=supplier_account
+    ).order_by('-payment_date')[:5]
+
+    # Normalize transaction data for display
+    normalized_transactions = []
+
+    # Add Chapa transactions
+    for transaction in chapa_transactions:
+        normalized_transactions.append({
+            'transaction_number': transaction.chapa_tx_ref,
+            'transaction_type': 'Chapa Payment',
+            'amount': transaction.amount,
+            'currency': 'ETB',
+            'status': transaction.status,
+            'transaction_date': transaction.created_at,
+            'payment_method': 'Chapa Gateway',
+            'type_badge_class': 'bg-primary'
+        })
+
+    # Add Purchase Order Payments
+    for payment in purchase_order_payments:
+        normalized_transactions.append({
+            'transaction_number': f"POP-{str(payment.id)[:8]}",
+            'transaction_type': 'Purchase Order',
+            'amount': payment.total_amount,
+            'currency': 'ETB',
+            'status': payment.status,
+            'transaction_date': payment.created_at,
+            'payment_method': 'Purchase Order',
+            'type_badge_class': 'bg-info'
+        })
+
+    # Add Supplier Transactions
+    for transaction in supplier_transactions:
+        normalized_transactions.append({
+            'transaction_number': transaction.transaction_number,
+            'transaction_type': transaction.get_transaction_type_display(),
+            'amount': transaction.amount,
+            'currency': 'ETB',
+            'status': transaction.status,
+            'transaction_date': transaction.transaction_date,
+            'payment_method': 'Traditional',
+            'type_badge_class': 'bg-success'
+        })
+
+    # Add Supplier Payments
+    for payment in supplier_payments:
+        normalized_transactions.append({
+            'transaction_number': payment.payment_number,
+            'transaction_type': 'Payment',
+            'amount': payment.amount_paid,
+            'currency': 'ETB',
+            'status': payment.status,
+            'transaction_date': payment.payment_date,
+            'payment_method': payment.get_payment_method_display(),
+            'type_badge_class': 'bg-warning'
+        })
+
+    # Sort all transactions by date and get the most recent 10
+    recent_transactions = sorted(
+        normalized_transactions,
+        key=lambda x: x['transaction_date'],
+        reverse=True
+    )[:10]
 
     # Get pending purchase orders
     pending_orders = PurchaseOrder.objects.filter(
@@ -119,11 +199,35 @@ def supplier_dashboard(request):
         status__in=['pending', 'approved']
     ).count()
 
-    # Get payment statistics
-    total_payments = SupplierPayment.objects.filter(
+    # Calculate total payments from all successful sources
+    chapa_total = ChapaTransaction.objects.filter(
+        supplier=supplier,
+        status='success'
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    purchase_order_total = PurchaseOrderPayment.objects.filter(
+        supplier=supplier,
+        status__in=['payment_confirmed', 'delivered']
+    ).aggregate(total=Sum('total_amount'))['total'] or 0
+
+    supplier_payment_total = SupplierPayment.objects.filter(
         supplier_transaction__supplier_account=supplier_account,
         status='completed'
     ).aggregate(total=Sum('amount_paid'))['total'] or 0
+
+    supplier_transaction_total = SupplierTransaction.objects.filter(
+        supplier_account=supplier_account,
+        transaction_type='payment',
+        status='completed'
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    # Sum all payment sources
+    total_payments = (
+        float(chapa_total) +
+        float(purchase_order_total) +
+        float(supplier_payment_total) +
+        float(supplier_transaction_total)
+    )
 
     # Get pending invoices
     pending_invoices = SupplierInvoice.objects.filter(
@@ -138,7 +242,6 @@ def supplier_dashboard(request):
     context = {
         'supplier': supplier,
         'supplier_profile': supplier_profile,
-        'supplier_account': supplier_account,
         'recent_transactions': recent_transactions,
         'pending_orders': pending_orders,
         'total_payments': total_payments,

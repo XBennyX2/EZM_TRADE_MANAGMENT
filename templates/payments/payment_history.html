@@ -350,8 +350,15 @@
                         </div>
                         <div class="col-sm-6">
                             <small class="text-muted">Items Count:</small>
-                            <div>{{ transaction.purchase_order_payment.order_items|length }} item{{
-                                transaction.purchase_order_payment.order_items|length|pluralize }}</div>
+                            <div>
+                                {% if transaction.purchase_order_payment.order_items %}
+                                    {% with item_count=transaction.purchase_order_payment.order_items|length %}
+                                        {{ item_count }} item{{ item_count|pluralize }}
+                                    {% endwith %}
+                                {% else %}
+                                    <span class="text-muted">No items</span>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                     {% endif %}
@@ -367,13 +374,8 @@
                 </div>
 
                 <div class="col-md-4 text-end">
-                    <a href="{% url 'payment_status' transaction.chapa_tx_ref %}"
-                        class="btn btn-outline-primary btn-sm">
-                        <i class="bi bi-eye me-1"></i>View Details
-                    </a>
-
                     {% if transaction.status == 'failed' %}
-                    <a href="{% url 'cart_view' %}" class="btn btn-outline-warning btn-sm mt-2">
+                    <a href="{% url 'cart_view' %}" class="btn btn-outline-warning btn-sm">
                         <i class="bi bi-arrow-clockwise me-1"></i>Retry
                     </a>
                     {% endif %}

@@ -1,8 +1,8 @@
 {% extends 'base_sidebar.html' %}
 {% load static %}
 
-{% block title %}Purchase Orders - Order Tracking{% endblock %}
-{% block page_title %}Purchase Orders - Order Tracking{% endblock %}
+{% block title %}Purchased Orders - Order Tracking{% endblock %}
+{% block page_title %}Purchased Orders - Order Tracking{% endblock %}
 
 {% block sidebar_menu %}
 {% include 'sidebar_navigation.html' %}
@@ -249,7 +249,7 @@
         <div class="col-12">
             <div class="ezm-card">
                 <div class="ezm-card-header">
-                    <i class="bi bi-list-ul me-2"></i>Active Purchase Orders
+                    <i class="bi bi-list-ul me-2"></i>Active Purchased Orders
                     <span class="badge bg-primary ms-2" id="total-orders-badge">{{ purchase_orders|length }}</span>
                 </div>
                 <div class="card-body">
@@ -377,9 +377,9 @@
                                         <i class="bi bi-exclamation-triangle me-1"></i>Report Issue
                                     </button>
                                     {% elif order.status == 'payment_confirmed' %}
-                                    <button class="btn btn-info btn-sm" onclick="markInTransit({{ order.id }})">
-                                        <i class="bi bi-truck me-1"></i>Mark In Transit
-                                    </button>
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check-circle me-1"></i>Payment Confirmed
+                                    </span>
                                     {% elif order.is_delivered %}
                                     <span class="badge bg-success">
                                         <i class="bi bi-check-circle me-1"></i>Delivered {{ order.delivered_at|date:"M
@@ -453,7 +453,7 @@
     <div class="card shadow-sm">
         <div class="card-header bg-primary text-white">
             <h5 class="mb-0">
-                <i class="bi bi-list-ul me-2"></i>Purchase Orders
+                <i class="bi bi-list-ul me-2"></i>Purchased Orders
             </h5>
         </div>
         <div class="card-body p-0">
@@ -1006,29 +1006,7 @@
         });
     }
 
-    function markInTransit(orderId) {
-        if (confirm('Mark this order as in transit? This will start the delivery countdown timer.')) {
-            fetch(`/inventory/purchase-orders/${orderId}/mark-in-transit/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken'),
-                    'Content-Type': 'application/json',
-                },
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        location.reload();
-                    } else {
-                        alert('Error: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error marking order in transit:', error);
-                    alert('Unable to update order status. Please try again.');
-                });
-        }
-    }
+
 
     function submitDeliveryConfirmation() {
         const form = document.getElementById('deliveryConfirmationForm');

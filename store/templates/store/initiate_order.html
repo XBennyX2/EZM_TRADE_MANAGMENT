@@ -1484,73 +1484,101 @@
     }
 
     // Show loading
-    this.disabled = true;
-    this.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Sending...';
+    const sendBtn = this; // Store reference to button
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Sending...';
     statusDiv.style.display = 'none';
 
-    // Ensure fetch is available and properly scoped
-    const fetchFunction = window.fetch || fetch;
-    if (!fetchFunction) {
-      console.error('Fetch API not available');
+    // Use XMLHttpRequest to avoid fetch context issues (consistent with other AJAX calls)
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `/stores/receipt/${window.currentReceipt.id}/email/`, true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+
+    // Set timeout (30 seconds)
+    xhr.timeout = 30000;
+
+    xhr.ontimeout = function () {
+      console.error('Email request timeout');
       statusDiv.className = 'alert alert-danger';
-      statusDiv.textContent = 'Browser does not support required features';
+      statusDiv.textContent = 'Request timed out. Please try again.';
       statusDiv.style.display = 'block';
-      return;
-    }
+      sendBtn.disabled = false;
+      sendBtn.innerHTML = '<i class="bi bi-send me-2"></i>Send Receipt';
+    };
 
-    try {
-      fetchFunction(`/stores/receipt/${window.currentReceipt.id}/email/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': getCookie('csrftoken')
-        },
-        body: JSON.stringify({
-          email: email
-        })
-      })
-        .then(response => {
-          console.log('Email response status:', response.status);
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          }
-          return response.json();
-        })
-        .then(data => {
-          console.log('Email response data:', data);
-          if (data.success) {
-            statusDiv.className = 'alert alert-success';
-            statusDiv.textContent = data.message;
-            statusDiv.style.display = 'block';
-            document.getElementById('customerEmail').value = '';
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState === 4) {
+        try {
+          console.log('Email response status:', xhr.status);
+          console.log('Email response text:', xhr.responseText);
 
-            // Close modal after 2 seconds
-            setTimeout(() => {
-              bootstrap.Modal.getInstance(document.getElementById('emailModal')).hide();
-            }, 2000);
+          if (xhr.status === 200) {
+            const data = JSON.parse(xhr.responseText);
+            console.log('Email response data:', data);
+
+            if (data.success) {
+              statusDiv.className = 'alert alert-success';
+              statusDiv.textContent = data.message;
+              statusDiv.style.display = 'block';
+              document.getElementById('customerEmail').value = '';
+
+              // Close modal after 2 seconds
+              setTimeout(() => {
+                bootstrap.Modal.getInstance(document.getElementById('emailModal')).hide();
+              }, 2000);
+            } else {
+              statusDiv.className = 'alert alert-danger';
+              statusDiv.textContent = data.error || data.message || 'Unknown error occurred';
+              statusDiv.style.display = 'block';
+            }
           } else {
+            // Handle HTTP error responses
+            let errorMessage = `HTTP ${xhr.status}`;
+            try {
+              const errorData = JSON.parse(xhr.responseText);
+              errorMessage = errorData.error || errorData.message || errorMessage;
+            } catch (e) {
+              errorMessage = xhr.responseText || errorMessage;
+            }
+
+            console.error('Email HTTP error:', errorMessage);
             statusDiv.className = 'alert alert-danger';
-            statusDiv.textContent = data.error || data.message || 'Unknown error occurred';
+            statusDiv.textContent = `Failed to send email: ${errorMessage}`;
             statusDiv.style.display = 'block';
           }
-        })
-        .catch(error => {
-          console.error('Email sending error:', error);
+        } catch (error) {
+          console.error('Email response parsing error:', error);
           statusDiv.className = 'alert alert-danger';
-          statusDiv.textContent = `Failed to send email: ${error.message}. Please try again.`;
+          statusDiv.textContent = 'Error processing server response. Please try again.';
           statusDiv.style.display = 'block';
-        })
-        .finally(() => {
-          this.disabled = false;
-          this.innerHTML = '<i class="bi bi-send me-2"></i>Send Receipt';
-        });
-    } catch (error) {
-      console.error('Email setup error:', error);
+        }
+
+        // Re-enable button
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = '<i class="bi bi-send me-2"></i>Send Receipt';
+      }
+    };
+
+    xhr.onerror = function () {
+      console.error('Email network error');
       statusDiv.className = 'alert alert-danger';
-      statusDiv.textContent = 'Error setting up email request: ' + error.message;
+      statusDiv.textContent = 'Network error. Please check your connection and try again.';
       statusDiv.style.display = 'block';
-      this.disabled = false;
-      this.innerHTML = '<i class="bi bi-send me-2"></i>Send Receipt';
+      sendBtn.disabled = false;
+      sendBtn.innerHTML = '<i class="bi bi-send me-2"></i>Send Receipt';
+    };
+
+    // Send the request
+    try {
+      xhr.send(JSON.stringify({ email: email }));
+    } catch (error) {
+      console.error('Email send error:', error);
+      statusDiv.className = 'alert alert-danger';
+      statusDiv.textContent = 'Failed to send request. Please try again.';
+      statusDiv.style.display = 'block';
+      sendBtn.disabled = false;
+      sendBtn.innerHTML = '<i class="bi bi-send me-2"></i>Send Receipt';
     }
   });
 

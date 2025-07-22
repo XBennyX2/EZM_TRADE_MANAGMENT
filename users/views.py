@@ -2487,7 +2487,7 @@ def change_user_role(request, user_id):
 
 @user_passes_test(is_admin)
 def reset_user_account(request, user_id):
-    """Reset user account with new temporary credentials"""
+    """Reset user account with new temporary credentials and email update capability"""
     target_user = get_object_or_404(User, id=user_id)
 
     # Prevent admin from resetting their own account
@@ -2501,70 +2501,82 @@ def reset_user_account(request, user_id):
         return redirect('manage_users')
 
     if request.method == 'POST':
-        reset_reason = request.POST.get('reset_reason', '')
+        from .forms import AccountResetForm
+        form = AccountResetForm(request.POST, user_being_reset=target_user)
 
-        try:
-            # Store old email for audit trail
-            old_email = target_user.email
+        if form.is_valid():
+            try:
+                # Store old email for audit trail
+                old_email = target_user.email
+                new_email = form.cleaned_data['new_email']
+                reset_reason = form.cleaned_data['reset_reason']
 
-            # Generate new temporary credentials
-            import secrets
-            import string
+                # Generate new temporary credentials
+                import secrets
+                import string
 
-            # Generate temporary email
-            timestamp = timezone.now().strftime('%Y%m%d%H%M%S')
-            temp_email = f"temp_{target_user.username}_{timestamp}@ezm-temp.local"
+                # Generate temporary password
+                alphabet = string.ascii_letters + string.digits
+                temp_password = ''.join(secrets.choice(alphabet) for i in range(12))
 
-            # Generate temporary password
-            alphabet = string.ascii_letters + string.digits
-            temp_password = ''.join(secrets.choice(alphabet) for i in range(12))
+                # Update user account with new email
+                target_user.email = new_email
+                target_user.set_password(temp_password)
+                target_user.is_first_login = True
+                target_user.is_active = True
+                target_user.save()
 
-            # Update user account
-            target_user.email = temp_email
-            target_user.set_password(temp_password)
-            target_user.is_first_login = True
-            target_user.is_active = True
-            target_user.save()
+                # Create account reset record
+                AccountReset.objects.create(
+                    user=target_user,
+                    reset_by=request.user,
+                    old_email=old_email,
+                    new_email=new_email,
+                    temporary_password=target_user.password,  # Store hashed password
+                    reset_reason=reset_reason
+                )
 
-            # Create account reset record
-            AccountReset.objects.create(
-                user=target_user,
-                reset_by=request.user,
-                old_email=old_email,
-                new_email=temp_email,
-                temporary_password=target_user.password,  # Store hashed password
-                reset_reason=reset_reason
-            )
+                # Log the account reset as a login log entry
+                log_login_attempt(request, new_email, target_user, 'success', f'Account reset by {request.user.username}')
 
-            # Log the account reset as a login log entry
-            log_login_attempt(request, temp_email, target_user, 'success', f'Account reset by {request.user.username}')
+                # Send email notification with new credentials to the new email
+                from .email_service import EZMEmailService
+                email_service = EZMEmailService()
 
-            # Send email notification with new credentials
-            from .email_service import EZMEmailService
-            email_service = EZMEmailService()
+                success, message = email_service.send_account_reset_email(
+                    target_user, temp_password, old_email, request.user
+                )
 
-            success, message = email_service.send_account_reset_email(
-                target_user, temp_password, old_email, request.user
-            )
+                if success:
+                    messages.success(request,
+                        f"Account for '{target_user.username}' has been reset successfully. "
+                        f"New credentials have been sent to {new_email}.")
+                else:
+                    messages.warning(request,
+                        f"Account reset completed but email notification failed: {message}. "
+                        f"New email: {new_email}, Password: {temp_password}")
 
-            if success:
-                messages.success(request,
-                    f"Account for '{target_user.username}' has been reset successfully. "
-                    f"New credentials have been sent to {temp_email}.")
-            else:
-                messages.warning(request,
-                    f"Account reset completed but email notification failed: {message}. "
-                    f"Temporary email: {temp_email}, Password: {temp_password}")
+                return redirect('manage_users')
 
-            return redirect('manage_users')
+            except Exception as e:
+                messages.error(request, f"Error resetting account: {e}")
+                return redirect('manage_users')
+        else:
+            # Form has validation errors, re-render with errors
+            context = {
+                'target_user': target_user,
+                'form': form,
+            }
+            return render(request, 'admin/reset_user_account.html', context)
 
-        except Exception as e:
-            messages.error(request, f"Error resetting account: {e}")
-            return redirect('manage_users')
+    else:
+        # For GET requests, show form with current user data
+        from .forms import AccountResetForm
+        form = AccountResetForm(user_being_reset=target_user)
 
-    # For GET requests, show confirmation form
     context = {
         'target_user': target_user,
+        'form': form,
     }
     return render(request, 'admin/reset_user_account.html', context)
 

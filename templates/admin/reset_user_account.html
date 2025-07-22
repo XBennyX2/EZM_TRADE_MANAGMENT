@@ -24,13 +24,15 @@
                             <i class="bi bi-exclamation-triangle-fill me-3 mt-1" style="font-size: 1.2rem;"></i>
                             <div>
                                 <h6 class="mb-2"><strong>Account Reset Warning</strong></h6>
-                                <p class="mb-2">You are about to reset the account for <strong>{{ target_user.username }}</strong>. This action will:</p>
+                                <p class="mb-2">You are about to reset the account for <strong>{{ target_user.username
+                                        }}</strong>. This action will:</p>
                                 <ul class="mb-0">
-                                    <li>Generate a new temporary email address</li>
-                                    <li>Create a new temporary password</li>
-                                    <li>Force the user to change their password on next login</li>
-                                    <li>Send new credentials to the temporary email</li>
-                                    <li>Create an audit trail of this reset action</li>
+                                    <li>Update the user's email address to the one specified below</li>
+                                    <li>Generate a new temporary password</li>
+                                    <li>Force the user to change their password on first login</li>
+                                    <li>Activate the account if it was previously disabled</li>
+                                    <li>Send new credentials to the specified email address</li>
+                                    <li>Create an audit trail record of this action</li>
                                 </ul>
                             </div>
                         </div>
@@ -50,7 +52,8 @@
                                     </div>
                                     <div class="row">
                                         <div class="col-sm-5"><strong>Full Name:</strong></div>
-                                        <div class="col-sm-7">{{ target_user.first_name }} {{ target_user.last_name }}</div>
+                                        <div class="col-sm-7">{{ target_user.first_name }} {{ target_user.last_name }}
+                                        </div>
                                     </div>
                                     <div class="row">
                                         <div class="col-sm-5"><strong>Current Email:</strong></div>
@@ -66,9 +69,9 @@
                                         <div class="col-sm-5"><strong>Status:</strong></div>
                                         <div class="col-sm-7">
                                             {% if target_user.is_active %}
-                                                <span class="badge bg-success">Active</span>
+                                            <span class="badge bg-success">Active</span>
                                             {% else %}
-                                                <span class="badge bg-danger">Inactive</span>
+                                            <span class="badge bg-danger">Inactive</span>
                                             {% endif %}
                                         </div>
                                     </div>
@@ -99,27 +102,77 @@
                     <!-- Reset Form -->
                     <form method="POST">
                         {% csrf_token %}
+
+                        <!-- Email Update Section -->
                         <div class="mb-4">
-                            <label for="reset_reason" class="form-label">
-                                <i class="bi bi-chat-text me-1"></i>Reset Reason <span class="text-muted">(Optional)</span>
+                            <label for="{{ form.new_email.id_for_label }}" class="form-label">
+                                <i class="bi bi-envelope me-1"></i>{{ form.new_email.label }}
                             </label>
-                            <textarea name="reset_reason" id="reset_reason" class="form-control" rows="3"
-                                placeholder="Enter the reason for resetting this account (e.g., user forgot credentials, security concern, etc.)"></textarea>
-                            <div class="form-text">This reason will be recorded in the audit trail.</div>
+                            {{ form.new_email }}
+                            {% if form.new_email.help_text %}
+                            <div class="form-text">{{ form.new_email.help_text }}</div>
+                            {% endif %}
+                            {% if form.new_email.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.new_email.errors %}
+                                <small><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Reset Reason Section -->
+                        <div class="mb-4">
+                            <label for="{{ form.reset_reason.id_for_label }}" class="form-label">
+                                <i class="bi bi-chat-text me-1"></i>{{ form.reset_reason.label }} <span
+                                    class="text-muted">(Optional)</span>
+                            </label>
+                            {{ form.reset_reason }}
+                            {% if form.reset_reason.help_text %}
+                            <div class="form-text">{{ form.reset_reason.help_text }}</div>
+                            {% endif %}
+                            {% if form.reset_reason.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.reset_reason.errors %}
+                                <small><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
                         </div>
 
                         <!-- Confirmation Checkbox -->
                         <div class="form-check mb-4">
-                            <input class="form-check-input" type="checkbox" id="confirmReset" required>
-                            <label class="form-check-label" for="confirmReset">
-                                <strong>I understand the consequences and want to proceed with resetting this account</strong>
+                            {{ form.confirm_reset }}
+                            <label class="form-check-label" for="{{ form.confirm_reset.id_for_label }}">
+                                <strong>{{ form.confirm_reset.label }}</strong>
                             </label>
+                            {% if form.confirm_reset.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.confirm_reset.errors %}
+                                <small><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Email Delivery Notice -->
+                        <div class="alert alert-info border-0 mb-4"
+                            style="background: rgba(13, 202, 240, 0.1); color: #055160; border-left: 4px solid #0dcaf0 !important;">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-info-circle-fill me-3 mt-1" style="font-size: 1.2rem;"></i>
+                                <div>
+                                    <h6 class="mb-2"><strong>Credential Delivery</strong></h6>
+                                    <p class="mb-0">The new temporary credentials (username and password) will be
+                                        automatically sent to the email address specified above once the reset is
+                                        completed.</p>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Action Buttons -->
                         <div class="d-flex gap-3">
                             <button type="submit" class="btn btn-danger" id="resetButton" disabled>
-                                <i class="bi bi-shield-exclamation me-2"></i>Reset Account
+                                <i class="bi bi-shield-exclamation me-2"></i>Reset Account & Send Credentials
                             </button>
                             <a href="{% url 'manage_users' %}" class="btn btn-ezm-secondary">
                                 <i class="bi bi-arrow-left me-2"></i>Cancel
@@ -133,52 +186,86 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const confirmCheckbox = document.getElementById('confirmReset');
-    const resetButton = document.getElementById('resetButton');
-    
-    confirmCheckbox.addEventListener('change', function() {
-        resetButton.disabled = !this.checked;
-    });
-    
-    // Add confirmation dialog
-    resetButton.addEventListener('click', function(e) {
-        if (!confirm('Are you absolutely sure you want to reset this user account? This action cannot be undone.')) {
-            e.preventDefault();
+    document.addEventListener('DOMContentLoaded', function () {
+        const confirmCheckbox = document.getElementById('{{ form.confirm_reset.id_for_label }}');
+        const resetButton = document.getElementById('resetButton');
+        const emailField = document.getElementById('{{ form.new_email.id_for_label }}');
+
+        function validateForm() {
+            const isChecked = confirmCheckbox.checked;
+            const hasEmail = emailField.value.trim() !== '';
+            resetButton.disabled = !(isChecked && hasEmail);
         }
+
+        // Initial validation
+        validateForm();
+
+        // Add event listeners
+        confirmCheckbox.addEventListener('change', validateForm);
+        emailField.addEventListener('input', validateForm);
+
+        // Add confirmation dialog
+        resetButton.addEventListener('click', function (e) {
+            const emailValue = emailField.value.trim();
+            const confirmMessage = `Are you absolutely sure you want to reset this user account?\n\n` +
+                `New credentials will be sent to: ${emailValue}\n\n` +
+                `This action cannot be undone.`;
+
+            if (!confirm(confirmMessage)) {
+                e.preventDefault();
+            }
+        });
+
+        // Email validation feedback
+        emailField.addEventListener('blur', function () {
+            const emailValue = this.value.trim();
+            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+            // Remove any existing validation feedback
+            const existingFeedback = this.parentNode.querySelector('.email-validation-feedback');
+            if (existingFeedback) {
+                existingFeedback.remove();
+            }
+
+            if (emailValue && !emailPattern.test(emailValue)) {
+                const feedback = document.createElement('div');
+                feedback.className = 'text-warning mt-1 email-validation-feedback';
+                feedback.innerHTML = '<small><i class="bi bi-exclamation-triangle me-1"></i>Please enter a valid email address</small>';
+                this.parentNode.appendChild(feedback);
+            }
+        });
     });
-});
 </script>
 
 <style>
-.card-title {
-    color: var(--accent-teal);
-    font-weight: 600;
-}
+    .card-title {
+        color: var(--accent-teal);
+        font-weight: 600;
+    }
 
-.row {
-    margin-bottom: 0.5rem;
-}
+    .row {
+        margin-bottom: 0.5rem;
+    }
 
-.form-check-input:checked {
-    background-color: var(--accent-teal);
-    border-color: var(--accent-teal);
-}
+    .form-check-input:checked {
+        background-color: var(--accent-teal);
+        border-color: var(--accent-teal);
+    }
 
-.btn-danger {
-    background-color: #dc3545;
-    border-color: #dc3545;
-}
+    .btn-danger {
+        background-color: #dc3545;
+        border-color: #dc3545;
+    }
 
-.btn-danger:hover {
-    background-color: #c82333;
-    border-color: #bd2130;
-}
+    .btn-danger:hover {
+        background-color: #c82333;
+        border-color: #bd2130;
+    }
 
-.btn-danger:disabled {
-    background-color: #6c757d;
-    border-color: #6c757d;
-    opacity: 0.65;
-}
+    .btn-danger:disabled {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        opacity: 0.65;
+    }
 </style>
 {% endblock %}

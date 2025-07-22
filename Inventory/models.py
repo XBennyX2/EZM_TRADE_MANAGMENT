@@ -78,6 +78,16 @@ class Product(models.Model):
         help_text="Required storage conditions"
     )
 
+    # Stock Management (for Head Manager control)
+    minimum_stock_level = models.PositiveIntegerField(
+        default=10,
+        help_text="Minimum stock level threshold for low stock alerts"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Whether this product is active and available"
+    )
+
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)

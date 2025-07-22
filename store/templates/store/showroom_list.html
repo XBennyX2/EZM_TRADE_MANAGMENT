@@ -45,9 +45,9 @@
                 <div class="col-md-4">
                     <select name="manager" class="form-select">
                         <option value="">All Stores</option>
-                        <option value="assigned" {% if request.GET.manager == 'assigned' %} selected{% endif %}>With
+                        <option value="assigned" {% if request.GET.manager == 'assigned' %}selected{% endif %}>With
                             Manager</option>
-                        <option value="unassigned" {% if request.GET.manager == 'unassigned' %} selected{% endif %}>
+                        <option value="unassigned" {% if request.GET.manager == 'unassigned' %}selected{% endif %}>
                             Without Manager</option>
                     </select>
                 </div>

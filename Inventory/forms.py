@@ -139,6 +139,54 @@ class WarehouseProductForm(forms.ModelForm):
         }
 
 
+class WarehouseProductStockEditForm(forms.ModelForm):
+    """
+    Simple form for Head Managers to edit warehouse product stock quantities.
+    """
+    class Meta:
+        model = WarehouseProduct
+        fields = ['quantity_in_stock']
+        widgets = {
+            'quantity_in_stock': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '0',
+                'step': '1',
+                'placeholder': 'Enter stock quantity'
+            })
+        }
+
+    def clean_quantity_in_stock(self):
+        """Validate that stock quantity is non-negative"""
+        quantity = self.cleaned_data.get('quantity_in_stock')
+        if quantity is not None and quantity < 0:
+            raise forms.ValidationError("Stock quantity cannot be negative.")
+        return quantity
+
+
+class ProductStockThresholdEditForm(forms.ModelForm):
+    """
+    Form for Head Managers to edit product minimum stock level (threshold) only.
+    """
+    class Meta:
+        model = Product
+        fields = ['minimum_stock_level']
+        widgets = {
+            'minimum_stock_level': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '0',
+                'step': '1',
+                'placeholder': 'Enter minimum stock threshold'
+            })
+        }
+
+    def clean_minimum_stock_level(self):
+        """Validate that minimum stock level is non-negative"""
+        threshold = self.cleaned_data.get('minimum_stock_level')
+        if threshold is not None and threshold < 0:
+            raise forms.ValidationError("Minimum stock level cannot be negative.")
+        return threshold
+
+
 class WarehouseForm(forms.ModelForm):
     """
     Form for creating and editing warehouse information.

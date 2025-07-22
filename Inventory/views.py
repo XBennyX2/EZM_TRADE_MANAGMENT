@@ -17,7 +17,7 @@ from .models import (
 from .forms import (
     ProductForm, StockCreateForm, StockUpdateForm, SupplierForm, WarehouseProductForm,
     WarehouseForm, PurchaseOrderForm, PurchaseOrderItemForm, PurchaseOrderItemFormSet,
-    PurchaseRequestForm
+    PurchaseRequestForm, WarehouseProductStockEditForm, ProductStockThresholdEditForm
 )
 from transactions.models import SupplierAccount
 from django.contrib.auth import get_user_model
@@ -62,6 +62,50 @@ class ProductListView(LoginRequiredMixin, ListView):
     model = Product
     template_name = 'inventory/product_list.html'
     context_object_name = 'products'
+    paginate_by = 12
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        # Search functionality
+        search_query = self.request.GET.get('search')
+        if search_query:
+            queryset = queryset.filter(
+                Q(name__icontains=search_query) |
+                Q(description__icontains=search_query) |
+                Q(category__icontains=search_query)
+            )
+
+        # Category filter
+        category = self.request.GET.get('category')
+        if category:
+            queryset = queryset.filter(category=category)
+
+        # Product status filter (for Head Managers)
+        if self.request.user.role == 'head_manager':
+            product_status = self.request.GET.get('product_status')
+            if product_status == 'active':
+                queryset = queryset.filter(is_active=True)
+            elif product_status == 'inactive':
+                queryset = queryset.filter(is_active=False)
+        else:
+            # Non-Head Managers only see active products
+            queryset = queryset.filter(is_active=True)
+
+        return queryset.order_by('name')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Add categories for filter dropdown
+        context['categories'] = Product.objects.values_list('category', flat=True).distinct().order_by('category')
+
+        # Add search and filter parameters to context
+        context['search_query'] = self.request.GET.get('search', '')
+        context['selected_category'] = self.request.GET.get('category', '')
+        context['selected_product_status'] = self.request.GET.get('product_status', '')
+
+        return context
 
 class ProductCreateView(LoginRequiredMixin, ManagerAndOwnerMixin, CreateView):
     model = Product
@@ -90,6 +134,61 @@ class ProductDeleteView(LoginRequiredMixin, StoreOwnerMixin, DeleteView):
     template_name = 'inventory/confirm_delete_template.html'
     extra_context = {'title': 'Delete Product'}
     success_url = reverse_lazy('product_list')
+
+
+# --- Head Manager Product Management Views ---
+
+class ProductStockThresholdEditView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    """
+    View for Head Managers to edit product minimum stock level (threshold) only.
+    """
+    model = Product
+    form_class = ProductStockThresholdEditForm
+    template_name = 'inventory/product_stock_threshold_edit.html'
+
+    def test_func(self):
+        # Only allow Head Managers
+        return self.request.user.role == 'head_manager'
+
+    def handle_no_permission(self):
+        messages.error(self.request, "You don't have permission to edit stock thresholds. Only Head Managers can perform this action.")
+        return redirect('product_list')
+
+    def get_success_url(self):
+        return reverse_lazy('product_list')
+
+    def form_valid(self, form):
+        old_threshold = self.object.minimum_stock_level
+        new_threshold = form.cleaned_data['minimum_stock_level']
+
+        messages.success(
+            self.request,
+            f"Minimum stock threshold for '{self.object.name}' updated from {old_threshold} to {new_threshold} units."
+        )
+        return super().form_valid(form)
+
+
+@login_required
+@user_passes_test(lambda u: u.role == 'head_manager')
+def product_toggle_status(request, pk):
+    """
+    View to toggle product active/inactive status.
+    Only accessible by Head Managers.
+    """
+    product = get_object_or_404(Product, pk=pk)
+
+    if request.method == 'POST':
+        # Toggle the active status
+        product.is_active = not product.is_active
+        product.save()
+
+        status_text = "activated" if product.is_active else "deactivated"
+        messages.success(
+            request,
+            f"Product '{product.name}' has been {status_text} successfully."
+        )
+
+    return redirect('product_list')
 
 
 # --- Stock Views (Inventory Management) ---
@@ -442,6 +541,13 @@ class WarehouseDetailView(LoginRequiredMixin, StoreOwnerMixin, DetailView):
         elif stock_status == 'normal':
             products = products.filter(quantity_in_stock__gt=models.F('minimum_stock_level'))
 
+        # Product status filter
+        product_status = self.request.GET.get('product_status')
+        if product_status == 'active':
+            products = products.filter(is_active=True)
+        elif product_status == 'inactive':
+            products = products.filter(is_active=False)
+
         context['products'] = products.order_by('product_name')
         context['total_products'] = products.count()
         context['total_quantity'] = products.aggregate(
@@ -591,6 +697,78 @@ class WarehouseProductDeleteView(LoginRequiredMixin, UserPassesTestMixin, Delete
                 "Please remove or update the related purchase order items first."
             )
             return redirect('warehouse_list')
+
+
+# --- Head Manager Warehouse Product Management Views ---
+
+class WarehouseProductStockEditView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    """
+    View for Head Managers to edit warehouse product stock quantities.
+    """
+    model = WarehouseProduct
+    form_class = WarehouseProductStockEditForm
+    template_name = 'inventory/warehouse_product_stock_edit.html'
+
+    def test_func(self):
+        # Only allow Head Managers
+        return self.request.user.role == 'head_manager'
+
+    def handle_no_permission(self):
+        messages.error(self.request, "You don't have permission to edit stock quantities. Only Head Managers can perform this action.")
+        return redirect('warehouse_list')
+
+    def get_success_url(self):
+        # Get the warehouse ID from the product
+        if self.object.warehouse:
+            return reverse_lazy('warehouse_detail', kwargs={'pk': self.object.warehouse.pk})
+        return reverse_lazy('warehouse_list')
+
+    def form_valid(self, form):
+        old_quantity = self.object.quantity_in_stock
+        new_quantity = form.cleaned_data['quantity_in_stock']
+
+        # Check for significant changes (more than 50% difference)
+        if old_quantity > 0:
+            percentage_change = abs(new_quantity - old_quantity) / old_quantity
+            if percentage_change > 0.5:  # 50% change
+                # This would normally trigger a confirmation dialog, but for now we'll just log it
+                messages.warning(
+                    self.request,
+                    f"Large stock change detected: {old_quantity} → {new_quantity} units. "
+                    f"Please ensure this change is accurate."
+                )
+
+        messages.success(
+            self.request,
+            f"Stock quantity for '{self.object.product_name}' updated from {old_quantity} to {new_quantity} units."
+        )
+        return super().form_valid(form)
+
+
+@login_required
+@user_passes_test(lambda u: u.role == 'head_manager')
+def warehouse_product_toggle_status(request, pk):
+    """
+    View to toggle warehouse product active/inactive status.
+    Only accessible by Head Managers.
+    """
+    product = get_object_or_404(WarehouseProduct, pk=pk)
+
+    if request.method == 'POST':
+        # Toggle the active status
+        product.is_active = not product.is_active
+        product.save()
+
+        status_text = "activated" if product.is_active else "deactivated"
+        messages.success(
+            request,
+            f"Product '{product.product_name}' has been {status_text} successfully."
+        )
+
+    # Redirect back to warehouse detail or list
+    if product.warehouse:
+        return redirect('warehouse_detail', pk=product.warehouse.pk)
+    return redirect('warehouse_list')
 
 
 # --- Purchase Order Views ---

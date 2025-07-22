@@ -9,7 +9,7 @@
             <span>Dashboard</span>
         </a>
     </li>
-    
+
     <!-- Warehouse Management -->
     <li class="sidebar-menu-item">
         <a href="{% url 'warehouse_list' %}">
@@ -17,7 +17,7 @@
             <span>Warehouse Management</span>
         </a>
     </li>
-    
+
     <!-- Products -->
     <li class="sidebar-menu-item">
         <a href="{% url 'product_list' %}">
@@ -25,7 +25,7 @@
             <span>Products</span>
         </a>
     </li>
-    
+
     <!-- Suppliers -->
     <li class="sidebar-menu-item">
         <a href="{% url 'supplier_list' %}">
@@ -33,7 +33,7 @@
             <span>Suppliers</span>
         </a>
     </li>
-    
+
     <!-- Purchase Orders -->
     <li class="sidebar-menu-item">
         <a href="{% url 'purchase_order_list' %}">
@@ -41,15 +41,15 @@
             <span>Purchase Orders</span>
         </a>
     </li>
-    
-    <!-- Store Manager Assignment -->
+
+    <!-- Store Management -->
     <li class="sidebar-menu-item">
         <a href="{% url 'showroom_list' %}">
             <i class="bi bi-shop"></i>
-            <span>Store Manager Assignment</span>
+            <span>Store Management</span>
         </a>
     </li>
-    
+
     <!-- Financial Dashboard -->
     <li class="sidebar-menu-item">
         <a href="#" onclick="showComingSoon('Financial Dashboard')">
@@ -57,7 +57,7 @@
             <span>Financial Dashboard</span>
         </a>
     </li>
-    
+
     <!-- Stock Transfer Approvals -->
     <li class="sidebar-menu-item">
         <a href="#" onclick="showComingSoon('Stock Transfer Approvals')">
@@ -65,7 +65,7 @@
             <span>Stock Transfer Approvals</span>
         </a>
     </li>
-    
+
     <!-- Reports & Analytics -->
     <li class="sidebar-menu-item">
         <a href="#" onclick="showComingSoon('Reports & Analytics')">
@@ -73,7 +73,7 @@
             <span>Reports & Analytics</span>
         </a>
     </li>
-    
+
     <!-- Store Creation -->
     <li class="sidebar-menu-item">
         <a href="{% url 'create_store' %}">
@@ -81,7 +81,7 @@
             <span>Create New Store</span>
         </a>
     </li>
-    
+
     <!-- User Management (if needed) -->
     <li class="sidebar-menu-item">
         <a href="#" onclick="showComingSoon('User Management')">
@@ -95,11 +95,13 @@
 <div class="modal fade" id="comingSoonModal" tabindex="-1" aria-labelledby="comingSoonModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header" style="background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan)); color: white;">
+            <div class="modal-header"
+                style="background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan)); color: white;">
                 <h5 class="modal-title" id="comingSoonModalLabel">
                     <i class="bi bi-info-circle me-2"></i>Feature Coming Soon
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
             </div>
             <div class="modal-body text-center py-4">
                 <i class="bi bi-tools" style="font-size: 3rem; color: var(--accent-teal); margin-bottom: 1rem;"></i>
@@ -114,10 +116,10 @@
 </div>
 
 <script>
-function showComingSoon(featureName) {
-    document.getElementById('featureName').textContent = featureName;
-    const modal = new bootstrap.Modal(document.getElementById('comingSoonModal'));
-    modal.show();
-}
+    function showComingSoon(featureName) {
+        document.getElementById('featureName').textContent = featureName;
+        const modal = new bootstrap.Modal(document.getElementById('comingSoonModal'));
+        modal.show();
+    }
 </script>
 {% endblock %}

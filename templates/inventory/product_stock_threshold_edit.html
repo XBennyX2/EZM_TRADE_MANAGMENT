@@ -1,0 +1,189 @@
+{% extends 'base_sidebar.html' %}
+{% load widget_tweaks %}
+{% load static %}
+
+{% block title %}Edit Stock Threshold - {{ object.name }}{% endblock %}
+
+{% block page_title %}Edit Stock Threshold{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'head_manager_sidebar.html' %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .threshold-edit-card {
+        border-left: 4px solid var(--accent-teal);
+        transition: all 0.3s ease;
+    }
+
+    .threshold-edit-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .current-threshold-display {
+        background: linear-gradient(135deg, var(--primary-dark), var(--secondary-dark));
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+    }
+
+    .threshold-input-section {
+        background: var(--light-gray);
+        border-radius: 10px;
+        padding: 20px;
+    }
+
+    .product-info-section {
+        background: var(--accent-cyan);
+        color: var(--primary-dark);
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Header -->
+            <div class="d-flex align-items-center mb-4">
+                <a href="{% url 'product_list' %}" class="btn btn-ezm-secondary me-3">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                <div>
+                    <h2 class="mb-0" style="color: var(--primary-dark);">
+                        <i class="bi bi-speedometer2 me-2" style="color: var(--accent-teal);"></i>
+                        Edit Stock Threshold
+                    </h2>
+                    <p class="text-muted mb-0">Update minimum stock level for {{ object.name }}</p>
+                </div>
+            </div>
+
+            <!-- Product Information Card -->
+            <div class="ezm-card mb-4">
+                <div class="ezm-card-header">
+                    <i class="bi bi-info-circle me-2"></i>Product Information
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Product Name</h6>
+                            <p class="fw-bold">{{ object.name }}</p>
+                            
+                            <h6 class="text-muted">Category</h6>
+                            <p><span class="badge bg-secondary">{{ object.category|title }}</span></p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Price</h6>
+                            <p class="fw-bold">ETB {{ object.price }}</p>
+                            
+                            <h6 class="text-muted">Status</h6>
+                            <p>
+                                {% if object.is_active %}
+                                <span class="badge bg-success">Active</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    {% if object.description %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6 class="text-muted">Description</h6>
+                            <p class="text-muted">{{ object.description|truncatewords:30 }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Stock Threshold Editing Form -->
+            <div class="ezm-card threshold-edit-card">
+                <div class="ezm-card-header">
+                    <i class="bi bi-pencil-square me-2"></i>Update Stock Threshold
+                </div>
+                <div class="card-body">
+                    <form method="post" id="thresholdEditForm">
+                        {% csrf_token %}
+                        
+                        <div class="row mb-4">
+                            <!-- Current Threshold Display -->
+                            <div class="col-md-6">
+                                <div class="current-threshold-display">
+                                    <h6 class="mb-2">Current Threshold</h6>
+                                    <h2 class="mb-0">{{ object.minimum_stock_level }}</h2>
+                                    <small>units</small>
+                                </div>
+                            </div>
+                            
+                            <!-- New Threshold Input -->
+                            <div class="col-md-6">
+                                <div class="threshold-input-section">
+                                    <label for="{{ form.minimum_stock_level.id_for_label }}" class="form-label fw-bold">
+                                        <i class="bi bi-arrow-right me-1"></i>New Minimum Stock Level
+                                    </label>
+                                    {{ form.minimum_stock_level|add_class:"form-control form-control-lg" }}
+                                    {% if form.minimum_stock_level.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.minimum_stock_level.errors.0 }}
+                                    </div>
+                                    {% endif %}
+                                    <div class="form-text">Enter the minimum stock level threshold (must be 0 or greater)</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Information Section -->
+                        <div class="product-info-section">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <div>
+                                    <strong>About Stock Thresholds</strong>
+                                    <p class="mb-0 small">The minimum stock level helps track when products are running low and need restocking. Set this value based on your typical usage and reorder lead times.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="d-flex justify-content-between mt-4 pt-3 border-top">
+                            <a href="{% url 'product_list' %}" class="btn btn-ezm-secondary">
+                                <i class="bi bi-x-circle me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-ezm-primary">
+                                <i class="bi bi-check-circle me-2"></i>Update Threshold
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const currentThreshold = {{ object.minimum_stock_level }};
+    const thresholdInput = document.getElementById('{{ form.minimum_stock_level.id_for_label }}');
+    
+    thresholdInput.addEventListener('input', function() {
+        const newThreshold = parseInt(this.value) || 0;
+        
+        // Visual feedback for significant changes
+        if (Math.abs(newThreshold - currentThreshold) > currentThreshold * 0.5) {
+            this.style.borderColor = 'var(--accent-cyan)';
+            this.style.boxShadow = '0 0 0 0.2rem rgba(102, 252, 241, 0.25)';
+        } else {
+            this.style.borderColor = '';
+            this.style.boxShadow = '';
+        }
+    });
+});
+</script>
+{% endblock %}

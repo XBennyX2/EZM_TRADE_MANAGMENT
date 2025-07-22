@@ -1,0 +1,195 @@
+{% extends 'base_sidebar.html' %}
+{% load widget_tweaks %}
+{% load static %}
+
+{% block title %}Edit Stock - {{ object.product_name }}{% endblock %}
+
+{% block page_title %}Edit Stock Quantity{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'head_manager_sidebar.html' %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stock-edit-card {
+        border-left: 4px solid var(--accent-teal);
+        transition: all 0.3s ease;
+    }
+
+    .stock-edit-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .current-stock-display {
+        background: linear-gradient(135deg, var(--primary-dark), var(--secondary-dark));
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+    }
+
+    .stock-input-section {
+        background: var(--light-gray);
+        border-radius: 10px;
+        padding: 20px;
+    }
+
+    .confirmation-section {
+        background: var(--accent-cyan);
+        color: var(--primary-dark);
+        border-radius: 10px;
+        padding: 15px;
+        margin-top: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Header -->
+            <div class="d-flex align-items-center mb-4">
+                <a href="{% if object.warehouse %}{% url 'warehouse_detail' object.warehouse.pk %}{% else %}{% url 'warehouse_list' %}{% endif %}"
+                    class="btn btn-ezm-secondary me-3">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                <div>
+                    <h2 class="mb-0" style="color: var(--primary-dark);">
+                        <i class="bi bi-boxes me-2" style="color: var(--accent-teal);"></i>
+                        Edit Stock Quantity
+                    </h2>
+                    <p class="text-muted mb-0">Update inventory levels for {{ object.product_name }}</p>
+                </div>
+            </div>
+
+            <!-- Product Information Card -->
+            <div class="ezm-card mb-4">
+                <div class="ezm-card-header">
+                    <i class="bi bi-info-circle me-2"></i>Product Information
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Product Name</h6>
+                            <p class="fw-bold">{{ object.product_name }}</p>
+                            
+                            <h6 class="text-muted">Product ID</h6>
+                            <p><code>{{ object.product_id }}</code></p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Category</h6>
+                            <p><span class="badge bg-secondary">{{ object.category|title }}</span></p>
+                            
+                            <h6 class="text-muted">SKU</h6>
+                            <p><code>{{ object.sku }}</code></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stock Editing Form -->
+            <div class="ezm-card stock-edit-card">
+                <div class="ezm-card-header">
+                    <i class="bi bi-pencil-square me-2"></i>Update Stock Quantity
+                </div>
+                <div class="card-body">
+                    <form method="post" id="stockEditForm">
+                        {% csrf_token %}
+                        
+                        <div class="row mb-4">
+                            <!-- Current Stock Display -->
+                            <div class="col-md-6">
+                                <div class="current-stock-display">
+                                    <h6 class="mb-2">Current Stock</h6>
+                                    <h2 class="mb-0">{{ object.quantity_in_stock }}</h2>
+                                    <small>units</small>
+                                </div>
+                            </div>
+                            
+                            <!-- New Stock Input -->
+                            <div class="col-md-6">
+                                <div class="stock-input-section">
+                                    <label for="{{ form.quantity_in_stock.id_for_label }}" class="form-label fw-bold">
+                                        <i class="bi bi-arrow-right me-1"></i>New Stock Quantity
+                                    </label>
+                                    {{ form.quantity_in_stock|add_class:"form-control form-control-lg" }}
+                                    {% if form.quantity_in_stock.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.quantity_in_stock.errors.0 }}
+                                    </div>
+                                    {% endif %}
+                                    <div class="form-text">Enter the new stock quantity (must be 0 or greater)</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Stock Level Indicators -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded">
+                                    <div class="text-center">
+                                        <small class="text-muted">Minimum Level</small>
+                                        <div class="fw-bold text-warning">{{ object.minimum_stock_level }}</div>
+                                    </div>
+                                    <div class="text-center">
+                                        <small class="text-muted">Maximum Level</small>
+                                        <div class="fw-bold text-success">{{ object.maximum_stock_level|default:"Not set" }}</div>
+                                    </div>
+                                    <div class="text-center">
+                                        <small class="text-muted">Reorder Point</small>
+                                        <div class="fw-bold text-info">{{ object.reorder_point }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Confirmation Section -->
+                        <div class="confirmation-section" id="confirmationSection" style="display: none;">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                <div>
+                                    <strong>Large Stock Change Detected</strong>
+                                    <p class="mb-0 small">This represents a significant change in stock levels. Please confirm this is accurate.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="d-flex justify-content-between mt-4 pt-3 border-top">
+                            <a href="{% if object.warehouse %}{% url 'warehouse_detail' object.warehouse.pk %}{% else %}{% url 'warehouse_list' %}{% endif %}"
+                                class="btn btn-ezm-secondary">
+                                <i class="bi bi-x-circle me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-ezm-primary">
+                                <i class="bi bi-check-circle me-2"></i>Update Stock
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const currentStock = {{ object.quantity_in_stock }};
+    const stockInput = document.getElementById('{{ form.quantity_in_stock.id_for_label }}');
+    const confirmationSection = document.getElementById('confirmationSection');
+    
+    stockInput.addEventListener('input', function() {
+        const newStock = parseInt(this.value) || 0;
+        const percentageChange = currentStock > 0 ? Math.abs(newStock - currentStock) / currentStock : 0;
+        
+        if (percentageChange > 0.5) { // 50% change
+            confirmationSection.style.display = 'block';
+        } else {
+            confirmationSection.style.display = 'none';
+        }
+    });
+});
+</script>
+{% endblock %}

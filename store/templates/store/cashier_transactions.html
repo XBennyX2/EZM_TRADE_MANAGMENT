@@ -134,14 +134,9 @@
       <div class="col-md-3">
         <div class="stat-item">
           <div class="stat-number">
-            {% if receipts %}
-            ETB {% widthratio receipts|length 1 receipts|length as avg %}
-            {{ receipts.0.total_amount|floatformat:2 }}
-            {% else %}
-            ETB 0.00
-            {% endif %}
+            ETB {{ total_revenue|floatformat:2 }}
           </div>
-          <div class="stat-label">Latest Transaction</div>
+          <div class="stat-label">Total Revenue</div>
         </div>
       </div>
       <div class="col-md-3">

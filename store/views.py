@@ -1591,11 +1591,19 @@ def cashier_transactions(request):
             transaction__transaction_type='sale'
         ).select_related('transaction').order_by('-timestamp')[:50]  # Last 50 transactions
 
-
+        # Calculate total revenue from all receipts at this store
+        from django.db.models import Sum
+        total_revenue = Receipt.objects.filter(
+            transaction__store=request.user.store,
+            transaction__transaction_type='sale'
+        ).aggregate(
+            total=Sum('total_amount')
+        )['total'] or 0
 
         context = {
             'receipts': receipts,
             'cashier': request.user,
+            'total_revenue': total_revenue,
         }
 
         return render(request, 'store/cashier_transactions.html', context)

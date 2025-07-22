@@ -141,112 +141,12 @@
                     <h2 class="mb-2">Welcome, {{ user.first_name|default:user.username }}!</h2>
                     <p class="mb-3 opacity-90">Head Manager Dashboard - Oversee operations, manage resources, and drive
                         growth</p>
-                    <a href="{% url 'create_store' %}" class="btn btn-light btn-lg px-4">
-                        <i class="bi bi-plus-circle me-2"></i>Create New Store
-                    </a>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Management Cards -->
-    <div class="row mb-5 g-4">
-        <div class="col-lg-3 col-md-6">
-            <a href="{% url 'warehouse_list' %}" class="text-decoration-none">
-                <div class="dashboard-card">
-                    <div class="card-body">
-                        <i class="bi bi-building"></i>
-                        <h5>Warehouse Management</h5>
-                        <p>Manage warehouse locations and inventory</p>
-                    </div>
-                </div>
-            </a>
-        </div>
 
-        <div class="col-lg-3 col-md-6">
-            <a href="{% url 'product_list' %}" class="text-decoration-none">
-                <div class="dashboard-card">
-                    <div class="card-body">
-                        <i class="bi bi-box-seam"></i>
-                        <h5>Product Catalog</h5>
-                        <p>View and manage product catalog</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-            <a href="{% url 'supplier_list' %}" class="text-decoration-none">
-                <div class="dashboard-card">
-                    <div class="card-body">
-                        <i class="bi bi-truck"></i>
-                        <h5>Supplier Management</h5>
-                        <p>Manage suppliers and their information</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-            <a href="{% url 'purchase_order_list' %}" class="text-decoration-none">
-                <div class="dashboard-card">
-                    <div class="card-body">
-                        <i class="bi bi-cart-check"></i>
-                        <h5>Purchase Orders</h5>
-                        <p>Create and track purchase orders</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-            <a href="{% url 'showroom_list' %}" class="text-decoration-none">
-                <div class="dashboard-card">
-                    <div class="card-body">
-                        <i class="bi bi-shop"></i>
-                        <h5>Store Manager Assignment</h5>
-                        <p>Manage store locations and assignments</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-            <a href="#" onclick="showComingSoon('Financial Dashboard')" class="text-decoration-none">
-                <div class="dashboard-card">
-                    <div class="card-body">
-                        <i class="bi bi-bar-chart"></i>
-                        <h5>Financial Dashboard</h5>
-                        <p>View financial reports and analytics</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-            <a href="#" onclick="showComingSoon('Stock Transfer Approvals')" class="text-decoration-none">
-                <div class="dashboard-card">
-                    <div class="card-body">
-                        <i class="bi bi-arrow-left-right"></i>
-                        <h5>Stock Transfer Approvals</h5>
-                        <p>Approve stock transfer requests</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-            <a href="#" onclick="showComingSoon('Reports & Analytics')" class="text-decoration-none">
-                <div class="dashboard-card">
-                    <div class="card-body">
-                        <i class="bi bi-graph-up-arrow"></i>
-                        <h5>Reports & Analytics</h5>
-                        <p>Comprehensive business analytics</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-    </div>
 
     <!-- Stores Summary Table -->
     <div class="stores-table">

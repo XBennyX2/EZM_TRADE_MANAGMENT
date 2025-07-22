@@ -192,8 +192,7 @@
                     {% if store.store_manager %}
                     <div class="d-flex align-items-center">
                         <span class="badge bg-success me-2">Assigned</span>
-                        <span>{{ store.store_manager.get_full_name|default:store.store_manager.username
-                            }}</span>
+                        <span>{{ store.store_manager.get_full_name|default:store.store_manager.username }}</span>
                     </div>
                     {% else %}
                     <div class="d-flex align-items-center">

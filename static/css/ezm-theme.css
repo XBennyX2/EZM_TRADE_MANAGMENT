@@ -135,7 +135,8 @@ body {
 }
 
 .sidebar-menu-item a:hover,
-.sidebar-menu-item a.active {
+.sidebar-menu-item a.active,
+.sidebar-menu-item.active a {
     background-color: rgba(102, 252, 241, 0.1);
     color: var(--accent-cyan);
     border-left-color: var(--accent-cyan);
@@ -211,6 +212,7 @@ body {
     display: flex;
     align-items: center;
     position: relative;
+    z-index: 10000;
 }
 
 .profile-dropdown {
@@ -288,7 +290,7 @@ body {
     visibility: hidden;
     transform: translateY(-10px);
     transition: all 0.3s ease;
-    z-index: 1001;
+    z-index: 9999;
     margin-top: 10px;
 }
 
@@ -495,6 +497,20 @@ body {
 /* Cart Section Styling */
 .cart-section {
     position: relative;
+}
+
+/* Ensure sticky cart elements have lower z-index than profile dropdown */
+.sticky-top.ezm-card {
+    z-index: 100 !important;
+}
+
+/* Ensure profile dropdown is above all other elements including Bootstrap modals */
+.profile-section {
+    z-index: 10001 !important;
+}
+
+.profile-menu {
+    z-index: 10002 !important;
 }
 
 .cart-link {

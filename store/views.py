@@ -4,8 +4,8 @@ from django.db import transaction
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from Inventory.models import Product, Stock
-from transactions.models import Transaction, Receipt, Order as TransactionOrder
-from .models import Order, FinancialRecord, Store, StoreCashier
+from transactions.models import Transaction, Receipt, Order as TransactionOrder, FinancialRecord
+from .models import Order, Store, StoreCashier
 from users.models import CustomUser
 from django.template.loader import render_to_string
 from django.http import HttpResponse
@@ -32,8 +32,8 @@ def process_sale(request):
     if request.method == 'POST':
         product_ids = request.POST.getlist('product')
         quantities = request.POST.getlist('quantity')
-        discount = float(request.POST.get('discount', 0))
-        taxable = request.POST.get('taxable') == 'on'
+        discount = 0  # No discount allowed
+        taxable = True  # Always apply tax (15%)
         payment_type = request.POST.get('payment_type', 'cash')
 
         total = 0
@@ -58,7 +58,7 @@ def process_sale(request):
 
                 discount_amt = total * (discount / 100)
                 total -= discount_amt
-                tax = total * 0.05 if taxable else 0
+                tax = total * 0.15 if taxable else 0
                 total += tax
 
                 # Create Transaction
@@ -391,257 +391,7 @@ class ShowroomDeleteView(LoginRequiredMixin, StoreOwnerMixin, DeleteView):
         return super().delete(request, *args, **kwargs)
 # ============ CASHIER ORDER SYSTEM ============
 
-@login_required
-def cashier_dashboard(request):
-    """
-    Enhanced cashier dashboard with FIFO-ordered products for optimal inventory rotation
-    """
-    if request.user.role != 'cashier':
-        messages.error(request, "Access denied. Cashier role required.")
-        return redirect('login')
-
-    if not request.user.store:
-        messages.error(request, "You are not assigned to any store. Contact your manager.")
-        return redirect('cashier_page')
-
-    from django.utils import timezone
-    from collections import defaultdict
-
-    current_date = timezone.now().date()
-
-    # FIFO Implementation: Get all stock including expired items (as per requirement)
-    # Sort by: expiry_date (ascending), batch_number (ascending), product name
-    # Note: Advanced FIFO fields will be added in future migration
-    all_stock = Stock.objects.select_related('product').filter(
-        store=request.user.store,
-        quantity__gt=0  # Only show items in stock
-    ).order_by(
-        'product__expiry_date',  # Expiring items first (nulls last)
-        'product__batch_number',  # Batch order
-        'product__name'  # Product name for consistency
-    )
-
-    # Categorize products for display
-    fifo_products = []
-    sell_first_products = []  # Expiring within 30 days
-    regular_products = []
-
-    for stock in all_stock:
-        # Add FIFO metadata to stock object
-        stock.is_expired = False
-        stock.days_until_expiry = None
-        stock.fifo_priority = 'normal'
-
-        # Add basic FIFO-specific attributes (without database fields)
-        stock.days_in_stock = 0  # Will be calculated when FIFO fields are available
-        stock.is_aging = False
-        stock.effective_received_date = None
-
-        if stock.product.expiry_date:
-            days_until_expiry = (stock.product.expiry_date - current_date).days
-            stock.days_until_expiry = days_until_expiry
-
-            if days_until_expiry <= 0:
-                stock.fifo_priority = 'expired'
-                stock.is_expired = True
-            elif days_until_expiry <= 30:
-                stock.fifo_priority = 'sell_first'
-                sell_first_products.append(stock)
-            else:
-                stock.fifo_priority = 'normal'
-                regular_products.append(stock)
-        else:
-            regular_products.append(stock)
-
-        fifo_products.append(stock)
-
-    # Group products by batch for organized display
-    products_by_batch = defaultdict(list)
-    for stock in fifo_products:
-        batch_key = stock.product.batch_number or 'No Batch'
-        products_by_batch[batch_key].append(stock)
-
-    # Get recent transactions for this cashier
-    recent_transactions = Transaction.objects.filter(
-        store=request.user.store,
-        transaction_type='sale'
-    ).order_by('-timestamp')[:5]
-
-    # Get tickets data for the tickets tab
-    from webfront.models import CustomerTicket, CustomerTicketItem
-    from django.core.paginator import Paginator
-    from django.db.models import Q
-
-    # Get search parameters
-    phone_search = request.GET.get('phone', '').strip()
-    status_filter = request.GET.get('status', '').strip()
-    sort_order = request.GET.get('sort', 'newest')
-    page_number = request.GET.get('page', 1)
-
-    # Get store for tickets (use same logic as API)
-    store = None
-    try:
-        cashier = StoreCashier.objects.get(cashier=request.user, is_active=True)
-        store = cashier.store
-    except StoreCashier.DoesNotExist:
-        if hasattr(request.user, 'store') and request.user.store:
-            store = request.user.store
-        else:
-            store = Store.objects.first()
-
-    # Get tickets for this store
-    tickets = CustomerTicket.objects.filter(store=store).select_related('store').prefetch_related('items__product')
-
-    # Apply search filters
-    if phone_search:
-        # Clean the phone search input - remove spaces, dashes, parentheses, plus signs
-        cleaned_phone = ''.join(char for char in phone_search if char.isdigit())
-
-        if cleaned_phone:
-            # For database-agnostic partial phone number search
-            # Get all tickets and filter in Python for better compatibility
-            all_tickets_for_search = tickets.values_list('id', 'customer_phone')
-            matching_ids = []
-
-            for ticket_id, phone in all_tickets_for_search:
-                if phone:
-                    # Remove all non-digit characters from stored phone
-                    phone_digits = ''.join(char for char in phone if char.isdigit())
-                    # Check if search digits are contained in phone digits
-                    if cleaned_phone in phone_digits:
-                        matching_ids.append(ticket_id)
-
-            # Filter tickets by matching IDs
-            if matching_ids:
-                tickets = tickets.filter(id__in=matching_ids)
-            else:
-                # No matches found, return empty queryset
-                tickets = tickets.none()
-        else:
-            # If no digits found, search in the original phone field (for special characters)
-            tickets = tickets.filter(customer_phone__icontains=phone_search)
-
-    if status_filter:
-        tickets = tickets.filter(status=status_filter)
-
-    # Apply sorting
-    if sort_order == 'oldest':
-        tickets = tickets.order_by('created_at')
-    elif sort_order == 'status':
-        tickets = tickets.order_by('status', '-created_at')
-    elif sort_order == 'amount':
-        tickets = tickets.order_by('-total_amount', '-created_at')
-    else:  # newest (default)
-        tickets = tickets.order_by('-created_at')
-
-    # Paginate tickets
-    paginator = Paginator(tickets, 12)  # 12 tickets per page
-    tickets_page = paginator.get_page(page_number)
-
-    # Count pending tickets for badge
-    pending_count = CustomerTicket.objects.filter(
-        store=store,
-        status__in=['pending', 'confirmed']
-    ).count()
-
-    # Helper functions for status display
-    def get_status_color(status):
-        status_colors = {
-            'pending': 'warning',
-            'confirmed': 'info',
-            'preparing': 'primary',
-            'ready': 'success',
-            'completed': 'success',
-            'cancelled': 'danger'
-        }
-        return status_colors.get(status, 'secondary')
-
-    def get_status_icon(status):
-        status_icons = {
-            'pending': 'bi-clock',
-            'confirmed': 'bi-check',
-            'preparing': 'bi-gear',
-            'ready': 'bi-check-circle',
-            'completed': 'bi-check-all',
-            'cancelled': 'bi-x-circle'
-        }
-        return status_icons.get(status, 'bi-question')
-
-    # Enhance tickets with additional data
-    enhanced_tickets = []
-    for ticket in tickets_page:
-        # Calculate total quantity
-        total_quantity = sum(item.quantity for item in ticket.items.all())
-
-        # Get items preview (first 2 items)
-        items_preview = []
-        for item in ticket.items.all()[:2]:
-            items_preview.append({
-                'quantity': item.quantity,
-                'product_name': item.product.name
-            })
-
-        enhanced_ticket = {
-            'ticket': ticket,
-            'total_quantity': total_quantity,
-            'items_count': ticket.items.count(),
-            'items_preview': items_preview,
-            'has_more_items': ticket.items.count() > 2,
-            'status_color': get_status_color(ticket.status),
-            'status_icon': get_status_icon(ticket.status)
-        }
-        enhanced_tickets.append(enhanced_ticket)
-
-    # Statistics for dashboard
-    total_stock_items = Stock.objects.filter(store=request.user.store).count()
-    out_of_stock_items = Stock.objects.filter(store=request.user.store, quantity=0).count()
-    expired_items = Stock.objects.filter(
-        store=request.user.store,
-        product__expiry_date__lte=current_date
-    ).exclude(quantity=0).count()
-
-    context = {
-        'fifo_products': fifo_products,
-        'sell_first_products': sell_first_products,
-        'regular_products': regular_products,
-        'products_by_batch': dict(products_by_batch),
-        'recent_transactions': recent_transactions,
-        'store': request.user.store,
-        'current_date': current_date,
-        # Tickets data
-        'tickets': enhanced_tickets,
-        'tickets_page': tickets_page,
-        'pending_count': pending_count,
-        'phone_search': phone_search,
-        'status_filter': status_filter,
-        'sort_order': sort_order,
-        'status_choices': [
-            ('', 'All Statuses'),
-            ('pending', 'Pending'),
-            ('confirmed', 'Confirmed'),
-            ('preparing', 'Preparing'),
-            ('ready', 'Ready'),
-            ('completed', 'Completed'),
-            ('cancelled', 'Cancelled'),
-        ],
-        'sort_choices': [
-            ('newest', 'Newest First'),
-            ('oldest', 'Oldest First'),
-            ('status', 'By Status'),
-            ('amount', 'By Amount'),
-        ],
-        'debug_stats': {
-            'total_stock_items': total_stock_items,
-            'available_products_count': len(fifo_products),
-            'out_of_stock_items': out_of_stock_items,
-            'expired_items': expired_items,
-            'sell_first_count': len(sell_first_products),
-        }
-    }
-
-    return render(request, 'store/cashier_dashboard.html', context)
-
-
+# Cashier dashboard removed - cashiers go directly to initiate_order
 
 
 
@@ -754,13 +504,15 @@ def process_single_sale(request):
 @login_required
 def initiate_order(request):
     """
-    Cashier initiates a new order - creates a shopping cart session
+    Unified cashier interface - combines order initiation with customer tickets
     """
     if request.user.role != 'cashier':
-        return JsonResponse({'error': 'Unauthorized'}, status=403)
+        messages.error(request, "Access denied. Cashier role required.")
+        return redirect('login')
 
     if not request.user.store:
-        return JsonResponse({'error': 'No store assigned'}, status=400)
+        messages.error(request, "You are not assigned to any store. Contact your manager.")
+        return redirect('cashier_page')
 
     # Initialize or get existing cart from session
     if 'cart' not in request.session:
@@ -785,11 +537,110 @@ def initiate_order(request):
     # Get ticket information if this order is from a ticket
     ticket_info = request.session.get('ticket_info', {})
 
+    # Customer Tickets functionality (from cashier dashboard)
+    from webfront.models import CustomerTicket
+
+    # Get search parameters
+    phone_search = request.GET.get('phone', '').strip()
+    status_filter = request.GET.get('status', '')
+    sort_order = request.GET.get('sort', 'newest')
+
+    # Base queryset for tickets
+    tickets_queryset = CustomerTicket.objects.filter(
+        store=request.user.store
+    ).select_related('store', 'confirmed_by').prefetch_related('items__product')
+
+    # Apply phone search filter
+    if phone_search:
+        # Remove any non-digit characters for flexible search
+        phone_digits = ''.join(filter(str.isdigit, phone_search))
+        if phone_digits:
+            tickets_queryset = tickets_queryset.filter(
+                customer_phone__icontains=phone_digits
+            )
+
+    # Apply status filter
+    if status_filter:
+        tickets_queryset = tickets_queryset.filter(status=status_filter)
+
+    # Apply sorting
+    if sort_order == 'oldest':
+        tickets_queryset = tickets_queryset.order_by('created_at')
+    elif sort_order == 'status':
+        tickets_queryset = tickets_queryset.order_by('status', '-created_at')
+    elif sort_order == 'amount':
+        tickets_queryset = tickets_queryset.order_by('-total_amount', '-created_at')
+    else:  # newest (default)
+        tickets_queryset = tickets_queryset.order_by('-created_at')
+
+    # Get tickets with enhanced data
+    tickets = []
+    for ticket in tickets_queryset[:20]:  # Limit to 20 tickets for performance
+        # Get ticket items
+        items = list(ticket.items.all())
+
+        # Calculate totals
+        total_quantity = sum(item.quantity for item in items)
+        items_count = len(items)
+
+        # Get items preview (first 2 items)
+        items_preview = items[:2]
+        has_more_items = items_count > 2
+
+        # Status styling
+        status_colors = {
+            'pending': 'warning',
+            'confirmed': 'info',
+            'preparing': 'primary',
+            'ready': 'success',
+            'completed': 'success',
+            'cancelled': 'secondary'
+        }
+
+        status_icons = {
+            'pending': 'bi-clock',
+            'confirmed': 'bi-check-circle',
+            'preparing': 'bi-gear',
+            'ready': 'bi-check2-circle',
+            'completed': 'bi-check-circle-fill',
+            'cancelled': 'bi-x-circle'
+        }
+
+        tickets.append({
+            'ticket': ticket,
+            'total_quantity': total_quantity,
+            'items_count': items_count,
+            'items_preview': items_preview,
+            'has_more_items': has_more_items,
+            'status_color': status_colors.get(ticket.status, 'secondary'),
+            'status_icon': status_icons.get(ticket.status, 'bi-question-circle')
+        })
+
+    # Count pending tickets
+    pending_count = CustomerTicket.objects.filter(
+        store=request.user.store,
+        status__in=['pending', 'confirmed']
+    ).count()
+
+    cart = request.session.get('cart', {})
     context = {
         'available_products': list(available_products),
-        'cart': request.session.get('cart', {}),
+        'cart': cart,
         'store': request.user.store,
         'ticket_info': ticket_info,
+        # Ticket data
+        'tickets': tickets,
+        'pending_count': pending_count,
+        'phone_search': phone_search,
+        'status_filter': status_filter,
+        'sort_order': sort_order,
+        'status_choices': CustomerTicket.STATUS_CHOICES,
+        'sort_choices': [
+            ('newest', 'Newest First'),
+            ('oldest', 'Oldest First'),
+            ('status', 'By Status'),
+            ('amount', 'By Amount'),
+        ],
     }
 
     return render(request, 'store/initiate_order.html', context)
@@ -920,12 +771,13 @@ def complete_order(request):
     try:
         data = json.loads(request.body)
         payment_type = data.get('payment_type', 'cash')
-        discount_percent = max(0, min(100, float(data.get('discount', 0))))  # Ensure discount is between 0-100
-        is_taxable = data.get('taxable', False)
+        discount_percent = 0  # No discount allowed
+        is_taxable = True  # Always apply tax (15%)
         customer_name = data.get('customer_name', 'Walk-in Customer')
         customer_phone = data.get('customer_phone', '')
 
         cart = request.session.get('cart')
+        print(f"Cart data: {cart}")  # Debug log
         if not cart or not cart.get('items'):
             return JsonResponse({'error': 'Cart is empty'}, status=400)
 
@@ -935,7 +787,7 @@ def complete_order(request):
                 subtotal = Decimal(str(sum(item['subtotal'] for item in cart['items'])))
                 discount_amount = subtotal * (Decimal(str(discount_percent)) / Decimal('100'))
                 taxable_amount = subtotal - discount_amount
-                tax_amount = taxable_amount * Decimal('0.05') if is_taxable else Decimal('0')
+                tax_amount = taxable_amount * Decimal('0.15') if is_taxable else Decimal('0')
                 total_amount = taxable_amount + tax_amount
             except (ValueError, TypeError, KeyError) as calc_error:
                 return JsonResponse({'error': f'Calculation error: {str(calc_error)}'}, status=400)
@@ -1023,11 +875,39 @@ def complete_order(request):
                 del request.session['ticket_info']
                 request.session.modified = True
 
+            # Prepare receipt data for frontend
+            receipt_data = {
+                'id': receipt.id,
+                'receipt_number': f"R{receipt.id:06d}",
+                'created_at': receipt.timestamp.isoformat(),
+                'customer_name': customer_name,
+                'customer_phone': customer_phone,
+                'cashier_name': request.user.get_full_name() or request.user.username,
+                'store_name': request.user.store.name,
+                'total_amount': float(total_amount),
+                'subtotal': float(subtotal),
+                'discount_amount': float(discount_amount),
+                'discount_percent': discount_percent,
+                'tax_amount': float(tax_amount),
+                'payment_type': payment_type,
+                'items': []
+            }
+
+            # Add items to receipt data
+            for item in order_items:
+                receipt_data['items'].append({
+                    'product_name': item['product_name'],
+                    'quantity': item['quantity'],
+                    'unit_price': float(item['price']),
+                    'total_price': float(item['subtotal'])
+                })
+
             return JsonResponse({
                 'success': True,
                 'transaction_id': transaction_obj.id,
                 'receipt_id': receipt.id,
                 'total_amount': float(total_amount),
+                'receipt': receipt_data,
                 'order_items': order_items,
                 'customer_name': customer_name,
                 'customer_phone': customer_phone,
@@ -1042,8 +922,12 @@ def complete_order(request):
             })
 
     except ValueError as e:
+        print(f"Order completion validation error: {str(e)}")
         return JsonResponse({'error': str(e)}, status=400)
     except Exception as e:
+        print(f"Order completion error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return JsonResponse({'error': f'Order completion failed: {str(e)}'}, status=500)
 
 
@@ -1071,10 +955,10 @@ def generate_receipt_pdf(request, receipt_id):
         # Calculate breakdown
         subtotal_before_tax = sum(item.quantity * item.price_at_time_of_sale for item in order_items)
 
-        # Calculate tax (5% of total) - convert to Decimal for proper calculation
+        # Calculate tax (15% of total) - convert to Decimal for proper calculation
         from decimal import Decimal
-        tax_rate = Decimal('0.05')
-        tax_divisor = Decimal('1.05')
+        tax_rate = Decimal('0.15')
+        tax_divisor = Decimal('1.15')
         tax_amount = receipt.total_amount * tax_rate / tax_divisor  # Reverse calculate tax from total
         subtotal = receipt.total_amount - tax_amount
 
@@ -1164,7 +1048,7 @@ def generate_receipt_pdf(request, receipt_id):
         import traceback
         traceback.print_exc()  # Print full traceback
         messages.error(request, f"Error generating receipt: {str(e)}")
-        return redirect('cashier_dashboard')
+        return redirect('initiate_order')
 
 
 @login_required
@@ -1183,7 +1067,7 @@ def view_receipt(request, receipt_id):
         # Verify access
         if transaction_obj.store != request.user.store:
             messages.error(request, "Access denied to this receipt")
-            return redirect('cashier_dashboard')
+            return redirect('initiate_order')
 
         # Get order items
         order_items = TransactionOrder.objects.filter(
@@ -1206,7 +1090,7 @@ def view_receipt(request, receipt_id):
         return render(request, 'store/view_receipt.html', context)
     except Exception as e:
         messages.error(request, f"Error viewing receipt: {str(e)}")
-        return redirect('cashier_dashboard')
+        return redirect('initiate_order')
 
 
 @login_required
@@ -1658,6 +1542,8 @@ Phone: {transaction_obj.store.phone_number}
         except Exception as email_error:
             error_message = str(email_error)
             print(f"Failed to send email: {email_error}")
+            import traceback
+            traceback.print_exc()  # Print full traceback for debugging
 
             # Try alternative: save email content to session for manual sending
             request.session[f'pending_email_{receipt.id}'] = {
@@ -1681,7 +1567,50 @@ Phone: {transaction_obj.store.phone_number}
             })
 
     except Exception as e:
-        return JsonResponse({'error': f'Failed to send email: {str(e)}'}, status=500)
+        return JsonResponse({
+            'success': False,
+            'error': f'Failed to send email: {str(e)}',
+            'message': f'Failed to send email: {str(e)}'
+        }, status=500)
+
+
+@login_required
+def cashier_transactions(request):
+    """
+    Display transaction history for the current cashier
+    """
+    if request.user.role != 'cashier':
+        messages.error(request, "Access denied")
+        return redirect('login')
+
+    try:
+        # Get receipts for transactions made at this cashier's store
+        # Since Transaction model doesn't have a cashier field, we filter by store
+        receipts = Receipt.objects.filter(
+            transaction__store=request.user.store,
+            transaction__transaction_type='sale'
+        ).select_related('transaction').order_by('-timestamp')[:50]  # Last 50 transactions
+
+        # Calculate total revenue from all receipts at this store
+        from django.db.models import Sum
+        total_revenue = Receipt.objects.filter(
+            transaction__store=request.user.store,
+            transaction__transaction_type='sale'
+        ).aggregate(
+            total=Sum('total_amount')
+        )['total'] or 0
+
+        context = {
+            'receipts': receipts,
+            'cashier': request.user,
+            'total_revenue': total_revenue,
+        }
+
+        return render(request, 'store/cashier_transactions.html', context)
+
+    except Exception as e:
+        messages.error(request, f"Error loading transactions: {str(e)}")
+        return redirect('initiate_order')
 
 
 # ============ STORE MANAGER CASHIER ASSIGNMENT ============
@@ -2407,7 +2336,7 @@ def process_ticket_to_order(request, ticket_number):
     """
     if request.user.role != 'cashier':
         messages.error(request, 'Unauthorized access.')
-        return redirect('cashier_dashboard')
+        return redirect('initiate_order')
 
     try:
         # Get store for tickets
@@ -2423,7 +2352,7 @@ def process_ticket_to_order(request, ticket_number):
 
         if not store:
             messages.error(request, 'Cashier not assigned to any store.')
-            return redirect('cashier_dashboard')
+            return redirect('initiate_order')
 
         # Get ticket
         ticket = CustomerTicket.objects.select_related('store').prefetch_related('items__product').get(
@@ -2434,7 +2363,7 @@ def process_ticket_to_order(request, ticket_number):
         # Check if ticket can be processed
         if ticket.status in ['completed', 'cancelled']:
             messages.warning(request, f'Ticket #{ticket_number} cannot be processed as it is already {ticket.status}.')
-            return redirect('cashier_dashboard')
+            return redirect('initiate_order')
 
         # Build cart data from ticket
         cart_items = []
@@ -2479,7 +2408,60 @@ def process_ticket_to_order(request, ticket_number):
 
     except CustomerTicket.DoesNotExist:
         messages.error(request, f'Ticket #{ticket_number} not found.')
-        return redirect('cashier_dashboard')
+        return redirect('initiate_order')
     except Exception as e:
         messages.error(request, f'Error processing ticket: {str(e)}')
-        return redirect('cashier_dashboard')
+        return redirect('initiate_order')
+
+
+@login_required
+def get_ticket_api(request, ticket_number):
+    """
+    API endpoint to get ticket details for AJAX requests
+    """
+    if request.user.role != 'cashier':
+        return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
+
+    try:
+        from webfront.models import CustomerTicket
+
+        ticket = CustomerTicket.objects.get(
+            ticket_number=ticket_number,
+            store=request.user.store
+        )
+
+        # Get ticket items
+        items = []
+        for item in ticket.items.all():
+            items.append({
+                'product_id': item.product.id,
+                'product_name': item.product.name,
+                'quantity': item.quantity,
+                'unit_price': float(item.unit_price),
+                'total_price': float(item.total_price)
+            })
+
+        ticket_data = {
+            'ticket_number': ticket.ticket_number,
+            'customer_name': ticket.customer_name,
+            'customer_phone': ticket.customer_phone,
+            'total_amount': float(ticket.total_amount),
+            'status': ticket.status,
+            'items': items
+        }
+
+        return JsonResponse({
+            'success': True,
+            'ticket': ticket_data
+        })
+
+    except CustomerTicket.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': f'Ticket #{ticket_number} not found'
+        }, status=404)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)

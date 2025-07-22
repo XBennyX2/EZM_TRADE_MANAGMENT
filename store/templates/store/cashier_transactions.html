@@ -1,0 +1,228 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
+{% block title %}Transaction Details - EZM Trade Management{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/ezm-theme.css' %}">
+<style>
+  .transaction-card {
+    background: linear-gradient(135deg, #1F2833 0%, #0B0C10 100%);
+    border: 1px solid #45A29E;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+  }
+
+  .transaction-card:hover {
+    border-color: #66FCF1;
+    box-shadow: 0 4px 15px rgba(102, 252, 241, 0.1);
+  }
+
+  .transaction-header {
+    background: linear-gradient(90deg, #45A29E, #66FCF1);
+    color: #0B0C10;
+    font-weight: bold;
+    padding: 0.75rem 1rem;
+    border-radius: 10px 10px 0 0;
+  }
+
+  .transaction-body {
+    padding: 1rem;
+    color: #C5C6C7;
+  }
+
+  .transaction-amount {
+    color: #66FCF1;
+    font-weight: bold;
+    font-size: 1.1rem;
+  }
+
+  .transaction-date {
+    color: #45A29E;
+    font-size: 0.9rem;
+  }
+
+  .transaction-customer {
+    color: #C5C6C7;
+    font-size: 0.9rem;
+  }
+
+  .btn-view-receipt {
+    background: linear-gradient(135deg, #45A29E, #66FCF1);
+    border: none;
+    color: #0B0C10;
+    font-weight: bold;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+  }
+
+  .btn-view-receipt:hover {
+    background: linear-gradient(135deg, #66FCF1, #45A29E);
+    color: #0B0C10;
+    transform: translateY(-2px);
+  }
+
+  .no-transactions {
+    text-align: center;
+    color: #C5C6C7;
+    padding: 3rem;
+    background: linear-gradient(135deg, #1F2833 0%, #0B0C10 100%);
+    border: 1px solid #45A29E;
+    border-radius: 10px;
+  }
+
+  .stats-summary {
+    background: linear-gradient(135deg, #1F2833 0%, #0B0C10 100%);
+    border: 1px solid #45A29E;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .stat-item {
+    text-align: center;
+    color: #C5C6C7;
+  }
+
+  .stat-number {
+    color: #66FCF1;
+    font-size: 1.5rem;
+    font-weight: bold;
+  }
+
+  .stat-label {
+    color: #45A29E;
+    font-size: 0.9rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h2 style="color: #66FCF1; font-weight: bold;">Transaction Details</h2>
+          <p style="color: #C5C6C7;">View your recent sales and transactions</p>
+        </div>
+        <div>
+          <a href="{% url 'initiate_order' %}" class="btn btn-ezm-primary">
+            <i class="bi bi-cash-register me-2"></i>Back to POS
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary Stats -->
+  <div class="stats-summary">
+    <div class="row">
+      <div class="col-md-3">
+        <div class="stat-item">
+          <div class="stat-number">{{ receipts|length }}</div>
+          <div class="stat-label">Total Transactions</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stat-item">
+          <div class="stat-number">
+            ETB {{ total_revenue|floatformat:2 }}
+          </div>
+          <div class="stat-label">Total Revenue</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stat-item">
+          <div class="stat-number">{{ cashier.first_name }} {{ cashier.last_name }}</div>
+          <div class="stat-label">Cashier</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stat-item">
+          <div class="stat-number">{{ cashier.store.name|default:"N/A" }}</div>
+          <div class="stat-label">Store</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Transactions List -->
+  <div class="row">
+    <div class="col-12">
+      {% if receipts %}
+      {% for receipt in receipts %}
+      <div class="transaction-card">
+        <div class="transaction-header">
+          <div class="row align-items-center">
+            <div class="col-md-6">
+              <i class="bi bi-receipt me-2"></i>Receipt #{{ receipt.id }}
+            </div>
+            <div class="col-md-6 text-end">
+              <span class="transaction-amount">ETB {{ receipt.total_amount|floatformat:2 }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="transaction-body">
+          <div class="row">
+            <div class="col-md-8">
+              <div class="transaction-date mb-2">
+                <i class="bi bi-calendar me-2"></i>{{ receipt.timestamp|date:"F d, Y g:i A" }}
+              </div>
+              <div class="transaction-customer mb-2">
+                <i class="bi bi-person me-2"></i>{{ receipt.customer_name|default:"Walk-in Customer" }}
+                {% if receipt.customer_phone %}
+                <span class="ms-2">
+                  <i class="bi bi-telephone me-1"></i>{{ receipt.customer_phone }}
+                </span>
+                {% endif %}
+              </div>
+              <div class="transaction-customer">
+                <i class="bi bi-credit-card me-2"></i>{{ receipt.transaction.get_payment_type_display|default:"Cash" }}
+              </div>
+            </div>
+            <div class="col-md-4 text-end">
+              <a href="{% url 'view_receipt' receipt.id %}" class="btn btn-view-receipt">
+                <i class="bi bi-eye me-2"></i>View Receipt
+              </a>
+              <a href="{% url 'generate_receipt_pdf' receipt.id %}" class="btn btn-view-receipt ms-2" target="_blank">
+                <i class="bi bi-download me-2"></i>Download PDF
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="no-transactions">
+        <i class="bi bi-receipt" style="font-size: 3rem; color: #45A29E; margin-bottom: 1rem;"></i>
+        <h4 style="color: #66FCF1;">No Transactions Found</h4>
+        <p>You haven't processed any transactions yet.</p>
+        <a href="{% url 'initiate_order' %}" class="btn btn-ezm-primary mt-3">
+          <i class="bi bi-cash-register me-2"></i>Start Your First Sale
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Add any JavaScript functionality here if needed
+  document.addEventListener('DOMContentLoaded', function () {
+    // Auto-refresh every 30 seconds to show new transactions
+    setTimeout(function () {
+      location.reload();
+    }, 30000);
+  });
+</script>
+{% endblock %}

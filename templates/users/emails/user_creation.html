@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Welcome to {{ company_name }}</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f6f8fa;
+      color: #333;
+      padding: 0;
+      margin: 0;
+      line-height: 1.6;
+    }
+    .container {
+      background: white;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 0;
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #0B0C10 0%, #1F2833 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 600;
+    }
+    .content {
+      padding: 30px;
+    }
+    .credentials-box {
+      background: linear-gradient(135deg, #66FCF1 0%, #45A29E 100%);
+      color: #0B0C10;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+      text-align: center;
+    }
+    .credential-item {
+      margin: 10px 0;
+      font-size: 16px;
+    }
+    .credential-label {
+      font-weight: 600;
+      display: inline-block;
+      width: 100px;
+      text-align: left;
+    }
+    .credential-value {
+      font-family: 'Courier New', monospace;
+      background: rgba(255, 255, 255, 0.3);
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    .login-button {
+      display: inline-block;
+      background: linear-gradient(135deg, #45A29E 0%, #66FCF1 100%);
+      color: #0B0C10;
+      padding: 12px 30px;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 600;
+      margin: 20px 0;
+      transition: transform 0.2s;
+    }
+    .login-button:hover {
+      transform: translateY(-2px);
+    }
+    .role-info {
+      background: #f8f9fa;
+      border-left: 4px solid #45A29E;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 0 6px 6px 0;
+    }
+    .security-notice {
+      background: #fff3cd;
+      border: 1px solid #ffeaa7;
+      color: #856404;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 20px 0;
+    }
+    .footer {
+      background: #f8f9fa;
+      padding: 20px 30px;
+      text-align: center;
+      font-size: 14px;
+      color: #666;
+      border-top: 1px solid #e9ecef;
+    }
+    .company-logo {
+      font-size: 24px;
+      font-weight: bold;
+      color: #66FCF1;
+    }
+    .divider {
+      height: 1px;
+      background: linear-gradient(to right, transparent, #45A29E, transparent);
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="company-logo">🏢 {{ company_name }}</div>
+      <h1>Welcome to Your Account!</h1>
+      <p>Your account has been successfully created</p>
+    </div>
+    
+    <div class="content">
+      <p>Dear <strong>{{ user.first_name }} {{ user.last_name }}</strong>,</p>
+      
+      <p>Welcome to {{ company_name }}! We're excited to have you join our team. Your account has been successfully created and you can now access the system.</p>
+      
+      <div class="role-info">
+        <h3 style="margin-top: 0; color: #0B0C10;">👤 Your Role: {{ role_display }}</h3>
+        <p style="margin-bottom: 0;">You have been assigned the role of <strong>{{ role_display }}</strong> in our system. This role determines your access permissions and available features.</p>
+      </div>
+      
+      <div class="credentials-box">
+        <h3 style="margin-top: 0;">🔐 Your Login Credentials</h3>
+        <div class="credential-item">
+          <span class="credential-label">Username:</span>
+          <span class="credential-value">{{ user.username }}</span>
+        </div>
+        <div class="credential-item">
+          <span class="credential-label">Password:</span>
+          <span class="credential-value">{{ password }}</span>
+        </div>
+        <div class="credential-item">
+          <span class="credential-label">Email:</span>
+          <span class="credential-value">{{ user.email }}</span>
+        </div>
+      </div>
+      
+      <div class="security-notice">
+        <h4 style="margin-top: 0;">🔒 Important Security Notice</h4>
+        <ul style="margin-bottom: 0; padding-left: 20px;">
+          <li>You will be required to change your password on first login</li>
+          <li>Please keep your credentials secure and do not share them</li>
+          <li>Choose a strong password when prompted to change it</li>
+          <li>Contact your administrator if you have any issues accessing your account</li>
+        </ul>
+      </div>
+      
+      <div class="divider"></div>
+      
+      <div style="text-align: center;">
+        <p><strong>Ready to get started?</strong></p>
+        <a href="{{ login_url }}" class="login-button">🚀 Login to Your Account</a>
+      </div>
+      
+      <div class="divider"></div>
+      
+      <p>If you have any questions or need assistance, please don't hesitate to contact your system administrator.</p>
+      
+      <p>Thank you for joining {{ company_name }}!</p>
+    </div>
+    
+    <div class="footer">
+      <p><strong>{{ company_name }}</strong><br>
+      Trade Management System<br>
+      Addis Ababa, Ethiopia</p>
+      <p style="margin-top: 15px; font-size: 12px; color: #999;">
+        This is an automated email. Please do not reply to this message.<br>
+        If you did not expect this email, please contact your administrator immediately.
+      </p>
+    </div>
+  </div>
+</body>
+</html>

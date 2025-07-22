@@ -16,6 +16,12 @@
             <span>User Management</span>
         </a>
     </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'admin_login_logs' %}" data-tooltip="Login Logs">
+            <i class="bi bi-shield-check"></i>
+            <span>Login Logs</span>
+        </a>
+    </li>
 </ul>
 
 <!-- Head Manager Sidebar -->
@@ -46,9 +52,9 @@
         </a>
     </li>
     <li class="sidebar-menu-item">
-        <a href="{% url 'purchase_order_list' %}" data-tooltip="Purchase Orders">
+        <a href="{% url 'purchase_order_list' %}" data-tooltip="Purchased Orders">
             <i class="bi bi-cart-check"></i>
-            <span>Purchase Orders</span>
+            <span>Purchased Orders</span>
         </a>
     </li>
     <li class="sidebar-menu-item">
@@ -64,9 +70,9 @@
         </a>
     </li>
     <li class="sidebar-menu-item">
-        <a href="{% url 'showroom_list' %}" data-tooltip="Store Manager Assignment">
+        <a href="{% url 'showroom_list' %}" data-tooltip="Store Management">
             <i class="bi bi-shop"></i>
-            <span>Store Manager Assignment</span>
+            <span>Store Management</span>
         </a>
     </li>
     <li class="sidebar-menu-item">
@@ -128,51 +134,22 @@
             <span>Request History</span>
         </a>
     </li>
-    <li class="sidebar-menu-item">
-        <a href="#" data-tooltip="Store Analytics">
-            <i class="bi bi-graph-up"></i>
-            <span>Store Analytics</span>
-        </a>
-    </li>
+
 </ul>
 
 <!-- Cashier Sidebar -->
 {% elif user.role == 'cashier' %}
 <ul>
-    <li class="sidebar-menu-item">
-        <a href="{% url 'cashier_page' %}" data-tooltip="Dashboard">
-            <i class="bi bi-speedometer2"></i>
-            <span>Dashboard</span>
-        </a>
-    </li>
-    <li class="sidebar-menu-item">
-        <a href="{% url 'cashier_dashboard' %}" data-tooltip="Point of Sale">
+    <li class="sidebar-menu-item{% if request.resolver_match.url_name == 'initiate_order' %} active{% endif %}">
+        <a href="{% url 'initiate_order' %}" data-tooltip="Point of Sale Dashboard">
             <i class="bi bi-cash-register"></i>
             <span>Point of Sale</span>
         </a>
     </li>
-    <li class="sidebar-menu-item">
-        <a href="{% url 'initiate_order' %}" data-tooltip="New Sale">
-            <i class="bi bi-cart-plus"></i>
-            <span>New Sale</span>
-        </a>
-    </li>
-    <li class="sidebar-menu-item">
-        <a href="#" data-tooltip="Transaction History">
+    <li class="sidebar-menu-item{% if request.resolver_match.url_name == 'cashier_transactions' %} active{% endif %}">
+        <a href="{% url 'cashier_transactions' %}" data-tooltip="Transaction Details">
             <i class="bi bi-receipt"></i>
-            <span>Transaction History</span>
-        </a>
-    </li>
-    <li class="sidebar-menu-item">
-        <a href="#" data-tooltip="Product Lookup">
-            <i class="bi bi-box-seam"></i>
-            <span>Product Lookup</span>
-        </a>
-    </li>
-    <li class="sidebar-menu-item">
-        <a href="#" data-tooltip="Daily Reports">
-            <i class="bi bi-clock-history"></i>
-            <span>Daily Reports</span>
+            <span>Transaction Details</span>
         </a>
     </li>
 </ul>

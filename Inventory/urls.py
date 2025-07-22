@@ -8,7 +8,8 @@ from .views import (
     PurchaseOrderListView, PurchaseOrderCreateView, PurchaseOrderDetailView, PurchaseOrderUpdateView,
     activate_supplier_account, supplier_account_status, supplier_profile_view, supplier_product_catalog_view,
     purchase_request_list, purchase_request_create, purchase_request_detail, purchase_request_from_catalog,
-    convert_request_to_order
+    convert_request_to_order, WarehouseProductStockEditView, warehouse_product_toggle_status,
+    ProductStockThresholdEditView, product_toggle_status
 )
 from . import order_tracking_views
 from . import stock_alert_views
@@ -21,6 +22,8 @@ urlpatterns = [
     path('products/new/', ProductCreateView.as_view(), name='product_create'),
     path('products/<int:pk>/edit/', ProductUpdateView.as_view(), name='product_update'),
     path('products/<int:pk>/delete/', ProductDeleteView.as_view(), name='product_delete'),
+    path('products/<int:pk>/edit-threshold/', ProductStockThresholdEditView.as_view(), name='product_stock_threshold_edit'),
+    path('products/<int:pk>/toggle-status/', product_toggle_status, name='product_toggle_status'),
 
     # Stock URLs
     path('stock/', StockListView.as_view(), name='stock_list'),
@@ -41,6 +44,8 @@ urlpatterns = [
     path('suppliers/<int:supplier_id>/status/', supplier_account_status, name='supplier_account_status'),
     path('warehouse-products/<int:pk>/edit/', WarehouseProductUpdateView.as_view(), name='warehouse_product_update'),
     path('warehouse-products/<int:pk>/delete/', WarehouseProductDeleteView.as_view(), name='warehouse_product_delete'),
+    path('warehouse-products/<int:pk>/edit-stock/', WarehouseProductStockEditView.as_view(), name='warehouse_product_stock_edit'),
+    path('warehouse-products/<int:pk>/toggle-status/', warehouse_product_toggle_status, name='warehouse_product_toggle_status'),
 
     # Warehouse URLs
     path('warehouses/', WarehouseListView.as_view(), name='warehouse_list'),

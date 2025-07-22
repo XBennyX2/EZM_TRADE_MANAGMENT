@@ -3,7 +3,6 @@ from django.urls import path
 from django.shortcuts import render
 from django.contrib.auth.views import (
     PasswordChangeView,
-    PasswordResetView,
     PasswordResetDoneView,
     PasswordResetConfirmView,
     PasswordResetCompleteView
@@ -14,7 +13,7 @@ from .views import (
     admin_settings, admin_edit_profile, admin_change_password, head_manager_settings,
     head_manager_change_password, head_manager_edit_profile,
     store_manager_settings, store_manager_change_password, cashier_settings, cashier_edit_profile, cashier_change_password,
-    CustomPasswordChangeView,
+    CustomPasswordChangeView, CustomPasswordResetView, admin_login_logs, reset_user_account,
     # Store Manager request views
     submit_restock_request, submit_transfer_request, update_product_price,
     store_manager_restock_requests, store_manager_transfer_requests, store_manager_stock_management,
@@ -22,7 +21,7 @@ from .views import (
     head_manager_restock_requests,
     approve_restock_request, reject_restock_request,
     # API endpoints for product dropdowns
-    get_restock_products, get_transfer_products, get_stores_with_product,
+    get_restock_products, get_transfer_products, get_stores_with_product, warehouse_products_api,
     # Analytics views
     analytics_dashboard, financial_reports, analytics_api,
     # Transaction history
@@ -54,7 +53,9 @@ urlpatterns = [
     path('admin/user/<int:user_id>/change-role/', change_user_role, name='change_user_role'),
     path('admin/user/<int:user_id>/delete/', delete_user, name='delete_user'),
     path('admin/user/<int:user_id>/', view_user_detail, name='view_user_detail'),
+    path('admin/user/<int:user_id>/reset/', reset_user_account, name='reset_user_account'),
     path('admin/create-user/', create_user, name='create_user'),
+    path('admin/login-logs/', admin_login_logs, name='admin_login_logs'),
 
     # Role-based pages
     path('admin-dashboard/', admin_dashboard, name='admin_dashboard'),
@@ -77,7 +78,8 @@ urlpatterns = [
     path('api/stores-with-product/', get_stores_with_product, name='get_stores_with_product'),
 
     # API endpoints for supplier product selection
-    path('api/warehouse-products/', api_warehouse_products, name='api_warehouse_products'),
+    path('api/warehouse-products/', warehouse_products_api, name='warehouse_products_api'),
+    path('api/warehouse-products-legacy/', api_warehouse_products, name='api_warehouse_products'),
     path('api/product-categories/', api_product_categories, name='api_product_categories'),
 
     # Head Manager request management URLs
@@ -107,12 +109,7 @@ urlpatterns = [
     path('account/password/', CustomPasswordChangeView.as_view(), name='password_change'),
 
     # Password reset URLs
-    path('password-reset/', PasswordResetView.as_view(
-        template_name='users/password_reset.html',
-        email_template_name='users/password_reset_email.html',
-        subject_template_name='users/password_reset_subject.txt',
-        success_url='/users/password-reset/done/'
-    ), name='password_reset'),
+    path('password-reset/', CustomPasswordResetView.as_view(), name='password_reset'),
 
     path('password-reset/done/', PasswordResetDoneView.as_view(
         template_name='users/password_reset_done.html'

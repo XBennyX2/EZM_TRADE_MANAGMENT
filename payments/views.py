@@ -201,6 +201,22 @@ def payment_success(request):
             else:
                 logger.error(f"Failed to create transaction records for payment {tx_ref}: {transaction_result.get('error')}")
 
+            # Send receipt email to customer
+            try:
+                from users.email_service import email_service
+                order_payment = transaction.purchase_order_payment if hasattr(transaction, 'purchase_order_payment') else None
+                email_result = email_service.send_purchase_order_receipt_email(transaction, order_payment)
+
+                if email_result[0]:  # Success
+                    logger.info(f"Receipt email sent successfully for transaction {tx_ref}")
+                else:
+                    logger.error(f"Failed to send receipt email for transaction {tx_ref}: {email_result[1]}")
+                    # Don't show error to user as payment was successful
+
+            except Exception as e:
+                logger.error(f"Error sending receipt email for transaction {tx_ref}: {str(e)}")
+                # Don't show error to user as payment was successful
+
             # Log payment completion for payment history
             logger.info(f"Payment completed successfully: {tx_ref} - Amount: {transaction.amount} ETB - Supplier: {transaction.supplier.name} - Customer: {request.user.get_full_name() or request.user.username}")
 
@@ -467,6 +483,21 @@ def chapa_webhook(request):
                 if status == 'success':
                     transaction.status = 'success'
                     transaction.paid_at = timezone.now()
+
+                    # Send receipt email for successful payment
+                    try:
+                        from users.email_service import email_service
+                        order_payment = transaction.purchase_order_payment if hasattr(transaction, 'purchase_order_payment') else None
+                        email_result = email_service.send_purchase_order_receipt_email(transaction, order_payment)
+
+                        if email_result[0]:  # Success
+                            logger.info(f"Receipt email sent successfully for webhook transaction {tx_ref}")
+                        else:
+                            logger.error(f"Failed to send receipt email for webhook transaction {tx_ref}: {email_result[1]}")
+
+                    except Exception as e:
+                        logger.error(f"Error sending receipt email for webhook transaction {tx_ref}: {str(e)}")
+
                 elif status in ['failed', 'cancelled']:
                     transaction.status = 'failed'
                 else:
@@ -532,14 +563,29 @@ def chapa_webhook(request):
             if status == 'success':
                 transaction.status = 'success'
                 transaction.paid_at = timezone.now()
+
+                # Send receipt email for successful payment
+                try:
+                    from users.email_service import email_service
+                    order_payment = transaction.purchase_order_payment if hasattr(transaction, 'purchase_order_payment') else None
+                    email_result = email_service.send_purchase_order_receipt_email(transaction, order_payment)
+
+                    if email_result[0]:  # Success
+                        logger.info(f"Receipt email sent successfully for POST webhook transaction {tx_ref}")
+                    else:
+                        logger.error(f"Failed to send receipt email for POST webhook transaction {tx_ref}: {email_result[1]}")
+
+                except Exception as e:
+                    logger.error(f"Error sending receipt email for POST webhook transaction {tx_ref}: {str(e)}")
+
             elif status in ['failed', 'cancelled']:
                 transaction.status = 'failed'
             else:
                 transaction.status = 'pending'
-            
+
             transaction.webhook_data = webhook_data
             transaction.save()
-            
+
             # Update related purchase order payment
             if hasattr(transaction, 'purchase_order_payment'):
                 transaction.purchase_order_payment.update_status_from_payment()
@@ -569,7 +615,7 @@ def chapa_webhook(request):
 @user_passes_test(is_head_manager)
 def payment_history(request):
     """
-    Show payment history for the user with filtering and pagination
+    Show comprehensive payment history for Head Managers with filtering and pagination
     """
     try:
         from django.core.paginator import Paginator
@@ -580,9 +626,12 @@ def payment_history(request):
         status_filter = request.GET.get('status', '')
         date_from = request.GET.get('date_from', '')
         date_to = request.GET.get('date_to', '')
+        search_query = request.GET.get('search', '')
+        supplier_filter = request.GET.get('supplier', '')
+        payment_method_filter = request.GET.get('payment_method', '')
 
-        # Start with user's transactions
-        transactions = ChapaTransaction.objects.filter(user=request.user)
+        # Head Managers can see ALL transactions across the system
+        transactions = ChapaTransaction.objects.select_related('user', 'supplier').all()
 
         # Apply filters
         if status_filter:
@@ -602,11 +651,63 @@ def payment_history(request):
             except ValueError:
                 pass
 
+        # Search functionality
+        if search_query:
+            from django.db.models import Q
+            transactions = transactions.filter(
+                Q(chapa_tx_ref__icontains=search_query) |
+                Q(customer_email__icontains=search_query) |
+                Q(customer_first_name__icontains=search_query) |
+                Q(customer_last_name__icontains=search_query) |
+                Q(supplier__name__icontains=search_query) |
+                Q(description__icontains=search_query)
+            )
+
+        # Supplier filter
+        if supplier_filter:
+            transactions = transactions.filter(supplier_id=supplier_filter)
+
+        # Payment method filter (extracted from webhook_data)
+        if payment_method_filter:
+            transactions = transactions.filter(
+                webhook_data__payment_method__icontains=payment_method_filter
+            )
+
         # Order by most recent first
         transactions = transactions.order_by('-created_at')
 
+        # Get statistics for dashboard
+        total_transactions = transactions.count()
+        successful_transactions = transactions.filter(status='success').count()
+        pending_transactions = transactions.filter(status='pending').count()
+        failed_transactions = transactions.filter(status='failed').count()
+
+        # Calculate total amounts
+        from django.db.models import Sum
+        total_amount = transactions.filter(status='success').aggregate(
+            total=Sum('amount')
+        )['total'] or 0
+
+        # Get suppliers for filter dropdown
+        from Inventory.models import Supplier
+        suppliers = Supplier.objects.filter(
+            chapa_transactions__isnull=False
+        ).distinct().order_by('name')
+
+        # Get unique payment methods from webhook data
+        payment_methods = []
+        webhook_methods = transactions.exclude(
+            webhook_data__isnull=True
+        ).values_list('webhook_data', flat=True)
+
+        for webhook_data in webhook_methods:
+            if webhook_data and 'payment_method' in webhook_data:
+                method = webhook_data['payment_method']
+                if method and method not in payment_methods:
+                    payment_methods.append(method)
+
         # Pagination
-        paginator = Paginator(transactions, 10)  # Show 10 transactions per page
+        paginator = Paginator(transactions, 15)  # Show 15 transactions per page
         page_number = request.GET.get('page')
         page_obj = paginator.get_page(page_number)
 
@@ -615,9 +716,19 @@ def payment_history(request):
             'status_filter': status_filter,
             'date_from': date_from,
             'date_to': date_to,
+            'search_query': search_query,
+            'supplier_filter': supplier_filter,
+            'payment_method_filter': payment_method_filter,
+            'suppliers': suppliers,
+            'payment_methods': payment_methods,
             'is_success_selected': status_filter == 'success',
             'is_pending_selected': status_filter == 'pending',
             'is_failed_selected': status_filter == 'failed',
+            'total_transactions': total_transactions,
+            'successful_transactions': successful_transactions,
+            'pending_transactions': pending_transactions,
+            'failed_transactions': failed_transactions,
+            'total_amount': total_amount,
         }
 
         return render(request, 'payments/payment_history.html', context)
@@ -630,8 +741,18 @@ def payment_history(request):
             'status_filter': '',
             'date_from': '',
             'date_to': '',
+            'search_query': '',
+            'supplier_filter': '',
+            'payment_method_filter': '',
+            'suppliers': [],
+            'payment_methods': [],
             'is_success_selected': False,
             'is_pending_selected': False,
             'is_failed_selected': False,
+            'total_transactions': 0,
+            'successful_transactions': 0,
+            'pending_transactions': 0,
+            'failed_transactions': 0,
+            'total_amount': 0,
         }
         return render(request, 'payments/payment_history.html', context)

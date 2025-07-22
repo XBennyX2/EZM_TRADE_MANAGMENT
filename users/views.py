@@ -14,9 +14,36 @@ from django.db import models
 from django.db.models import Sum, Count, Avg, F, Q
 from django.utils import timezone
 from datetime import datetime, timedelta
+import logging
+
+logger = logging.getLogger(__name__)
 from decimal import Decimal
 import json
 import logging
+
+# Additional imports for enhanced financial reporting
+from io import BytesIO
+try:
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.units import inch
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
+from django.core.paginator import Paginator
+from django.http import HttpResponse
+from django.urls import reverse_lazy, reverse
+from django.views.generic import CreateView, UpdateView
+from django.contrib.auth.views import PasswordChangeView, PasswordResetView
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth import logout
+from django.contrib.auth.decorators import user_passes_test
+from django.shortcuts import get_object_or_404
+from django.conf import settings
 logger = logging.getLogger(__name__)
 try:
     from users.templatetags.users_utils import send_otp_email
@@ -63,7 +90,7 @@ from django.contrib.auth import login
 from .forms import CustomLoginForm
 from store.models import Store
 from django.contrib.auth import update_session_auth_hash
-from django.contrib.auth.views import PasswordChangeView
+from django.contrib.auth.views import PasswordChangeView, PasswordResetView
 from django.urls import reverse_lazy
 
 def login_view(request):
@@ -85,12 +112,19 @@ def login_view(request):
 
     if request.method == 'POST':
         form = CustomLoginForm(data=request.POST)
+        username_attempted = request.POST.get('username', '')
+
         if form.is_valid():
             user = form.get_user()
 
             if not user.is_active:
+                # Log failed login due to inactive account
+                log_login_attempt(request, username_attempted, user, 'failed', 'Account inactive')
                 messages.error(request, "Your account is inactive. Please contact the administrator.")
                 return redirect('login')
+
+            # Log successful login
+            log_login_attempt(request, username_attempted, user, 'success')
 
             login(request, user)
             if user.is_first_login:
@@ -116,6 +150,8 @@ def login_view(request):
                     messages.warning(request, "No role assigned. Contact admin.")
                     return redirect('login')
         else:
+            # Log failed login attempt
+            log_login_attempt(request, username_attempted, None, 'failed', 'Invalid credentials')
             messages.error(request, "Invalid email or password.")
     else:
         form = CustomLoginForm()
@@ -129,6 +165,7 @@ def logout_view(request):
     return redirect('login')
 
 from django.contrib.auth import get_user_model
+from .models import LoginLog, AccountReset
 
 User = get_user_model()
 @login_required
@@ -566,28 +603,28 @@ def calculate_store_analytics(store):
 
         # 3. PEAK HOURS/DAYS ANALYSIS
 
-        # Peak hour analysis
+        # Peak hour analysis (SQLite compatible)
         hourly_sales = Transaction.objects.filter(
             store=store,
             transaction_type='sale',
             timestamp__gte=last_30_days
         ).extra(
-            select={'hour': 'EXTRACT(hour FROM timestamp)'}
+            select={'hour': "strftime('%%H', timestamp)"}
         ).values('hour').annotate(
             total_sales=Sum('total_amount'),
             transaction_count=Count('id')
         ).order_by('-total_sales')
 
-        peak_hour = f"{hourly_sales[0]['hour']:02d}:00" if hourly_sales else "14:00"
+        peak_hour = f"{hourly_sales[0]['hour']}:00" if hourly_sales else "14:00"
         peak_sales = float(hourly_sales[0]['total_sales']) if hourly_sales else 0
 
-        # Peak day analysis
+        # Peak day analysis (SQLite compatible)
         daily_sales = Transaction.objects.filter(
             store=store,
             transaction_type='sale',
             timestamp__gte=last_7_days
         ).extra(
-            select={'weekday': 'EXTRACT(dow FROM timestamp)'}
+            select={'weekday': "strftime('%%w', timestamp)"}
         ).values('weekday').annotate(
             total_sales=Sum('total_amount')
         ).order_by('-total_sales')
@@ -909,6 +946,18 @@ def store_sales_report(request):
     payment_method = request.GET.get('payment_method')
     export_format = request.GET.get('export')
 
+    # Get pagination parameters
+    page = request.GET.get('page', 1)
+    page_size = request.GET.get('page_size', 25)
+    try:
+        page = int(page)
+        page_size = int(page_size)
+        if page_size not in [10, 25, 50, 100]:
+            page_size = 25
+    except (ValueError, TypeError):
+        page = 1
+        page_size = 25
+
     # Set default date range (last 30 days)
     if not start_date or not end_date:
         end_date = timezone.now().date()
@@ -940,7 +989,7 @@ def store_sales_report(request):
                 # Apply product filters
                 if product_category and order.product.category != product_category:
                     continue
-                if supplier_id and str(order.product.supplier_company.id) != supplier_id:
+                if supplier_id and order.product.supplier_company != supplier_id:
                     continue
                 if product_id and str(order.product.id) != product_id:
                     continue
@@ -967,7 +1016,7 @@ def store_sales_report(request):
                     'product_name': order.product.name,
                     'product_sku': getattr(order.product, 'sku', f'SKU-{order.product.id}'),
                     'category': order.product.category,
-                    'supplier': order.product.supplier_company.name if order.product.supplier_company else 'N/A',
+                    'supplier': order.product.supplier_company if order.product.supplier_company else 'N/A',
                     'quantity_sold': order.quantity,
                     'unit_price': order.price_at_time_of_sale,
                     'cost_price': cost_price,
@@ -978,7 +1027,7 @@ def store_sales_report(request):
                     'remaining_stock': remaining_stock,
                     'current_selling_price': current_selling_price,
                     'payment_method': transaction.payment_type,
-                    'receipt_number': transaction.receipt.receipt_number if hasattr(transaction, 'receipt') and transaction.receipt else f'TXN-{transaction.id}',
+                    'receipt_number': f'R{transaction.receipt.id:06d}' if hasattr(transaction, 'receipt') and transaction.receipt else f'TXN-{transaction.id}',
                 })
 
                 total_revenue += line_total
@@ -1036,9 +1085,53 @@ def store_sales_report(request):
         suppliers.add(item['supplier'])
         products.add((item['product_name'], item['product_sku']))
 
+    # Pre-process chart data to avoid large JavaScript generation
+    from collections import defaultdict
+    import json
+
+    # Process sales trend data
+    sales_by_date = defaultdict(float)
+    payment_methods = defaultdict(float)
+
+    for item in sales_data:
+        # Sales trend data
+        date_key = item['sale_date'].strftime('%Y-%m-%d')
+        sales_by_date[date_key] += float(item['line_total'])
+
+        # Payment method data
+        payment_methods[item['payment_method']] += float(item['line_total'])
+
+    # Prepare chart data
+    chart_data = {
+        'sales_trend': {
+            'labels': sorted(sales_by_date.keys()),
+            'data': [sales_by_date[date] for date in sorted(sales_by_date.keys())]
+        },
+        'payment_methods': {
+            'labels': [method.title() for method in payment_methods.keys()],
+            'data': list(payment_methods.values())
+        }
+    }
+
+    # Implement pagination for sales data
+    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+
+    paginator = Paginator(sales_data, page_size)
+    try:
+        paginated_sales_data = paginator.page(page)
+    except PageNotAnInteger:
+        paginated_sales_data = paginator.page(1)
+    except EmptyPage:
+        paginated_sales_data = paginator.page(paginator.num_pages)
+
     context = {
         'store': store,
-        'sales_data': sales_data,
+        'sales_data': paginated_sales_data,
+        'paginator': paginator,
+        'page_obj': paginated_sales_data,
+        'total_sales_count': len(sales_data),
+        'page_size': page_size,
+        'chart_data': json.dumps(chart_data),
         'start_date': start_date,
         'end_date': end_date,
         'total_revenue': total_revenue,
@@ -2153,8 +2246,8 @@ def cashier_page(request):
             'message': 'Please wait for your store manager to assign you to a store.'
         })
 
-    # Cashier is assigned to a store, redirect to the proper dashboard
-    return redirect('cashier_dashboard')
+    # Cashier is assigned to a store, redirect to the unified cashier interface
+    return redirect('initiate_order')
 
 from django.contrib.auth.decorators import user_passes_test
 from django.db.models import Q
@@ -2169,8 +2262,116 @@ from decimal import Decimal
 import csv
 import io
 
+def get_client_ip(request):
+    """Get the client's IP address from the request"""
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
+
+
+def log_login_attempt(request, username_attempted, user=None, status='failed', failure_reason=''):
+    """Log login attempt for admin audit purposes"""
+    try:
+        LoginLog.objects.create(
+            user=user,
+            username_attempted=username_attempted,
+            login_status=status,
+            ip_address=get_client_ip(request),
+            user_agent=request.META.get('HTTP_USER_AGENT', ''),
+            user_role=user.role if user else '',
+            failure_reason=failure_reason
+        )
+    except Exception as e:
+        # Don't let logging errors break the login process
+        logger.error(f"Failed to log login attempt: {e}")
+        pass
+
+
 def is_admin(user):
     return user.is_authenticated and (user.is_superuser or user.role == 'admin')
+
+@user_passes_test(is_admin)
+def admin_login_logs(request):
+    """Admin page to view login logs with filtering and sorting"""
+    search_query = request.GET.get('search', '')
+    status_filter = request.GET.get('status', '')
+    role_filter = request.GET.get('role', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    sort_by = request.GET.get('sort', '-login_timestamp')
+    page_number = request.GET.get('page')
+
+    # Get all login logs
+    logs = LoginLog.objects.all().select_related('user')
+
+    # Apply filters
+    if search_query:
+        logs = logs.filter(
+            Q(username_attempted__icontains=search_query) |
+            Q(user__first_name__icontains=search_query) |
+            Q(user__last_name__icontains=search_query) |
+            Q(ip_address__icontains=search_query)
+        )
+
+    if status_filter:
+        logs = logs.filter(login_status=status_filter)
+
+    if role_filter:
+        logs = logs.filter(user_role=role_filter)
+
+    if date_from:
+        try:
+            from_date = datetime.strptime(date_from, '%Y-%m-%d')
+            logs = logs.filter(login_timestamp__gte=from_date)
+        except ValueError:
+            pass
+
+    if date_to:
+        try:
+            to_date = datetime.strptime(date_to, '%Y-%m-%d')
+            # Add one day to include the entire day
+            to_date = to_date.replace(hour=23, minute=59, second=59)
+            logs = logs.filter(login_timestamp__lte=to_date)
+        except ValueError:
+            pass
+
+    # Apply sorting
+    valid_sort_fields = ['login_timestamp', '-login_timestamp', 'username_attempted',
+                        '-username_attempted', 'login_status', '-login_status',
+                        'user_role', '-user_role']
+    if sort_by in valid_sort_fields:
+        logs = logs.order_by(sort_by)
+    else:
+        logs = logs.order_by('-login_timestamp')
+
+    # Pagination
+    paginator = Paginator(logs, 25)  # Show 25 logs per page
+    page_obj = paginator.get_page(page_number)
+
+    # Get statistics
+    total_logs = logs.count()
+    successful_logs = logs.filter(login_status='success').count()
+    failed_logs = logs.filter(login_status='failed').count()
+
+    context = {
+        'page_obj': page_obj,
+        'total_logs': total_logs,
+        'successful_logs': successful_logs,
+        'failed_logs': failed_logs,
+        'search_query': search_query,
+        'status_filter': status_filter,
+        'role_filter': role_filter,
+        'date_from': date_from,
+        'date_to': date_to,
+        'sort_by': sort_by,
+        'role_choices': CustomUser.ROLE_CHOICES,
+    }
+
+    return render(request, 'admin/login_logs.html', context)
+
 
 @user_passes_test(is_admin)
 def manage_users(request):
@@ -2307,6 +2508,102 @@ def change_user_role(request, user_id):
     else:
         form = ChangeUserRoleForm(instance=target_user)
     return render(request, 'admin/change_user_role.html', {'form': form, 'target_user': target_user})
+
+@user_passes_test(is_admin)
+def reset_user_account(request, user_id):
+    """Reset user account with new temporary credentials and email update capability"""
+    target_user = get_object_or_404(User, id=user_id)
+
+    # Prevent admin from resetting their own account
+    if target_user == request.user:
+        messages.error(request, "You cannot reset your own account.")
+        return redirect('manage_users')
+
+    # Prevent resetting superuser accounts by non-superusers
+    if target_user.is_superuser and not request.user.is_superuser:
+        messages.error(request, "You cannot reset a superuser account.")
+        return redirect('manage_users')
+
+    if request.method == 'POST':
+        from .forms import AccountResetForm
+        form = AccountResetForm(request.POST, user_being_reset=target_user)
+
+        if form.is_valid():
+            try:
+                # Store old email for audit trail
+                old_email = target_user.email
+                new_email = form.cleaned_data['new_email']
+                reset_reason = form.cleaned_data['reset_reason']
+
+                # Generate new temporary credentials
+                import secrets
+                import string
+
+                # Generate temporary password
+                alphabet = string.ascii_letters + string.digits
+                temp_password = ''.join(secrets.choice(alphabet) for i in range(12))
+
+                # Update user account with new email
+                target_user.email = new_email
+                target_user.set_password(temp_password)
+                target_user.is_first_login = True
+                target_user.is_active = True
+                target_user.save()
+
+                # Create account reset record
+                AccountReset.objects.create(
+                    user=target_user,
+                    reset_by=request.user,
+                    old_email=old_email,
+                    new_email=new_email,
+                    temporary_password=target_user.password,  # Store hashed password
+                    reset_reason=reset_reason
+                )
+
+                # Log the account reset as a login log entry
+                log_login_attempt(request, new_email, target_user, 'success', f'Account reset by {request.user.username}')
+
+                # Send email notification with new credentials to the new email
+                from .email_service import EZMEmailService
+                email_service = EZMEmailService()
+
+                success, message = email_service.send_account_reset_email(
+                    target_user, temp_password, old_email, request.user
+                )
+
+                if success:
+                    messages.success(request,
+                        f"Account for '{target_user.username}' has been reset successfully. "
+                        f"New credentials have been sent to {new_email}.")
+                else:
+                    messages.warning(request,
+                        f"Account reset completed but email notification failed: {message}. "
+                        f"New email: {new_email}, Password: {temp_password}")
+
+                return redirect('manage_users')
+
+            except Exception as e:
+                messages.error(request, f"Error resetting account: {e}")
+                return redirect('manage_users')
+        else:
+            # Form has validation errors, re-render with errors
+            context = {
+                'target_user': target_user,
+                'form': form,
+            }
+            return render(request, 'admin/reset_user_account.html', context)
+
+    else:
+        # For GET requests, show form with current user data
+        from .forms import AccountResetForm
+        form = AccountResetForm(user_being_reset=target_user)
+
+    context = {
+        'target_user': target_user,
+        'form': form,
+    }
+    return render(request, 'admin/reset_user_account.html', context)
+
 
 @user_passes_test(is_admin)
 def delete_user(request, user_id):
@@ -2591,6 +2888,71 @@ class CustomPasswordChangeView(PasswordChangeView):
             return reverse_lazy('login')
 
 
+class CustomPasswordResetView(PasswordResetView):
+    """Custom password reset view that sends properly formatted HTML emails"""
+    template_name = 'users/password_reset.html'
+    email_template_name = 'users/password_reset_email.txt'
+    subject_template_name = 'users/password_reset_subject.txt'
+    success_url = reverse_lazy('password_reset_done')
+
+    def send_mail(self, subject_template_name, email_template_name,
+                  context, from_email, to_email, html_email_template_name=None):
+        """
+        Send HTML email with plain text fallback
+        """
+        from django.core.mail import EmailMultiAlternatives
+        from django.template import loader
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        try:
+            # Render subject template
+            subject = loader.render_to_string(subject_template_name, context)
+            subject = ''.join(subject.splitlines())
+
+            # Render plain text body as fallback
+            text_body = loader.render_to_string(email_template_name, context)
+
+            # Render HTML body
+            html_body = loader.render_to_string('users/password_reset_email.html', context)
+
+            # Create email message
+            msg = EmailMultiAlternatives(
+                subject=subject,
+                body=text_body,
+                from_email=from_email,
+                to=[to_email]
+            )
+
+            # Attach HTML version
+            msg.attach_alternative(html_body, "text/html")
+
+            # Set additional headers to ensure HTML rendering
+            msg.extra_headers['Content-Type'] = 'multipart/alternative'
+
+            # Send the email
+            msg.send()
+
+            logger.info(f"Password reset email sent successfully to {to_email}")
+
+        except Exception as e:
+            logger.error(f"Failed to send password reset email to {to_email}: {e}")
+            # Fallback to plain text only
+            from django.core.mail import send_mail
+            subject = loader.render_to_string(subject_template_name, context)
+            subject = ''.join(subject.splitlines())
+            body = loader.render_to_string(email_template_name, context)
+
+            send_mail(
+                subject=subject,
+                message=body,
+                from_email=from_email,
+                recipient_list=[to_email],
+                fail_silently=False
+            )
+
+
 # Analytics and Reports Views for Head Manager
 
 @login_required
@@ -2795,14 +3157,162 @@ def analytics_dashboard(request):
     return render(request, 'analytics/dashboard.html', context)
 
 
+def calculate_net_profit_for_store(store, start_date, end_date):
+    """
+    Calculate net profit for a store by finding the difference between
+    sale price and purchase price from suppliers for each item sold.
+
+    Fixed to handle realistic profit margins:
+    - If warehouse cost > sale price, assumes 30% profit margin
+    - If no warehouse product found, assumes 25% profit margin
+    - Prevents negative profit calculations from unrealistic data
+    """
+    from Inventory.models import PurchaseOrderItem
+
+    net_profit = Decimal('0')
+
+    # Get all sales transactions for the store in the period
+    sales_transactions = Transaction.objects.filter(
+        store=store,
+        transaction_type='sale',
+        timestamp__gte=start_date,
+        timestamp__lte=end_date
+    )
+
+    for transaction in sales_transactions:
+        # Get orders for this transaction
+        orders = Order.objects.filter(transaction=transaction)
+
+        for order in orders:
+            if order.product:
+                # Find the most recent purchase price for this product
+                # Match by product name since WarehouseProduct is separate from Product
+                from Inventory.models import WarehouseProduct
+
+                # Try exact name match first
+                warehouse_product = WarehouseProduct.objects.filter(
+                    product_name__iexact=order.product.name
+                ).first()
+
+                # If no exact match, try partial name match
+                if not warehouse_product:
+                    warehouse_product = WarehouseProduct.objects.filter(
+                        product_name__icontains=order.product.name.split()[0]
+                    ).first()
+
+                if warehouse_product:
+                    # Find recent purchase price for this warehouse product
+                    recent_purchase = PurchaseOrderItem.objects.filter(
+                        warehouse_product=warehouse_product,
+                        purchase_order__status='delivered'
+                    ).order_by('-purchase_order__created_date').first()
+
+                    if recent_purchase:
+                        purchase_price = recent_purchase.unit_price
+                    else:
+                        # Use warehouse product unit price as fallback
+                        purchase_price = warehouse_product.unit_price
+
+                    sale_price = order.price_at_time_of_sale
+                    quantity = order.quantity
+
+                    # Ensure realistic profit calculation
+                    # If warehouse price is higher than sale price, use 70% of sale price as cost
+                    if purchase_price > sale_price:
+                        purchase_price = sale_price * Decimal('0.7')  # Assume 30% profit margin
+
+                    # Calculate net profit for this item
+                    item_net_profit = (sale_price - purchase_price) * quantity
+                    net_profit += item_net_profit
+                else:
+                    # If no warehouse product found, assume 25% profit margin
+                    sale_price = order.price_at_time_of_sale
+                    quantity = order.quantity
+                    estimated_cost = sale_price * Decimal('0.75')  # 25% profit margin
+
+                    item_net_profit = (sale_price - estimated_cost) * quantity
+                    net_profit += item_net_profit
+
+    return net_profit
+
+
+def calculate_purchase_costs_for_period(start_date, end_date):
+    """
+    Calculate total purchase costs from completed purchase orders in the period.
+    """
+    from Inventory.models import PurchaseOrder
+
+    purchase_costs = PurchaseOrder.objects.filter(
+        status='delivered',
+        created_date__gte=start_date,
+        created_date__lte=end_date
+    ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+
+    return purchase_costs
+
+
+def get_revenue_breakdown_data(start_date, end_date):
+    """
+    Get revenue breakdown by categories, suppliers, and stores.
+    """
+    # Revenue by category
+    category_revenue = []
+    categories = Product.objects.values_list('category', flat=True).distinct().filter(category__isnull=False)
+
+    for category in categories:
+        if category:  # Skip None/empty categories
+            revenue = Order.objects.filter(
+                product__category=category,
+                transaction__transaction_type='sale',
+                transaction__timestamp__gte=start_date,
+                transaction__timestamp__lte=end_date
+            ).aggregate(
+                total=Sum(F('quantity') * F('price_at_time_of_sale'))
+            )['total'] or Decimal('0')
+
+            if revenue > 0:
+                category_revenue.append({
+                    'category': category,
+                    'revenue': float(revenue)
+                })
+
+    # Revenue by store
+    store_revenue = []
+    stores = Store.objects.all()
+
+    for store in stores:
+        revenue = Transaction.objects.filter(
+            store=store,
+            transaction_type='sale',
+            timestamp__gte=start_date,
+            timestamp__lte=end_date
+        ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+
+        if revenue > 0:
+            store_revenue.append({
+                'store': store.name,
+                'revenue': float(revenue)
+            })
+
+    return {
+        'category_revenue': category_revenue,
+        'store_revenue': store_revenue
+    }
+
+
 @login_required
 def financial_reports(request):
     """
-    Financial reports page with P&L statements and financial metrics.
+    Comprehensive financial reports page with enhanced P&L statements,
+    net profit calculations, charts, and PDF export functionality.
     """
     if request.user.role != 'head_manager':
         messages.error(request, 'Access denied. Head manager role required.')
         return redirect('login')
+
+    # Handle PDF export request
+    if request.GET.get('export') == 'pdf':
+        return generate_financial_pdf_report(request)
 
     # Get time period filter
     period = request.GET.get('period', '30')
@@ -2817,7 +3327,7 @@ def financial_reports(request):
     else:
         start_date = end_date - timedelta(days=30)
 
-    # Financial data per store
+    # Enhanced financial data per store with net profit calculations
     stores = Store.objects.all()
     financial_data = []
 
@@ -2830,34 +3340,49 @@ def financial_reports(request):
             timestamp__lte=end_date
         ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
 
-        # Expenses from financial records
-        expenses = FinancialRecord.objects.filter(
+        # Calculate net profit (Sale Price - Purchase Price from Supplier)
+        net_profit = calculate_net_profit_for_store(store, start_date, end_date)
+
+        # Expenses from financial records and purchase orders
+        expense_records = FinancialRecord.objects.filter(
             store=store,
             record_type='expense',
             timestamp__gte=start_date,
             timestamp__lte=end_date
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
+        # Purchase costs from completed purchase orders
+        purchase_costs = calculate_purchase_costs_for_period(start_date, end_date)
+
+        total_expenses = expense_records + purchase_costs
+
         # Calculate profit/loss and margin
-        profit_loss = revenue - expenses
+        profit_loss = revenue - total_expenses
         profit_margin = (profit_loss / revenue * 100) if revenue > 0 else 0
+        net_profit_margin = (net_profit / revenue * 100) if revenue > 0 else 0
 
         financial_data.append({
             'store': store,
             'revenue': revenue,
-            'expenses': expenses,
+            'expenses': total_expenses,
+            'expense_records': expense_records,
+            'purchase_costs': purchase_costs,
             'profit_loss': profit_loss,
-            'profit_margin': profit_margin
+            'profit_margin': profit_margin,
+            'net_profit': net_profit,
+            'net_profit_margin': net_profit_margin
         })
 
     # Sort by profit/loss
     financial_data.sort(key=lambda x: x['profit_loss'], reverse=True)
 
-    # Overall financial summary
+    # Overall financial summary with enhanced metrics
     total_revenue = sum(fd['revenue'] for fd in financial_data)
     total_expenses = sum(fd['expenses'] for fd in financial_data)
+    total_net_profit = sum(fd['net_profit'] for fd in financial_data)
     total_profit = total_revenue - total_expenses
     overall_margin = (total_profit / total_revenue * 100) if total_revenue > 0 else 0
+    overall_net_margin = (total_net_profit / total_revenue * 100) if total_revenue > 0 else 0
 
     # Monthly financial trend
     monthly_trend = []
@@ -2887,12 +3412,17 @@ def financial_reports(request):
 
         current_month = next_month
 
-    # Key financial metrics
+    # Get revenue breakdown data
+    revenue_breakdown = get_revenue_breakdown_data(start_date, end_date)
+
+    # Key financial metrics with enhanced data
     financial_metrics = {
         'total_revenue': total_revenue,
         'total_expenses': total_expenses,
         'total_profit': total_profit,
+        'total_net_profit': total_net_profit,
         'overall_margin': overall_margin,
+        'overall_net_margin': overall_net_margin,
         'best_performing_store': financial_data[0] if financial_data else None,
         'stores_count': stores.count(),
         'profitable_stores': len([fd for fd in financial_data if fd['profit_loss'] > 0])
@@ -2902,17 +3432,174 @@ def financial_reports(request):
         'financial_data': financial_data,
         'financial_metrics': financial_metrics,
         'monthly_trend': monthly_trend,
+        'revenue_breakdown': revenue_breakdown,
         'period': period,
         'start_date': start_date,
         'end_date': end_date,
         # Add shorter variable names for template rendering
         'margin': financial_metrics.get('overall_margin', 0),
+        'net_margin': financial_metrics.get('overall_net_margin', 0),
         'profitable_stores': financial_metrics.get('profitable_stores', 0),
         'total_stores': financial_metrics.get('stores_count', 0),
         'best_store': financial_metrics.get('best_performing_store'),
+        'total_net_profit': total_net_profit,
     }
 
     return render(request, 'analytics/financial_reports.html', context)
+
+
+def generate_financial_pdf_report(request):
+    """
+    Generate comprehensive PDF financial report with charts and statistics.
+    """
+    if request.user.role != 'head_manager':
+        return JsonResponse({'error': 'Access denied'}, status=403)
+
+    if not REPORTLAB_AVAILABLE:
+        messages.error(request, 'PDF generation is not available. Please install ReportLab.')
+        return redirect('financial_reports')
+
+    # Get the same data as the main view
+    period = request.GET.get('period', '30')
+    end_date = timezone.now()
+
+    if period == '7':
+        start_date = end_date - timedelta(days=7)
+        period_name = "7 Days"
+    elif period == '90':
+        start_date = end_date - timedelta(days=90)
+        period_name = "90 Days"
+    elif period == '365':
+        start_date = end_date - timedelta(days=365)
+        period_name = "1 Year"
+    else:
+        start_date = end_date - timedelta(days=30)
+        period_name = "30 Days"
+
+    # Calculate financial data
+    stores = Store.objects.all()
+    financial_data = []
+    total_revenue = Decimal('0')
+    total_expenses = Decimal('0')
+    total_net_profit = Decimal('0')
+
+    for store in stores:
+        revenue = Transaction.objects.filter(
+            store=store,
+            transaction_type='sale',
+            timestamp__gte=start_date,
+            timestamp__lte=end_date
+        ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+
+        net_profit = calculate_net_profit_for_store(store, start_date, end_date)
+
+        expense_records = FinancialRecord.objects.filter(
+            store=store,
+            record_type='expense',
+            timestamp__gte=start_date,
+            timestamp__lte=end_date
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        purchase_costs = calculate_purchase_costs_for_period(start_date, end_date)
+        expenses = expense_records + purchase_costs
+
+        financial_data.append({
+            'store': store.name,
+            'revenue': revenue,
+            'expenses': expenses,
+            'net_profit': net_profit,
+            'profit_loss': revenue - expenses
+        })
+
+        total_revenue += revenue
+        total_expenses += expenses
+        total_net_profit += net_profit
+
+    # Create PDF
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    styles = getSampleStyleSheet()
+    story = []
+
+    # Title
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        spaceAfter=30,
+        textColor=colors.HexColor('#0B0C10'),
+        alignment=1  # Center alignment
+    )
+    story.append(Paragraph("EZM Trade Management", title_style))
+    story.append(Paragraph(f"Financial Report - {period_name}", styles['Heading2']))
+    story.append(Paragraph(f"Period: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}", styles['Normal']))
+    story.append(Spacer(1, 20))
+
+    # Summary statistics
+    summary_data = [
+        ['Metric', 'Amount (ETB)', 'Percentage'],
+        ['Total Revenue', f"{total_revenue:,.2f}", "100%"],
+        ['Total Expenses', f"{total_expenses:,.2f}", f"{(total_expenses/total_revenue*100) if total_revenue > 0 else 0:.1f}%"],
+        ['Net Profit', f"{total_net_profit:,.2f}", f"{(total_net_profit/total_revenue*100) if total_revenue > 0 else 0:.1f}%"],
+        ['Gross Profit', f"{total_revenue - total_expenses:,.2f}", f"{((total_revenue - total_expenses)/total_revenue*100) if total_revenue > 0 else 0:.1f}%"],
+    ]
+
+    summary_table = Table(summary_data)
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#66FCF1')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#0B0C10')),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+
+    story.append(Paragraph("Financial Summary", styles['Heading3']))
+    story.append(summary_table)
+    story.append(Spacer(1, 20))
+
+    # Store-wise breakdown
+    if financial_data:
+        store_data = [['Store', 'Revenue (ETB)', 'Expenses (ETB)', 'Net Profit (ETB)', 'Profit Margin']]
+        for fd in financial_data:
+            margin = (fd['net_profit'] / fd['revenue'] * 100) if fd['revenue'] > 0 else 0
+            store_data.append([
+                fd['store'],
+                f"{fd['revenue']:,.2f}",
+                f"{fd['expenses']:,.2f}",
+                f"{fd['net_profit']:,.2f}",
+                f"{margin:.1f}%"
+            ])
+
+        store_table = Table(store_data)
+        store_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#45A29E')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+
+        story.append(Paragraph("Store Performance Breakdown", styles['Heading3']))
+        story.append(store_table)
+
+    # Footer
+    story.append(Spacer(1, 30))
+    story.append(Paragraph(f"Generated on: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
+    story.append(Paragraph("EZM Trade Management System", styles['Normal']))
+
+    doc.build(story)
+    buffer.seek(0)
+
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="EZM_Financial_Report_{period_name}_{end_date.strftime("%Y%m%d")}.pdf"'
+
+    return response
 
 
 @login_required
@@ -2979,6 +3666,80 @@ def analytics_api(request):
         return JsonResponse({
             'labels': [item['store'] for item in store_data],
             'data': [item['sales'] for item in store_data]
+        })
+
+    elif chart_type == 'revenue_vs_expense':
+        # Revenue vs Expense trend
+        trend_data = []
+        current_date = start_date.date()
+
+        while current_date <= end_date.date():
+            day_revenue = Transaction.objects.filter(
+                transaction_type='sale',
+                timestamp__date=current_date
+            ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+
+            day_expenses = FinancialRecord.objects.filter(
+                record_type='expense',
+                timestamp__date=current_date
+            ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+            trend_data.append({
+                'date': current_date.strftime('%Y-%m-%d'),
+                'revenue': float(day_revenue),
+                'expenses': float(day_expenses)
+            })
+            current_date += timedelta(days=1)
+
+        return JsonResponse({
+            'labels': [item['date'] for item in trend_data],
+            'revenue': [item['revenue'] for item in trend_data],
+            'expenses': [item['expenses'] for item in trend_data]
+        })
+
+    elif chart_type == 'category_revenue':
+        # Revenue breakdown by category
+        revenue_breakdown = get_revenue_breakdown_data(start_date, end_date)
+        category_data = revenue_breakdown['category_revenue']
+
+        return JsonResponse({
+            'labels': [item['category'] for item in category_data],
+            'data': [item['revenue'] for item in category_data]
+        })
+
+    elif chart_type == 'store_revenue':
+        # Revenue breakdown by store
+        revenue_breakdown = get_revenue_breakdown_data(start_date, end_date)
+        store_data = revenue_breakdown['store_revenue']
+
+        return JsonResponse({
+            'labels': [item['store'] for item in store_data],
+            'data': [item['revenue'] for item in store_data]
+        })
+
+    elif chart_type == 'net_profit_trend':
+        # Net profit trend over time
+        stores = Store.objects.all()
+        trend_data = []
+        current_date = start_date.date()
+
+        while current_date <= end_date.date():
+            day_net_profit = Decimal('0')
+            for store in stores:
+                day_start = timezone.make_aware(datetime.combine(current_date, datetime.min.time()))
+                day_end = timezone.make_aware(datetime.combine(current_date, datetime.max.time()))
+                store_net_profit = calculate_net_profit_for_store(store, day_start, day_end)
+                day_net_profit += store_net_profit
+
+            trend_data.append({
+                'date': current_date.strftime('%Y-%m-%d'),
+                'net_profit': float(day_net_profit)
+            })
+            current_date += timedelta(days=1)
+
+        return JsonResponse({
+            'labels': [item['date'] for item in trend_data],
+            'data': [item['net_profit'] for item in trend_data]
         })
 
     return JsonResponse({'error': 'Invalid chart type'}, status=400)
@@ -3117,3 +3878,95 @@ def transaction_history(request):
     }
 
     return render(request, 'users/transaction_history.html', context)
+
+
+@login_required
+def warehouse_products_api(request):
+    """
+    API endpoint to provide warehouse products for supplier dropdown selection.
+    Returns products that are active, in stock, and not already in supplier's catalog.
+    """
+    from Inventory.models import SupplierProduct
+
+    # Get search query parameter
+    search_query = request.GET.get('search', '').strip()
+
+    # Get supplier from request user
+    supplier = None
+    if hasattr(request.user, 'supplier_profile'):
+        supplier = request.user.supplier_profile.supplier
+
+    try:
+        # Base queryset: active warehouse products with stock
+        queryset = WarehouseProduct.objects.filter(
+            is_active=True,
+            quantity_in_stock__gt=0,
+            is_discontinued=False
+        )
+
+        # Exclude products already in supplier's catalog
+        if supplier:
+            existing_products = SupplierProduct.objects.filter(
+                supplier=supplier,
+                warehouse_product__isnull=False
+            ).values_list('warehouse_product_id', flat=True)
+
+            queryset = queryset.exclude(id__in=existing_products)
+
+        # Apply search filter if provided
+        if search_query:
+            queryset = queryset.filter(
+                Q(product_name__icontains=search_query) |
+                Q(product_id__icontains=search_query) |
+                Q(sku__icontains=search_query) |
+                Q(category__icontains=search_query)
+            )
+
+        # Limit results for performance
+        queryset = queryset[:50]
+
+        # Prepare response data
+        products = []
+        for product in queryset:
+            # Determine stock status
+            if product.quantity_in_stock <= product.reorder_point:
+                stock_status = 'low_stock'
+                stock_label = 'Low Stock'
+            elif product.quantity_in_stock <= product.minimum_stock_level:
+                stock_status = 'limited_stock'
+                stock_label = 'Limited Stock'
+            else:
+                stock_status = 'in_stock'
+                stock_label = 'In Stock'
+
+            products.append({
+                'id': product.id,
+                'product_id': product.product_id,
+                'name': product.product_name,
+                'sku': product.sku,
+                'category': product.category,
+                'quantity_in_stock': product.quantity_in_stock,
+                'unit_price': float(product.unit_price),
+                'stock_status': stock_status,
+                'stock_label': stock_label,
+                'supplier_name': product.supplier.name if product.supplier else '',
+                'description': product.description or '',
+                'display_text': f"{product.product_name} ({product.sku}) - {product.category}",
+                'availability_info': f"{stock_label} ({product.quantity_in_stock} units)"
+            })
+
+        return JsonResponse({
+            'success': True,
+            'products': products,
+            'count': len(products),
+            'search_query': search_query
+        })
+
+    except Exception as e:
+        logger.error(f"Error in warehouse_products_api: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Failed to fetch warehouse products',
+            'products': [],
+            'count': 0
+        })

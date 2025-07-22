@@ -1,0 +1,222 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
+{% block title %}Login Logs{% endblock %}
+{% block page_title %}Login Activity Logs{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Header Section -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="ezm-card">
+        <div class="ezm-card-header">
+          <i class="bi bi-shield-check me-2"></i>Login Activity Logs
+        </div>
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <p class="mb-0">Monitor and audit all user login activities in the system.</p>
+            <div class="d-flex gap-2">
+              <span class="badge bg-success">{{ successful_logs }} Successful</span>
+              <span class="badge bg-danger">{{ failed_logs }} Failed</span>
+              <span class="badge bg-secondary">{{ total_logs }} Total</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter/Search Form -->
+  <div class="ezm-card mb-4">
+    <div class="card-body">
+      <form method="GET" class="row gy-2 gx-3 align-items-end">
+        <div class="col-md-3">
+          <label for="search" class="form-label">Search</label>
+          <input type="text" name="search" id="search" value="{{ search_query }}" class="form-control"
+            placeholder="🔍 Username, name, or IP">
+        </div>
+        <div class="col-md-2">
+          <label for="status" class="form-label">Status</label>
+          <select name="status" id="status" class="form-select">
+            <option value="">All Status</option>
+            <option value="success" {% if status_filter == 'success' %}selected{% endif %}>Successful</option>
+            <option value="failed" {% if status_filter == 'failed' %}selected{% endif %}>Failed</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label for="role" class="form-label">Role</label>
+          <select name="role" id="role" class="form-select">
+            <option value="">All Roles</option>
+            {% for role_value, role_display in role_choices %}
+            <option value="{{ role_value }}" {% if role_filter == role_value %}selected{% endif %}>
+              {{ role_display }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label for="date_from" class="form-label">From Date</label>
+          <input type="date" name="date_from" id="date_from" value="{{ date_from }}" class="form-control">
+        </div>
+        <div class="col-md-2">
+          <label for="date_to" class="form-label">To Date</label>
+          <input type="date" name="date_to" id="date_to" value="{{ date_to }}" class="form-control">
+        </div>
+        <div class="col-md-1">
+          <button type="submit" class="btn btn-ezm-primary w-100">
+            <i class="bi bi-search"></i>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Login Logs Table -->
+  <div class="ezm-card">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead style="background: linear-gradient(90deg, var(--accent-teal), var(--accent-cyan)); color: var(--white);">
+          <tr>
+            <th>Timestamp</th>
+            <th>Username/Email</th>
+            <th>Status</th>
+            <th>Role</th>
+            <th>IP Address</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in page_obj %}
+          <tr>
+            <td>
+              <div class="fw-semibold">{{ log.login_timestamp|date:"M d, Y" }}</div>
+              <small class="text-muted">{{ log.login_timestamp|time:"H:i:s" }}</small>
+            </td>
+            <td>
+              <div class="fw-semibold">{{ log.username_attempted }}</div>
+              {% if log.user %}
+                <small class="text-muted">{{ log.user.first_name }} {{ log.user.last_name }}</small>
+              {% endif %}
+            </td>
+            <td>
+              {% if log.login_status == 'success' %}
+                <span class="badge bg-success">
+                  <i class="bi bi-check-circle me-1"></i>Successful
+                </span>
+              {% else %}
+                <span class="badge bg-danger">
+                  <i class="bi bi-x-circle me-1"></i>Failed
+                </span>
+              {% endif %}
+            </td>
+            <td>
+              {% if log.user_role %}
+              <span class="badge bg-secondary">
+                {% if log.user_role == 'admin' %}Admin
+                {% elif log.user_role == 'head_manager' %}Head Manager
+                {% elif log.user_role == 'store_manager' %}Store Manager
+                {% elif log.user_role == 'cashier' %}Cashier
+                {% elif log.user_role == 'supplier' %}Supplier
+                {% else %}{{ log.user_role }}
+                {% endif %}
+              </span>
+              {% else %}
+              <span class="text-muted">-</span>
+              {% endif %}
+            </td>
+            <td>
+              <code class="small">{{ log.ip_address|default:"-" }}</code>
+            </td>
+            <td>
+              {% if log.failure_reason %}
+                <small class="text-danger">{{ log.failure_reason }}</small>
+              {% elif log.user_agent %}
+                <small class="text-muted" title="{{ log.user_agent }}">
+                  {% if "Chrome" in log.user_agent %}
+                    <i class="bi bi-browser-chrome"></i> Chrome
+                  {% elif "Firefox" in log.user_agent %}
+                    <i class="bi bi-browser-firefox"></i> Firefox
+                  {% elif "Safari" in log.user_agent %}
+                    <i class="bi bi-browser-safari"></i> Safari
+                  {% elif "Edge" in log.user_agent %}
+                    <i class="bi bi-browser-edge"></i> Edge
+                  {% else %}
+                    <i class="bi bi-globe"></i> Browser
+                  {% endif %}
+                </small>
+              {% else %}
+                <span class="text-muted">-</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">
+              <i class="bi bi-inbox display-6 d-block mb-2"></i>
+              No login logs found.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="d-flex justify-content-between align-items-center mt-4 px-3 pb-3">
+      <div class="text-muted">
+        Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ page_obj.paginator.count }} logs
+      </div>
+      <nav aria-label="Login logs pagination">
+        <ul class="pagination pagination-sm mb-0">
+          {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}&search={{ search_query }}&status={{ status_filter }}&role={{ role_filter }}&date_from={{ date_from }}&date_to={{ date_to }}&sort={{ sort_by }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% endif %}
+
+          {% for num in page_obj.paginator.page_range %}
+          {% if page_obj.number == num %}
+          <li class="page-item active">
+            <span class="page-link">{{ num }}</span>
+          </li>
+          {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ num }}&search={{ search_query }}&status={{ status_filter }}&role={{ role_filter }}&date_from={{ date_from }}&date_to={{ date_to }}&sort={{ sort_by }}">{{ num }}</a>
+          </li>
+          {% endif %}
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}&search={{ search_query }}&status={{ status_filter }}&role={{ role_filter }}&date_from={{ date_from }}&date_to={{ date_to }}&sort={{ sort_by }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<style>
+.badge {
+  font-size: 0.75em;
+}
+
+code {
+  background-color: rgba(var(--bs-secondary-rgb), 0.1);
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+}
+</style>
+{% endblock %}

@@ -6,11 +6,11 @@ from transactions.models import Transaction
 from decimal import Decimal
 
 SETTINGS_CHOICES = [
-    ('Pipes', 'Pipes'),
-    ('Electric Wire', 'Electric Wire'),
-    ('Cement', 'Cement'),
-    ('Ceramics', 'Ceramics'),
-    ('Glass and Finishing Materials', 'Glass and Finishing Materials'),
+    ('Plumbing', 'Plumbing Supplies'),
+    ('Electrical', 'Electrical Components'),
+    ('Cement', 'Cement and Masonry Materials'),
+    ('Hardware', 'Hardware and Tools'),
+    ('Paint', 'Paint and Finishing Materials'),
 ]
 
 PRODUCT_TYPE_CHOICES = [
@@ -76,6 +76,16 @@ class Product(models.Model):
         choices=STORING_CONDITION_CHOICES,
         default='room_temperature',
         help_text="Required storage conditions"
+    )
+
+    # Stock Management (for Head Manager control)
+    minimum_stock_level = models.PositiveIntegerField(
+        default=10,
+        help_text="Minimum stock level threshold for low stock alerts"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Whether this product is active and available"
     )
 
     # Timestamps
@@ -1251,7 +1261,7 @@ class RestockRequest(models.Model):
     requested_quantity = models.PositiveIntegerField(help_text="Quantity requested for restock")
     current_stock = models.PositiveIntegerField(help_text="Current stock level at time of request")
     priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='medium')
-    reason = models.TextField(help_text="Reason for restock request")
+    reason = models.TextField(blank=True, default="", help_text="Reason for restock request")
 
     # Request tracking
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
@@ -1513,7 +1523,7 @@ class StoreStockTransferRequest(models.Model):
     to_store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='incoming_transfer_requests')
     requested_quantity = models.PositiveIntegerField(help_text="Quantity requested for transfer")
     priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='medium')
-    reason = models.TextField(help_text="Reason for stock transfer request")
+    reason = models.TextField(blank=True, default="", help_text="Reason for stock transfer request")
 
     # Request tracking
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')

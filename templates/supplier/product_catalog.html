@@ -98,7 +98,7 @@
                     <select class="form-control" id="category" name="category">
                         <option value="">All Categories</option>
                         {% for category in categories %}
-                        <option value="{{ category }}" {% if category_filter==category %}selected{% endif %}>
+                        <option value="{{ category }}">
                             {{ category }}
                         </option>
                         {% endfor %}
@@ -108,11 +108,10 @@
                     <label for="status" class="form-label">Status</label>
                     <select class="form-control" id="status" name="status">
                         <option value="">All Status</option>
-                        <option value="active" {% if status_filter=='active' %}selected{% endif %}>Active</option>
-                        <option value="inactive" {% if status_filter=='inactive' %}selected{% endif %}>Inactive</option>
-                        <option value="in_stock" {% if status_filter=='in_stock' %}selected{% endif %}>In Stock</option>
-                        <option value="out_of_stock" {% if status_filter=='out_of_stock' %}selected{% endif %}>Out of
-                            Stock</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="in_stock">In Stock</option>
+                        <option value="out_of_stock">Out of Stock</option>
                     </select>
                 </div>
                 <div class="col-md-2 d-flex align-items-end">

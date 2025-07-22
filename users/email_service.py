@@ -280,10 +280,216 @@ Best regards,
             logger.error(error_msg)
             return False, error_msg
     
+    def send_account_reset_email(self, user, temporary_password: str, old_email: str, reset_by_user) -> Tuple[bool, str]:
+        """
+        Send account reset notification email with new temporary credentials
+
+        Args:
+            user: User instance whose account was reset
+            temporary_password: New temporary password
+            old_email: Previous email address
+            reset_by_user: Admin user who performed the reset
+
+        Returns:
+            Tuple[bool, str]: (success, message)
+        """
+        try:
+            subject = f"Account Reset - {self.company_name}"
+
+            # Prepare context for email template
+            context = {
+                'user': user,
+                'temporary_password': temporary_password,
+                'old_email': old_email,
+                'reset_by_user': reset_by_user,
+                'company_name': self.company_name,
+                'login_url': 'http://127.0.0.1:8000/users/login/',
+                'role_display': user.get_role_display(),
+            }
+
+            # Create plain text message
+            message = f"""Dear {user.first_name} {user.last_name},
+
+Your account in {self.company_name} has been reset by an administrator.
+
+Account Reset Details:
+- Reset by: {reset_by_user.first_name} {reset_by_user.last_name} ({reset_by_user.username})
+- Previous email: {old_email}
+- New temporary email: {user.email}
+- Temporary password: {temporary_password}
+- Your role: {user.get_role_display()}
+
+IMPORTANT SECURITY NOTICE:
+1. This is a temporary password that must be changed on your first login
+2. You will be required to set a new password before accessing the system
+3. Please keep these credentials secure and do not share them
+
+To access your account:
+1. Go to: {context['login_url']}
+2. Login with your new temporary email and password
+3. You will be prompted to change your password immediately
+
+If you have any questions or did not expect this account reset, please contact your system administrator immediately.
+
+Best regards,
+{self.company_name} Team"""
+
+            # Try to render HTML template if it exists
+            html_content = None
+            try:
+                html_content = render_to_string('users/emails/account_reset.html', context)
+            except Exception as template_error:
+                logger.warning(f"HTML template not found for account reset email: {template_error}")
+
+            # Send email to the new temporary email
+            if html_content:
+                # Send HTML email with plain text fallback
+                msg = EmailMultiAlternatives(
+                    subject=subject,
+                    body=message,
+                    from_email=self.from_email,
+                    to=[user.email]  # Send to new temporary email
+                )
+                msg.attach_alternative(html_content, "text/html")
+                msg.send()
+            else:
+                # Send plain text email
+                send_mail(
+                    subject=subject,
+                    message=message,
+                    from_email=self.from_email,
+                    recipient_list=[user.email],  # Send to new temporary email
+                    fail_silently=False
+                )
+
+            logger.info(f"Account reset email sent successfully to {user.email}")
+            return True, f"Account reset email sent to {user.email}"
+
+        except Exception as e:
+            logger.error(f"Failed to send account reset email to {user.email}: {e}")
+            return False, f"Failed to send account reset email: {e}"
+
+    def send_purchase_order_receipt_email(self, transaction, order_payment=None) -> Tuple[bool, str]:
+        """
+        Send purchase order receipt email to customer after successful payment
+
+        Args:
+            transaction: ChapaTransaction instance
+            order_payment: PurchaseOrderPayment instance (optional)
+
+        Returns:
+            Tuple[bool, str]: (success, message)
+        """
+        try:
+            user = transaction.user
+            supplier = transaction.supplier
+
+            # Prepare context for email template
+            context = {
+                'user': user,
+                'transaction': transaction,
+                'order_payment': order_payment,
+                'supplier': supplier,
+                'company_name': self.company_name,
+                'payment_amount': transaction.amount,
+                'currency': transaction.currency,
+                'transaction_ref': transaction.chapa_tx_ref,
+                'payment_date': transaction.paid_at or transaction.created_at,
+                'order_items': order_payment.order_items if order_payment else [],
+                'customer_name': f"{transaction.customer_first_name} {transaction.customer_last_name}".strip(),
+                'customer_email': transaction.customer_email,
+                'customer_phone': transaction.customer_phone or 'Not provided',
+            }
+
+            subject = f"Purchase Order Receipt - {self.company_name}"
+
+            # Create plain text message
+            message = f"""Dear {context['customer_name']},
+
+Thank you for your purchase! Your payment has been successfully processed.
+
+Receipt Details:
+- Transaction ID: {transaction.chapa_tx_ref}
+- Payment Date: {context['payment_date'].strftime('%B %d, %Y at %I:%M %p')}
+- Amount: {transaction.currency} {transaction.amount:,.2f}
+- Supplier: {supplier.name}
+- Payment Method: Chapa Payment Gateway
+
+Customer Information:
+- Name: {context['customer_name']}
+- Email: {context['customer_email']}
+- Phone: {context['customer_phone']}
+
+Order Items:"""
+
+            # Add order items to the message
+            if context['order_items']:
+                for item in context['order_items']:
+                    # Handle price formatting safely
+                    try:
+                        price = float(item.get('price', 0))
+                        total_price = float(item.get('total_price', 0))
+                        message += f"""
+- {item.get('product_name', 'N/A')}: Qty {item.get('quantity', 0)} @ {transaction.currency} {price:,.2f} each = {transaction.currency} {total_price:,.2f}"""
+                    except (ValueError, TypeError):
+                        message += f"""
+- {item.get('product_name', 'N/A')}: Qty {item.get('quantity', 0)} @ {transaction.currency} {item.get('price', 0)} each = {transaction.currency} {item.get('total_price', 0)}"""
+            else:
+                message += "\n- Order details will be provided separately"
+
+            message += f"""
+
+Total Amount: {transaction.currency} {transaction.amount:,.2f}
+
+Your order is now being processed and you will receive updates on delivery status.
+
+You can download a detailed PDF receipt from your Payment History in the system.
+
+If you have any questions about your order, please contact us.
+
+Best regards,
+{self.company_name} Team"""
+
+            # Try to render HTML template if it exists
+            html_content = None
+            try:
+                html_content = render_to_string('users/emails/purchase_order_receipt.html', context)
+            except Exception as template_error:
+                logger.warning(f"HTML template not found for purchase order receipt email: {template_error}")
+
+            # Send email
+            if html_content:
+                # Send HTML email with plain text fallback
+                msg = EmailMultiAlternatives(
+                    subject=subject,
+                    body=message,
+                    from_email=self.from_email,
+                    to=[transaction.customer_email]
+                )
+                msg.attach_alternative(html_content, "text/html")
+                msg.send()
+            else:
+                # Send plain text email
+                send_mail(
+                    subject=subject,
+                    message=message,
+                    from_email=self.from_email,
+                    recipient_list=[transaction.customer_email],
+                    fail_silently=False
+                )
+
+            logger.info(f"Purchase order receipt email sent successfully to {transaction.customer_email} for transaction {transaction.chapa_tx_ref}")
+            return True, f"Receipt email sent to {transaction.customer_email}"
+
+        except Exception as e:
+            error_msg = f"Failed to send purchase order receipt email to {transaction.customer_email}: {str(e)}"
+            logger.error(error_msg)
+            return False, error_msg
+
     def test_email_configuration(self) -> Tuple[bool, str]:
         """
         Test email configuration by sending a test email
-        
+
         Returns:
             Tuple[bool, str]: (success, message)
         """
@@ -309,14 +515,14 @@ Best regards,
                 recipient_list=['test@example.com'],
                 fail_silently=False
             )
-            
+
             if result == 1:
                 logger.info("Email configuration test successful")
                 return True, "Email configuration test successful"
             else:
                 logger.error("Email configuration test failed - no emails sent")
                 return False, "Email configuration test failed"
-                
+
         except Exception as e:
             error_msg = f"Email configuration test failed: {str(e)}"
             logger.error(error_msg)

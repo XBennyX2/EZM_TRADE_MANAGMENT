@@ -217,7 +217,6 @@
                             <th>Min Level</th>
                             <th>Unit Price</th>
                             <th>Status</th>
-                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -271,18 +270,6 @@
                                     <i class="bi bi-check-circle me-1"></i>In Stock
                                 </span>
                                 {% endif %}
-                            </td>
-                            <td>
-                                <div class="btn-group" role="group">
-                                    <a href="{% url 'warehouse_product_update' product.pk %}"
-                                        class="btn btn-sm btn-outline-primary" title="Edit Product">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
-                                    <a href="{% url 'warehouse_product_delete' product.pk %}"
-                                        class="btn btn-sm btn-outline-danger" title="Delete Product">
-                                        <i class="bi bi-trash"></i>
-                                    </a>
-                                </div>
                             </td>
                         </tr>
                         {% endfor %}

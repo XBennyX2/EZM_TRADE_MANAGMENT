@@ -377,12 +377,7 @@
                             <option value="urgent">Urgent - Critical need</option>
                         </select>
                     </div>
-                    <div class="mb-3">
-                        <label for="reason" class="form-label">Justification *</label>
-                        <textarea class="form-control" id="reason" name="reason" rows="3"
-                            placeholder="Explain why this restock is needed..." required></textarea>
-                        <div class="form-text">Provide a clear reason for this restock request.</div>
-                    </div>
+
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -450,15 +445,6 @@
         }
     });
 
-    // Form validation
-    document.querySelector('#restockRequestModal form').addEventListener('submit', function (e) {
-        const reason = document.getElementById('reason').value.trim();
-        if (reason.length < 10) {
-            e.preventDefault();
-            alert('Please provide a more detailed reason (at least 10 characters).');
-            document.getElementById('reason').focus();
-            return false;
-        }
-    });
+
 </script>
 {% endblock %}

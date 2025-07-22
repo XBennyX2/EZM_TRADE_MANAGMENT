@@ -96,35 +96,23 @@
   <!-- Quick Actions -->
   <div class="row g-4 mb-5">
     <div class="col-lg-4 col-md-6">
-      <a href="{% url 'cashier_dashboard' %}" class="text-decoration-none">
+      <a href="{% url 'initiate_order' %}" class="text-decoration-none">
         <div class="feature-card">
           <div class="card-body">
             <i class="bi bi-cash-register"></i>
             <h5>Point of Sale</h5>
-            <p>Process customer transactions and sales</p>
+            <p>Process customer transactions, manage tickets, and handle sales</p>
           </div>
         </div>
       </a>
     </div>
 
     <div class="col-lg-4 col-md-6">
-      <a href="{% url 'initiate_order' %}" class="text-decoration-none">
-        <div class="feature-card">
-          <div class="card-body">
-            <i class="bi bi-cart-plus"></i>
-            <h5>New Sale</h5>
-            <p>Start a new customer transaction</p>
-          </div>
-        </div>
-      </a>
-    </div>
-
-    <div class="col-lg-4 col-md-6">
-      <a href="#" onclick="showComingSoon('Transaction History')" class="text-decoration-none">
+      <a href="{% url 'cashier_transactions' %}" class="text-decoration-none">
         <div class="feature-card">
           <div class="card-body">
             <i class="bi bi-clock-history"></i>
-            <h5>Transaction History</h5>
+            <h5>Transaction Details</h5>
             <p>View past sales and transactions</p>
           </div>
         </div>
@@ -200,7 +188,7 @@
         <i class="bi bi-receipt" style="font-size: 3rem; color: var(--light-gray); margin-bottom: 1rem;"></i>
         <h5 style="color: var(--secondary-dark);">No transactions yet</h5>
         <p class="text-muted">Start processing sales to see transaction history here.</p>
-        <a href="{% url 'cashier_dashboard' %}" class="btn btn-ezm-primary mt-3">
+        <a href="{% url 'initiate_order' %}" class="btn btn-ezm-primary mt-3">
           <i class="bi bi-plus-circle me-2"></i>Start Selling
         </a>
       </div>

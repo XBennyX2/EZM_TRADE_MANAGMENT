@@ -3,7 +3,6 @@ from django.urls import path
 from django.shortcuts import render
 from django.contrib.auth.views import (
     PasswordChangeView,
-    PasswordResetView,
     PasswordResetDoneView,
     PasswordResetConfirmView,
     PasswordResetCompleteView
@@ -14,7 +13,7 @@ from .views import (
     admin_settings, admin_edit_profile, admin_change_password, head_manager_settings,
     head_manager_change_password, head_manager_edit_profile,
     store_manager_settings, store_manager_change_password, cashier_settings, cashier_edit_profile, cashier_change_password,
-    CustomPasswordChangeView, admin_login_logs, reset_user_account,
+    CustomPasswordChangeView, CustomPasswordResetView, admin_login_logs, reset_user_account,
     # Store Manager request views
     submit_restock_request, submit_transfer_request, update_product_price,
     store_manager_restock_requests, store_manager_transfer_requests, store_manager_stock_management,
@@ -110,12 +109,7 @@ urlpatterns = [
     path('account/password/', CustomPasswordChangeView.as_view(), name='password_change'),
 
     # Password reset URLs
-    path('password-reset/', PasswordResetView.as_view(
-        template_name='users/password_reset.html',
-        email_template_name='users/password_reset_email.html',
-        subject_template_name='users/password_reset_subject.txt',
-        success_url='/users/password-reset/done/'
-    ), name='password_reset'),
+    path('password-reset/', CustomPasswordResetView.as_view(), name='password_reset'),
 
     path('password-reset/done/', PasswordResetDoneView.as_view(
         template_name='users/password_reset_done.html'

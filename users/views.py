@@ -66,7 +66,7 @@ from django.contrib.auth import login
 from .forms import CustomLoginForm
 from store.models import Store
 from django.contrib.auth import update_session_auth_hash
-from django.contrib.auth.views import PasswordChangeView
+from django.contrib.auth.views import PasswordChangeView, PasswordResetView
 from django.urls import reverse_lazy
 
 def login_view(request):
@@ -2862,6 +2862,71 @@ class CustomPasswordChangeView(PasswordChangeView):
         else:
             # Default fallback
             return reverse_lazy('login')
+
+
+class CustomPasswordResetView(PasswordResetView):
+    """Custom password reset view that sends properly formatted HTML emails"""
+    template_name = 'users/password_reset.html'
+    email_template_name = 'users/password_reset_email.txt'
+    subject_template_name = 'users/password_reset_subject.txt'
+    success_url = reverse_lazy('password_reset_done')
+
+    def send_mail(self, subject_template_name, email_template_name,
+                  context, from_email, to_email, html_email_template_name=None):
+        """
+        Send HTML email with plain text fallback
+        """
+        from django.core.mail import EmailMultiAlternatives
+        from django.template import loader
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        try:
+            # Render subject template
+            subject = loader.render_to_string(subject_template_name, context)
+            subject = ''.join(subject.splitlines())
+
+            # Render plain text body as fallback
+            text_body = loader.render_to_string(email_template_name, context)
+
+            # Render HTML body
+            html_body = loader.render_to_string('users/password_reset_email.html', context)
+
+            # Create email message
+            msg = EmailMultiAlternatives(
+                subject=subject,
+                body=text_body,
+                from_email=from_email,
+                to=[to_email]
+            )
+
+            # Attach HTML version
+            msg.attach_alternative(html_body, "text/html")
+
+            # Set additional headers to ensure HTML rendering
+            msg.extra_headers['Content-Type'] = 'multipart/alternative'
+
+            # Send the email
+            msg.send()
+
+            logger.info(f"Password reset email sent successfully to {to_email}")
+
+        except Exception as e:
+            logger.error(f"Failed to send password reset email to {to_email}: {e}")
+            # Fallback to plain text only
+            from django.core.mail import send_mail
+            subject = loader.render_to_string(subject_template_name, context)
+            subject = ''.join(subject.splitlines())
+            body = loader.render_to_string(email_template_name, context)
+
+            send_mail(
+                subject=subject,
+                message=body,
+                from_email=from_email,
+                recipient_list=[to_email],
+                fail_silently=False
+            )
 
 
 # Analytics and Reports Views for Head Manager

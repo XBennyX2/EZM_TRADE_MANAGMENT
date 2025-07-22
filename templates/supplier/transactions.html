@@ -52,7 +52,7 @@
                                         <th>Description</th>
                                         <th>Type</th>
                                         <th>Amount</th>
-                                        <th>Balance</th>
+                                        <th>Payment Method</th>
                                         <th>Reference</th>
                                         <th>Status</th>
                                     </tr>
@@ -62,63 +62,91 @@
                                     <tr>
                                         <td>
                                             <div>
-                                                <strong>{{ transaction.transaction_date|date:"M d, Y" }}</strong>
-                                                <small class="d-block text-muted">{{ transaction.transaction_date|time:"g:i A" }}</small>
+                                                <strong>{{ transaction.date|date:"M d, Y" }}</strong>
+                                                <small class="d-block text-muted">{{ transaction.date|time:"g:i A" }}</small>
                                             </div>
                                         </td>
                                         <td>
                                             <div>
                                                 <strong>{{ transaction.description|default:"Transaction" }}</strong>
-                                                {% if transaction.notes %}
-                                                    <small class="d-block text-muted">{{ transaction.notes|truncatewords:10 }}</small>
+                                                {% if transaction.type == 'chapa_payment' %}
+                                                    <small class="d-block text-muted">Chapa Payment Gateway</small>
+                                                {% elif transaction.type == 'purchase_order_payment' %}
+                                                    <small class="d-block text-muted">Purchase Order Payment</small>
+                                                {% elif transaction.type == 'supplier_transaction' %}
+                                                    <small class="d-block text-muted">Traditional Transaction</small>
+                                                {% elif transaction.type == 'supplier_payment' %}
+                                                    <small class="d-block text-muted">Supplier Payment</small>
                                                 {% endif %}
                                             </div>
                                         </td>
                                         <td>
-                                            {% if transaction.transaction_type == 'credit' %}
+                                            {% if transaction.type == 'chapa_payment' %}
+                                                <span class="badge bg-primary">
+                                                    <i class="bi bi-credit-card me-1"></i>Chapa Payment
+                                                </span>
+                                            {% elif transaction.type == 'purchase_order_payment' %}
+                                                <span class="badge bg-info">
+                                                    <i class="bi bi-cart-check me-1"></i>Purchase Order
+                                                </span>
+                                            {% elif transaction.type == 'supplier_transaction' %}
                                                 <span class="badge bg-success">
-                                                    <i class="bi bi-plus-circle me-1"></i>Credit
+                                                    <i class="bi bi-arrow-repeat me-1"></i>Transaction
                                                 </span>
-                                            {% elif transaction.transaction_type == 'debit' %}
-                                                <span class="badge bg-danger">
-                                                    <i class="bi bi-dash-circle me-1"></i>Debit
-                                                </span>
-                                            {% else %}
-                                                <span class="badge bg-secondary">{{ transaction.get_transaction_type_display }}</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if transaction.transaction_type == 'credit' %}
-                                                <span class="fw-bold text-success">
-                                                    +${{ transaction.amount|floatformat:2 }}
+                                            {% elif transaction.type == 'supplier_payment' %}
+                                                <span class="badge bg-warning">
+                                                    <i class="bi bi-cash me-1"></i>Payment
                                                 </span>
                                             {% else %}
-                                                <span class="fw-bold text-danger">
-                                                    -${{ transaction.amount|floatformat:2 }}
+                                                <span class="badge bg-secondary">
+                                                    <i class="bi bi-question-circle me-1"></i>Other
                                                 </span>
                                             {% endif %}
                                         </td>
                                         <td>
-                                            <span class="fw-bold" style="color: var(--primary-dark);">
-                                                ${{ transaction.balance_after|floatformat:2 }}
+                                            <div>
+                                                <strong class="text-success">
+                                                    ETB {{ transaction.amount|floatformat:2 }}
+                                                </strong>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-light text-dark">
+                                                {{ transaction.payment_method|default:"N/A" }}
                                             </span>
                                         </td>
                                         <td>
-                                            {% if transaction.reference_number %}
-                                                <code>{{ transaction.reference_number }}</code>
-                                            {% else %}
-                                                <span class="text-muted">N/A</span>
-                                            {% endif %}
+                                            <code class="small">{{ transaction.reference|default:"N/A" }}</code>
                                         </td>
                                         <td>
-                                            {% if transaction.status == 'completed' %}
-                                                <span class="badge bg-success">Completed</span>
-                                            {% elif transaction.status == 'pending' %}
-                                                <span class="badge bg-warning">Pending</span>
+                                            {% if transaction.status == 'success' or transaction.status == 'completed' or transaction.status == 'payment_confirmed' %}
+                                                <span class="badge bg-success">
+                                                    <i class="bi bi-check-circle me-1"></i>Success
+                                                </span>
+                                            {% elif transaction.status == 'pending' or transaction.status == 'payment_pending' %}
+                                                <span class="badge bg-warning">
+                                                    <i class="bi bi-clock me-1"></i>Pending
+                                                </span>
                                             {% elif transaction.status == 'failed' %}
-                                                <span class="badge bg-danger">Failed</span>
+                                                <span class="badge bg-danger">
+                                                    <i class="bi bi-x-circle me-1"></i>Failed
+                                                </span>
+                                            {% elif transaction.status == 'cancelled' %}
+                                                <span class="badge bg-secondary">
+                                                    <i class="bi bi-slash-circle me-1"></i>Cancelled
+                                                </span>
+                                            {% elif transaction.status == 'in_transit' %}
+                                                <span class="badge bg-info">
+                                                    <i class="bi bi-truck me-1"></i>In Transit
+                                                </span>
+                                            {% elif transaction.status == 'delivered' %}
+                                                <span class="badge bg-success">
+                                                    <i class="bi bi-check-circle me-1"></i>Delivered
+                                                </span>
                                             {% else %}
-                                                <span class="badge bg-secondary">{{ transaction.get_status_display }}</span>
+                                                <span class="badge bg-light text-dark">
+                                                    {{ transaction.status|title }}
+                                                </span>
                                             {% endif %}
                                         </td>
                                     </tr>
@@ -151,9 +179,9 @@
                         <i class="bi bi-plus-circle"></i>
                     </div>
                     <div>
-                        <p class="mb-1 text-muted">Total Credits</p>
+                        <p class="mb-1 text-muted">Total Amount</p>
                         <h3 class="fw-bold mb-0" style="color: var(--primary-dark);">
-                            $0.00
+                            ETB {{ total_amount|floatformat:2|default:"0.00" }}
                         </h3>
                     </div>
                 </div>
@@ -162,13 +190,13 @@
         <div class="col-lg-3 col-md-6 mb-3">
             <div class="stats-card">
                 <div class="card-body d-flex align-items-center p-4">
-                    <div class="stats-icon" style="background: rgba(220, 53, 69, 0.1); color: var(--danger);">
-                        <i class="bi bi-dash-circle"></i>
+                    <div class="stats-icon" style="background: rgba(40, 167, 69, 0.1); color: var(--success);">
+                        <i class="bi bi-check-circle"></i>
                     </div>
                     <div>
-                        <p class="mb-1 text-muted">Total Debits</p>
+                        <p class="mb-1 text-muted">Successful Transactions</p>
                         <h3 class="fw-bold mb-0" style="color: var(--primary-dark);">
-                            $0.00
+                            {{ successful_transactions|default:"0" }}
                         </h3>
                     </div>
                 </div>
@@ -183,7 +211,7 @@
                     <div>
                         <p class="mb-1 text-muted">Total Transactions</p>
                         <h3 class="fw-bold mb-0" style="color: var(--primary-dark);">
-                            {{ transactions|length }}
+                            {{ total_transactions|default:"0" }}
                         </h3>
                     </div>
                 </div>
@@ -192,13 +220,13 @@
         <div class="col-lg-3 col-md-6 mb-3">
             <div class="stats-card">
                 <div class="card-body d-flex align-items-center p-4">
-                    <div class="stats-icon" style="background: rgba(69, 162, 158, 0.1); color: var(--muted-teal);">
-                        <i class="bi bi-calendar-range"></i>
+                    <div class="stats-icon" style="background: rgba(255, 193, 7, 0.1); color: var(--warning);">
+                        <i class="bi bi-clock"></i>
                     </div>
                     <div>
-                        <p class="mb-1 text-muted">This Month</p>
+                        <p class="mb-1 text-muted">Pending Transactions</p>
                         <h3 class="fw-bold mb-0" style="color: var(--primary-dark);">
-                            0
+                            {{ pending_transactions|default:"0" }}
                         </h3>
                     </div>
                 </div>

@@ -408,24 +408,132 @@ def supplier_payment_notifications_api(request):
 
 @supplier_profile_required
 def supplier_transactions(request):
-    """Transaction history for the supplier"""
+    """Comprehensive transaction history for the supplier including all payment types"""
     try:
         supplier = Supplier.objects.get(email=request.user.email)
-        supplier_account = SupplierAccount.objects.get(supplier=supplier)
-        
-        transactions = SupplierTransaction.objects.filter(
-            supplier_account=supplier_account
-        ).order_by('-transaction_date')
-        
+
+        # Get Chapa payment transactions for this supplier
+        from payments.models import ChapaTransaction, PurchaseOrderPayment
+        from django.db.models import Q
+        from itertools import chain
+        from operator import attrgetter
+
+        # Get all Chapa transactions for this supplier
+        chapa_transactions = ChapaTransaction.objects.filter(
+            supplier=supplier
+        ).order_by('-created_at')
+
+        # Get purchase order payments
+        purchase_order_payments = PurchaseOrderPayment.objects.filter(
+            supplier=supplier
+        ).order_by('-created_at')
+
+        # Get traditional supplier transactions (if supplier account exists)
+        traditional_transactions = []
+        try:
+            supplier_account = SupplierAccount.objects.get(supplier=supplier)
+            traditional_transactions = SupplierTransaction.objects.filter(
+                supplier_account=supplier_account
+            ).order_by('-transaction_date')
+        except SupplierAccount.DoesNotExist:
+            pass
+
+        # Get supplier payments
+        supplier_payments = []
+        if traditional_transactions:
+            supplier_payments = SupplierPayment.objects.filter(
+                supplier_transaction__supplier_account__supplier=supplier
+            ).order_by('-payment_date')
+
+        # Create a unified transaction list with normalized data
+        unified_transactions = []
+
+        # Add Chapa transactions
+        for transaction in chapa_transactions:
+            unified_transactions.append({
+                'type': 'chapa_payment',
+                'date': transaction.created_at,
+                'description': transaction.description,
+                'amount': transaction.amount,
+                'status': transaction.status,
+                'reference': transaction.chapa_tx_ref,
+                'payment_method': 'Chapa Payment Gateway',
+                'transaction_id': str(transaction.id),
+                'raw_object': transaction
+            })
+
+        # Add purchase order payments
+        for payment in purchase_order_payments:
+            unified_transactions.append({
+                'type': 'purchase_order_payment',
+                'date': payment.created_at,
+                'description': f"Purchase Order Payment - {len(payment.order_items)} items",
+                'amount': payment.total_amount,
+                'status': payment.status,
+                'reference': payment.chapa_transaction.chapa_tx_ref if payment.chapa_transaction else 'N/A',
+                'payment_method': 'Purchase Order via Chapa',
+                'transaction_id': str(payment.id),
+                'raw_object': payment
+            })
+
+        # Add traditional supplier transactions
+        for transaction in traditional_transactions:
+            unified_transactions.append({
+                'type': 'supplier_transaction',
+                'date': transaction.transaction_date,
+                'description': transaction.description,
+                'amount': transaction.amount,
+                'status': transaction.status,
+                'reference': transaction.reference_number or transaction.transaction_number,
+                'payment_method': transaction.get_transaction_type_display(),
+                'transaction_id': str(transaction.id),
+                'raw_object': transaction
+            })
+
+        # Add supplier payments
+        for payment in supplier_payments:
+            unified_transactions.append({
+                'type': 'supplier_payment',
+                'date': payment.payment_date,
+                'description': f"Payment - {payment.get_payment_method_display()}",
+                'amount': payment.amount_paid,
+                'status': payment.status,
+                'reference': payment.bank_reference or payment.check_number or payment.payment_number,
+                'payment_method': payment.get_payment_method_display(),
+                'transaction_id': str(payment.id),
+                'raw_object': payment
+            })
+
+        # Sort all transactions by date (newest first)
+        unified_transactions.sort(key=lambda x: x['date'], reverse=True)
+
+        # Calculate summary statistics
+        total_amount = sum(t['amount'] for t in unified_transactions if t['status'] in ['success', 'completed', 'payment_confirmed'])
+        successful_transactions = len([t for t in unified_transactions if t['status'] in ['success', 'completed', 'payment_confirmed']])
+        pending_transactions = len([t for t in unified_transactions if t['status'] in ['pending', 'payment_pending']])
+        failed_transactions = len([t for t in unified_transactions if t['status'] in ['failed', 'cancelled']])
+
         context = {
             'supplier': supplier,
-            'transactions': transactions,
+            'transactions': unified_transactions,
+            'chapa_transactions': chapa_transactions,
+            'purchase_order_payments': purchase_order_payments,
+            'traditional_transactions': traditional_transactions,
+            'supplier_payments': supplier_payments,
+            'total_amount': total_amount,
+            'successful_transactions': successful_transactions,
+            'pending_transactions': pending_transactions,
+            'failed_transactions': failed_transactions,
+            'total_transactions': len(unified_transactions),
         }
-        
-    except (Supplier.DoesNotExist, SupplierAccount.DoesNotExist):
+
+    except Supplier.DoesNotExist:
         messages.warning(request, "Supplier account not found. Please contact the administrator to set up your supplier profile.")
         return redirect('supplier_dashboard')
-    
+    except Exception as e:
+        messages.error(request, f"Error loading transaction history: {str(e)}")
+        return redirect('supplier_dashboard')
+
     return render(request, 'supplier/transactions.html', context)
 
 

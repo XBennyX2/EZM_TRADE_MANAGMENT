@@ -156,11 +156,7 @@
                                         <i class="bi bi-box"></i>
                                     </a>
                                     {% endif %}
-                                    <button type="button" class="btn btn-sm btn-outline-success"
-                                        onclick="checkSupplierStatus({{ supplier_data.supplier.pk }})"
-                                        title="Account Status">
-                                        <i class="bi bi-shield-check"></i>
-                                    </button>
+
                                     {% if user.role == 'admin' or user.is_superuser %}
                                     <a href="{% url 'supplier_delete' supplier_data.supplier.pk %}"
                                         class="btn btn-sm btn-outline-danger" title="Delete">
@@ -234,33 +230,7 @@
 </div>
 </div>
 
-<!-- Supplier Account Status Modal -->
-<div class="modal fade" id="supplierStatusModal" tabindex="-1" aria-labelledby="supplierStatusModalLabel"
-    aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header"
-                style="background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan)); color: white;">
-                <h5 class="modal-title" id="supplierStatusModalLabel">
-                    <i class="bi bi-shield-check me-2"></i>Supplier Account Status
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
-                    aria-label="Close"></button>
-            </div>
-            <div class="modal-body" id="supplierStatusContent">
-                <div class="text-center">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <p class="mt-2">Checking supplier account status...</p>
-                </div>
-            </div>
-            <div class="modal-footer" id="supplierStatusFooter">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
+
 
 <!-- Supplier Account Activation Modal -->
 <div class="modal fade" id="activateSupplierModal" tabindex="-1" aria-labelledby="activateSupplierModalLabel"
@@ -303,181 +273,6 @@
     </div>
 </div>
 
-<script>
-    let currentSupplierId = null;
 
-    function checkSupplierStatus(supplierId) {
-        currentSupplierId = supplierId;
-        const modal = new bootstrap.Modal(document.getElementById('supplierStatusModal'));
-        modal.show();
-
-        // Reset modal content
-        document.getElementById('supplierStatusContent').innerHTML = `
-        <div class="text-center">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-            <p class="mt-2">Checking supplier account status...</p>
-        </div>
-    `;
-
-        // Fetch supplier status
-        fetch(`/inventory/suppliers/${supplierId}/status/`)
-            .then(response => response.json())
-            .then(data => {
-                displaySupplierStatus(data);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                document.getElementById('supplierStatusContent').innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    Error loading supplier status. Please try again.
-                </div>
-            `;
-            });
-    }
-
-    function displaySupplierStatus(data) {
-        let statusHtml = `
-        <div class="row">
-            <div class="col-md-6">
-                <h6>Supplier Information</h6>
-                <ul class="list-unstyled">
-                    <li><strong>Name:</strong> ${data.supplier_name}</li>
-                    <li><strong>Email:</strong> ${data.supplier_email || 'Not provided'}</li>
-                    <li><strong>Status:</strong>
-                        <span class="badge ${data.supplier_active ? 'bg-success' : 'bg-secondary'}">
-                            ${data.supplier_active ? 'Active' : 'Inactive'}
-                        </span>
-                    </li>
-                </ul>
-            </div>
-            <div class="col-md-6">
-                <h6>Account Status</h6>
-                <ul class="list-unstyled">
-                    <li><strong>Financial Account:</strong>
-                        <span class="badge ${data.has_account ? 'bg-success' : 'bg-warning'}">
-                            ${data.has_account ? 'Active' : 'Not Created'}
-                        </span>
-                    </li>
-                    <li><strong>User Account:</strong>
-                        <span class="badge ${data.has_user ? 'bg-success' : 'bg-warning'}">
-                            ${data.has_user ? 'Active' : 'Not Created'}
-                        </span>
-                    </li>
-                    <li><strong>Setup Complete:</strong>
-                        <span class="badge ${data.setup_complete ? 'bg-success' : 'bg-danger'}">
-                            ${data.setup_complete ? 'Yes' : 'No'}
-                        </span>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    `;
-
-        if (data.has_account && data.account_data) {
-            statusHtml += `
-            <hr>
-            <h6>Financial Account Details</h6>
-            <div class="row">
-                <div class="col-md-6">
-                    <ul class="list-unstyled">
-                        <li><strong>Account Number:</strong> ${data.account_data.account_number}</li>
-                        <li><strong>Payment Terms:</strong> ${data.account_data.payment_terms}</li>
-                    </ul>
-                </div>
-                <div class="col-md-6">
-                    <ul class="list-unstyled">
-                        <li><strong>Current Balance:</strong> $${data.account_data.current_balance}</li>
-                        <li><strong>Credit Limit:</strong> $${data.account_data.credit_limit}</li>
-                    </ul>
-                </div>
-            </div>
-        `;
-        }
-
-        if (data.has_user && data.user_data) {
-            statusHtml += `
-            <hr>
-            <h6>User Account Details</h6>
-            <div class="row">
-                <div class="col-md-6">
-                    <ul class="list-unstyled">
-                        <li><strong>Username:</strong> ${data.user_data.username}</li>
-                        <li><strong>Full Name:</strong> ${data.user_data.full_name}</li>
-                    </ul>
-                </div>
-                <div class="col-md-6">
-                    <ul class="list-unstyled">
-                        <li><strong>Status:</strong>
-                            <span class="badge ${data.user_data.is_active ? 'bg-success' : 'bg-secondary'}">
-                                ${data.user_data.is_active ? 'Active' : 'Inactive'}
-                            </span>
-                        </li>
-                        <li><strong>Last Login:</strong> ${data.user_data.last_login ? new Date(data.user_data.last_login).toLocaleDateString() : 'Never'}</li>
-                    </ul>
-                </div>
-            </div>
-        `;
-        }
-
-        document.getElementById('supplierStatusContent').innerHTML = statusHtml;
-
-        // Update footer buttons
-        let footerHtml = '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>';
-
-        if (!data.has_account) {
-            footerHtml = `
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            <button type="button" class="btn btn-success" onclick="showActivateModal()">
-                <i class="bi bi-plus-circle me-2"></i>Create Financial Account
-            </button>
-        `;
-        }
-
-        document.getElementById('supplierStatusFooter').innerHTML = footerHtml;
-    }
-
-    function showActivateModal() {
-        // Hide status modal
-        bootstrap.Modal.getInstance(document.getElementById('supplierStatusModal')).hide();
-
-        // Show activation modal
-        const activateModal = new bootstrap.Modal(document.getElementById('activateSupplierModal'));
-        activateModal.show();
-
-        // Set form action
-        document.getElementById('activateSupplierForm').action = `/inventory/suppliers/${currentSupplierId}/activate/`;
-    }
-
-    // Handle form submission
-    document.getElementById('activateSupplierForm').addEventListener('submit', function (e) {
-        e.preventDefault();
-
-        const formData = new FormData(this);
-
-        fetch(this.action, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            }
-        })
-            .then(response => {
-                if (response.ok) {
-                    // Close modal and reload page
-                    bootstrap.Modal.getInstance(document.getElementById('activateSupplierModal')).hide();
-                    location.reload();
-                } else {
-                    throw new Error('Network response was not ok');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error activating supplier account. Please try again.');
-            });
-    });
-</script>
 
 {% endblock %}

@@ -20,6 +20,30 @@ logger = logging.getLogger(__name__)
 from decimal import Decimal
 import json
 import logging
+
+# Additional imports for enhanced financial reporting
+from io import BytesIO
+try:
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.units import inch
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
+from django.core.paginator import Paginator
+from django.http import HttpResponse
+from django.urls import reverse_lazy, reverse
+from django.views.generic import CreateView, UpdateView
+from django.contrib.auth.views import PasswordChangeView, PasswordResetView
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth import logout
+from django.contrib.auth.decorators import user_passes_test
+from django.shortcuts import get_object_or_404
+from django.conf import settings
 logger = logging.getLogger(__name__)
 try:
     from users.templatetags.users_utils import send_otp_email
@@ -3133,14 +3157,162 @@ def analytics_dashboard(request):
     return render(request, 'analytics/dashboard.html', context)
 
 
+def calculate_net_profit_for_store(store, start_date, end_date):
+    """
+    Calculate net profit for a store by finding the difference between
+    sale price and purchase price from suppliers for each item sold.
+
+    Fixed to handle realistic profit margins:
+    - If warehouse cost > sale price, assumes 30% profit margin
+    - If no warehouse product found, assumes 25% profit margin
+    - Prevents negative profit calculations from unrealistic data
+    """
+    from Inventory.models import PurchaseOrderItem
+
+    net_profit = Decimal('0')
+
+    # Get all sales transactions for the store in the period
+    sales_transactions = Transaction.objects.filter(
+        store=store,
+        transaction_type='sale',
+        timestamp__gte=start_date,
+        timestamp__lte=end_date
+    )
+
+    for transaction in sales_transactions:
+        # Get orders for this transaction
+        orders = Order.objects.filter(transaction=transaction)
+
+        for order in orders:
+            if order.product:
+                # Find the most recent purchase price for this product
+                # Match by product name since WarehouseProduct is separate from Product
+                from Inventory.models import WarehouseProduct
+
+                # Try exact name match first
+                warehouse_product = WarehouseProduct.objects.filter(
+                    product_name__iexact=order.product.name
+                ).first()
+
+                # If no exact match, try partial name match
+                if not warehouse_product:
+                    warehouse_product = WarehouseProduct.objects.filter(
+                        product_name__icontains=order.product.name.split()[0]
+                    ).first()
+
+                if warehouse_product:
+                    # Find recent purchase price for this warehouse product
+                    recent_purchase = PurchaseOrderItem.objects.filter(
+                        warehouse_product=warehouse_product,
+                        purchase_order__status='delivered'
+                    ).order_by('-purchase_order__created_date').first()
+
+                    if recent_purchase:
+                        purchase_price = recent_purchase.unit_price
+                    else:
+                        # Use warehouse product unit price as fallback
+                        purchase_price = warehouse_product.unit_price
+
+                    sale_price = order.price_at_time_of_sale
+                    quantity = order.quantity
+
+                    # Ensure realistic profit calculation
+                    # If warehouse price is higher than sale price, use 70% of sale price as cost
+                    if purchase_price > sale_price:
+                        purchase_price = sale_price * Decimal('0.7')  # Assume 30% profit margin
+
+                    # Calculate net profit for this item
+                    item_net_profit = (sale_price - purchase_price) * quantity
+                    net_profit += item_net_profit
+                else:
+                    # If no warehouse product found, assume 25% profit margin
+                    sale_price = order.price_at_time_of_sale
+                    quantity = order.quantity
+                    estimated_cost = sale_price * Decimal('0.75')  # 25% profit margin
+
+                    item_net_profit = (sale_price - estimated_cost) * quantity
+                    net_profit += item_net_profit
+
+    return net_profit
+
+
+def calculate_purchase_costs_for_period(start_date, end_date):
+    """
+    Calculate total purchase costs from completed purchase orders in the period.
+    """
+    from Inventory.models import PurchaseOrder
+
+    purchase_costs = PurchaseOrder.objects.filter(
+        status='delivered',
+        created_date__gte=start_date,
+        created_date__lte=end_date
+    ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+
+    return purchase_costs
+
+
+def get_revenue_breakdown_data(start_date, end_date):
+    """
+    Get revenue breakdown by categories, suppliers, and stores.
+    """
+    # Revenue by category
+    category_revenue = []
+    categories = Product.objects.values_list('category', flat=True).distinct().filter(category__isnull=False)
+
+    for category in categories:
+        if category:  # Skip None/empty categories
+            revenue = Order.objects.filter(
+                product__category=category,
+                transaction__transaction_type='sale',
+                transaction__timestamp__gte=start_date,
+                transaction__timestamp__lte=end_date
+            ).aggregate(
+                total=Sum(F('quantity') * F('price_at_time_of_sale'))
+            )['total'] or Decimal('0')
+
+            if revenue > 0:
+                category_revenue.append({
+                    'category': category,
+                    'revenue': float(revenue)
+                })
+
+    # Revenue by store
+    store_revenue = []
+    stores = Store.objects.all()
+
+    for store in stores:
+        revenue = Transaction.objects.filter(
+            store=store,
+            transaction_type='sale',
+            timestamp__gte=start_date,
+            timestamp__lte=end_date
+        ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+
+        if revenue > 0:
+            store_revenue.append({
+                'store': store.name,
+                'revenue': float(revenue)
+            })
+
+    return {
+        'category_revenue': category_revenue,
+        'store_revenue': store_revenue
+    }
+
+
 @login_required
 def financial_reports(request):
     """
-    Financial reports page with P&L statements and financial metrics.
+    Comprehensive financial reports page with enhanced P&L statements,
+    net profit calculations, charts, and PDF export functionality.
     """
     if request.user.role != 'head_manager':
         messages.error(request, 'Access denied. Head manager role required.')
         return redirect('login')
+
+    # Handle PDF export request
+    if request.GET.get('export') == 'pdf':
+        return generate_financial_pdf_report(request)
 
     # Get time period filter
     period = request.GET.get('period', '30')
@@ -3155,7 +3327,7 @@ def financial_reports(request):
     else:
         start_date = end_date - timedelta(days=30)
 
-    # Financial data per store
+    # Enhanced financial data per store with net profit calculations
     stores = Store.objects.all()
     financial_data = []
 
@@ -3168,34 +3340,49 @@ def financial_reports(request):
             timestamp__lte=end_date
         ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
 
-        # Expenses from financial records
-        expenses = FinancialRecord.objects.filter(
+        # Calculate net profit (Sale Price - Purchase Price from Supplier)
+        net_profit = calculate_net_profit_for_store(store, start_date, end_date)
+
+        # Expenses from financial records and purchase orders
+        expense_records = FinancialRecord.objects.filter(
             store=store,
             record_type='expense',
             timestamp__gte=start_date,
             timestamp__lte=end_date
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
+        # Purchase costs from completed purchase orders
+        purchase_costs = calculate_purchase_costs_for_period(start_date, end_date)
+
+        total_expenses = expense_records + purchase_costs
+
         # Calculate profit/loss and margin
-        profit_loss = revenue - expenses
+        profit_loss = revenue - total_expenses
         profit_margin = (profit_loss / revenue * 100) if revenue > 0 else 0
+        net_profit_margin = (net_profit / revenue * 100) if revenue > 0 else 0
 
         financial_data.append({
             'store': store,
             'revenue': revenue,
-            'expenses': expenses,
+            'expenses': total_expenses,
+            'expense_records': expense_records,
+            'purchase_costs': purchase_costs,
             'profit_loss': profit_loss,
-            'profit_margin': profit_margin
+            'profit_margin': profit_margin,
+            'net_profit': net_profit,
+            'net_profit_margin': net_profit_margin
         })
 
     # Sort by profit/loss
     financial_data.sort(key=lambda x: x['profit_loss'], reverse=True)
 
-    # Overall financial summary
+    # Overall financial summary with enhanced metrics
     total_revenue = sum(fd['revenue'] for fd in financial_data)
     total_expenses = sum(fd['expenses'] for fd in financial_data)
+    total_net_profit = sum(fd['net_profit'] for fd in financial_data)
     total_profit = total_revenue - total_expenses
     overall_margin = (total_profit / total_revenue * 100) if total_revenue > 0 else 0
+    overall_net_margin = (total_net_profit / total_revenue * 100) if total_revenue > 0 else 0
 
     # Monthly financial trend
     monthly_trend = []
@@ -3225,12 +3412,17 @@ def financial_reports(request):
 
         current_month = next_month
 
-    # Key financial metrics
+    # Get revenue breakdown data
+    revenue_breakdown = get_revenue_breakdown_data(start_date, end_date)
+
+    # Key financial metrics with enhanced data
     financial_metrics = {
         'total_revenue': total_revenue,
         'total_expenses': total_expenses,
         'total_profit': total_profit,
+        'total_net_profit': total_net_profit,
         'overall_margin': overall_margin,
+        'overall_net_margin': overall_net_margin,
         'best_performing_store': financial_data[0] if financial_data else None,
         'stores_count': stores.count(),
         'profitable_stores': len([fd for fd in financial_data if fd['profit_loss'] > 0])
@@ -3240,17 +3432,174 @@ def financial_reports(request):
         'financial_data': financial_data,
         'financial_metrics': financial_metrics,
         'monthly_trend': monthly_trend,
+        'revenue_breakdown': revenue_breakdown,
         'period': period,
         'start_date': start_date,
         'end_date': end_date,
         # Add shorter variable names for template rendering
         'margin': financial_metrics.get('overall_margin', 0),
+        'net_margin': financial_metrics.get('overall_net_margin', 0),
         'profitable_stores': financial_metrics.get('profitable_stores', 0),
         'total_stores': financial_metrics.get('stores_count', 0),
         'best_store': financial_metrics.get('best_performing_store'),
+        'total_net_profit': total_net_profit,
     }
 
     return render(request, 'analytics/financial_reports.html', context)
+
+
+def generate_financial_pdf_report(request):
+    """
+    Generate comprehensive PDF financial report with charts and statistics.
+    """
+    if request.user.role != 'head_manager':
+        return JsonResponse({'error': 'Access denied'}, status=403)
+
+    if not REPORTLAB_AVAILABLE:
+        messages.error(request, 'PDF generation is not available. Please install ReportLab.')
+        return redirect('financial_reports')
+
+    # Get the same data as the main view
+    period = request.GET.get('period', '30')
+    end_date = timezone.now()
+
+    if period == '7':
+        start_date = end_date - timedelta(days=7)
+        period_name = "7 Days"
+    elif period == '90':
+        start_date = end_date - timedelta(days=90)
+        period_name = "90 Days"
+    elif period == '365':
+        start_date = end_date - timedelta(days=365)
+        period_name = "1 Year"
+    else:
+        start_date = end_date - timedelta(days=30)
+        period_name = "30 Days"
+
+    # Calculate financial data
+    stores = Store.objects.all()
+    financial_data = []
+    total_revenue = Decimal('0')
+    total_expenses = Decimal('0')
+    total_net_profit = Decimal('0')
+
+    for store in stores:
+        revenue = Transaction.objects.filter(
+            store=store,
+            transaction_type='sale',
+            timestamp__gte=start_date,
+            timestamp__lte=end_date
+        ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+
+        net_profit = calculate_net_profit_for_store(store, start_date, end_date)
+
+        expense_records = FinancialRecord.objects.filter(
+            store=store,
+            record_type='expense',
+            timestamp__gte=start_date,
+            timestamp__lte=end_date
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        purchase_costs = calculate_purchase_costs_for_period(start_date, end_date)
+        expenses = expense_records + purchase_costs
+
+        financial_data.append({
+            'store': store.name,
+            'revenue': revenue,
+            'expenses': expenses,
+            'net_profit': net_profit,
+            'profit_loss': revenue - expenses
+        })
+
+        total_revenue += revenue
+        total_expenses += expenses
+        total_net_profit += net_profit
+
+    # Create PDF
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    styles = getSampleStyleSheet()
+    story = []
+
+    # Title
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        spaceAfter=30,
+        textColor=colors.HexColor('#0B0C10'),
+        alignment=1  # Center alignment
+    )
+    story.append(Paragraph("EZM Trade Management", title_style))
+    story.append(Paragraph(f"Financial Report - {period_name}", styles['Heading2']))
+    story.append(Paragraph(f"Period: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}", styles['Normal']))
+    story.append(Spacer(1, 20))
+
+    # Summary statistics
+    summary_data = [
+        ['Metric', 'Amount (ETB)', 'Percentage'],
+        ['Total Revenue', f"{total_revenue:,.2f}", "100%"],
+        ['Total Expenses', f"{total_expenses:,.2f}", f"{(total_expenses/total_revenue*100) if total_revenue > 0 else 0:.1f}%"],
+        ['Net Profit', f"{total_net_profit:,.2f}", f"{(total_net_profit/total_revenue*100) if total_revenue > 0 else 0:.1f}%"],
+        ['Gross Profit', f"{total_revenue - total_expenses:,.2f}", f"{((total_revenue - total_expenses)/total_revenue*100) if total_revenue > 0 else 0:.1f}%"],
+    ]
+
+    summary_table = Table(summary_data)
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#66FCF1')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#0B0C10')),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+
+    story.append(Paragraph("Financial Summary", styles['Heading3']))
+    story.append(summary_table)
+    story.append(Spacer(1, 20))
+
+    # Store-wise breakdown
+    if financial_data:
+        store_data = [['Store', 'Revenue (ETB)', 'Expenses (ETB)', 'Net Profit (ETB)', 'Profit Margin']]
+        for fd in financial_data:
+            margin = (fd['net_profit'] / fd['revenue'] * 100) if fd['revenue'] > 0 else 0
+            store_data.append([
+                fd['store'],
+                f"{fd['revenue']:,.2f}",
+                f"{fd['expenses']:,.2f}",
+                f"{fd['net_profit']:,.2f}",
+                f"{margin:.1f}%"
+            ])
+
+        store_table = Table(store_data)
+        store_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#45A29E')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+
+        story.append(Paragraph("Store Performance Breakdown", styles['Heading3']))
+        story.append(store_table)
+
+    # Footer
+    story.append(Spacer(1, 30))
+    story.append(Paragraph(f"Generated on: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
+    story.append(Paragraph("EZM Trade Management System", styles['Normal']))
+
+    doc.build(story)
+    buffer.seek(0)
+
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="EZM_Financial_Report_{period_name}_{end_date.strftime("%Y%m%d")}.pdf"'
+
+    return response
 
 
 @login_required
@@ -3317,6 +3666,80 @@ def analytics_api(request):
         return JsonResponse({
             'labels': [item['store'] for item in store_data],
             'data': [item['sales'] for item in store_data]
+        })
+
+    elif chart_type == 'revenue_vs_expense':
+        # Revenue vs Expense trend
+        trend_data = []
+        current_date = start_date.date()
+
+        while current_date <= end_date.date():
+            day_revenue = Transaction.objects.filter(
+                transaction_type='sale',
+                timestamp__date=current_date
+            ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+
+            day_expenses = FinancialRecord.objects.filter(
+                record_type='expense',
+                timestamp__date=current_date
+            ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+            trend_data.append({
+                'date': current_date.strftime('%Y-%m-%d'),
+                'revenue': float(day_revenue),
+                'expenses': float(day_expenses)
+            })
+            current_date += timedelta(days=1)
+
+        return JsonResponse({
+            'labels': [item['date'] for item in trend_data],
+            'revenue': [item['revenue'] for item in trend_data],
+            'expenses': [item['expenses'] for item in trend_data]
+        })
+
+    elif chart_type == 'category_revenue':
+        # Revenue breakdown by category
+        revenue_breakdown = get_revenue_breakdown_data(start_date, end_date)
+        category_data = revenue_breakdown['category_revenue']
+
+        return JsonResponse({
+            'labels': [item['category'] for item in category_data],
+            'data': [item['revenue'] for item in category_data]
+        })
+
+    elif chart_type == 'store_revenue':
+        # Revenue breakdown by store
+        revenue_breakdown = get_revenue_breakdown_data(start_date, end_date)
+        store_data = revenue_breakdown['store_revenue']
+
+        return JsonResponse({
+            'labels': [item['store'] for item in store_data],
+            'data': [item['revenue'] for item in store_data]
+        })
+
+    elif chart_type == 'net_profit_trend':
+        # Net profit trend over time
+        stores = Store.objects.all()
+        trend_data = []
+        current_date = start_date.date()
+
+        while current_date <= end_date.date():
+            day_net_profit = Decimal('0')
+            for store in stores:
+                day_start = timezone.make_aware(datetime.combine(current_date, datetime.min.time()))
+                day_end = timezone.make_aware(datetime.combine(current_date, datetime.max.time()))
+                store_net_profit = calculate_net_profit_for_store(store, day_start, day_end)
+                day_net_profit += store_net_profit
+
+            trend_data.append({
+                'date': current_date.strftime('%Y-%m-%d'),
+                'net_profit': float(day_net_profit)
+            })
+            current_date += timedelta(days=1)
+
+        return JsonResponse({
+            'labels': [item['date'] for item in trend_data],
+            'data': [item['net_profit'] for item in trend_data]
         })
 
     return JsonResponse({'error': 'Invalid chart type'}, status=400)

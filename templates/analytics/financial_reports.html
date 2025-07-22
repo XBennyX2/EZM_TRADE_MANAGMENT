@@ -11,6 +11,15 @@
 
 {% block extra_css %}
 <style>
+    :root {
+        --primary-dark: #0B0C10;
+        --secondary-dark: #1F2833;
+        --light-gray: #C5C6C7;
+        --accent-cyan: #66FCF1;
+        --accent-teal: #45A29E;
+        --white: #ffffff;
+    }
+
     .financial-card {
         background: var(--white);
         border-radius: 12px;
@@ -18,6 +27,7 @@
         border: none;
         transition: all 0.3s ease;
         height: 100%;
+        border-left: 4px solid var(--accent-teal);
     }
 
     .financial-card:hover {
@@ -25,166 +35,396 @@
         box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
     }
 
-    .profit-card {
-        background: linear-gradient(135deg, #28a745, #20c997);
+    .metric-card {
+        background: linear-gradient(135deg, var(--primary-dark), var(--secondary-dark));
         color: white;
         border-radius: 12px;
         padding: 1.5rem;
         text-align: center;
+        border: none;
+        transition: all 0.3s ease;
+    }
+
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .profit-card {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        color: white;
     }
 
     .loss-card {
         background: linear-gradient(135deg, #dc3545, #e83e8c);
         color: white;
-        border-radius: 12px;
-        padding: 1.5rem;
-        text-align: center;
     }
 
     .revenue-card {
-        background: linear-gradient(135deg, #007bff, #17a2b8);
-        color: white;
-        border-radius: 12px;
-        padding: 1.5rem;
-        text-align: center;
+        background: linear-gradient(135deg, var(--accent-cyan), var(--accent-teal));
+        color: var(--primary-dark);
     }
 
-    .expense-card {
-        background: linear-gradient(135deg, #fd7e14, #ffc107);
-        color: white;
-        border-radius: 12px;
-        padding: 1.5rem;
-        text-align: center;
+    .net-profit-card {
+        background: linear-gradient(135deg, #ffc107, #fd7e14);
+        color: var(--primary-dark);
     }
 
-    .financial-metric h3 {
-        font-size: 2.5rem;
+    .chart-container {
+        background: var(--white);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        margin-bottom: 2rem;
+        border-left: 4px solid var(--accent-cyan);
+    }
+
+    .filter-buttons {
+        background: var(--white);
+        border-radius: 12px;
+        padding: 1rem;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        margin-bottom: 2rem;
+    }
+
+    .btn-period {
+        background: var(--light-gray);
+        color: var(--primary-dark);
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        margin: 0.25rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-period:hover, .btn-period.active {
+        background: var(--accent-teal);
+        color: white;
+        transform: translateY(-1px);
+    }
+
+    .btn-ezm-primary {
+        background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
+        border: none;
+        color: var(--primary-dark);
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-ezm-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(69, 162, 158, 0.3);
+        color: var(--primary-dark);
+    }
+
+    .table-financial {
+        background: var(--white);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .table-financial th {
+        background: var(--accent-teal);
+        color: white;
+        border: none;
+        padding: 1rem;
+        font-weight: 600;
+    }
+
+    .table-financial td {
+        padding: 1rem;
+        border-bottom: 1px solid #f8f9fa;
+    }
+
+    .metric-value {
+        font-size: 2rem;
         font-weight: 700;
         margin-bottom: 0.5rem;
     }
 
-    .financial-metric p {
-        margin: 0;
+    .metric-label {
+        font-size: 0.9rem;
         opacity: 0.9;
+        margin-bottom: 0;
     }
 
-    .profit-positive {
-        color: #28a745;
-        font-weight: 600;
+    .loading-spinner {
+        display: none;
+        text-align: center;
+        padding: 2rem;
     }
 
-    .profit-negative {
-        color: #dc3545;
-        font-weight: 600;
-    }
-
-    .margin-excellent {
-        background: #d4edda;
-        color: #155724;
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-
-    .margin-good {
-        background: #d1ecf1;
-        color: #0c5460;
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-
-    .margin-poor {
-        background: #f8d7da;
-        color: #721c24;
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-
-    .financial-table {
+    .export-section {
         background: var(--white);
-        border-radius: 8px;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        margin-bottom: 2rem;
+        border-left: 4px solid var(--accent-cyan);
+    }
+
+    @media (max-width: 768px) {
+        .metric-card {
+            margin-bottom: 1rem;
+        }
+
+        .chart-container {
+            padding: 1rem;
+        }
+
+        .btn-period {
+            display: block;
+            width: 100%;
+            margin: 0.25rem 0;
+        }
+
+    .period-selector {
+        background: linear-gradient(135deg, var(--primary-dark), var(--secondary-dark));
+        border-radius: 12px;
+        padding: 0.75rem;
+        box-shadow: 0 8px 25px rgba(11, 12, 16, 0.15);
+        display: inline-flex;
+        gap: 0.5rem;
+        border: 2px solid var(--accent-teal);
+        position: relative;
         overflow: hidden;
     }
 
-    .financial-table th {
-        background: var(--light-gray);
-        font-weight: 600;
-        border: none;
-        padding: 1rem;
+    .period-selector::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, var(--accent-teal), var(--accent-cyan), var(--accent-teal));
+        animation: shimmer 2s infinite;
     }
 
-    .financial-table td {
-        border: none;
-        padding: 1rem;
-        border-bottom: 1px solid var(--light-gray);
-    }
-
-    .export-btn {
-        background: var(--accent-teal);
-        color: white;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 6px;
-        font-weight: 500;
-        transition: all 0.3s ease;
-        cursor: pointer;
-    }
-
-    .export-btn:hover {
-        background: var(--accent-cyan);
-        color: white;
-    }
-
-    .period-selector {
-        background: var(--light-gray);
-        border-radius: 8px;
-        padding: 0.25rem;
-        display: inline-flex;
+    @keyframes shimmer {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
     }
 
     .period-btn {
-        background: transparent;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 6px;
-        color: var(--secondary-dark);
-        font-weight: 500;
-        transition: all 0.3s ease;
+        background: rgba(197, 198, 199, 0.1);
+        border: 1px solid rgba(102, 252, 241, 0.2);
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        color: var(--light-gray);
+        font-weight: 600;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         cursor: pointer;
+        font-size: 0.9rem;
+        position: relative;
+        overflow: hidden;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .period-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(102, 252, 241, 0.2), transparent);
+        transition: left 0.5s;
+    }
+
+    .period-btn:hover::before {
+        left: 100%;
     }
 
     .period-btn.active {
-        background: var(--accent-teal);
-        color: white;
+        background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
+        color: var(--primary-dark);
+        border-color: var(--accent-cyan);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(69, 162, 158, 0.4);
+        font-weight: 700;
     }
 
     .period-btn:hover {
-        background: var(--accent-cyan);
-        color: white;
+        background: linear-gradient(135deg, var(--accent-cyan), var(--accent-teal));
+        color: var(--primary-dark);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 15px rgba(102, 252, 241, 0.3);
+        border-color: var(--accent-cyan);
+    }
+
+    .period-btn:active {
+        transform: translateY(0);
+        box-shadow: 0 4px 10px rgba(69, 162, 158, 0.2);
     }
 
     .chart-container {
         position: relative;
-        height: 300px;
+        height: 350px !important;
+        width: 100% !important;
+        max-height: 350px !important;
+        max-width: 100% !important;
+        min-height: 300px !important;
         margin: 1rem 0;
+        background: var(--white);
+        border-radius: 12px;
+        padding: 1rem;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+        display: block !important;
+    }
+
+    .chart-container canvas {
+        position: absolute !important;
+        top: 1rem !important;
+        left: 1rem !important;
+        right: 1rem !important;
+        bottom: 1rem !important;
+        width: calc(100% - 2rem) !important;
+        height: calc(100% - 2rem) !important;
+        max-width: calc(100% - 2rem) !important;
+        max-height: calc(100% - 2rem) !important;
     }
 
     .empty-state {
         text-align: center;
         padding: 3rem;
-        color: var(--text-muted);
+        color: #6c757d;
     }
 
     .empty-state i {
         font-size: 4rem;
         margin-bottom: 1rem;
         opacity: 0.5;
+        color: var(--light-gray);
     }
+
+    /* Fix for overlapping elements */
+    .main-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .navbar, .sidebar {
+        z-index: 1000;
+    }
+
+    /* Ensure proper spacing */
+    .container-fluid {
+        padding-top: 1rem;
+        padding-bottom: 2rem;
+    }
+
+    /* Enhanced filter container */
+    .period-filter-container {
+        text-align: center;
+    }
+
+    /* Loading states */
+    .loading-spinner {
+        display: none;
+        color: var(--accent-teal);
+    }
+
+    /* Chart responsiveness */
+    @media (max-width: 768px) {
+        .period-selector {
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .period-btn {
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+        }
+
+        .period-filter-container {
+            width: 100%;
+            margin-top: 1rem;
+        }
+    }
+
+    /* Enhanced chart containers - Fixed sizing */
+    .chart-container {
+        min-height: 300px;
+        max-height: 400px;
+        width: 100%;
+        position: relative;
+        display: block;
+        overflow: hidden;
+    }
+
+    .chart-container canvas {
+        max-width: 100% !important;
+        max-height: 100% !important;
+        width: 100% !important;
+        height: 100% !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+    }
+
+    /* Specific chart container heights */
+    #revenueExpenseTrendChart {
+        max-height: 350px !important;
+        max-width: 100% !important;
+    }
+
+    #netProfitTrendChart {
+        max-height: 300px !important;
+        max-width: 100% !important;
+    }
+
+    #categoryRevenueChart {
+        max-height: 300px !important;
+        max-width: 100% !important;
+    }
+
+    #storeRevenueChart {
+        max-height: 300px !important;
+        max-width: 100% !important;
+    }
+
+    /* Prevent chart overflow */
+    .ezm-card .chart-container {
+        overflow: hidden !important;
+        position: relative !important;
+    }
+
+    /* Force chart containers to respect parent bounds */
+    .col-lg-8 .chart-container,
+    .col-lg-4 .chart-container,
+    .col-lg-6 .chart-container {
+        max-height: 350px !important;
+        height: 350px !important;
+        overflow: hidden !important;
+    }
+
+    /* Completely disable Chart.js responsive behavior */
+    canvas {
+        max-width: 100% !important;
+        max-height: 100% !important;
+        width: auto !important;
+        height: auto !important;
+    }
+
+    /* Prevent any canvas from growing beyond container */
+    .chart-container canvas,
+    canvas[id*="Chart"] {
+        position: absolute !important;
+        top: 1rem !important;
+        left: 1rem !important;
+        width: calc(100% - 2rem) !important;
+        height: calc(100% - 2rem) !important;
+        max-width: calc(100% - 2rem) !important;
+        max-height: calc(100% - 2rem) !important;
+    }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </style>
 {% endblock %}
 
@@ -217,89 +457,629 @@
         </div>
     </div>
 
-    <!-- Overall Financial Metrics -->
-    <div class="row mb-4 g-3">
-        <div class="col-lg-3 col-md-6">
-            <div class="revenue-card financial-metric">
-                <h3>ETB {{ financial_metrics.total_revenue|floatformat:0 }}</h3>
-                <p>Total Revenue</p>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6">
-            <div class="expense-card financial-metric">
-                <h3>ETB {{ financial_metrics.total_expenses|floatformat:0 }}</h3>
-                <p>Total Expenses</p>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6">
-            <div
-                class="{% if financial_metrics.total_profit >= 0 %}profit-card{% else %}loss-card{% endif %} financial-metric">
-                <h3>ETB {{ financial_metrics.total_profit|floatformat:0 }}</h3>
-                <p>{% if financial_metrics.total_profit >= 0 %}Net Profit{% else %}Net Loss{% endif %}</p>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6">
-            <div
-                class="{% if financial_metrics.overall_margin >= 20 %}profit-card{% elif financial_metrics.overall_margin >= 10 %}revenue-card{% else %}expense-card{% endif %} financial-metric">
-                <h3>{{ financial_metrics.overall_margin|floatformat:1 }}%</h3>
-                <p>Profit Margin</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Financial Trend Chart -->
+    <!-- Enhanced Time Period Filter -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="financial-card">
-                <div class="card-header">
-                    <h5 class="mb-0">Revenue vs Expenses Trend</h5>
-                </div>
-                <div class="card-body">
-                    <div class="chart-container">
-                        <canvas id="financialTrendChart"></canvas>
+            <div class="ezm-card" style="background: linear-gradient(135deg, var(--white), #f8f9fa); border-left: 4px solid var(--accent-teal); padding: 1.5rem;">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <div class="mb-3 mb-md-0">
+                        <h4 class="mb-1" style="color: var(--primary-dark); font-weight: 700;">
+                            <i class="bi bi-graph-up-arrow me-2" style="color: var(--accent-teal);"></i>
+                            Financial Analysis Dashboard
+                        </h4>
+                        <p class="mb-0 text-muted">
+                            <i class="bi bi-calendar-range me-1"></i>
+                            Comprehensive financial insights and performance metrics
+                        </p>
+                    </div>
+                    <div class="period-filter-container">
+                        <div class="mb-2 text-center">
+                            <small class="text-muted fw-bold" style="color: var(--accent-teal) !important;">
+                                <i class="bi bi-clock me-1"></i>TIME PERIOD
+                            </small>
+                        </div>
+                        <div class="period-selector">
+                            <button type="button" class="period-btn {% if period == '7' %}active{% endif %}" onclick="changePeriod('7')" data-period="7">
+                                <i class="bi bi-calendar-week me-1"></i>
+                                7 Days
+                            </button>
+                            <button type="button" class="period-btn {% if period == '30' %}active{% endif %}" onclick="changePeriod('30')" data-period="30">
+                                <i class="bi bi-calendar-month me-1"></i>
+                                30 Days
+                            </button>
+                            <button type="button" class="period-btn {% if period == '90' %}active{% endif %}" onclick="changePeriod('90')" data-period="90">
+                                <i class="bi bi-calendar3 me-1"></i>
+                                90 Days
+                            </button>
+                            <button type="button" class="period-btn {% if period == '365' %}active{% endif %}" onclick="changePeriod('365')" data-period="365">
+                                <i class="bi bi-calendar-year me-1"></i>
+                                1 Year
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Store-wise Financial Performance -->
+    <!-- Enhanced Financial Metrics -->
+    <div class="row mb-4 g-3">
+        <div class="col-lg-2 col-md-4 col-sm-6">
+            <div class="metric-card revenue-card">
+                <div class="metric-value">ETB {{ financial_metrics.total_revenue|floatformat:0 }}</div>
+                <div class="metric-label">Total Revenue</div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-sm-6">
+            <div class="metric-card" style="background: linear-gradient(135deg, #fd7e14, #ffc107); color: var(--primary-dark);">
+                <div class="metric-value">ETB {{ financial_metrics.total_expenses|floatformat:0 }}</div>
+                <div class="metric-label">Total Expenses</div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-sm-6">
+            <div class="metric-card net-profit-card">
+                <div class="metric-value">ETB {{ total_net_profit|floatformat:0 }}</div>
+                <div class="metric-label">Net Profit</div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-sm-6">
+            <div class="metric-card {% if financial_metrics.total_profit >= 0 %}profit-card{% else %}loss-card{% endif %}">
+                <div class="metric-value">ETB {{ financial_metrics.total_profit|floatformat:0 }}</div>
+                <div class="metric-label">Gross Profit</div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-sm-6">
+            <div class="metric-card {% if net_margin >= 15 %}profit-card{% elif net_margin >= 5 %}revenue-card{% else %}loss-card{% endif %}">
+                <div class="metric-value">{{ net_margin|floatformat:1 }}%</div>
+                <div class="metric-label">Net Margin</div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-sm-6">
+            <div class="metric-card {% if margin >= 20 %}profit-card{% elif margin >= 10 %}revenue-card{% else %}loss-card{% endif %}">
+                <div class="metric-value">{{ margin|floatformat:1 }}%</div>
+                <div class="metric-label">Gross Margin</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced Charts Section -->
+    <div class="row mb-4">
+        <!-- Revenue vs Expense Trend Chart -->
+        <div class="col-lg-8 col-md-12 mb-3">
+            <div class="chart-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0" style="color: var(--primary-dark);">
+                        <i class="bi bi-graph-up me-2" style="color: var(--accent-teal);"></i>
+                        Revenue vs Expenses Trend
+                    </h5>
+                    <div class="loading-spinner" id="trendLoading">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                    </div>
+                </div>
+                <canvas id="revenueExpenseTrendChart" width="600" height="300" style="max-width: 100%; max-height: 300px;"></canvas>
+            </div>
+        </div>
+
+        <!-- Net Profit Trend Chart -->
+        <div class="col-lg-4 col-md-12 mb-3">
+            <div class="chart-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0" style="color: var(--primary-dark);">
+                        <i class="bi bi-currency-dollar me-2" style="color: var(--accent-cyan);"></i>
+                        Net Profit Trend
+                    </h5>
+                    <div class="loading-spinner" id="profitLoading">
+                        <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+                    </div>
+                </div>
+                <canvas id="netProfitTrendChart" width="400" height="250" style="max-width: 100%; max-height: 250px;"></canvas>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Enhanced Store Performance Table -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="financial-card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Store-wise Financial Performance</h5>
-                    <small class="text-muted">Period: {{ start_date|date:"M d, Y" }} - {{ end_date|date:"M d, Y"
-                        }}</small>
+            <div class="chart-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0" style="color: var(--primary-dark);">
+                        <i class="bi bi-table me-2" style="color: var(--accent-teal);"></i>
+                        Store Performance Analysis
+                    </h5>
+                    <small class="text-muted">Period: {{ start_date|date:"M d, Y" }} - {{ end_date|date:"M d, Y" }}</small>
                 </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table financial-table">
-                            <thead>
-                                <tr>
-                                    <th>Store</th>
-                                    <th>Revenue</th>
-                                    <th>Expenses</th>
-                                    <th>Profit/Loss</th>
-                                    <th>Margin</th>
-                                    <th>Performance</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for store_data in financial_data %}
-                                <tr>
-                                    <td>
-                                        <strong>{{ store_data.store.name }}</strong>
-                                        <br><small class="text-muted">{{ store_data.store.address }}</small>
-                                    </td>
-                                    <td>
-                                        <strong class="text-primary">ETB {{ store_data.revenue|floatformat:0 }}</strong>
-                                    </td>
-                                    <td>
-                                        <strong class="text-warning">{{ store_data.expenses|currency }}</strong>
-                                    </td>
-                                    <td>
-                                        <strong
+                <div class="table-responsive">
+                    <table class="table table-financial">
+                        <thead>
+                            <tr>
+                                <th><i class="bi bi-building me-1"></i>Store</th>
+                                <th><i class="bi bi-cash-stack me-1"></i>Revenue</th>
+                                <th><i class="bi bi-credit-card me-1"></i>Expenses</th>
+                                <th><i class="bi bi-currency-dollar me-1"></i>Net Profit</th>
+                                <th><i class="bi bi-graph-up me-1"></i>Gross Profit</th>
+                                <th><i class="bi bi-percent me-1"></i>Net Margin</th>
+                                <th><i class="bi bi-award me-1"></i>Performance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for store_data in financial_data %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-2">
+                                            <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center"
+                                                 style="width: 40px; height: 40px; background: var(--accent-teal) !important;">
+                                                <i class="bi bi-building text-white"></i>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <strong>{{ store_data.store.name }}</strong>
+                                            <br><small class="text-muted">{{ store_data.store.location|default:"N/A" }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <strong style="color: var(--accent-teal);">ETB {{ store_data.revenue|floatformat:0 }}</strong>
+                                </td>
+                                <td>
+                                    <strong style="color: #fd7e14;">ETB {{ store_data.expenses|floatformat:0 }}</strong>
+                                </td>
+                                <td>
+                                    <strong style="color: {% if store_data.net_profit >= 0 %}#28a745{% else %}#dc3545{% endif %};">
+                                        ETB {{ store_data.net_profit|floatformat:0 }}
+                                    </strong>
+                                </td>
+                                <td>
+                                    <strong style="color: {% if store_data.profit_loss >= 0 %}#28a745{% else %}#dc3545{% endif %};">
+                                        ETB {{ store_data.profit_loss|floatformat:0 }}
+                                    </strong>
+                                </td>
+                                <td>
+                                    <strong style="color: {% if store_data.net_profit_margin >= 15 %}#28a745{% elif store_data.net_profit_margin >= 5 %}#ffc107{% else %}#dc3545{% endif %};">
+                                        {{ store_data.net_profit_margin|floatformat:1 }}%
+                                    </strong>
+                                </td>
+                                <td>
+                                    {% if store_data.net_profit_margin >= 15 %}
+                                    <span class="badge bg-success">Excellent</span>
+                                    {% elif store_data.net_profit_margin >= 10 %}
+                                    <span class="badge bg-info">Good</span>
+                                    {% elif store_data.net_profit_margin >= 5 %}
+                                    <span class="badge bg-warning">Average</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Poor</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4">
+                                    <div class="empty-state">
+                                        <i class="bi bi-graph-down" style="font-size: 3rem; color: var(--light-gray);"></i>
+                                        <p class="mt-2 text-muted">No financial data available for the selected period.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Global variables for charts
+let revenueExpenseChart, netProfitChart, categoryChart, storeChart;
+const currentPeriod = '{{ period }}';
+
+// EZM Color Scheme
+const colors = {
+    primary: '#0B0C10',
+    secondary: '#1F2833',
+    lightGray: '#C5C6C7',
+    accentCyan: '#66FCF1',
+    accentTeal: '#45A29E',
+    success: '#28a745',
+    warning: '#ffc107',
+    danger: '#dc3545',
+    info: '#17a2b8'
+};
+
+// Initialize all charts when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if Chart.js is loaded
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js is not loaded!');
+        return;
+    }
+
+    // Check if fetch is available
+    if (typeof fetch === 'undefined') {
+        console.error('Fetch API is not available!');
+        return;
+    }
+
+    console.log('✅ Chart.js and Fetch API are available, initializing charts...');
+    initializeCharts();
+
+    // Disable resize handlers to prevent infinite growth
+    // Charts are now fixed size and non-responsive
+});
+
+function initializeCharts() {
+    try {
+        // Destroy existing charts first
+        if (window.revenueExpenseChart) {
+            window.revenueExpenseChart.destroy();
+        }
+        if (window.netProfitChart) {
+            window.netProfitChart.destroy();
+        }
+
+        initRevenueExpenseChart();
+        initNetProfitChart();
+    } catch (error) {
+        console.error('Error initializing charts:', error);
+    }
+}
+
+function initRevenueExpenseChart() {
+    const ctx = document.getElementById('revenueExpenseTrendChart');
+    if (!ctx) {
+        console.error('Revenue expense chart canvas not found');
+        return;
+    }
+
+    const chartContext = ctx.getContext('2d');
+
+    // Force canvas dimensions
+    ctx.width = 600;
+    ctx.height = 300;
+    ctx.style.width = '100%';
+    ctx.style.height = '300px';
+    ctx.style.maxWidth = '100%';
+    ctx.style.maxHeight = '300px';
+
+    showLoading('trendLoading');
+
+    // Use XMLHttpRequest for better compatibility
+    const apiUrl = `/users/api/analytics/?type=revenue_vs_expense&period=${currentPeriod}`;
+    console.log('Fetching from:', apiUrl);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', apiUrl, true);
+    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+    xhr.onload = function() {
+        hideLoading('trendLoading');
+
+        if (xhr.status === 200) {
+            try {
+                const data = JSON.parse(xhr.responseText);
+                console.log('Chart data received:', data);
+
+            // Destroy existing chart if it exists
+            if (window.revenueExpenseChart) {
+                window.revenueExpenseChart.destroy();
+            }
+
+            window.revenueExpenseChart = new Chart(chartContext, {
+                type: 'line',
+                data: {
+                    labels: data.labels || [],
+                    datasets: [{
+                        label: 'Revenue',
+                        data: data.revenue || [],
+                        borderColor: colors.accentTeal,
+                        backgroundColor: colors.accentTeal + '20',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: colors.accentTeal,
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5
+                    }, {
+                        label: 'Expenses',
+                        data: data.expenses || [],
+                        borderColor: colors.warning,
+                        backgroundColor: colors.warning + '20',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: colors.warning,
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: false,
+                    maintainAspectRatio: false,
+                    aspectRatio: 2,
+                    resizeDelay: 0,
+                    devicePixelRatio: 1,
+                    animation: {
+                        duration: 0
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                font: { size: 12, weight: '600' },
+                                color: colors.primary
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: colors.primary,
+                            titleColor: colors.accentCyan,
+                            bodyColor: '#ffffff',
+                            borderColor: colors.accentTeal,
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ETB ' + context.parsed.y.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: colors.lightGray + '30',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: colors.secondary,
+                                font: { size: 11 }
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: colors.lightGray + '30',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: colors.secondary,
+                                font: { size: 11 },
+                                callback: function(value) {
+                                    return 'ETB ' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+            } catch (error) {
+                console.error('Error parsing JSON:', error);
+                showChartError(ctx, 'Invalid data format received');
+            }
+        } else {
+            console.error('API request failed:', xhr.status, xhr.statusText);
+            showChartError(ctx, `API request failed: ${xhr.status}`);
+        }
+    };
+
+    xhr.onerror = function() {
+        hideLoading('trendLoading');
+        console.error('Network error occurred');
+        showChartError(ctx, 'Network error occurred');
+    };
+
+    xhr.send();
+}
+
+function initNetProfitChart() {
+    const ctx = document.getElementById('netProfitTrendChart');
+    if (!ctx) {
+        console.error('Net profit chart canvas not found');
+        return;
+    }
+
+    const chartContext = ctx.getContext('2d');
+
+    // Force canvas dimensions
+    ctx.width = 400;
+    ctx.height = 250;
+    ctx.style.width = '100%';
+    ctx.style.height = '250px';
+    ctx.style.maxWidth = '100%';
+    ctx.style.maxHeight = '250px';
+
+    showLoading('profitLoading');
+
+    const apiUrl = `/users/api/analytics/?type=net_profit_trend&period=${currentPeriod}`;
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', apiUrl, true);
+    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+    xhr.onload = function() {
+        hideLoading('profitLoading');
+
+        if (xhr.status === 200) {
+            try {
+                const data = JSON.parse(xhr.responseText);
+
+                // Destroy existing chart if it exists
+                if (window.netProfitChart) {
+                    window.netProfitChart.destroy();
+                }
+
+                window.netProfitChart = new Chart(chartContext, {
+                    type: 'bar',
+                    data: {
+                        labels: data.labels || [],
+                        datasets: [{
+                            label: 'Net Profit',
+                            data: data.data || [],
+                            backgroundColor: (data.data || []).map(value =>
+                                value >= 0 ? colors.success + '80' : colors.danger + '80'
+                            ),
+                            borderColor: (data.data || []).map(value =>
+                                value >= 0 ? colors.success : colors.danger
+                            ),
+                            borderWidth: 2,
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: false,
+                        maintainAspectRatio: false,
+                        aspectRatio: 1,
+                        resizeDelay: 0,
+                        devicePixelRatio: 1,
+                        animation: {
+                            duration: 0
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: colors.primary,
+                                titleColor: colors.accentCyan,
+                                bodyColor: '#ffffff',
+                                borderColor: colors.accentTeal,
+                                borderWidth: 1,
+                                callbacks: {
+                                    label: function(context) {
+                                        return 'Net Profit: ETB ' + context.parsed.y.toLocaleString();
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: colors.secondary, maxTicksLimit: 5 }
+                            },
+                            y: {
+                                grid: { color: colors.lightGray + '30' },
+                                ticks: {
+                                    color: colors.secondary,
+                                    callback: function(value) {
+                                        return 'ETB ' + value.toLocaleString();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error parsing JSON:', error);
+                showChartError(ctx, 'Invalid data format received');
+            }
+        } else {
+            console.error('API request failed:', xhr.status, xhr.statusText);
+            showChartError(ctx, `API request failed: ${xhr.status}`);
+        }
+    };
+
+    xhr.onerror = function() {
+        hideLoading('profitLoading');
+        console.error('Network error occurred');
+        showChartError(ctx, 'Network error occurred');
+    };
+
+    xhr.send();
+}
+
+
+
+// Utility functions
+function showLoading(elementId) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.style.display = 'block';
+    }
+}
+
+function hideLoading(elementId) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.style.display = 'none';
+    }
+}
+
+function showChartError(canvasElement, errorMessage) {
+    const chartContainer = canvasElement.parentElement;
+    chartContainer.innerHTML = `
+        <div class="empty-state">
+            <i class="bi bi-exclamation-triangle" style="color: var(--accent-teal); font-size: 3rem;"></i>
+            <p style="color: var(--primary-dark); margin: 1rem 0;">Error loading chart data</p>
+            <small style="color: #6c757d;">${errorMessage}</small>
+            <br><br>
+            <button class="btn btn-sm btn-outline-primary" onclick="initializeCharts()" style="background: var(--accent-teal); color: white; border: none;">
+                <i class="bi bi-arrow-clockwise me-1"></i>Retry All Charts
+            </button>
+        </div>
+    `;
+}
+
+function changePeriod(period) {
+    // Update active button
+    document.querySelectorAll('.period-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+
+    // Show loading state
+    document.querySelectorAll('.loading-spinner').forEach(spinner => {
+        spinner.style.display = 'block';
+    });
+
+    // Reload page with new period
+    window.location.href = `?period=${period}`;
+}
+
+function exportReport() {
+    const period = '{{ period }}';
+    const exportUrl = `/users/head-manager/financial-reports/?export=pdf&period=${period}`;
+
+    // Show loading state
+    const exportBtn = document.querySelector('.btn-ezm-primary');
+    const originalText = exportBtn.innerHTML;
+    exportBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Generating PDF...';
+    exportBtn.disabled = true;
+
+    // Create a temporary link to trigger download
+    const link = document.createElement('a');
+    link.href = exportUrl;
+    link.download = `EZM_Financial_Report_${period}days_${new Date().toISOString().split('T')[0]}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Reset button after a delay
+    setTimeout(() => {
+        exportBtn.innerHTML = originalText;
+        exportBtn.disabled = false;
+    }, 3000);
+}
+
+// Destroy charts before page unload to prevent memory leaks
+window.addEventListener('beforeunload', function() {
+    if (revenueExpenseChart) revenueExpenseChart.destroy();
+    if (netProfitChart) netProfitChart.destroy();
+    if (categoryChart) categoryChart.destroy();
+    if (storeChart) storeChart.destroy();
+});
+</script>
+{% endblock %}
                                             class="{% if store_data.profit_loss >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
                                             ETB {{ store_data.profit_loss|floatformat:0 }}
                                         </strong>
@@ -317,16 +1097,6 @@
                                         {% endif %}
                                     </td>
                                 </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="6" class="text-center py-4">
-                                        <div class="empty-state">
-                                            <i class="bi bi-graph-down"></i>
-                                            <p>No financial data available for the selected period.</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
                             </tbody>
                         </table>
                     </div>
@@ -337,18 +1107,7 @@
 
     <!-- Financial Summary Cards -->
     <div class="row mb-4 g-4">
-        <div class="col-lg-6">
-            <div class="financial-card">
-                <div class="card-header">
-                    <h5 class="mb-0">Revenue Breakdown</h5>
-                </div>
-                <div class="card-body">
-                    <div class="chart-container">
-                        <canvas id="revenueBreakdownChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
+
         <div class="col-lg-6">
             <div class="financial-card">
                 <div class="card-header">
@@ -385,100 +1144,4 @@
             </div>
         </div>
     </div>
-</div>
-{% endblock %}
 
-{% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    // Financial Trend Chart
-    const trendCtx = document.getElementById('financialTrendChart').getContext('2d');
-    const trendData = {{ monthly_trend| safe }};
-
-    const trendChart = new Chart(trendCtx, {
-        type: 'line',
-        data: {
-            labels: trendData.map(item => item.month),
-            datasets: [{
-                label: 'Revenue',
-                data: trendData.map(item => item.revenue),
-                borderColor: '#007bff',
-                backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                borderWidth: 3,
-                fill: false
-            }, {
-                label: 'Expenses',
-                data: trendData.map(item => item.expenses),
-                borderColor: '#fd7e14',
-                backgroundColor: 'rgba(253, 126, 20, 0.1)',
-                borderWidth: 3,
-                fill: false
-            }, {
-                label: 'Profit',
-                data: trendData.map(item => item.profit),
-                borderColor: '#28a745',
-                backgroundColor: 'rgba(40, 167, 69, 0.1)',
-                borderWidth: 3,
-                fill: false
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function (value) {
-                            return 'ETB ' + value.toLocaleString();
-                        }
-                    }
-                }
-            }
-        }
-    });
-
-    // Revenue Breakdown Chart
-    const revenueCtx = document.getElementById('revenueBreakdownChart').getContext('2d');
-    const financialData = {{ financial_data| safe }};
-
-    const revenueChart = new Chart(revenueCtx, {
-        type: 'doughnut',
-        data: {
-            labels: financialData.map(store => store.store.name),
-            datasets: [{
-                data: financialData.map(store => parseFloat(store.revenue)),
-                backgroundColor: [
-                    '#007bff',
-                    '#28a745',
-                    '#17a2b8',
-                    '#ffc107',
-                    '#dc3545',
-                    '#6f42c1'
-                ]
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                }
-            }
-        }
-    });
-
-    // Period change function
-    function changePeriod(period) {
-        const url = new URL(window.location);
-        url.searchParams.set('period', period);
-        window.location.href = url.toString();
-    }
-
-    // Export function
-    function exportReport() {
-        alert('Export functionality would be implemented here. This could generate PDF or Excel reports.');
-    }
-</script>
-{% endblock %}

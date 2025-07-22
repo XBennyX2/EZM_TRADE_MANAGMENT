@@ -201,6 +201,22 @@ def payment_success(request):
             else:
                 logger.error(f"Failed to create transaction records for payment {tx_ref}: {transaction_result.get('error')}")
 
+            # Send receipt email to customer
+            try:
+                from users.email_service import email_service
+                order_payment = transaction.purchase_order_payment if hasattr(transaction, 'purchase_order_payment') else None
+                email_result = email_service.send_purchase_order_receipt_email(transaction, order_payment)
+
+                if email_result[0]:  # Success
+                    logger.info(f"Receipt email sent successfully for transaction {tx_ref}")
+                else:
+                    logger.error(f"Failed to send receipt email for transaction {tx_ref}: {email_result[1]}")
+                    # Don't show error to user as payment was successful
+
+            except Exception as e:
+                logger.error(f"Error sending receipt email for transaction {tx_ref}: {str(e)}")
+                # Don't show error to user as payment was successful
+
             # Log payment completion for payment history
             logger.info(f"Payment completed successfully: {tx_ref} - Amount: {transaction.amount} ETB - Supplier: {transaction.supplier.name} - Customer: {request.user.get_full_name() or request.user.username}")
 
@@ -467,6 +483,21 @@ def chapa_webhook(request):
                 if status == 'success':
                     transaction.status = 'success'
                     transaction.paid_at = timezone.now()
+
+                    # Send receipt email for successful payment
+                    try:
+                        from users.email_service import email_service
+                        order_payment = transaction.purchase_order_payment if hasattr(transaction, 'purchase_order_payment') else None
+                        email_result = email_service.send_purchase_order_receipt_email(transaction, order_payment)
+
+                        if email_result[0]:  # Success
+                            logger.info(f"Receipt email sent successfully for webhook transaction {tx_ref}")
+                        else:
+                            logger.error(f"Failed to send receipt email for webhook transaction {tx_ref}: {email_result[1]}")
+
+                    except Exception as e:
+                        logger.error(f"Error sending receipt email for webhook transaction {tx_ref}: {str(e)}")
+
                 elif status in ['failed', 'cancelled']:
                     transaction.status = 'failed'
                 else:
@@ -532,14 +563,29 @@ def chapa_webhook(request):
             if status == 'success':
                 transaction.status = 'success'
                 transaction.paid_at = timezone.now()
+
+                # Send receipt email for successful payment
+                try:
+                    from users.email_service import email_service
+                    order_payment = transaction.purchase_order_payment if hasattr(transaction, 'purchase_order_payment') else None
+                    email_result = email_service.send_purchase_order_receipt_email(transaction, order_payment)
+
+                    if email_result[0]:  # Success
+                        logger.info(f"Receipt email sent successfully for POST webhook transaction {tx_ref}")
+                    else:
+                        logger.error(f"Failed to send receipt email for POST webhook transaction {tx_ref}: {email_result[1]}")
+
+                except Exception as e:
+                    logger.error(f"Error sending receipt email for POST webhook transaction {tx_ref}: {str(e)}")
+
             elif status in ['failed', 'cancelled']:
                 transaction.status = 'failed'
             else:
                 transaction.status = 'pending'
-            
+
             transaction.webhook_data = webhook_data
             transaction.save()
-            
+
             # Update related purchase order payment
             if hasattr(transaction, 'purchase_order_payment'):
                 transaction.purchase_order_payment.update_status_from_payment()

@@ -1509,8 +1509,15 @@
           email: email
         })
       })
-        .then(response => response.json())
+        .then(response => {
+          console.log('Email response status:', response.status);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          return response.json();
+        })
         .then(data => {
+          console.log('Email response data:', data);
           if (data.success) {
             statusDiv.className = 'alert alert-success';
             statusDiv.textContent = data.message;
@@ -1523,13 +1530,14 @@
             }, 2000);
           } else {
             statusDiv.className = 'alert alert-danger';
-            statusDiv.textContent = data.error;
+            statusDiv.textContent = data.error || data.message || 'Unknown error occurred';
             statusDiv.style.display = 'block';
           }
         })
         .catch(error => {
+          console.error('Email sending error:', error);
           statusDiv.className = 'alert alert-danger';
-          statusDiv.textContent = 'Failed to send email. Please try again.';
+          statusDiv.textContent = `Failed to send email: ${error.message}. Please try again.`;
           statusDiv.style.display = 'block';
         })
         .finally(() => {

@@ -158,10 +158,6 @@ STATICFILES_DIRS = [
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Email Configuration
-# SendGrid Configuration (preferred for production)
-SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
-
-# Traditional SMTP Configuration (fallback)
 EMAIL_HOST = os.getenv("EMAIL_HOST")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
@@ -169,27 +165,13 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", 'True') == 'True'
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", 'noreply@ezmtrade.com')
 
-# Email backend configuration with network-aware fallback
-# Force console backend for development/testing when network is unreliable
-FORCE_CONSOLE_EMAIL = os.getenv("FORCE_CONSOLE_EMAIL", 'False') == 'True'
-
-if FORCE_CONSOLE_EMAIL:
-    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-    print("Development mode: Using console email backend (forced).")
-elif SENDGRID_API_KEY and SENDGRID_API_KEY.startswith('SG.') and len(SENDGRID_API_KEY) > 50:
+# Email backend configuration
+if EMAIL_HOST:
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_HOST = 'smtp.sendgrid.net'
-    EMAIL_PORT = 587
-    EMAIL_USE_TLS = True
-    EMAIL_HOST_USER = 'apikey'  # This is literally the string 'apikey'
-    EMAIL_HOST_PASSWORD = SENDGRID_API_KEY
-    print("Production mode: Using SendGrid email backend.")
-elif EMAIL_HOST and EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    print("Production mode: Using custom SMTP email backend.")
+    print("Production mode: Using SMTP email backend.")
 else:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-    print("Development mode: Using console email backend. Configure SENDGRID_API_KEY or EMAIL_HOST for production.")
+    print("Development mode: Using console email backend. Configure EMAIL_HOST for production.")
 
 # Cart session configuration
 CART_SESSION_ID = 'cart'

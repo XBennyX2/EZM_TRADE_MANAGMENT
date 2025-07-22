@@ -1542,6 +1542,8 @@ Phone: {transaction_obj.store.phone_number}
         except Exception as email_error:
             error_message = str(email_error)
             print(f"Failed to send email: {email_error}")
+            import traceback
+            traceback.print_exc()  # Print full traceback for debugging
 
             # Try alternative: save email content to session for manual sending
             request.session[f'pending_email_{receipt.id}'] = {
@@ -1565,7 +1567,11 @@ Phone: {transaction_obj.store.phone_number}
             })
 
     except Exception as e:
-        return JsonResponse({'error': f'Failed to send email: {str(e)}'}, status=500)
+        return JsonResponse({
+            'success': False,
+            'error': f'Failed to send email: {str(e)}',
+            'message': f'Failed to send email: {str(e)}'
+        }, status=500)
 
 
 @login_required

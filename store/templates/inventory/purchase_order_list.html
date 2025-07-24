@@ -142,7 +142,7 @@
                                 <tr>
                                     <td>
                                         <div class="fw-bold text-primary">{{ order.order_number }}</div>
-                                        <small class="text-muted">{{ order.created_date|date:"M d, Y" }}</small>
+                                        <small class="text-muted">{{ order.order_date|date:"M d, Y" }}</small>
                                     </td>
                                     <td>
                                         <div class="fw-bold">{{ order.supplier.name }}</div>
@@ -157,19 +157,25 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        <div class="fw-bold">${{ order.total_amount|floatformat:2 }}</div>
+                                        <div class="fw-bold">ETB {{ order.total_amount|floatformat:2 }}</div>
                                     </td>
                                     <td>
-                                        {% if order.status == 'pending' %}
-                                        <span class="badge bg-warning">Pending</span>
-                                        {% elif order.status == 'approved' %}
-                                        <span class="badge bg-success">Approved</span>
-                                        {% elif order.status == 'shipped' %}
-                                        <span class="badge bg-info">Shipped</span>
-                                        {% elif order.status == 'received' %}
-                                        <span class="badge bg-primary">Received</span>
+                                        {% if order.status == 'initial' %}
+                                        <span class="badge bg-secondary">Initial</span>
+                                        {% elif order.status == 'payment_pending' %}
+                                        <span class="badge bg-warning">Payment Pending</span>
+                                        {% elif order.status == 'payment_confirmed' %}
+                                        <span class="badge bg-success">Payment Confirmed</span>
+                                        {% elif order.status == 'in_transit' %}
+                                        <span class="badge bg-info">In Transit</span>
+                                        {% elif order.status == 'delivered' %}
+                                        <span class="badge bg-primary">Delivered</span>
+                                        {% elif order.status == 'issue_reported' %}
+                                        <span class="badge bg-warning">Issue Reported</span>
                                         {% elif order.status == 'cancelled' %}
                                         <span class="badge bg-danger">Cancelled</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ order.get_status_display }}</span>
                                         {% endif %}
                                     </td>
                                     <td>

@@ -780,7 +780,7 @@ class PurchaseOrderListView(LoginRequiredMixin, StoreOwnerMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        queryset = PurchaseOrder.objects.all().select_related('supplier').order_by('-created_date')
+        queryset = PurchaseOrder.objects.all().select_related('supplier').order_by('-order_date')
 
         # Filter by status
         status = self.request.GET.get('status')
@@ -803,8 +803,9 @@ class PurchaseOrderListView(LoginRequiredMixin, StoreOwnerMixin, ListView):
 
         # Statistics
         context['total_orders'] = PurchaseOrder.objects.count()
-        context['pending_orders'] = PurchaseOrder.objects.filter(status='pending').count()
-        context['approved_orders'] = PurchaseOrder.objects.filter(status='approved').count()
+        context['pending_orders'] = PurchaseOrder.objects.filter(status='initial').count()
+        context['approved_orders'] = PurchaseOrder.objects.filter(status='payment_confirmed').count()
+        context['delivered_orders'] = PurchaseOrder.objects.filter(status='delivered').count()
 
         return context
 

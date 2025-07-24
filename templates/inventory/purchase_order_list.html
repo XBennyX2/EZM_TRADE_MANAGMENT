@@ -289,8 +289,7 @@
                                             {% endif %}
                                         </div>
                                         <div class="mt-1">
-                                            <strong style="color: var(--accent-teal);">ETB {{
-                                                order.total_amount|floatformat:2 }}</strong>
+                                            <strong style="color: var(--accent-teal);">ETB {{ order.total_amount|floatformat:2 }}</strong>
                                         </div>
                                     </div>
                                 </div>
@@ -353,8 +352,7 @@
                                     <small class="text-muted">Items:</small>
                                     <div class="d-flex flex-wrap gap-1 mt-1">
                                         {% for item in order.items.all|slice:":3" %}
-                                        <span class="badge bg-light text-dark">{{ item.quantity_ordered }}x {{
-                                            item.warehouse_product.product_name|truncatechars:20 }}</span>
+                                        <span class="badge bg-light text-dark">{{ item.quantity_ordered }}x {{ item.warehouse_product.product_name|truncatechars:20 }}</span>
                                         {% endfor %}
                                         {% if order.items.count > 3 %}
                                         <span class="badge bg-secondary">+{{ order.items.count|add:"-3" }} more</span>
@@ -495,16 +493,22 @@
                                 <div class="fw-bold">ETB {{ order.total_amount|floatformat:2 }}</div>
                             </td>
                             <td>
-                                {% if order.status == 'pending' %}
-                                <span class="badge bg-warning">Pending</span>
-                                {% elif order.status == 'approved' %}
-                                <span class="badge bg-success">Approved</span>
-                                {% elif order.status == 'shipped' %}
-                                <span class="badge bg-info">Shipped</span>
-                                {% elif order.status == 'received' %}
-                                <span class="badge bg-primary">Received</span>
+                                {% if order.status == 'initial' %}
+                                <span class="badge bg-secondary">Initial</span>
+                                {% elif order.status == 'payment_pending' %}
+                                <span class="badge bg-warning">Payment Pending</span>
+                                {% elif order.status == 'payment_confirmed' %}
+                                <span class="badge bg-success">Payment Confirmed</span>
+                                {% elif order.status == 'in_transit' %}
+                                <span class="badge bg-info">In Transit</span>
+                                {% elif order.status == 'delivered' %}
+                                <span class="badge bg-primary">Delivered</span>
+                                {% elif order.status == 'issue_reported' %}
+                                <span class="badge bg-warning">Issue Reported</span>
                                 {% elif order.status == 'cancelled' %}
                                 <span class="badge bg-danger">Cancelled</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ order.get_status_display }}</span>
                                 {% endif %}
                             </td>
                             <td>

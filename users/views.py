@@ -67,16 +67,18 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 
 def send_otp_email(user):
-    subject = "Welcome to EZM Trade — Verify Your Email"
+    company_name = getattr(settings, 'COMPANY_NAME', 'EZM Trade Management System')
+    subject = f"Welcome to {company_name} — Verify Your Email"
     from_email = settings.DEFAULT_FROM_EMAIL
     to_email = user.email
 
     context = {
         'username': user.username,
         'otp': user.otp_code,
+        'company_name': company_name,
     }
 
-    text_content = f"Hi {user.username},\\nWelcome to EZM Trade!\\nYour OTP code is: {user.otp_code}"
+    text_content = f"Hi {user.username},\\nWelcome to {company_name}!\\nYour OTP code is: {user.otp_code}"
     html_content = render_to_string('users/email_otp.html', context)
 
     msg = EmailMultiAlternatives(subject, text_content, from_email, [to_email])

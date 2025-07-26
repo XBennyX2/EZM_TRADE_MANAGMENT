@@ -480,6 +480,9 @@ class WarehouseListView(LoginRequiredMixin, StoreOwnerMixin, ListView):
         context['categories'] = [choice[0] for choice in SETTINGS_CHOICES]
         context['warehouses'] = Warehouse.objects.filter(is_active=True)
 
+        # Ensure pagination context is properly set
+        context['is_paginated'] = context.get('page_obj') and context['page_obj'].has_other_pages()
+
         return context
 
 

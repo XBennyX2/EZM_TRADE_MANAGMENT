@@ -20,7 +20,7 @@ class SupplierNotificationService:
     
     def __init__(self):
         self.from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@ezmtrade.com')
-        self.company_name = "EZM Trade Management"
+        self.company_name = getattr(settings, 'COMPANY_NAME', 'EZM Trade Management System')
     
     def send_payment_confirmation_notification(self, transaction, order_payment=None):
         """

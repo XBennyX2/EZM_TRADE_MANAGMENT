@@ -38,6 +38,7 @@ urlpatterns = [
     path('suppliers/<int:pk>/delete/', SupplierDeleteView.as_view(), name='supplier_delete'),
     path('suppliers/<int:supplier_id>/products/', SupplierProductListView.as_view(), name='supplier_products'),
     path('suppliers/<int:supplier_id>/products/new/', WarehouseProductCreateView.as_view(), name='warehouse_product_create'),
+    path('warehouse-products/new/', WarehouseProductCreateView.as_view(), name='warehouse_product_create_direct'),
     path('suppliers/<int:supplier_id>/profile/', supplier_profile_view, name='supplier_profile_view'),
     path('suppliers/<int:supplier_id>/catalog/', supplier_product_catalog_view, name='supplier_product_catalog_view'),
     path('suppliers/<int:supplier_id>/activate/', activate_supplier_account, name='activate_supplier_account'),

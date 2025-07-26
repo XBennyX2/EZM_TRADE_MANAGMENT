@@ -380,8 +380,7 @@
                                     </span>
                                     {% elif order.is_delivered %}
                                     <span class="badge bg-success">
-                                        <i class="bi bi-check-circle me-1"></i>Delivered {{ order.delivered_at|date:"M
-                                        d" }}
+                                        <i class="bi bi-check-circle me-1"></i>Delivered {{ order.delivered_at|date:"Md" }}
                                     </span>
                                     {% elif order.has_delivery_issues %}
                                     <button class="btn btn-outline-warning btn-sm" onclick="viewIssues({{ order.id }})">

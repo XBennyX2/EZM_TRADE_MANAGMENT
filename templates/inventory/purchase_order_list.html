@@ -892,16 +892,25 @@
 
     function refreshCountdownTimers() {
         // Refresh countdown timers from server
-        fetch('/inventory/purchase-orders/countdown-data/')
-            .then(response => response.json())
-            .then(data => {
-                data.orders.forEach(order => {
+        window.fetch('/inventory/purchase-orders/countdown-data/', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin'
+        })
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                data.orders.forEach(function(order) {
                     if (order.countdown_seconds > 0) {
                         startCountdown(order.id, order.countdown_seconds);
                     }
                 });
             })
-            .catch(error => console.error('Error refreshing countdown data:', error));
+            .catch(function(error) {
+                console.error('Error refreshing countdown data:', error);
+            });
     }
 
     function updateOrderStatistics() {
@@ -933,16 +942,48 @@
     }
 
     function confirmDelivery(orderId) {
+        // Validate orderId
+        if (!orderId) {
+            alert('Invalid order ID');
+            return;
+        }
+
+        // Construct URL safely
+        const url = '/inventory/purchase-orders/' + orderId + '/details/';
+
         // Fetch order details and populate modal
-        fetch(`/inventory/purchase-orders/${orderId}/details/`)
-            .then(response => response.json())
-            .then(data => {
+        window.fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin'
+        })
+            .then(function(response) {
+                if (!response.ok) {
+                    if (response.status === 403) {
+                        throw new Error('Access denied. Head Manager role required.');
+                    } else if (response.status === 404) {
+                        throw new Error('Order not found.');
+                    } else if (response.status === 302) {
+                        throw new Error('Please log in as a Head Manager to access this feature.');
+                    } else {
+                        throw new Error('Server error: ' + response.status);
+                    }
+                }
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
                 populateDeliveryModal(data);
                 new bootstrap.Modal(document.getElementById('deliveryConfirmationModal')).show();
             })
-            .catch(error => {
+            .catch(function(error) {
                 console.error('Error fetching order details:', error);
-                alert('Unable to load order details. Please try again.');
+                alert(error.message || 'Unable to load order details. Please try again.');
             });
     }
 
@@ -972,16 +1013,48 @@
     }
 
     function reportIssue(orderId) {
+        // Validate orderId
+        if (!orderId) {
+            alert('Invalid order ID');
+            return;
+        }
+
+        // Construct URL safely
+        const url = '/inventory/purchase-orders/' + orderId + '/details/';
+
         // Fetch order details and populate issue modal
-        fetch(`/inventory/purchase-orders/${orderId}/details/`)
-            .then(response => response.json())
-            .then(data => {
+        window.fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin'
+        })
+            .then(function(response) {
+                if (!response.ok) {
+                    if (response.status === 403) {
+                        throw new Error('Access denied. Head Manager role required.');
+                    } else if (response.status === 404) {
+                        throw new Error('Order not found.');
+                    } else if (response.status === 302) {
+                        throw new Error('Please log in as a Head Manager to access this feature.');
+                    } else {
+                        throw new Error('Server error: ' + response.status);
+                    }
+                }
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
                 populateIssueModal(data);
                 new bootstrap.Modal(document.getElementById('issueReportModal')).show();
             })
-            .catch(error => {
+            .catch(function(error) {
                 console.error('Error fetching order details:', error);
-                alert('Unable to load order details. Please try again.');
+                alert(error.message || 'Unable to load order details. Please try again.');
             });
     }
 
@@ -1029,24 +1102,28 @@
             formData.append('delivery_photos', photos[i]);
         }
 
-        fetch(`/inventory/purchase-orders/${formData.get('order_id')}/confirm-delivery/`, {
+        const orderId = formData.get('order_id');
+        const url = '/inventory/purchase-orders/' + orderId + '/confirm-delivery/';
+
+        window.fetch(url, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCookie('csrftoken'),
             },
-            body: formData
+            body: formData,
+            credentials: 'same-origin'
         })
-            .then(response => response.json())
-            .then(data => {
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
                 if (data.success) {
                     bootstrap.Modal.getInstance(document.getElementById('deliveryConfirmationModal')).hide();
                     showSuccessMessage('Delivery confirmed successfully!');
-                    setTimeout(() => location.reload(), 1500);
+                    setTimeout(function() { location.reload(); }, 1500);
                 } else {
                     alert('Error: ' + data.message);
                 }
             })
-            .catch(error => {
+            .catch(function(error) {
                 console.error('Error confirming delivery:', error);
                 alert('Unable to confirm delivery. Please try again.');
             });
@@ -1069,24 +1146,28 @@
             formData.append('issue_photos', photos[i]);
         }
 
-        fetch(`/inventory/purchase-orders/${formData.get('order_id')}/report-issue/`, {
+        const orderId = formData.get('order_id');
+        const url = '/inventory/purchase-orders/' + orderId + '/report-issue/';
+
+        window.fetch(url, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCookie('csrftoken'),
             },
-            body: formData
+            body: formData,
+            credentials: 'same-origin'
         })
-            .then(response => response.json())
-            .then(data => {
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
                 if (data.success) {
                     bootstrap.Modal.getInstance(document.getElementById('issueReportModal')).hide();
                     showWarningMessage('Issue reported successfully. Supplier has been notified.');
-                    setTimeout(() => location.reload(), 1500);
+                    setTimeout(function() { location.reload(); }, 1500);
                 } else {
                     alert('Error: ' + data.message);
                 }
             })
-            .catch(error => {
+            .catch(function(error) {
                 console.error('Error reporting issue:', error);
                 alert('Unable to report issue. Please try again.');
             });

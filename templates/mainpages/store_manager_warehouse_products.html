@@ -225,8 +225,8 @@
                 <form method="get" class="row g-3">
                     <div class="col-md-4">
                         <label for="search" class="form-label">Search Products</label>
-                        <input type="text" class="form-control" id="search" name="search" 
-                               value="{{ search_query }}" placeholder="Product name, description, supplier...">
+                        <input type="text" class="form-control" id="search" name="search"
+                               value="{{ search_query }}" placeholder="Product name, category, supplier, SKU...">
                     </div>
                     <div class="col-md-3">
                         <label for="category" class="form-label">Category</label>
@@ -293,8 +293,8 @@
                                     <td>
                                         <div>
                                             <strong>{{ product.product_name }}</strong>
-                                            {% if product.description %}
-                                            <br><small class="text-muted">{{ product.description|truncatechars:50 }}</small>
+                                            {% if product.sku %}
+                                            <br><small class="text-muted">SKU: {{ product.sku }}</small>
                                             {% endif %}
                                         </div>
                                     </td>

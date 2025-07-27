@@ -783,7 +783,20 @@ class PurchaseOrderListView(LoginRequiredMixin, StoreOwnerMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        queryset = PurchaseOrder.objects.all().select_related('supplier').order_by('-order_date')
+        queryset = PurchaseOrder.objects.all().select_related('supplier', 'created_by').prefetch_related('items__warehouse_product')
+
+        # Search functionality
+        search_query = self.request.GET.get('search', '').strip()
+        if search_query:
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(order_number__icontains=search_query) |
+                Q(supplier__name__icontains=search_query) |
+                Q(supplier__contact_person__icontains=search_query) |
+                Q(payment_reference__icontains=search_query) |
+                Q(tracking_number__icontains=search_query) |
+                Q(notes__icontains=search_query)
+            )
 
         # Filter by status
         status = self.request.GET.get('status')
@@ -795,20 +808,86 @@ class PurchaseOrderListView(LoginRequiredMixin, StoreOwnerMixin, ListView):
         if supplier_id:
             queryset = queryset.filter(supplier_id=supplier_id)
 
+        # Date range filtering
+        date_from = self.request.GET.get('date_from')
+        date_to = self.request.GET.get('date_to')
+        if date_from:
+            try:
+                from datetime import datetime
+                date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+                queryset = queryset.filter(order_date__gte=date_from_obj)
+            except ValueError:
+                pass
+        if date_to:
+            try:
+                from datetime import datetime
+                date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
+                queryset = queryset.filter(order_date__lte=date_to_obj)
+            except ValueError:
+                pass
+
+        # Amount range filtering
+        amount_min = self.request.GET.get('amount_min')
+        amount_max = self.request.GET.get('amount_max')
+        if amount_min:
+            try:
+                queryset = queryset.filter(total_amount__gte=float(amount_min))
+            except ValueError:
+                pass
+        if amount_max:
+            try:
+                queryset = queryset.filter(total_amount__lte=float(amount_max))
+            except ValueError:
+                pass
+
+        # Sorting
+        sort_by = self.request.GET.get('sort', '-order_date')
+        valid_sorts = [
+            'order_date', '-order_date',
+            'total_amount', '-total_amount',
+            'supplier__name', '-supplier__name',
+            'status', '-status',
+            'expected_delivery_date', '-expected_delivery_date'
+        ]
+        if sort_by in valid_sorts:
+            queryset = queryset.order_by(sort_by)
+        else:
+            queryset = queryset.order_by('-order_date')
+
         return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['status_choices'] = PurchaseOrder.STATUS_CHOICES
-        context['suppliers'] = Supplier.objects.filter(is_active=True)
+        context['suppliers'] = Supplier.objects.filter(is_active=True).order_by('name')
+
+        # Add selected filter values to maintain state
         context['selected_status'] = self.request.GET.get('status', '')
         context['selected_supplier'] = self.request.GET.get('supplier', '')
+        context['search_query'] = self.request.GET.get('search', '')
+        context['date_from'] = self.request.GET.get('date_from', '')
+        context['date_to'] = self.request.GET.get('date_to', '')
+        context['amount_min'] = self.request.GET.get('amount_min', '')
+        context['amount_max'] = self.request.GET.get('amount_max', '')
+        context['current_sort'] = self.request.GET.get('sort', '-order_date')
 
-        # Statistics
-        context['total_orders'] = PurchaseOrder.objects.count()
-        context['pending_orders'] = PurchaseOrder.objects.filter(status='initial').count()
-        context['approved_orders'] = PurchaseOrder.objects.filter(status='payment_confirmed').count()
-        context['delivered_orders'] = PurchaseOrder.objects.filter(status='delivered').count()
+        # Enhanced Statistics
+        all_orders = PurchaseOrder.objects.all()
+        context['total_orders'] = all_orders.count()
+        context['pending_orders'] = all_orders.filter(status='payment_pending').count()
+        context['confirmed_orders'] = all_orders.filter(status='payment_confirmed').count()
+        context['in_transit_orders'] = all_orders.filter(status='in_transit').count()
+        context['delivered_orders'] = all_orders.filter(status='delivered').count()
+        context['issue_orders'] = all_orders.filter(status='issue_reported').count()
+
+        # Financial statistics
+        from django.db.models import Sum
+        context['total_value'] = all_orders.aggregate(total=Sum('total_amount'))['total'] or 0
+        context['pending_value'] = all_orders.filter(status='payment_pending').aggregate(total=Sum('total_amount'))['total'] or 0
+        context['delivered_value'] = all_orders.filter(status='delivered').aggregate(total=Sum('total_amount'))['total'] or 0
+
+        # Filter result count
+        context['filtered_count'] = context['purchase_orders'].count() if hasattr(context['purchase_orders'], 'count') else len(context['purchase_orders'])
 
         # Prepare orders data as JSON for JavaScript access (to avoid API authentication issues)
         import json

@@ -28,6 +28,12 @@ from .views import (
     transaction_history,
     # Sales report
     store_sales_report,
+    # PDF export
+    export_store_report,
+    # Stock threshold update
+    update_stock_threshold,
+    # Warehouse products view
+    store_manager_warehouse_products,
     # First login password change
     first_login_password_change
 )
@@ -71,6 +77,9 @@ urlpatterns = [
     path('store-manager/transfer-requests/', store_manager_transfer_requests, name='store_manager_transfer_requests'),
     path('store-manager/stock-management/', store_manager_stock_management, name='store_manager_stock_management'),
     path('store-manager/sales-report/', store_sales_report, name='store_sales_report'),
+    path('store-manager/export-report/', export_store_report, name='export_store_report'),
+    path('store-manager/update-threshold/', update_stock_threshold, name='update_stock_threshold'),
+    path('store-manager/warehouse-products/', store_manager_warehouse_products, name='store_manager_warehouse_products'),
 
     # API endpoints for product dropdowns
     path('api/restock-products/', get_restock_products, name='get_restock_products'),

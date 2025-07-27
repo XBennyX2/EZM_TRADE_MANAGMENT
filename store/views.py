@@ -2805,3 +2805,67 @@ def store_manager_stock_detail(request, stock_id):
     }
 
     return render(request, 'store/store_manager_stock_detail.html', context)
+
+
+@login_required
+def store_transactions_list(request):
+    """
+    Store manager view for all store transactions with pagination and filtering
+    """
+    if request.user.role != 'store_manager':
+        messages.warning(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
+    try:
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, "You are not assigned to manage any store.")
+        return redirect('store_manager_page')
+
+    # Get period from request (default to 30 days)
+    period = request.GET.get('period', '30')
+
+    from datetime import timedelta
+    from django.utils import timezone
+    from django.core.paginator import Paginator
+
+    # Calculate date ranges
+    now = timezone.now()
+    if period == '7':
+        start_date = now - timedelta(days=7)
+    elif period == '30':
+        start_date = now - timedelta(days=30)
+    elif period == '90':
+        start_date = now - timedelta(days=90)
+    elif period == '365':
+        start_date = now - timedelta(days=365)
+    else:
+        start_date = now - timedelta(days=30)
+
+    # Get all transactions for the store in the period
+    transactions = Transaction.objects.filter(
+        store=store,
+        timestamp__gte=start_date
+    ).select_related('cashier').order_by('-timestamp')
+
+    # Pagination
+    paginator = Paginator(transactions, 25)  # Show 25 transactions per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Calculate summary
+    total_revenue = transactions.aggregate(
+        total=models.Sum('total_amount')
+    )['total'] or 0
+
+    context = {
+        'store': store,
+        'page_obj': page_obj,
+        'period': period,
+        'start_date': start_date,
+        'end_date': now,
+        'total_revenue': total_revenue,
+        'total_transactions': transactions.count(),
+    }
+
+    return render(request, 'store/store_transactions_list.html', context)

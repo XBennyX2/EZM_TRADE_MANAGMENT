@@ -99,15 +99,27 @@
         </a>
     </li>
     <li class="sidebar-menu-item">
-        <a href="{% url 'stock_list' %}" data-tooltip="Stock Management">
+        <a href="{% url 'store_manager_stock_management' %}" data-tooltip="Stock Management">
             <i class="bi bi-boxes"></i>
             <span>Stock Management</span>
         </a>
     </li>
     <li class="sidebar-menu-item">
-        <a href="{% url 'stock_alerts_dashboard' %}" data-tooltip="Stock Alerts">
+        <a href="{% url 'stock_alerts_dashboard' %}" data-tooltip="Stock Alerts Dashboard">
             <i class="bi bi-exclamation-triangle"></i>
             <span>Stock Alerts</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'stock_alerts_dashboard' %}?filter=low_stock" data-tooltip="Manage Low Stocks">
+            <i class="bi bi-exclamation-circle"></i>
+            <span>Manage Low Stocks</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'stock_alerts_dashboard' %}?filter=out_of_stock" data-tooltip="Out of Stock Items">
+            <i class="bi bi-x-circle"></i>
+            <span>Out of Stock</span>
         </a>
     </li>
     <li class="sidebar-menu-item">
@@ -126,6 +138,18 @@
         <a href="{% url 'store_manager_transfer_requests' %}" data-tooltip="Transfer Requests">
             <i class="bi bi-arrow-left-right"></i>
             <span>Transfer Requests</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'store_sales_report' %}" data-tooltip="Sales Reports">
+            <i class="bi bi-graph-up"></i>
+            <span>Sales Reports</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'store_manager_stock_management' %}" data-tooltip="Stock Management">
+            <i class="bi bi-clipboard-data"></i>
+            <span>Stock Operations</span>
         </a>
     </li>
 </ul>
@@ -176,3 +200,40 @@
     </li>
 </ul>
 {% endif %}
+
+<!-- JavaScript for active sidebar highlighting -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Get current URL path
+    const currentPath = window.location.pathname;
+
+    // Find all sidebar menu links
+    const sidebarLinks = document.querySelectorAll('.sidebar-menu-item a');
+
+    // Remove any existing active classes
+    sidebarLinks.forEach(link => {
+        link.classList.remove('active');
+        link.parentElement.classList.remove('active');
+    });
+
+    // Find and highlight the current page link
+    sidebarLinks.forEach(link => {
+        const linkPath = new URL(link.href).pathname;
+
+        // Exact match or if current path starts with link path (for sub-pages)
+        if (currentPath === linkPath || (linkPath !== '/' && currentPath.startsWith(linkPath))) {
+            link.classList.add('active');
+            link.parentElement.classList.add('active');
+        }
+    });
+
+    // Special handling for dashboard pages
+    if (currentPath.includes('/store-manager/') && !document.querySelector('.sidebar-menu-item.active')) {
+        const dashboardLink = document.querySelector('a[href*="store-manager"]');
+        if (dashboardLink) {
+            dashboardLink.classList.add('active');
+            dashboardLink.parentElement.classList.add('active');
+        }
+    }
+});
+</script>

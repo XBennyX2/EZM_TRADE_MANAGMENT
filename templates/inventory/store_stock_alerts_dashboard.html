@@ -2,10 +2,22 @@
 {% load static %}
 
 {% block title %}Stock Alerts - {{ store.name }}{% endblock %}
-{% block page_title %}Stock Alerts{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
 
 {% block extra_css %}
 <style>
+  :root {
+    --primary-dark: #0B0C10;
+    --secondary-dark: #1F2833;
+    --light-gray: #C5C6C7;
+    --accent-cyan: #66FCF1;
+    --accent-teal: #45A29E;
+    --white: #ffffff;
+  }
+
   .stats-card {
     background: var(--white);
     border-radius: 12px;
@@ -127,6 +139,15 @@
 {% endblock %}
 
 {% block content %}
+<!-- Hidden restock request form -->
+<form id="restockRequestForm" method="post" action="{% url 'submit_restock_request' %}" style="display: none;">
+  {% csrf_token %}
+  <input type="hidden" id="restock_product_id" name="product_id">
+  <input type="hidden" id="restock_quantity" name="requested_quantity" value="50">
+  <input type="hidden" name="priority" value="medium">
+  <input type="hidden" name="reason" value="Low stock alert - requested from stock alerts dashboard">
+</form>
+
 <div class="container-fluid">
   <!-- Header -->
   <div class="d-flex justify-content-between align-items-center mb-4">
@@ -138,8 +159,8 @@
       <p class="text-muted mb-0">Monitor and manage low stock alerts for your store</p>
     </div>
     <div class="d-flex gap-2">
-      <a href="{% url 'stock_list' %}" class="btn btn-ezm-secondary">
-        <i class="bi bi-boxes me-1"></i>Full Stock List
+      <a href="{% url 'store_manager_stock_management' %}" class="btn btn-ezm-secondary">
+        <i class="bi bi-boxes me-1"></i>Stock Management
       </a>
       <a href="{% url 'store_manager_page' %}" class="btn btn-ezm-primary">
         <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
@@ -171,6 +192,37 @@
       <div class="stats-card">
         <div class="stats-number">{{ page_obj.paginator.count }}</div>
         <div class="stats-label">Total Alerts</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Filter Buttons -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="ezm-card">
+        <div class="card-body">
+          <h6 class="mb-3">
+            <i class="bi bi-funnel me-2"></i>Quick Filters
+          </h6>
+          <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'stock_alerts_dashboard' %}"
+               class="btn {% if not filter_type %}btn-ezm-primary{% else %}btn-outline-secondary{% endif %}">
+              <i class="bi bi-list me-1"></i>All Alerts
+            </a>
+            <a href="{% url 'stock_alerts_dashboard' %}?filter=low_stock"
+               class="btn {% if filter_type == 'low_stock' %}btn-warning{% else %}btn-outline-warning{% endif %}">
+              <i class="bi bi-exclamation-triangle me-1"></i>Low Stock Only
+            </a>
+            <a href="{% url 'stock_alerts_dashboard' %}?filter=out_of_stock"
+               class="btn {% if filter_type == 'out_of_stock' %}btn-danger{% else %}btn-outline-danger{% endif %}">
+              <i class="bi bi-x-circle me-1"></i>Out of Stock
+            </a>
+            <a href="{% url 'stock_alerts_dashboard' %}?filter=critical"
+               class="btn {% if filter_type == 'critical' %}btn-danger{% else %}btn-outline-danger{% endif %}">
+              <i class="bi bi-exclamation-circle me-1"></i>Critical (≤5)
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -258,10 +310,7 @@
               </td>
               <td>
                 <div class="d-flex gap-1">
-                  <a href="{% url 'stock_detail' stock.id %}" class="btn btn-sm btn-ezm-primary">
-                    <i class="bi bi-eye me-1"></i>Details
-                  </a>
-                  <button class="btn btn-sm btn-ezm-secondary" 
+                  <button class="btn btn-sm btn-ezm-secondary"
                           onclick="requestRestock({{ stock.product.id }}, '{{ stock.product.name|escapejs }}')">
                     <i class="bi bi-arrow-up-circle me-1"></i>Restock
                   </button>
@@ -311,8 +360,8 @@
         <i class="bi bi-check-circle text-success fs-1 mb-3"></i>
         <h4 class="text-success">All Stock Levels Good!</h4>
         <p class="text-muted">No products are currently below their stock thresholds.</p>
-        <a href="{% url 'stock_list' %}" class="btn btn-ezm-primary">
-          <i class="bi bi-boxes me-1"></i>View All Stock
+        <a href="{% url 'store_manager_stock_management' %}" class="btn btn-ezm-primary">
+          <i class="bi bi-boxes me-1"></i>Stock Management
         </a>
       </div>
       {% endif %}
@@ -322,50 +371,17 @@
 
 <script>
 function requestRestock(productId, productName) {
-  if (confirm('Request restock for ' + productName + '?\n\nThis will redirect you to the restock request page.')) {
-    // Create a form and submit it to the restock request endpoint
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '{% url "submit_restock_request" %}';
-    
-    // Add CSRF token
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
-    if (csrfToken) {
-      const csrfInput = document.createElement('input');
-      csrfInput.type = 'hidden';
-      csrfInput.name = 'csrfmiddlewaretoken';
-      csrfInput.value = csrfToken.value;
-      form.appendChild(csrfInput);
+  if (confirm('Request restock for ' + productName + '?\n\nThis will submit a restock request with default quantity of 50 units.')) {
+    // Use the existing hidden form
+    const form = document.getElementById('restockRequestForm');
+    const productIdInput = document.getElementById('restock_product_id');
+
+    if (form && productIdInput) {
+      productIdInput.value = productId;
+      form.submit();
+    } else {
+      alert('Form not found. Please refresh the page and try again.');
     }
-    
-    // Add product ID
-    const productInput = document.createElement('input');
-    productInput.type = 'hidden';
-    productInput.name = 'product_id';
-    productInput.value = productId;
-    form.appendChild(productInput);
-    
-    // Add default values
-    const quantityInput = document.createElement('input');
-    quantityInput.type = 'hidden';
-    quantityInput.name = 'quantity';
-    quantityInput.value = '50'; // Default quantity
-    form.appendChild(quantityInput);
-    
-    const priorityInput = document.createElement('input');
-    priorityInput.type = 'hidden';
-    priorityInput.name = 'priority';
-    priorityInput.value = 'medium';
-    form.appendChild(priorityInput);
-    
-    const notesInput = document.createElement('input');
-    notesInput.type = 'hidden';
-    notesInput.name = 'notes';
-    notesInput.value = 'Quick restock request from stock alerts dashboard';
-    form.appendChild(notesInput);
-    
-    document.body.appendChild(form);
-    form.submit();
   }
 }
 </script>

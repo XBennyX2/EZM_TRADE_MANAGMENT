@@ -59,4 +59,5 @@ urlpatterns = [
 
     # Store Manager Stock Management URLs
     path('stock-detail/<int:stock_id>/', views.store_manager_stock_detail, name='stock_detail'),
+    path('transactions/', views.store_transactions_list, name='store_transactions_list'),
 ]

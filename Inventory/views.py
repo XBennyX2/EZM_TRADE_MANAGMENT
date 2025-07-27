@@ -193,53 +193,7 @@ def product_toggle_status(request, pk):
 
 # --- Stock Views (Inventory Management) ---
 
-class StockListView(LoginRequiredMixin, ListView):
-    model = Stock
-    template_name = 'inventory/stock_list.html'
-    context_object_name = 'stock_levels'
-
-    def get_queryset(self):
-        """
-        Overrides the default queryset to filter stock based on user role and the correct models.
-        """
-        user = self.request.user
-        
-        if user.role == 'head_manager':
-            return Stock.objects.all().select_related('product', 'store')
-        
-        elif user.role == 'store_manager':
-            # Get the store manager's store - handle both relationship patterns
-            user_store = None
-
-            # Try the OneToOneField relationship first (store_manager -> managed_store)
-            if hasattr(user, 'managed_store') and user.managed_store:
-                user_store = user.managed_store
-            # Fallback to ForeignKey relationship (user -> store)
-            elif hasattr(user, 'store') and user.store:
-                user_store = user.store
-
-            if user_store:
-                return Stock.objects.filter(store=user_store).select_related('product', 'store')
-
-        elif user.role == 'cashier':
-            # For cashiers, use the ForeignKey relationship (user -> store)
-            if hasattr(user, 'store') and user.store:
-                return Stock.objects.filter(store=user.store).select_related('product', 'store')
-        
-        # Return an empty list if the user has no role or assigned store
-        return Stock.objects.none()
-    
-    # Low stock alerts
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        low_stock_items = self.get_queryset().filter(quantity__lt=models.F('low_stock_threshold'))
-
-        if self.request.user.role == 'store_manager':
-            context['low_stock_alerts'] = low_stock_items
-            if low_stock_items.exists():
-                messages.warning(self.request, f" You have {low_stock_items.count()} product(s) below the low stock threshold!")
-
-        return context
+# StockListView removed - use store manager stock management instead
 
 class StockCreateView(LoginRequiredMixin, ManagerOnlyMixin, CreateView):
     model = Stock

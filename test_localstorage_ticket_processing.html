@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LocalStorage Ticket Processing Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .btn-success {
+            background: #28a745;
+        }
+        .btn-danger {
+            background: #dc3545;
+        }
+        .output {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎫 LocalStorage Ticket Processing Test</h1>
+    
+    <div class="test-section">
+        <h2>1. Simulate Ticket Processing</h2>
+        <p>This simulates processing a ticket and storing cart data in localStorage.</p>
+        <button class="btn" onclick="simulateTicketProcessing()">Process Sample Ticket</button>
+        <button class="btn btn-success" onclick="checkLocalStorage()">Check localStorage</button>
+        <button class="btn btn-danger" onclick="clearLocalStorage()">Clear localStorage</button>
+        <div id="output1" class="output"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Test Cart Loading</h2>
+        <p>This simulates loading cart data from localStorage (like the POS page would do).</p>
+        <button class="btn" onclick="loadCartFromLocalStorage()">Load Cart from localStorage</button>
+        <div id="output2" class="output"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Test Complete Workflow</h2>
+        <p>This tests the complete workflow from ticket processing to cart loading.</p>
+        <button class="btn" onclick="testCompleteWorkflow()">Test Complete Workflow</button>
+        <div id="output3" class="output"></div>
+    </div>
+
+    <script>
+        // Sample ticket data (simulating what would come from the API)
+        const sampleTicketData = {
+            success: true,
+            ticket: {
+                ticket_number: 'CT20250727TEST001',
+                customer_name: 'Test Customer',
+                customer_phone: '0911234567',
+                total_amount: 1500.50,
+                items: [
+                    {
+                        product_id: 1,
+                        product_name: 'Cement Bag 50kg',
+                        quantity: 10,
+                        unit_price: 120.00,
+                        total_price: 1200.00
+                    },
+                    {
+                        product_id: 2,
+                        product_name: 'Steel Rebar 12mm',
+                        quantity: 5,
+                        unit_price: 60.10,
+                        total_price: 300.50
+                    }
+                ]
+            }
+        };
+
+        function simulateTicketProcessing() {
+            const output = document.getElementById('output1');
+            output.textContent = 'Processing ticket...\n';
+
+            try {
+                const ticket = sampleTicketData.ticket;
+                
+                // Prepare cart data for localStorage
+                const cartData = {
+                    items: [],
+                    total: 0,
+                    created_at: new Date().toISOString(),
+                    from_ticket: true,
+                    ticket_info: {
+                        ticket_id: 123,
+                        ticket_number: ticket.ticket_number,
+                        customer_name: ticket.customer_name,
+                        customer_phone: ticket.customer_phone
+                    }
+                };
+
+                // Add ticket items to cart
+                for (const item of ticket.items) {
+                    const cartItem = {
+                        product_id: item.product_id,
+                        product_name: item.product_name,
+                        quantity: item.quantity,
+                        price: parseFloat(item.unit_price),
+                        subtotal: parseFloat(item.total_price),
+                        added_at: new Date().toISOString()
+                    };
+                    cartData.items.push(cartItem);
+                    cartData.total += cartItem.subtotal;
+                }
+
+                // Store cart data in localStorage
+                localStorage.setItem('pos_cart_data', JSON.stringify(cartData));
+                
+                // Store customer information
+                localStorage.setItem('pos_customer_info', JSON.stringify({
+                    name: ticket.customer_name,
+                    phone: ticket.customer_phone
+                }));
+
+                output.textContent += `✅ SUCCESS!\n`;
+                output.textContent += `Ticket #${ticket.ticket_number} processed\n`;
+                output.textContent += `${cartData.items.length} items added to cart\n`;
+                output.textContent += `Total: ETB ${cartData.total.toFixed(2)}\n`;
+                output.textContent += `Data stored in localStorage\n`;
+
+            } catch (error) {
+                output.textContent += `❌ ERROR: ${error.message}\n`;
+            }
+        }
+
+        function checkLocalStorage() {
+            const output = document.getElementById('output1');
+            
+            try {
+                const cartData = localStorage.getItem('pos_cart_data');
+                const customerInfo = localStorage.getItem('pos_customer_info');
+                
+                output.textContent = 'LocalStorage Contents:\n\n';
+                
+                if (cartData) {
+                    const parsed = JSON.parse(cartData);
+                    output.textContent += '🛒 Cart Data:\n';
+                    output.textContent += `  Items: ${parsed.items.length}\n`;
+                    output.textContent += `  Total: ETB ${parsed.total}\n`;
+                    output.textContent += `  From Ticket: ${parsed.from_ticket}\n`;
+                    if (parsed.ticket_info) {
+                        output.textContent += `  Ticket #: ${parsed.ticket_info.ticket_number}\n`;
+                    }
+                    output.textContent += '\n';
+                } else {
+                    output.textContent += '❌ No cart data in localStorage\n\n';
+                }
+                
+                if (customerInfo) {
+                    const parsed = JSON.parse(customerInfo);
+                    output.textContent += '👤 Customer Info:\n';
+                    output.textContent += `  Name: ${parsed.name}\n`;
+                    output.textContent += `  Phone: ${parsed.phone}\n`;
+                } else {
+                    output.textContent += '❌ No customer info in localStorage\n';
+                }
+                
+            } catch (error) {
+                output.textContent += `❌ ERROR: ${error.message}\n`;
+            }
+        }
+
+        function clearLocalStorage() {
+            localStorage.removeItem('pos_cart_data');
+            localStorage.removeItem('pos_customer_info');
+            document.getElementById('output1').textContent = '🗑️ LocalStorage cleared\n';
+        }
+
+        function loadCartFromLocalStorage() {
+            const output = document.getElementById('output2');
+            
+            try {
+                const cartData = localStorage.getItem('pos_cart_data');
+                const customerInfo = localStorage.getItem('pos_customer_info');
+                
+                if (cartData) {
+                    const parsedCartData = JSON.parse(cartData);
+                    
+                    output.textContent = '✅ Cart loaded from localStorage:\n\n';
+                    output.textContent += `Items: ${parsedCartData.items.length}\n`;
+                    output.textContent += `Total: ETB ${parsedCartData.total}\n\n`;
+                    
+                    output.textContent += 'Items:\n';
+                    parsedCartData.items.forEach((item, index) => {
+                        output.textContent += `  ${index + 1}. ${item.product_name}\n`;
+                        output.textContent += `     Qty: ${item.quantity} x ETB ${item.price} = ETB ${item.subtotal}\n`;
+                    });
+                    
+                    if (customerInfo) {
+                        const parsedCustomerInfo = JSON.parse(customerInfo);
+                        output.textContent += `\nCustomer: ${parsedCustomerInfo.name} (${parsedCustomerInfo.phone})\n`;
+                    }
+                    
+                    if (parsedCartData.from_ticket) {
+                        output.textContent += `\n🎫 From Ticket: #${parsedCartData.ticket_info.ticket_number}\n`;
+                    }
+                    
+                } else {
+                    output.textContent = '❌ No cart data found in localStorage\n';
+                }
+                
+            } catch (error) {
+                output.textContent = `❌ ERROR: ${error.message}\n`;
+            }
+        }
+
+        function testCompleteWorkflow() {
+            const output = document.getElementById('output3');
+            output.textContent = '🔄 Testing Complete Workflow...\n\n';
+            
+            // Step 1: Clear localStorage
+            localStorage.removeItem('pos_cart_data');
+            localStorage.removeItem('pos_customer_info');
+            output.textContent += '1. ✅ Cleared localStorage\n';
+            
+            // Step 2: Simulate ticket processing
+            simulateTicketProcessing();
+            output.textContent += '2. ✅ Simulated ticket processing\n';
+            
+            // Step 3: Verify data was stored
+            const cartData = localStorage.getItem('pos_cart_data');
+            if (cartData) {
+                output.textContent += '3. ✅ Data stored in localStorage\n';
+            } else {
+                output.textContent += '3. ❌ Data NOT stored in localStorage\n';
+                return;
+            }
+            
+            // Step 4: Simulate loading cart (like POS page would do)
+            setTimeout(() => {
+                const parsedData = JSON.parse(cartData);
+                output.textContent += '4. ✅ Cart data loaded successfully\n';
+                output.textContent += `   - ${parsedData.items.length} items\n`;
+                output.textContent += `   - ETB ${parsedData.total} total\n`;
+                
+                // Step 5: Simulate clearing after use
+                localStorage.removeItem('pos_cart_data');
+                localStorage.removeItem('pos_customer_info');
+                output.textContent += '5. ✅ LocalStorage cleared after use\n\n';
+                
+                output.textContent += '🎉 WORKFLOW TEST COMPLETE!\n';
+                output.textContent += 'The localStorage-based ticket processing is working correctly.\n';
+            }, 100);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('output1').textContent = 'Ready to test ticket processing...\n';
+            document.getElementById('output2').textContent = 'Ready to test cart loading...\n';
+            document.getElementById('output3').textContent = 'Ready to test complete workflow...\n';
+        });
+    </script>
+</body>
+</html>

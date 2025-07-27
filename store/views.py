@@ -504,7 +504,7 @@ def process_single_sale(request):
 @login_required
 def initiate_order(request):
     """
-    Unified cashier interface - combines order initiation with customer tickets
+    Cashier Point of Sale interface - focused on order processing only
     """
     if request.user.role != 'cashier':
         messages.error(request, "Access denied. Cashier role required.")
@@ -537,27 +537,71 @@ def initiate_order(request):
     # Get ticket information if this order is from a ticket
     ticket_info = request.session.get('ticket_info', {})
 
-    # Customer Tickets functionality (from cashier dashboard)
+    cart = request.session.get('cart', {})
+    print(f"DEBUG: initiate_order view - cart from session: {cart}")
+
+    context = {
+        'available_products': list(available_products),
+        'cart': cart,
+        'store': request.user.store,
+        'ticket_info': ticket_info,
+    }
+
+    return render(request, 'store/initiate_order.html', context)
+
+
+@login_required
+def ticket_management(request):
+    """
+    Dedicated ticket management interface for cashiers
+    """
+    if request.user.role != 'cashier':
+        messages.error(request, "Access denied. Cashier role required.")
+        return redirect('login')
+
+    if not request.user.store:
+        messages.error(request, "You are not assigned to any store. Contact your manager.")
+        return redirect('cashier_page')
+
+    # Customer Tickets functionality
     from webfront.models import CustomerTicket
 
     # Get search parameters
-    phone_search = request.GET.get('phone', '').strip()
-    status_filter = request.GET.get('status', '')
+    search_query = request.GET.get('search', '').strip()  # Combined search for phone and ticket number
+    phone_search = request.GET.get('phone', '').strip()  # Keep for backward compatibility
+    status_filter = request.GET.get('status', '')  # Show all statuses by default
     sort_order = request.GET.get('sort', 'newest')
 
-    # Base queryset for tickets
+    # Use search_query if provided, otherwise fall back to phone_search
+    if search_query:
+        phone_search = search_query
+
+    # Base queryset for tickets - only show pending and completed tickets
     tickets_queryset = CustomerTicket.objects.filter(
-        store=request.user.store
+        store=request.user.store,
+        status__in=['pending', 'completed']
     ).select_related('store', 'confirmed_by').prefetch_related('items__product')
 
-    # Apply phone search filter
+    # Apply search filter - enhanced to search both phone and ticket number
     if phone_search:
-        # Remove any non-digit characters for flexible search
-        phone_digits = ''.join(filter(str.isdigit, phone_search))
-        if phone_digits:
-            tickets_queryset = tickets_queryset.filter(
-                customer_phone__icontains=phone_digits
-            )
+        # Check if search looks like a ticket number (starts with CT and contains letters/numbers)
+        if phone_search.upper().startswith('CT') and len(phone_search) > 2:
+            # Search by ticket number
+            tickets_queryset = tickets_queryset.filter(ticket_number__icontains=phone_search.upper())
+        else:
+            # Search by phone number
+            # Remove any non-digit characters for flexible search
+            phone_digits = ''.join(filter(str.isdigit, phone_search))
+            if phone_digits:
+                tickets_queryset = tickets_queryset.filter(
+                    customer_phone__icontains=phone_digits
+                )
+            else:
+                # If no digits found, search in both phone and ticket number fields
+                tickets_queryset = tickets_queryset.filter(
+                    models.Q(customer_phone__icontains=phone_search) |
+                    models.Q(ticket_number__icontains=phone_search.upper())
+                )
 
     # Apply status filter
     if status_filter:
@@ -616,22 +660,26 @@ def initiate_order(request):
             'status_icon': status_icons.get(ticket.status, 'bi-question-circle')
         })
 
-    # Count pending tickets
+    # Count tickets by status (only pending and completed)
     pending_count = CustomerTicket.objects.filter(
         store=request.user.store,
-        status__in=['pending', 'confirmed']
+        status='pending'
     ).count()
 
-    cart = request.session.get('cart', {})
+    completed_count = CustomerTicket.objects.filter(
+        store=request.user.store,
+        status='completed'
+    ).count()
+
+    total_count = pending_count + completed_count
+
     context = {
-        'available_products': list(available_products),
-        'cart': cart,
-        'store': request.user.store,
-        'ticket_info': ticket_info,
-        # Ticket data
         'tickets': tickets,
         'pending_count': pending_count,
-        'phone_search': phone_search,
+        'completed_count': completed_count,
+        'total_count': total_count,
+        'search_query': search_query,  # New combined search field
+        'phone_search': phone_search,  # Keep for backward compatibility
         'status_filter': status_filter,
         'sort_order': sort_order,
         'status_choices': CustomerTicket.STATUS_CHOICES,
@@ -641,9 +689,106 @@ def initiate_order(request):
             ('status', 'By Status'),
             ('amount', 'By Amount'),
         ],
+        'store': request.user.store,
     }
 
-    return render(request, 'store/initiate_order.html', context)
+    return render(request, 'store/ticket_management.html', context)
+
+
+@login_required
+def process_ticket(request, ticket_id):
+    """
+    Process a ticket by loading its data into the cart and redirecting to initiate-order
+    """
+    if request.user.role != 'cashier':
+        messages.error(request, 'Unauthorized access.')
+        return redirect('ticket_management')
+
+    if not request.user.store:
+        messages.error(request, 'You are not assigned to any store.')
+        return redirect('ticket_management')
+
+    try:
+        from webfront.models import CustomerTicket
+
+        # Get the ticket by ID
+        ticket = CustomerTicket.objects.get(
+            id=ticket_id,
+            store=request.user.store
+        )
+
+        # Check if ticket can be processed
+        if ticket.status in ['completed', 'cancelled']:
+            messages.warning(request, f'Ticket #{ticket.ticket_number} cannot be processed as it is already {ticket.status}.')
+            return redirect('ticket_management')
+
+        # Clear existing cart
+        request.session['cart'] = {
+            'items': [],
+            'total': 0,
+            'created_at': timezone.now().isoformat(),
+            'cashier_id': request.user.id,
+            'store_id': request.user.store.id
+        }
+
+        # Load ticket items into cart
+        cart_items = []
+        cart_total = 0
+
+        for ticket_item in ticket.items.all():
+            # Get current stock for this product
+            try:
+                stock = Stock.objects.get(
+                    product=ticket_item.product,
+                    store=request.user.store
+                )
+
+                # Check if we have enough stock
+                if stock.quantity >= ticket_item.quantity:
+                    cart_item = {
+                        'product_id': ticket_item.product.id,
+                        'product_name': ticket_item.product.name,
+                        'quantity': ticket_item.quantity,
+                        'price': float(ticket_item.unit_price),  # JavaScript expects 'price' not 'unit_price'
+                        'subtotal': float(ticket_item.total_price),  # JavaScript expects 'subtotal' not 'total_price'
+                        'added_at': timezone.now().isoformat()
+                    }
+                    cart_items.append(cart_item)
+                    cart_total += float(ticket_item.total_price)
+                else:
+                    messages.warning(request, f'Insufficient stock for {ticket_item.product.name}. Available: {stock.quantity}, Required: {ticket_item.quantity}')
+            except Stock.DoesNotExist:
+                messages.warning(request, f'Product {ticket_item.product.name} is not available in this store.')
+
+        # Update cart in session
+        request.session['cart']['items'] = cart_items
+        request.session['cart']['total'] = cart_total
+        request.session.modified = True
+
+        # Store ticket information for order completion
+        request.session['ticket_info'] = {
+            'from_ticket': True,
+            'ticket_id': ticket.id,
+            'ticket_number': ticket.ticket_number,
+            'customer_name': ticket.customer_name,
+            'customer_phone': ticket.customer_phone
+        }
+        request.session.modified = True
+
+        # Debug: Print cart contents
+        print(f"DEBUG: Cart loaded with {len(cart_items)} items, total: {cart_total}")
+        for item in cart_items:
+            print(f"DEBUG: Item - {item['product_name']}: {item['quantity']}x @ {item['price']} = {item['subtotal']}")
+
+        messages.success(request, f'Ticket #{ticket.ticket_number} loaded into cart. {len(cart_items)} items added.')
+        return redirect('initiate_order')
+
+    except CustomerTicket.DoesNotExist:
+        messages.error(request, f'Ticket not found.')
+        return redirect('ticket_management')
+    except Exception as e:
+        messages.error(request, f'Error processing ticket: {str(e)}')
+        return redirect('ticket_management')
 
 
 @login_required
@@ -777,19 +922,55 @@ def complete_order(request):
         customer_phone = data.get('customer_phone', '')
 
         cart = request.session.get('cart')
-        print(f"Cart data: {cart}")  # Debug log
-        if not cart or not cart.get('items'):
+        print(f"DEBUG - Cart data from session: {cart}")  # Debug log
+        print(f"DEBUG - Session keys: {list(request.session.keys())}")  # Debug log
+
+        if not cart:
+            print("DEBUG - No cart found in session")
+            return JsonResponse({'error': 'Cart not found in session'}, status=400)
+
+        if not cart.get('items'):
+            print("DEBUG - Cart has no items")
             return JsonResponse({'error': 'Cart is empty'}, status=400)
+
+        print(f"DEBUG - Cart has {len(cart['items'])} items")
+
+        # Validate cart items structure
+        for i, item in enumerate(cart['items']):
+            print(f"DEBUG - Item {i}: {item}")  # Debug log
+            if not all(key in item for key in ['product_id', 'quantity']):
+                return JsonResponse({'error': f'Invalid cart item structure at index {i}'}, status=400)
 
         with transaction.atomic():
             # Calculate totals - convert all to Decimal for consistency
             try:
-                subtotal = Decimal(str(sum(item['subtotal'] for item in cart['items'])))
+                # Handle different cart item structures (subtotal vs total_price)
+                cart_subtotal = 0
+                for item in cart['items']:
+                    # Try different field combinations
+                    if 'subtotal' in item:
+                        item_total = float(item['subtotal'])
+                    elif 'total_price' in item:
+                        item_total = float(item['total_price'])
+                    else:
+                        # Calculate from price and quantity
+                        price = float(item.get('price', 0) or item.get('unit_price', 0))
+                        quantity = int(item.get('quantity', 0))
+                        item_total = price * quantity
+
+                    cart_subtotal += item_total
+                    print(f"DEBUG - Item total: {item_total}, Running subtotal: {cart_subtotal}")  # Debug log
+
+                subtotal = Decimal(str(cart_subtotal))
                 discount_amount = subtotal * (Decimal(str(discount_percent)) / Decimal('100'))
                 taxable_amount = subtotal - discount_amount
                 tax_amount = taxable_amount * Decimal('0.15') if is_taxable else Decimal('0')
                 total_amount = taxable_amount + tax_amount
+
+                print(f"DEBUG - Final calculations: subtotal={subtotal}, total={total_amount}")  # Debug log
             except (ValueError, TypeError, KeyError) as calc_error:
+                print(f"DEBUG - Calculation error details: {calc_error}")  # Debug log
+                print(f"DEBUG - Cart items causing error: {cart['items']}")  # Debug log
                 return JsonResponse({'error': f'Calculation error: {str(calc_error)}'}, status=400)
 
             # Create main transaction
@@ -815,34 +996,60 @@ def complete_order(request):
 
             # Create order entries and update stock
             order_items = []
-            for item in cart['items']:
-                # Get stock and update quantity
-                stock = Stock.objects.select_for_update().get(
-                    product_id=item['product_id'],
-                    store=request.user.store
-                )
+            for i, item in enumerate(cart['items']):
+                try:
+                    print(f"DEBUG - Processing item {i}: {item}")  # Debug log
 
-                if stock.quantity < item['quantity']:
-                    raise ValueError(f"Insufficient stock for {item['product_name']}")
+                    # Validate required fields
+                    product_id = item.get('product_id')
+                    quantity = int(item.get('quantity', 0))
 
-                stock.quantity -= item['quantity']
-                stock.save()
+                    if not product_id or quantity <= 0:
+                        raise ValueError(f"Invalid product_id or quantity for item {i}")
 
-                # Create transaction order
-                order = TransactionOrder.objects.create(
-                    receipt=receipt,
-                    transaction=transaction_obj,
-                    product_id=item['product_id'],
-                    quantity=item['quantity'],
-                    price_at_time_of_sale=Decimal(str(item['price']))
-                )
+                    # Get stock and update quantity
+                    stock = Stock.objects.select_for_update().get(
+                        product_id=product_id,
+                        store=request.user.store
+                    )
 
-                order_items.append({
-                    'product_name': item['product_name'],
-                    'quantity': item['quantity'],
-                    'price': item['price'],
-                    'subtotal': item['subtotal']
-                })
+                    if stock.quantity < quantity:
+                        product_name = item.get('product_name', stock.product.name)
+                        raise ValueError(f"Insufficient stock for {product_name}. Available: {stock.quantity}, Requested: {quantity}")
+
+                    stock.quantity -= quantity
+                    stock.save()
+
+                    # Handle different price field names
+                    item_price = float(item.get('price', 0) or item.get('unit_price', 0))
+                    if item_price <= 0:
+                        # Fallback to product price if not in cart
+                        item_price = float(stock.product.price)
+
+                    item_subtotal = item.get('subtotal') or item.get('total_price') or (item_price * quantity)
+
+                    # Create transaction order
+                    order = TransactionOrder.objects.create(
+                        receipt=receipt,
+                        transaction=transaction_obj,
+                        product_id=product_id,
+                        quantity=quantity,
+                        price_at_time_of_sale=Decimal(str(item_price))
+                    )
+
+                    order_items.append({
+                        'product_name': item.get('product_name', stock.product.name),
+                        'quantity': quantity,
+                        'price': item_price,
+                        'subtotal': float(item_subtotal)
+                    })
+
+                    print(f"DEBUG - Successfully processed item {i}")  # Debug log
+
+                except Exception as item_error:
+                    print(f"DEBUG - Error processing item {i}: {item_error}")  # Debug log
+                    print(f"DEBUG - Item data: {item}")  # Debug log
+                    raise ValueError(f"Error processing item {i}: {str(item_error)}")
 
             # Create financial record
             FinancialRecord.objects.create(
@@ -2465,3 +2672,55 @@ def get_ticket_api(request, ticket_number):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+@login_required
+def save_cart_to_session(request):
+    """
+    Save cart data from localStorage to Django session
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
+
+    if request.user.role != 'cashier':
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+        cart_data = data.get('cart')
+
+        if cart_data:
+            request.session['cart'] = cart_data
+            request.session.modified = True
+            return JsonResponse({'success': True})
+        else:
+            return JsonResponse({'error': 'No cart data provided'}, status=400)
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def save_ticket_info_to_session(request):
+    """
+    Save ticket info from localStorage to Django session
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
+
+    if request.user.role != 'cashier':
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+        ticket_info = data.get('ticket_info')
+
+        if ticket_info:
+            request.session['ticket_info'] = ticket_info
+            request.session.modified = True
+            return JsonResponse({'success': True})
+        else:
+            return JsonResponse({'error': 'No ticket info provided'}, status=400)
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

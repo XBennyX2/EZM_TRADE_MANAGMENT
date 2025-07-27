@@ -62,7 +62,7 @@ class ProductListView(LoginRequiredMixin, ListView):
     model = Product
     template_name = 'inventory/product_list.html'
     context_object_name = 'products'
-    paginate_by = 12
+    paginate_by = 24  # Show 24 products per page instead of 12
 
     def get_queryset(self):
         queryset = super().get_queryset()

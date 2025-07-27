@@ -18,6 +18,7 @@ urlpatterns = [
 # Cashier Order System URLs
     path('process-single-sale/', views.process_single_sale, name='process_single_sale'),
     path('cashier/initiate-order/', views.initiate_order, name='initiate_order'),
+    path('cashier/ticket-management/', views.ticket_management, name='ticket_management'),
     path('cashier/add-to-cart/', views.add_to_cart, name='add_to_cart'),
     path('cashier/remove-from-cart/', views.remove_from_cart, name='remove_from_cart'),
     path('cashier/complete-order/', views.complete_order, name='complete_order'),
@@ -47,7 +48,12 @@ urlpatterns = [
     path('api/tickets/<str:ticket_number>/status/', views.api_ticket_update_status, name='api_ticket_update_status'),
     path('api/tickets/<str:ticket_number>/process/', views.api_ticket_process, name='api_ticket_process'),
 
-    # Ticket Processing URL
+    # Ticket Processing URLs
+    path('process-ticket/<int:ticket_id>/', views.process_ticket, name='process_ticket'),
     path('process-ticket/<str:ticket_number>/', views.process_ticket_to_order, name='process_ticket_to_order'),
     path('api/tickets/<str:ticket_number>/', views.get_ticket_api, name='get_ticket_api'),
+
+    # Session Management URLs
+    path('save-cart-to-session/', views.save_cart_to_session, name='save_cart_to_session'),
+    path('save-ticket-info-to-session/', views.save_ticket_info_to_session, name='save_ticket_info_to_session'),
 ]

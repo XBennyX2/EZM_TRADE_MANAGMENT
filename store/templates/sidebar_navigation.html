@@ -99,9 +99,15 @@
         </a>
     </li>
     <li class="sidebar-menu-item">
-        <a href="#" data-tooltip="Stock Management">
+        <a href="{% url 'stock_list' %}" data-tooltip="Stock Management">
             <i class="bi bi-boxes"></i>
             <span>Stock Management</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'stock_alerts_dashboard' %}" data-tooltip="Stock Alerts">
+            <i class="bi bi-exclamation-triangle"></i>
+            <span>Stock Alerts</span>
         </a>
     </li>
     <li class="sidebar-menu-item">
@@ -111,21 +117,15 @@
         </a>
     </li>
     <li class="sidebar-menu-item">
-        <a href="#" data-tooltip="Sales Reports">
-            <i class="bi bi-receipt"></i>
-            <span>Sales Reports</span>
+        <a href="{% url 'store_manager_restock_requests' %}" data-tooltip="Restock Requests">
+            <i class="bi bi-arrow-up-circle"></i>
+            <span>Restock Requests</span>
         </a>
     </li>
     <li class="sidebar-menu-item">
-        <a href="#" data-tooltip="Stock Requests">
-            <i class="bi bi-arrow-up-right"></i>
-            <span>Stock Requests</span>
-        </a>
-    </li>
-    <li class="sidebar-menu-item">
-        <a href="#" data-tooltip="Store Analytics">
-            <i class="bi bi-graph-up"></i>
-            <span>Store Analytics</span>
+        <a href="{% url 'store_manager_transfer_requests' %}" data-tooltip="Transfer Requests">
+            <i class="bi bi-arrow-left-right"></i>
+            <span>Transfer Requests</span>
         </a>
     </li>
 </ul>

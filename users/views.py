@@ -1442,6 +1442,13 @@ def store_manager_page(request):
         quantity__lte=F('low_stock_threshold')
     ).select_related('product').order_by('quantity')
 
+    # Debug: Print low stock information
+    print(f"DEBUG - Store: {store.name}")
+    print(f"DEBUG - Total stock items: {Stock.objects.filter(store=store).count()}")
+    print(f"DEBUG - Low stock items: {low_stock_items.count()}")
+    for stock in low_stock_items[:5]:
+        print(f"DEBUG - {stock.product.name}: qty={stock.quantity}, threshold={stock.low_stock_threshold}")
+
     # Current stock levels
     current_stock = Stock.objects.filter(store=store).select_related('product').order_by('product__name')
 

@@ -2731,3 +2731,77 @@ def save_ticket_info_to_session(request):
 
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def store_manager_stock_detail(request, stock_id):
+    """
+    Store manager specific stock detail view with restock request functionality
+    """
+    if request.user.role != 'store_manager':
+        messages.warning(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
+    try:
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, "You are not assigned to manage any store.")
+        return redirect('store_manager_page')
+
+    # Get the stock item
+    stock = get_object_or_404(Stock.objects.select_related('product', 'store'), id=stock_id, store=store)
+
+    # Get stock history for this product at this store (last 30 days)
+    from datetime import timedelta
+    from django.utils import timezone
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+
+    # Get recent transactions for this product
+    recent_transactions = TransactionOrder.objects.filter(
+        product=stock.product,
+        transaction__store=store,
+        transaction__timestamp__gte=thirty_days_ago
+    ).select_related('transaction').order_by('-transaction__timestamp')[:10]
+
+    # Get recent restock requests for this product
+    recent_restock_requests = RestockRequest.objects.filter(
+        store=store,
+        product=stock.product
+    ).order_by('-requested_date')[:5]
+
+    # Check if there's a pending restock request for this product
+    pending_restock = RestockRequest.objects.filter(
+        store=store,
+        product=stock.product,
+        status='pending'
+    ).first()
+
+    # Get other stores that have this product
+    other_stores_stock = Stock.objects.filter(
+        product=stock.product
+    ).exclude(store=store).select_related('store').order_by('store__name')
+
+    # Calculate sales velocity (units sold per day)
+    total_sold = recent_transactions.aggregate(
+        total=models.Sum('quantity')
+    )['total'] or 0
+
+    days_period = 30
+    sales_velocity = total_sold / days_period if total_sold > 0 else 0
+
+    # Estimate days until out of stock
+    days_until_empty = stock.quantity / sales_velocity if sales_velocity > 0 else None
+
+    context = {
+        'stock': stock,
+        'store': store,
+        'recent_transactions': recent_transactions,
+        'recent_restock_requests': recent_restock_requests,
+        'pending_restock': pending_restock,
+        'other_stores_stock': other_stores_stock,
+        'total_sold_30_days': total_sold,
+        'sales_velocity': sales_velocity,
+        'days_until_empty': days_until_empty,
+    }
+
+    return render(request, 'store/store_manager_stock_detail.html', context)

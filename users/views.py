@@ -2771,8 +2771,40 @@ def store_manager_stock_management(request):
     # in warehouse, other stores, or needs to be ordered from suppliers
     restock_available_products = Product.objects.all().order_by('name')
 
-    # For transfer requests, show products available in OTHER stores only
-    # (excluding warehouse and current store)
+    # For transfer requests, get detailed stock information for all products in other stores
+    from collections import defaultdict
+
+    # Get all stock items from other stores (excluding current store)
+    other_stores_stock = Stock.objects.filter(
+        quantity__gt=0
+    ).exclude(store=store).select_related('product', 'store').order_by('product__name', 'store__name')
+
+    # Group stock by product for easy access in template
+    products_with_stores = defaultdict(list)
+    for stock in other_stores_stock:
+        products_with_stores[stock.product].append({
+            'store': stock.store,
+            'quantity': stock.quantity
+        })
+
+    # Convert to list for template with product-store combinations
+    transfer_product_store_combinations = []
+    for product, stores_data in products_with_stores.items():
+        for store_data in stores_data:
+            transfer_product_store_combinations.append({
+                'product_id': product.id,
+                'product_name': product.name,
+                'product_category': product.category,
+                'store_id': store_data['store'].id,
+                'store_name': store_data['store'].name,
+                'available_quantity': store_data['quantity'],
+                'display_text': f"{product.name} from {store_data['store'].name} ({store_data['quantity']} units)"
+            })
+
+    # Sort by product name then store name
+    transfer_product_store_combinations.sort(key=lambda x: (x['product_name'], x['store_name']))
+
+    # Keep the old transfer_available_products for backward compatibility
     transfer_available_products = Product.objects.filter(
         id__in=other_stores_products
     ).order_by('name')

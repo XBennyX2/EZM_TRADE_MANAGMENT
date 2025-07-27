@@ -755,12 +755,42 @@
 
     // Reset form when modal is closed
     document.getElementById('transferRequestModal').addEventListener('hidden.bs.modal', function () {
-        searchInput.value = '';
-        clearSelection();
-        hideDropdown();
+        // Don't clear search if it came from URL parameter
+        if (!window.location.search.includes('search=')) {
+            searchInput.value = '';
+            clearSelection();
+            hideDropdown();
+        }
         document.getElementById('transfer_quantity').value = '';
         document.getElementById('priority').value = '';
         document.getElementById('reason').value = '';
+    });
+
+    // Auto-populate search from URL parameter
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const searchParam = urlParams.get('search');
+
+        if (searchParam) {
+            // Set the search input value
+            searchInput.value = searchParam;
+
+            // Trigger the search
+            const event = new Event('input', { bubbles: true });
+            searchInput.dispatchEvent(event);
+
+            // Open the modal automatically
+            setTimeout(() => {
+                const modal = new bootstrap.Modal(document.getElementById('transferRequestModal'));
+                modal.show();
+
+                // Focus on the search input
+                setTimeout(() => {
+                    searchInput.focus();
+                    searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+                }, 300);
+            }, 500);
+        }
     });
 
     // Transfer request approval functions

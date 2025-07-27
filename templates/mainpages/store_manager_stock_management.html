@@ -381,61 +381,7 @@
 
 <!-- Restock modal removed - now redirects to warehouse products page -->
 
-<!-- Transfer Request Modal -->
-<div class="modal fade" id="transferModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Request Transfer</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="post" action="{% url 'submit_transfer_request' %}">
-                {% csrf_token %}
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="transfer_product_id" class="form-label">Product *</label>
-                        <select class="form-select" id="transfer_product_id" name="product_id" required>
-                            <option value="">Select a product</option>
-                            {% for product in transfer_available_products %}
-                            <option value="{{ product.id }}">
-                                {{ product.name }} - {{ product.category }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="transfer_to_store" class="form-label">Transfer From *</label>
-                        <select class="form-select" id="transfer_to_store" name="to_store_id" required>
-                            <option value="">Select source store</option>
-                            {% for other_store in other_stores %}
-                            <option value="{{ other_store.id }}">{{ other_store.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="transfer_quantity" class="form-label">Transfer Quantity *</label>
-                        <input type="number" class="form-control" id="transfer_quantity" name="requested_quantity"
-                            min="1" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="transfer_priority" class="form-label">Priority Level *</label>
-                        <select class="form-select" id="transfer_priority" name="priority" required>
-                            <option value="low">Low - Can wait</option>
-                            <option value="medium" selected>Medium - Normal priority</option>
-                            <option value="high">High - Needed soon</option>
-                            <option value="urgent">Urgent - Critical need</option>
-                        </select>
-                    </div>
-
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-ezm-primary">Submit Request</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+<!-- Transfer modal removed - now redirects to transfer requests page -->
 
 <!-- Price Update Modal -->
 <div class="modal fade" id="priceUpdateModal" tabindex="-1">
@@ -526,14 +472,11 @@
         window.location.href = `{% url 'store_manager_warehouse_products' %}?search=${searchQuery}`;
     }
 
-    // Request transfer for specific product
+    // Request transfer for specific product - redirect to transfer requests page with search
     function requestTransfer(productId, productName, currentStock) {
-        document.getElementById('transfer_product_id').value = productId;
-        document.getElementById('transfer_quantity').value = '';
-        document.getElementById('transfer_quantity').max = currentStock;
-
-        const modal = new bootstrap.Modal(document.getElementById('transferModal'));
-        modal.show();
+        // Redirect to transfer requests page with search for this product
+        const searchQuery = encodeURIComponent(productName);
+        window.location.href = `{% url 'store_manager_transfer_requests' %}?search=${searchQuery}`;
     }
 
     // Update price for specific product

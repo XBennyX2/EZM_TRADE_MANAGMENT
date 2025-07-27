@@ -810,13 +810,66 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- Embed order data as JSON for JavaScript access -->
+{{ orders_json|json_script:"orders-data" }}
+
 <script>
     // Order tracking and delivery confirmation system
-    let orderData = {};
-    let countdownIntervals = {};
+    var orderData = {};
+    var countdownIntervals = {};
+
+    // Get order data from embedded JSON
+    var ordersData = {};
+    try {
+        var ordersDataElement = document.getElementById('orders-data');
+        if (ordersDataElement) {
+            ordersData = JSON.parse(ordersDataElement.textContent);
+            console.log('Loaded orders data:', ordersData);
+        }
+    } catch (e) {
+        console.error('Failed to load orders data:', e);
+    }
+
+    // Test function for debugging (can be called from browser console)
+    window.testFetchAPI = function(orderId) {
+        orderId = orderId || 25; // Default test order ID
+        console.log('Testing fetch API with order ID:', orderId);
+
+        var url = '/inventory/purchase-orders/' + orderId + '/details/';
+        console.log('Test URL:', url);
+
+        return window.fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin'
+        })
+        .then(function(response) {
+            console.log('Test response:', response);
+            return response.text(); // Get as text first to see what we actually receive
+        })
+        .then(function(text) {
+            console.log('Test response text:', text);
+            try {
+                var json = JSON.parse(text);
+                console.log('Test parsed JSON:', json);
+                return json;
+            } catch (e) {
+                console.log('Test failed to parse as JSON:', e);
+                return text;
+            }
+        })
+        .catch(function(error) {
+            console.error('Test fetch error:', error);
+            return error;
+        });
+    };
 
     // Initialize the order tracking system
     document.addEventListener('DOMContentLoaded', function () {
+        console.log('DOM loaded, initializing order tracking system...');
         initializeCountdownTimers();
         updateOrderStatistics();
         setupPhotoPreview();
@@ -826,12 +879,21 @@
             updateOrderStatistics();
             refreshCountdownTimers();
         }, 30000);
+
+        console.log('Order tracking system initialized. You can test the API by calling: testFetchAPI(25)');
+
+        // Check current user authentication status
+        console.log('Current user info:', {
+            userRole: '{{ user.role }}',
+            isAuthenticated: '{{ user.is_authenticated }}',
+            username: '{{ user.username }}'
+        });
     });
 
     function initializeCountdownTimers() {
         document.querySelectorAll('[data-countdown]').forEach(function (element) {
-            const orderId = element.getAttribute('data-order-id');
-            const countdownSeconds = parseInt(element.getAttribute('data-countdown'));
+            var orderId = element.getAttribute('data-order-id');
+            var countdownSeconds = parseInt(element.getAttribute('data-countdown'));
 
             if (countdownSeconds > 0) {
                 startCountdown(orderId, countdownSeconds);
@@ -840,7 +902,7 @@
     }
 
     function startCountdown(orderId, seconds) {
-        const countdownElement = document.getElementById(`countdown-${orderId}`);
+        var countdownElement = document.getElementById('countdown-' + orderId);
         if (!countdownElement) return;
 
         // Clear existing interval
@@ -848,7 +910,7 @@
             clearInterval(countdownIntervals[orderId]);
         }
 
-        let remainingSeconds = seconds;
+        var remainingSeconds = seconds;
 
         countdownIntervals[orderId] = setInterval(function () {
             if (remainingSeconds <= 0) {
@@ -858,31 +920,31 @@
                 return;
             }
 
-            const days = Math.floor(remainingSeconds / 86400);
-            const hours = Math.floor((remainingSeconds % 86400) / 3600);
-            const minutes = Math.floor((remainingSeconds % 3600) / 60);
-            const secs = remainingSeconds % 60;
+            var days = Math.floor(remainingSeconds / 86400);
+            var hours = Math.floor((remainingSeconds % 86400) / 3600);
+            var minutes = Math.floor((remainingSeconds % 3600) / 60);
+            var secs = remainingSeconds % 60;
 
-            let timeString = '';
-            let className = 'countdown-normal';
+            var timeString = '';
+            var className = 'countdown-normal';
 
             if (days > 0) {
-                timeString = `${days}d ${hours}h ${minutes}m`;
+                timeString = days + 'd ' + hours + 'h ' + minutes + 'm';
             } else if (hours > 0) {
-                timeString = `${hours}h ${minutes}m ${secs}s`;
+                timeString = hours + 'h ' + minutes + 'm ' + secs + 's';
                 if (hours < 24) className = 'countdown-warning';
             } else {
-                timeString = `${minutes}m ${secs}s`;
+                timeString = minutes + 'm ' + secs + 's';
                 className = 'countdown-warning';
             }
 
-            countdownElement.innerHTML = `<span class="${className}">${timeString}</span>`;
+            countdownElement.innerHTML = '<span class="' + className + '">' + timeString + '</span>';
             remainingSeconds--;
         }, 1000);
     }
 
     function markOrderOverdue(orderId) {
-        const orderCard = document.querySelector(`[data-order-id="${orderId}"]`);
+        var orderCard = document.querySelector('[data-order-id="' + orderId + '"]');
         if (orderCard) {
             orderCard.classList.add('overdue');
         }
@@ -890,15 +952,22 @@
     }
 
     function refreshCountdownTimers() {
-        // Refresh countdown timers from server
-        window.fetch('/inventory/purchase-orders/countdown-data/', {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-            },
-            credentials: 'same-origin'
-        })
+        // Check if fetch is available
+        if (typeof window.fetch !== 'function') {
+            console.warn('Fetch API not available, skipping countdown refresh');
+            return;
+        }
+
+        try {
+            // Refresh countdown timers from server
+            window.fetch('/inventory/purchase-orders/countdown-data/', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'same-origin'
+            })
             .then(function(response) { return response.json(); })
             .then(function(data) {
                 data.orders.forEach(function(order) {
@@ -910,13 +979,16 @@
             .catch(function(error) {
                 console.error('Error refreshing countdown data:', error);
             });
+        } catch (error) {
+            console.error('Error in refreshCountdownTimers:', error);
+        }
     }
 
     function updateOrderStatistics() {
-        const inTransitCount = document.querySelectorAll('[data-status="in_transit"]').length;
-        const overdueCount = document.querySelectorAll('.order-card.overdue').length;
-        const deliveredCount = document.querySelectorAll('[data-status="delivered"]').length;
-        const issuesCount = document.querySelectorAll('[data-status="issue_reported"]').length;
+        var inTransitCount = document.querySelectorAll('[data-status="in_transit"]').length;
+        var overdueCount = document.querySelectorAll('.order-card.overdue').length;
+        var deliveredCount = document.querySelectorAll('[data-status="delivered"]').length;
+        var issuesCount = document.querySelectorAll('[data-status="issue_reported"]').length;
 
         document.getElementById('in-transit-count').textContent = inTransitCount;
         document.getElementById('overdue-count').textContent = overdueCount;
@@ -925,9 +997,9 @@
     }
 
     function filterOrders(status) {
-        const orderCards = document.querySelectorAll('.order-card');
+        var orderCards = document.querySelectorAll('.order-card');
 
-        orderCards.forEach(card => {
+        orderCards.forEach(function(card) {
             if (status === 'all') {
                 card.style.display = 'block';
             } else if (status === 'in_transit') {
@@ -941,25 +1013,84 @@
     }
 
     function confirmDelivery(orderId) {
+        console.log('confirmDelivery called with orderId:', orderId);
+
         // Validate orderId
         if (!orderId) {
             alert('Invalid order ID');
             return;
         }
 
-        // Construct URL safely
-        const url = '/inventory/purchase-orders/' + orderId + '/details/';
+        // Get order data from embedded JSON (no API call needed)
+        if (ordersData && ordersData[orderId]) {
+            console.log('Using embedded order data for order:', orderId);
+            var orderData = ordersData[orderId];
 
-        // Fetch order details and populate modal
-        window.fetch(url, {
-            method: 'GET',
-            headers: {
+            try {
+                populateDeliveryModal(orderData);
+                new bootstrap.Modal(document.getElementById('deliveryConfirmationModal')).show();
+                return;
+            } catch (error) {
+                console.error('Error populating delivery modal:', error);
+                alert('Error loading delivery confirmation form. Please try again.');
+                return;
+            }
+        }
+
+        // Fallback: if embedded data not available, try API call
+        console.log('Embedded data not found, falling back to API call...');
+
+        // Check if fetch is available
+        if (typeof window.fetch !== 'function') {
+            alert('Your browser does not support this feature. Please update your browser.');
+            return;
+        }
+
+        // Construct URL safely
+        var url = '/inventory/purchase-orders/' + orderId + '/details/';
+        console.log('Attempting to fetch order details from URL:', url);
+
+        try {
+            console.log('Starting fetch request...');
+
+            // Get CSRF token
+            var csrfToken = getCookie('csrftoken');
+            console.log('CSRF token:', csrfToken);
+
+            // Fetch order details and populate modal
+            var headers = {
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
-            },
-            credentials: 'same-origin'
-        })
+            };
+
+            // Add CSRF token if available
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+
+            var fetchPromise = window.fetch(url, {
+                method: 'GET',
+                headers: headers,
+                credentials: 'same-origin'
+            });
+
+            console.log('Fetch promise created:', fetchPromise);
+
+            fetchPromise
             .then(function(response) {
+                console.log('Fetch response received:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    ok: response.ok,
+                    url: response.url,
+                    redirected: response.redirected
+                });
+
+                // Check if we were redirected (likely to login page)
+                if (response.redirected && response.url.includes('/login/')) {
+                    throw new Error('Authentication required. Please refresh the page and log in as a Head Manager.');
+                }
+
                 if (!response.ok) {
                     if (response.status === 403) {
                         throw new Error('Access denied. Head Manager role required.');
@@ -967,69 +1098,190 @@
                         throw new Error('Order not found.');
                     } else if (response.status === 302) {
                         throw new Error('Please log in as a Head Manager to access this feature.');
+                    } else if (response.status === 0) {
+                        throw new Error('Network error. Please check your connection.');
                     } else {
-                        throw new Error('Server error: ' + response.status);
+                        throw new Error('Server error: ' + response.status + ' (' + response.statusText + ')');
                     }
                 }
-                return response.json();
+
+                // Check if response is actually JSON
+                var contentType = response.headers.get('content-type');
+                console.log('Response content-type:', contentType);
+
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Server returned non-JSON response. Expected JSON but got: ' + (contentType || 'unknown'));
+                }
+
+                return response.json().catch(function(jsonError) {
+                    console.error('Failed to parse JSON response:', jsonError);
+                    throw new Error('Server returned invalid JSON. You may need to log in again.');
+                });
             })
             .then(function(data) {
+                console.log('Received data:', data);
+
                 if (data.error) {
                     throw new Error(data.error);
                 }
+
+                // Check if we got redirected to login page
+                if (typeof data === 'string' && data.includes('login')) {
+                    throw new Error('Authentication required. Please refresh the page and log in again.');
+                }
+
                 populateDeliveryModal(data);
                 new bootstrap.Modal(document.getElementById('deliveryConfirmationModal')).show();
             })
             .catch(function(error) {
                 console.error('Error fetching order details:', error);
-                alert(error.message || 'Unable to load order details. Please try again.');
+                console.error('Error details:', {
+                    message: error.message,
+                    name: error.name,
+                    stack: error.stack,
+                    toString: error.toString()
+                });
+
+                var errorMessage = error.message || 'Unable to load order details. Please try again.';
+                if (errorMessage.trim() === '') {
+                    errorMessage = 'An unknown error occurred while loading order details. Please try again or contact support.';
+                }
+
+                // Provide more specific error information
+                if (error.name === 'TypeError') {
+                    errorMessage = 'Network error or CORS issue. Please check your connection and try again.';
+                } else if (error.message.includes('JSON')) {
+                    errorMessage = 'Server response format error. You may need to log in again.';
+                }
+
+                alert('Delivery Confirmation Error: ' + errorMessage);
+
+                // Fallback: redirect to a simple page reload
+                if (confirm('Would you like to refresh the page and try again?')) {
+                    window.location.reload();
+                }
             });
+        } catch (error) {
+            console.error('Error in confirmDelivery:', error);
+            console.log('Falling back to XMLHttpRequest...');
+
+            // Fallback to XMLHttpRequest
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', url, true);
+            xhr.setRequestHeader('Accept', 'application/json');
+            xhr.setRequestHeader('Content-Type', 'application/json');
+
+            // Add CSRF token if available
+            var csrfToken = getCookie('csrftoken');
+            if (csrfToken) {
+                xhr.setRequestHeader('X-CSRFToken', csrfToken);
+            }
+
+            xhr.withCredentials = true;
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    console.log('XHR response:', {
+                        status: xhr.status,
+                        statusText: xhr.statusText,
+                        responseText: xhr.responseText
+                    });
+
+                    if (xhr.status === 200) {
+                        try {
+                            var data = JSON.parse(xhr.responseText);
+                            populateDeliveryModal(data);
+                            new bootstrap.Modal(document.getElementById('deliveryConfirmationModal')).show();
+                        } catch (parseError) {
+                            console.error('XHR JSON parse error:', parseError);
+                            alert('Error parsing server response. Please try again.');
+                        }
+                    } else {
+                        alert('Error loading order details (XHR): ' + xhr.status + ' - ' + xhr.statusText);
+                    }
+                }
+            };
+
+            xhr.onerror = function() {
+                console.error('XHR network error');
+                alert('Network error. Please check your connection and try again.');
+            };
+
+            xhr.send();
+        }
     }
 
     function populateDeliveryModal(orderData) {
         document.getElementById('confirmOrderId').value = orderData.id;
         document.getElementById('confirmOrderNumber').textContent = orderData.order_number;
         document.getElementById('confirmSupplier').textContent = orderData.supplier.name;
-        document.getElementById('confirmAmount').textContent = `ETB ${orderData.total_amount}`;
+        document.getElementById('confirmAmount').textContent = 'ETB ' + orderData.total_amount;
         document.getElementById('confirmExpectedDate').textContent = orderData.expected_delivery_date || 'Not specified';
 
         // Populate item checklist
-        const checklist = document.getElementById('itemChecklist');
+        var checklist = document.getElementById('itemChecklist');
         checklist.innerHTML = '';
 
-        orderData.items.forEach(item => {
-            const itemDiv = document.createElement('div');
+        orderData.items.forEach(function(item) {
+            var itemDiv = document.createElement('div');
             itemDiv.className = 'form-check mb-2';
-            itemDiv.innerHTML = `
-                <input class="form-check-input" type="checkbox" id="item-${item.id}" name="received_items" value="${item.id}" checked>
-                <label class="form-check-label" for="item-${item.id}">
-                    <strong>${item.quantity_ordered}x ${item.product_name}</strong>
-                    <small class="text-muted d-block">Expected: ${item.quantity_ordered} | Unit Price: ETB ${item.unit_price}</small>
-                </label>
-            `;
+            itemDiv.innerHTML =
+                '<input class="form-check-input" type="checkbox" id="item-' + item.id + '" name="received_items" value="' + item.id + '" checked>' +
+                '<label class="form-check-label" for="item-' + item.id + '">' +
+                    '<strong>' + item.quantity_ordered + 'x ' + item.product_name + '</strong>' +
+                    '<small class="text-muted d-block">Expected: ' + item.quantity_ordered + ' | Unit Price: ETB ' + item.unit_price + '</small>' +
+                '</label>';
             checklist.appendChild(itemDiv);
         });
     }
 
     function reportIssue(orderId) {
+        console.log('reportIssue called with orderId:', orderId);
+
         // Validate orderId
         if (!orderId) {
             alert('Invalid order ID');
             return;
         }
 
-        // Construct URL safely
-        const url = '/inventory/purchase-orders/' + orderId + '/details/';
+        // Get order data from embedded JSON (no API call needed)
+        if (ordersData && ordersData[orderId]) {
+            console.log('Using embedded order data for issue report:', orderId);
+            var orderData = ordersData[orderId];
 
-        // Fetch order details and populate issue modal
-        window.fetch(url, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-            },
-            credentials: 'same-origin'
-        })
+            try {
+                populateIssueModal(orderData);
+                new bootstrap.Modal(document.getElementById('issueReportModal')).show();
+                return;
+            } catch (error) {
+                console.error('Error populating issue modal:', error);
+                alert('Error loading issue report form. Please try again.');
+                return;
+            }
+        }
+
+        // Fallback: if embedded data not available, try API call
+        console.log('Embedded data not found, falling back to API call...');
+
+        // Check if fetch is available
+        if (typeof window.fetch !== 'function') {
+            alert('Your browser does not support this feature. Please update your browser.');
+            return;
+        }
+
+        // Construct URL safely
+        var url = '/inventory/purchase-orders/' + orderId + '/details/';
+
+        try {
+            // Fetch order details and populate issue modal
+            window.fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'same-origin'
+            })
             .then(function(response) {
                 if (!response.ok) {
                     if (response.status === 403) {
@@ -1055,29 +1307,32 @@
                 console.error('Error fetching order details:', error);
                 alert(error.message || 'Unable to load order details. Please try again.');
             });
+        } catch (error) {
+            console.error('Error in reportIssue:', error);
+            alert('An error occurred. Please try again.');
+        }
     }
 
     function populateIssueModal(orderData) {
         document.getElementById('issueOrderId').value = orderData.id;
         document.getElementById('issueOrderNumber').textContent = orderData.order_number;
         document.getElementById('issueSupplier').textContent = orderData.supplier.name;
-        document.getElementById('issueAmount').textContent = `ETB ${orderData.total_amount}`;
+        document.getElementById('issueAmount').textContent = 'ETB ' + orderData.total_amount;
         document.getElementById('issueExpectedDate').textContent = orderData.expected_delivery_date || 'Not specified';
 
         // Populate affected items checklist
-        const checklist = document.getElementById('affectedItemsChecklist');
+        var checklist = document.getElementById('affectedItemsChecklist');
         checklist.innerHTML = '';
 
-        orderData.items.forEach(item => {
-            const itemDiv = document.createElement('div');
+        orderData.items.forEach(function(item) {
+            var itemDiv = document.createElement('div');
             itemDiv.className = 'form-check mb-2';
-            itemDiv.innerHTML = `
-                <input class="form-check-input" type="checkbox" id="affected-item-${item.id}" name="affected_items" value="${item.id}">
-                <label class="form-check-label" for="affected-item-${item.id}">
-                    <strong>${item.quantity_ordered}x ${item.product_name}</strong>
-                    <small class="text-muted d-block">Unit Price: ETB ${item.unit_price}</small>
-                </label>
-            `;
+            itemDiv.innerHTML =
+                '<input class="form-check-input" type="checkbox" id="affected-item-' + item.id + '" name="affected_items" value="' + item.id + '">' +
+                '<label class="form-check-label" for="affected-item-' + item.id + '">' +
+                    '<strong>' + item.quantity_ordered + 'x ' + item.product_name + '</strong>' +
+                    '<small class="text-muted d-block">Unit Price: ETB ' + item.unit_price + '</small>' +
+                '</label>';
             checklist.appendChild(itemDiv);
         });
     }
@@ -1085,26 +1340,33 @@
 
 
     function submitDeliveryConfirmation() {
-        const form = document.getElementById('deliveryConfirmationForm');
-        const formData = new FormData(form);
-
-        // Add received items
-        const receivedItems = [];
-        document.querySelectorAll('input[name="received_items"]:checked').forEach(checkbox => {
-            receivedItems.push(checkbox.value);
-        });
-        formData.append('received_items', JSON.stringify(receivedItems));
-
-        // Add photos
-        const photos = document.getElementById('deliveryPhotos').files;
-        for (let i = 0; i < photos.length; i++) {
-            formData.append('delivery_photos', photos[i]);
+        // Check if fetch is available
+        if (typeof window.fetch !== 'function') {
+            alert('Your browser does not support this feature. Please update your browser.');
+            return;
         }
 
-        const orderId = formData.get('order_id');
-        const url = '/inventory/purchase-orders/' + orderId + '/confirm-delivery/';
+        try {
+            var form = document.getElementById('deliveryConfirmationForm');
+            var formData = new FormData(form);
 
-        window.fetch(url, {
+            // Add received items
+            var receivedItems = [];
+            document.querySelectorAll('input[name="received_items"]:checked').forEach(function(checkbox) {
+                receivedItems.push(checkbox.value);
+            });
+            formData.append('received_items', JSON.stringify(receivedItems));
+
+            // Add photos
+            var photos = document.getElementById('deliveryPhotos').files;
+            for (var i = 0; i < photos.length; i++) {
+                formData.append('delivery_photos', photos[i]);
+            }
+
+            var orderId = formData.get('order_id');
+            var url = '/inventory/purchase-orders/' + orderId + '/confirm-delivery/';
+
+            window.fetch(url, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCookie('csrftoken'),
@@ -1126,29 +1388,40 @@
                 console.error('Error confirming delivery:', error);
                 alert('Unable to confirm delivery. Please try again.');
             });
+        } catch (error) {
+            console.error('Error in submitDeliveryConfirmation:', error);
+            alert('An error occurred. Please try again.');
+        }
     }
 
     function submitIssueReport() {
-        const form = document.getElementById('issueReportForm');
-        const formData = new FormData(form);
-
-        // Add affected items
-        const affectedItems = [];
-        document.querySelectorAll('input[name="affected_items"]:checked').forEach(checkbox => {
-            affectedItems.push(checkbox.value);
-        });
-        formData.append('affected_items', JSON.stringify(affectedItems));
-
-        // Add photos
-        const photos = document.getElementById('issuePhotos').files;
-        for (let i = 0; i < photos.length; i++) {
-            formData.append('issue_photos', photos[i]);
+        // Check if fetch is available
+        if (typeof window.fetch !== 'function') {
+            alert('Your browser does not support this feature. Please update your browser.');
+            return;
         }
 
-        const orderId = formData.get('order_id');
-        const url = '/inventory/purchase-orders/' + orderId + '/report-issue/';
+        try {
+            var form = document.getElementById('issueReportForm');
+            var formData = new FormData(form);
 
-        window.fetch(url, {
+            // Add affected items
+            var affectedItems = [];
+            document.querySelectorAll('input[name="affected_items"]:checked').forEach(function(checkbox) {
+                affectedItems.push(checkbox.value);
+            });
+            formData.append('affected_items', JSON.stringify(affectedItems));
+
+            // Add photos
+            var photos = document.getElementById('issuePhotos').files;
+            for (var i = 0; i < photos.length; i++) {
+                formData.append('issue_photos', photos[i]);
+            }
+
+            var orderId = formData.get('order_id');
+            var url = '/inventory/purchase-orders/' + orderId + '/report-issue/';
+
+            window.fetch(url, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCookie('csrftoken'),
@@ -1170,6 +1443,10 @@
                 console.error('Error reporting issue:', error);
                 alert('Unable to report issue. Please try again.');
             });
+        } catch (error) {
+            console.error('Error in submitIssueReport:', error);
+            alert('An error occurred. Please try again.');
+        }
     }
 
     function setupPhotoPreview() {
@@ -1185,14 +1462,14 @@
     }
 
     function showPhotoPreview(files, containerId) {
-        const container = document.getElementById(containerId);
+        var container = document.getElementById(containerId);
         container.innerHTML = '';
 
-        Array.from(files).forEach(file => {
+        Array.from(files).forEach(function(file) {
             if (file.type.startsWith('image/')) {
-                const reader = new FileReader();
+                var reader = new FileReader();
                 reader.onload = function (e) {
-                    const img = document.createElement('img');
+                    var img = document.createElement('img');
                     img.src = e.target.result;
                     img.className = 'img-thumbnail';
                     img.style.width = '100px';
@@ -1206,49 +1483,47 @@
     }
 
     function showSuccessMessage(message) {
-        const toast = document.createElement('div');
+        var toast = document.createElement('div');
         toast.className = 'toast align-items-center text-white bg-success border-0';
-        toast.innerHTML = `
-            <div class="d-flex">
-                <div class="toast-body">
-                    <i class="bi bi-check-circle me-2"></i>${message}
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
-        `;
+        toast.innerHTML =
+            '<div class="d-flex">' +
+                '<div class="toast-body">' +
+                    '<i class="bi bi-check-circle me-2"></i>' + message +
+                '</div>' +
+                '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>' +
+            '</div>';
 
-        const container = getOrCreateToastContainer();
+        var container = getOrCreateToastContainer();
         container.appendChild(toast);
         new bootstrap.Toast(toast).show();
 
-        toast.addEventListener('hidden.bs.toast', () => {
+        toast.addEventListener('hidden.bs.toast', function() {
             container.removeChild(toast);
         });
     }
 
     function showWarningMessage(message) {
-        const toast = document.createElement('div');
+        var toast = document.createElement('div');
         toast.className = 'toast align-items-center text-white bg-warning border-0';
-        toast.innerHTML = `
-            <div class="d-flex">
-                <div class="toast-body">
-                    <i class="bi bi-exclamation-triangle me-2"></i>${message}
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
-        `;
+        toast.innerHTML =
+            '<div class="d-flex">' +
+                '<div class="toast-body">' +
+                    '<i class="bi bi-exclamation-triangle me-2"></i>' + message +
+                '</div>' +
+                '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>' +
+            '</div>';
 
-        const container = getOrCreateToastContainer();
+        var container = getOrCreateToastContainer();
         container.appendChild(toast);
         new bootstrap.Toast(toast).show();
 
-        toast.addEventListener('hidden.bs.toast', () => {
+        toast.addEventListener('hidden.bs.toast', function() {
             container.removeChild(toast);
         });
     }
 
     function getOrCreateToastContainer() {
-        let container = document.getElementById('toast-container');
+        var container = document.getElementById('toast-container');
         if (!container) {
             container = document.createElement('div');
             container.id = 'toast-container';
@@ -1260,11 +1535,11 @@
     }
 
     function getCookie(name) {
-        let cookieValue = null;
+        var cookieValue = null;
         if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = cookies[i].trim();
                 if (cookie.substring(0, name.length + 1) === (name + '=')) {
                     cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
                     break;
@@ -1276,7 +1551,7 @@
 
     function viewIssues(orderId) {
         // Redirect to order detail page with issues tab
-        window.location.href = `/inventory/purchase-orders/${orderId}/?tab=issues`;
+        window.location.href = '/inventory/purchase-orders/' + orderId + '/?tab=issues';
     }
 </script>
 {% endblock %}

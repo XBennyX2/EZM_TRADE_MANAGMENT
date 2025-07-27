@@ -810,6 +810,46 @@ class PurchaseOrderListView(LoginRequiredMixin, StoreOwnerMixin, ListView):
         context['approved_orders'] = PurchaseOrder.objects.filter(status='payment_confirmed').count()
         context['delivered_orders'] = PurchaseOrder.objects.filter(status='delivered').count()
 
+        # Prepare orders data as JSON for JavaScript access (to avoid API authentication issues)
+        import json
+        from django.core.serializers.json import DjangoJSONEncoder
+
+        orders_data = {}
+        for order in context['purchase_orders']:
+            orders_data[order.id] = {
+                'id': order.id,
+                'order_number': order.order_number,
+                'supplier': {
+                    'id': order.supplier.id,
+                    'name': order.supplier.name,
+                    'email': order.supplier.email,
+                    'phone': order.supplier.phone or '',
+                },
+                'total_amount': float(order.total_amount),
+                'status': order.status,
+                'order_date': order.order_date.isoformat() if order.order_date else None,
+                'expected_delivery_date': order.expected_delivery_date.isoformat() if order.expected_delivery_date else None,
+                'estimated_delivery_datetime': order.estimated_delivery_datetime.isoformat() if hasattr(order, 'estimated_delivery_datetime') and order.estimated_delivery_datetime else None,
+                'delivery_countdown_seconds': getattr(order, 'delivery_countdown_seconds', 0),
+                'tracking_number': order.tracking_number or '',
+                'items': [
+                    {
+                        'id': item.id,
+                        'product_name': item.warehouse_product.product_name,
+                        'quantity_ordered': item.quantity_ordered,
+                        'quantity_received': getattr(item, 'quantity_received', 0),
+                        'unit_price': float(item.unit_price),
+                        'total_price': float(item.total_price),
+                        'is_confirmed_received': getattr(item, 'is_confirmed_received', False),
+                        'has_issues': getattr(item, 'has_issues', False),
+                        'issue_description': getattr(item, 'issue_description', '') or '',
+                    }
+                    for item in order.items.all()
+                ]
+            }
+
+        context['orders_json'] = json.dumps(orders_data, cls=DjangoJSONEncoder)
+
         return context
 
 

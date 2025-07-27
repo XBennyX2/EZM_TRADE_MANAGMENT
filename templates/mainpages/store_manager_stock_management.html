@@ -229,6 +229,7 @@
                             <th>Product</th>
                             <th>Category</th>
                             <th>Current Stock</th>
+                            <th>Threshold</th>
                             <th>Status</th>
                             <th>Selling Price</th>
                             <th>Supplier</th>
@@ -255,7 +256,11 @@
                             </td>
                             <td>
                                 <strong>{{ stock_item.quantity }}</strong>
-                                <br><small class="text-muted">Threshold: {{ stock_item.low_stock_threshold }}</small>
+                                <br><small class="text-muted">units</small>
+                            </td>
+                            <td>
+                                <strong>{{ stock_item.low_stock_threshold }}</strong>
+                                <br><small class="text-muted">alert level</small>
                             </td>
                             <td>
                                 {% if stock_item.quantity == 0 %}
@@ -307,6 +312,11 @@
                                             onclick="updatePrice({{ stock_item.id }}, '{{ stock_item.product.name }}', {{ stock_item.selling_price }})"
                                             title="Update Price">
                                             <i class="bi bi-tag"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-secondary"
+                                            onclick="updateThreshold({{ stock_item.id }}, '{{ stock_item.product.name }}', {{ stock_item.low_stock_threshold }})"
+                                            title="Update Threshold">
+                                            <i class="bi bi-speedometer2"></i>
                                         </button>
                                 </div>
                             </td>
@@ -505,6 +515,46 @@
         </div>
     </div>
 </div>
+
+<!-- Threshold Update Modal -->
+<div class="modal fade" id="thresholdUpdateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Low Stock Threshold</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'update_stock_threshold' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="hidden" id="threshold_stock_id" name="stock_id">
+                    <div class="mb-3">
+                        <label class="form-label">Product</label>
+                        <input type="text" class="form-control" id="threshold_product_name" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_threshold" class="form-label">New Low Stock Threshold *</label>
+                        <input type="number" class="form-control" id="new_threshold" name="new_threshold"
+                               min="0" step="1" required>
+                        <div class="form-text">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Set the minimum quantity before low stock alerts are triggered.
+                        </div>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="bi bi-lightbulb me-2"></i>
+                        <strong>Tip:</strong> Set a threshold that gives you enough time to restock before running out.
+                        Consider your supplier lead times and sales velocity.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-ezm-primary">Update Threshold</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -540,6 +590,16 @@
         document.getElementById('new_price').value = currentPrice;
 
         const modal = new bootstrap.Modal(document.getElementById('priceUpdateModal'));
+        modal.show();
+    }
+
+    // Update threshold for specific product
+    function updateThreshold(stockId, productName, currentThreshold) {
+        document.getElementById('threshold_stock_id').value = stockId;
+        document.getElementById('threshold_product_name').value = productName;
+        document.getElementById('new_threshold').value = currentThreshold;
+
+        const modal = new bootstrap.Modal(document.getElementById('thresholdUpdateModal'));
         modal.show();
     }
 

@@ -1,16 +1,15 @@
-{% extends 'base.html' %}
+{% extends 'base_sidebar.html' %}
 {% load static %}
 
 {% block title %}Customer Tickets{% endblock %}
-{% block page_title %}Customer Tickets Management{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
 
 {% block extra_css %}
 <style>
     /* Match system theme exactly */
-    .content-area {
-        background-color: #f8fafc;
-        padding: 2rem;
-    }
 
     /* Welcome Card - matching head manager style */
     .welcome-card {
@@ -699,22 +698,71 @@ function confirmProcessTicket(button) {
     }
 }
 
+// Helper function to make HTTP requests using XMLHttpRequest
+function makeRequest(url, options = {}) {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open(options.method || 'GET', url);
+
+        // Set headers
+        if (options.headers) {
+            for (const key in options.headers) {
+                xhr.setRequestHeader(key, options.headers[key]);
+            }
+        }
+
+        xhr.onload = function() {
+            const response = {
+                ok: xhr.status >= 200 && xhr.status < 300,
+                status: xhr.status,
+                statusText: xhr.statusText,
+                data: null
+            };
+
+            try {
+                response.data = JSON.parse(xhr.responseText);
+            } catch (e) {
+                response.data = xhr.responseText;
+            }
+
+            resolve(response);
+        };
+
+        xhr.onerror = function() {
+            reject(new Error('Network error'));
+        };
+
+        xhr.ontimeout = function() {
+            reject(new Error('Request timeout'));
+        };
+
+        xhr.timeout = 30000; // 30 second timeout
+        xhr.send(options.body || null);
+    });
+}
+
 async function processTicketToCart(ticketId, ticketNumber, customerName, button, originalText) {
     try {
-        // Fetch ticket details from API
-        const response = await fetch(`/stores/api/tickets/${ticketNumber}/`, {
+        // Get CSRF token
+        const csrfToken = getCsrfToken();
+        if (!csrfToken) {
+            throw new Error('CSRF token not found');
+        }
+
+        // Use XMLHttpRequest instead of fetch to avoid context issues
+        const response = await makeRequest(`/stores/api/tickets/${ticketNumber}/`, {
             method: 'GET',
             headers: {
-                'X-CSRFToken': getCsrfToken(),
+                'X-CSRFToken': csrfToken,
                 'Content-Type': 'application/json',
             },
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            throw new Error(`HTTP error! status: ${response.status}, message: ${response.statusText}`);
         }
 
-        const data = await response.json();
+        const data = response.data;
 
         if (data.success && data.ticket) {
             const ticket = data.ticket;
@@ -768,7 +816,26 @@ async function processTicketToCart(ticketId, ticketNumber, customerName, button,
 
     } catch (error) {
         console.error('Error processing ticket:', error);
-        showNotification(`Error processing ticket: ${error.message}`, 'error');
+        console.error('Error details:', {
+            message: error.message,
+            stack: error.stack,
+            ticketNumber: ticketNumber,
+            ticketId: ticketId
+        });
+
+        // Show user-friendly error message
+        let errorMessage = 'Failed to process ticket';
+        if (error.message.includes('CSRF')) {
+            errorMessage = 'Security token error. Please refresh the page and try again.';
+        } else if (error.message.includes('HTTP error')) {
+            errorMessage = 'Server error. Please try again or contact support.';
+        } else if (error.message.includes('Fetch API')) {
+            errorMessage = 'Browser compatibility issue. Please use a modern browser.';
+        } else {
+            errorMessage = `Error: ${error.message}`;
+        }
+
+        showNotification(errorMessage, 'error');
 
         // Restore button state
         if (button && originalText) {
@@ -783,6 +850,8 @@ function getCsrfToken() {
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
     return csrfToken ? csrfToken.value : '';
 }
+
+// Using XMLHttpRequest for better browser compatibility
 
 // Calculate and display total value of displayed tickets
 function calculateTotalValue() {

@@ -7,6 +7,87 @@
 {% include 'sidebar_navigation.html' %}
 {% endblock %}
 
+{% block extra_css %}
+<style>
+  /* Define CSS variables for receipt styling */
+  :root {
+    --accent-teal: #45a29e;
+    --accent-cyan: #66fcf1;
+    --text-primary: #0b0c10;
+    --text-secondary: #1f2833;
+    --white: #ffffff;
+    --secondary-dark: #1f2833;
+    --primary-dark: #0b0c10;
+  }
+
+  /* EZM Card Styling */
+  .ezm-card {
+    background: var(--white);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    border: none;
+  }
+
+  /* Button Styling */
+  .btn-ezm-primary {
+    background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+    border: none;
+    color: var(--white);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 500;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.3s ease;
+  }
+
+  .btn-ezm-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(69, 162, 158, 0.4);
+    color: var(--white);
+    text-decoration: none;
+  }
+
+  .btn-ezm-secondary {
+    background: var(--secondary-dark);
+    border: none;
+    color: var(--white);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 500;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.3s ease;
+  }
+
+  .btn-ezm-secondary:hover {
+    background: var(--primary-dark);
+    color: var(--white);
+    text-decoration: none;
+  }
+
+  /* Receipt specific styling */
+  .receipt-info {
+    line-height: 1.6;
+  }
+
+  .table {
+    margin-bottom: 0;
+  }
+
+  .table th {
+    background-color: #f8f9fa;
+    border-top: none;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .table td {
+    color: var(--text-secondary);
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
   <!-- Breadcrumb -->
@@ -28,10 +109,10 @@
             <p class="text-muted mb-0">Transaction ID: {{ transaction.id }}</p>
           </div>
           <div>
-            <a href="{% url 'generate_receipt_pdf' receipt.id %}" class="btn-ezm-primary me-2">
+            <a href="{% url 'generate_receipt_pdf' receipt.id %}" class="btn btn-ezm-primary me-2">
               <i class="bi bi-download me-2"></i>Download PDF
             </a>
-            <a href="{% url 'cashier_transactions' %}" class="btn-ezm-secondary">
+            <a href="{% url 'cashier_transactions' %}" class="btn btn-ezm-secondary">
               <i class="bi bi-arrow-left me-2"></i>Back to Transactions
             </a>
           </div>
@@ -70,8 +151,7 @@
             <div class="col-6 text-end">
               <div class="receipt-info">
                 <strong style="color: var(--text-primary);">Cashier:</strong> <span
-                  style="color: var(--text-secondary);">{{ request.user.get_full_name|default:request.user.username
-                  }}</span><br>
+                  style="color: var(--text-secondary);">{{ request.user.get_full_name|default:request.user.username }}</span><br>
                 <strong style="color: var(--text-primary);">Customer:</strong> <span
                   style="color: var(--text-secondary);">{{ customer_name|default:"Walk-in Customer" }}</span><br>
                 {% if customer_phone %}
@@ -102,10 +182,8 @@
                     <strong style="color: var(--text-primary);">{{ item.product.name|default:"Product" }}</strong>
                   </td>
                   <td class="text-center" style="color: var(--text-secondary);">{{ item.quantity }}</td>
-                  <td class="text-end" style="color: var(--text-secondary);">ETB {{
-                    item.price_at_time_of_sale|floatformat:2 }}</td>
-                  <td class="text-end"><strong style="color: var(--accent-teal);">ETB {{ item.subtotal|floatformat:2
-                      }}</strong></td>
+                  <td class="text-end" style="color: var(--text-secondary);">ETB {{ item.price_at_time_of_sale|floatformat:2 }}</td>
+                  <td class="text-end"><strong style="color: var(--accent-teal);">ETB {{ item.subtotal|floatformat:2 }}</strong></td>
                 </tr>
                 {% empty %}
                 <tr>
@@ -123,32 +201,27 @@
               <table class="table table-borderless">
                 <tr>
                   <td style="color: var(--text-primary);">Subtotal:</td>
-                  <td class="text-end" style="color: var(--text-secondary);">ETB {{ receipt.subtotal|floatformat:2 }}
-                  </td>
+                  <td class="text-end" style="color: var(--text-secondary);">ETB {{ receipt.subtotal|floatformat:2 }}</td>
                 </tr>
                 {% if receipt.discount_amount and receipt.discount_amount > 0 %}
                 <tr>
                   <td style="color: var(--text-primary);">Discount ({{ receipt.discount_percent|floatformat:1 }}%):</td>
-                  <td class="text-end" style="color: var(--text-secondary);">-ETB {{
-                    receipt.discount_amount|floatformat:2 }}</td>
+                  <td class="text-end" style="color: var(--text-secondary);">-ETB {{ receipt.discount_amount|floatformat:2 }}</td>
                 </tr>
                 {% endif %}
                 {% if receipt.tax_amount and receipt.tax_amount > 0 %}
                 <tr>
                   <td style="color: var(--text-primary);">Tax (15%):</td>
-                  <td class="text-end" style="color: var(--text-secondary);">ETB {{ receipt.tax_amount|floatformat:2 }}
-                  </td>
+                  <td class="text-end" style="color: var(--text-secondary);">ETB {{ receipt.tax_amount|floatformat:2 }}</td>
                 </tr>
                 {% endif %}
                 <tr style="border-top: 2px solid var(--accent-cyan);">
                   <td><strong style="color: var(--text-primary);">Total Paid:</strong></td>
-                  <td class="text-end"><strong style="color: var(--accent-teal); font-size: 1.1em;">ETB {{
-                      receipt.total_amount|floatformat:2 }}</strong></td>
+                  <td class="text-end"><strong style="color: var(--accent-teal); font-size: 1.1em;">ETB {{ receipt.total_amount|floatformat:2 }}</strong></td>
                 </tr>
                 <tr>
                   <td><strong style="color: var(--text-primary);">Payment Method:</strong></td>
-                  <td class="text-end"><strong style="color: var(--accent-teal);">{{
-                      transaction.get_payment_type_display }}</strong></td>
+                  <td class="text-end"><strong style="color: var(--accent-teal);">{{ transaction.get_payment_type_display }}</strong></td>
                 </tr>
               </table>
             </div>
@@ -169,16 +242,16 @@
 
       <!-- Action Buttons -->
       <div class="text-center mt-4">
-        <button class="btn-ezm-secondary me-2" onclick="window.print()">
+        <button class="btn btn-ezm-secondary me-2" onclick="window.print()">
           <i class="bi bi-printer me-2"></i>Print Receipt
         </button>
-        <a href="{% url 'generate_receipt_pdf' receipt.id %}" class="btn-ezm-secondary me-2" target="_blank">
+        <a href="{% url 'generate_receipt_pdf' receipt.id %}" class="btn btn-ezm-secondary me-2" target="_blank">
           <i class="bi bi-download me-2"></i>Download PDF
         </a>
-        <a href="{% url 'cashier_transactions' %}" class="btn-ezm-primary me-2">
+        <a href="{% url 'cashier_transactions' %}" class="btn btn-ezm-primary me-2">
           <i class="bi bi-list me-2"></i>Back to Transactions
         </a>
-        <a href="{% url 'initiate_order' %}" class="btn-ezm-primary">
+        <a href="{% url 'initiate_order' %}" class="btn btn-ezm-primary">
           <i class="bi bi-plus-circle me-2"></i>New Order
         </a>
       </div>

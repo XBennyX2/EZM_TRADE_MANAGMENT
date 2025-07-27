@@ -1285,6 +1285,13 @@ def view_receipt(request, receipt_id):
         for item in order_items:
             item.subtotal = item.quantity * item.price_at_time_of_sale
 
+        # Debug: Print data to console
+        print(f"DEBUG - Receipt ID: {receipt.id}")
+        print(f"DEBUG - Customer: {receipt.customer_name}")
+        print(f"DEBUG - Order items count: {order_items.count()}")
+        for item in order_items:
+            print(f"DEBUG - Item: {item.product.name if item.product else 'No Product'}, Qty: {item.quantity}, Price: {item.price_at_time_of_sale}")
+
         context = {
             'receipt': receipt,
             'transaction': transaction_obj,
@@ -2724,3 +2731,141 @@ def save_ticket_info_to_session(request):
 
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def store_manager_stock_detail(request, stock_id):
+    """
+    Store manager specific stock detail view with restock request functionality
+    """
+    if request.user.role != 'store_manager':
+        messages.warning(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
+    try:
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, "You are not assigned to manage any store.")
+        return redirect('store_manager_page')
+
+    # Get the stock item
+    stock = get_object_or_404(Stock.objects.select_related('product', 'store'), id=stock_id, store=store)
+
+    # Get stock history for this product at this store (last 30 days)
+    from datetime import timedelta
+    from django.utils import timezone
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+
+    # Get recent transactions for this product
+    recent_transactions = TransactionOrder.objects.filter(
+        product=stock.product,
+        transaction__store=store,
+        transaction__timestamp__gte=thirty_days_ago
+    ).select_related('transaction').order_by('-transaction__timestamp')[:10]
+
+    # Get recent restock requests for this product
+    recent_restock_requests = RestockRequest.objects.filter(
+        store=store,
+        product=stock.product
+    ).order_by('-requested_date')[:5]
+
+    # Check if there's a pending restock request for this product
+    pending_restock = RestockRequest.objects.filter(
+        store=store,
+        product=stock.product,
+        status='pending'
+    ).first()
+
+    # Get other stores that have this product
+    other_stores_stock = Stock.objects.filter(
+        product=stock.product
+    ).exclude(store=store).select_related('store').order_by('store__name')
+
+    # Calculate sales velocity (units sold per day)
+    total_sold = recent_transactions.aggregate(
+        total=models.Sum('quantity')
+    )['total'] or 0
+
+    days_period = 30
+    sales_velocity = total_sold / days_period if total_sold > 0 else 0
+
+    # Estimate days until out of stock
+    days_until_empty = stock.quantity / sales_velocity if sales_velocity > 0 else None
+
+    context = {
+        'stock': stock,
+        'store': store,
+        'recent_transactions': recent_transactions,
+        'recent_restock_requests': recent_restock_requests,
+        'pending_restock': pending_restock,
+        'other_stores_stock': other_stores_stock,
+        'total_sold_30_days': total_sold,
+        'sales_velocity': sales_velocity,
+        'days_until_empty': days_until_empty,
+    }
+
+    return render(request, 'store/store_manager_stock_detail.html', context)
+
+
+@login_required
+def store_transactions_list(request):
+    """
+    Store manager view for all store transactions with pagination and filtering
+    """
+    if request.user.role != 'store_manager':
+        messages.warning(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
+    try:
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, "You are not assigned to manage any store.")
+        return redirect('store_manager_page')
+
+    # Get period from request (default to 30 days)
+    period = request.GET.get('period', '30')
+
+    from datetime import timedelta
+    from django.utils import timezone
+    from django.core.paginator import Paginator
+
+    # Calculate date ranges
+    now = timezone.now()
+    if period == '7':
+        start_date = now - timedelta(days=7)
+    elif period == '30':
+        start_date = now - timedelta(days=30)
+    elif period == '90':
+        start_date = now - timedelta(days=90)
+    elif period == '365':
+        start_date = now - timedelta(days=365)
+    else:
+        start_date = now - timedelta(days=30)
+
+    # Get all transactions for the store in the period
+    transactions = Transaction.objects.filter(
+        store=store,
+        timestamp__gte=start_date
+    ).select_related('cashier').order_by('-timestamp')
+
+    # Pagination
+    paginator = Paginator(transactions, 25)  # Show 25 transactions per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Calculate summary
+    total_revenue = transactions.aggregate(
+        total=models.Sum('total_amount')
+    )['total'] or 0
+
+    context = {
+        'store': store,
+        'page_obj': page_obj,
+        'period': period,
+        'start_date': start_date,
+        'end_date': now,
+        'total_revenue': total_revenue,
+        'total_transactions': transactions.count(),
+    }
+
+    return render(request, 'store/store_transactions_list.html', context)

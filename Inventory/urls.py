@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (
     ProductListView, ProductCreateView, ProductUpdateView, ProductDeleteView,
-    StockListView, StockCreateView, StockUpdateView, StockDeleteView,
+    StockCreateView, StockUpdateView, StockDeleteView,
     SupplierListView, SupplierCreateView, SupplierUpdateView, SupplierDeleteView,
     WarehouseListView, WarehouseDetailView, WarehouseCreateView, WarehouseUpdateView, WarehouseDeleteView, WarehouseDebugView,
     SupplierProductListView, WarehouseProductCreateView, WarehouseProductUpdateView, WarehouseProductDeleteView,
@@ -25,8 +25,7 @@ urlpatterns = [
     path('products/<int:pk>/edit-threshold/', ProductStockThresholdEditView.as_view(), name='product_stock_threshold_edit'),
     path('products/<int:pk>/toggle-status/', product_toggle_status, name='product_toggle_status'),
 
-    # Stock URLs
-    path('stock/', StockListView.as_view(), name='stock_list'),
+    # Stock URLs (removed - use store manager stock management instead)
     path('stock/new/', StockCreateView.as_view(), name='stock_create'),
     path('stock/<int:pk>/update/', StockUpdateView.as_view(), name='stock_update'),
     path('stock/<int:pk>/delete/', StockDeleteView.as_view(), name='stock_delete'),

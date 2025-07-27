@@ -56,4 +56,8 @@ urlpatterns = [
     # Session Management URLs
     path('save-cart-to-session/', views.save_cart_to_session, name='save_cart_to_session'),
     path('save-ticket-info-to-session/', views.save_ticket_info_to_session, name='save_ticket_info_to_session'),
+
+    # Store Manager Stock Management URLs
+    path('stock-detail/<int:stock_id>/', views.store_manager_stock_detail, name='stock_detail'),
+    path('transactions/', views.store_transactions_list, name='store_transactions_list'),
 ]

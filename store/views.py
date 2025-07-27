@@ -1285,6 +1285,13 @@ def view_receipt(request, receipt_id):
         for item in order_items:
             item.subtotal = item.quantity * item.price_at_time_of_sale
 
+        # Debug: Print data to console
+        print(f"DEBUG - Receipt ID: {receipt.id}")
+        print(f"DEBUG - Customer: {receipt.customer_name}")
+        print(f"DEBUG - Order items count: {order_items.count()}")
+        for item in order_items:
+            print(f"DEBUG - Item: {item.product.name if item.product else 'No Product'}, Qty: {item.quantity}, Price: {item.price_at_time_of_sale}")
+
         context = {
             'receipt': receipt,
             'transaction': transaction_obj,

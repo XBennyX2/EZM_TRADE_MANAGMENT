@@ -19,8 +19,8 @@ from . import fifo_views
 urlpatterns = [
     # Product URLs
     path('products/', ProductListView.as_view(), name='product_list'),
-    path('products/new/', ProductCreateView.as_view(), name='product_create'),
     path('products/<int:pk>/edit/', ProductUpdateView.as_view(), name='product_update'),
+    #path('products/new/', name='product_create'),
     path('products/<int:pk>/delete/', ProductDeleteView.as_view(), name='product_delete'),
     path('products/<int:pk>/edit-threshold/', ProductStockThresholdEditView.as_view(), name='product_stock_threshold_edit'),
     path('products/<int:pk>/toggle-status/', product_toggle_status, name='product_toggle_status'),
@@ -37,7 +37,6 @@ urlpatterns = [
     path('suppliers/<int:pk>/delete/', SupplierDeleteView.as_view(), name='supplier_delete'),
     path('suppliers/<int:supplier_id>/products/', SupplierProductListView.as_view(), name='supplier_products'),
     path('suppliers/<int:supplier_id>/products/new/', WarehouseProductCreateView.as_view(), name='warehouse_product_create'),
-    path('warehouse-products/new/', WarehouseProductCreateView.as_view(), name='warehouse_product_create_direct'),
     path('suppliers/<int:supplier_id>/profile/', supplier_profile_view, name='supplier_profile_view'),
     path('suppliers/<int:supplier_id>/catalog/', supplier_product_catalog_view, name='supplier_product_catalog_view'),
     path('suppliers/<int:supplier_id>/activate/', activate_supplier_account, name='activate_supplier_account'),
@@ -51,7 +50,6 @@ urlpatterns = [
     path('warehouses/', WarehouseListView.as_view(), name='warehouse_list'),
     path('warehouses/debug/', WarehouseDebugView.as_view(), name='warehouse_debug'),
     path('warehouses/<int:pk>/', WarehouseDetailView.as_view(), name='warehouse_detail'),
-    path('warehouses/new/', WarehouseCreateView.as_view(), name='warehouse_create'),
     path('warehouses/<int:pk>/edit/', WarehouseUpdateView.as_view(), name='warehouse_update'),
     path('warehouses/<int:pk>/delete/', WarehouseDeleteView.as_view(), name='warehouse_delete'),
 

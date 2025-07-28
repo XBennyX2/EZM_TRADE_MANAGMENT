@@ -108,15 +108,7 @@ class ProductListView(LoginRequiredMixin, ListView):
         return context
 
 class ProductCreateView(LoginRequiredMixin, ManagerAndOwnerMixin, CreateView):
-    model = Product
-    form_class = ProductForm
-    template_name = 'inventory/product_form.html'
-    extra_context = {'title': 'Create New Product'}
-    success_url = reverse_lazy('product_list')
-
-    def form_valid(self, form):
-        messages.success(self.request, f'Product "{form.instance.name}" has been created successfully.')
-        return super().form_valid(form)
+    pass
 
 class ProductUpdateView(LoginRequiredMixin, ManagerAndOwnerMixin, UpdateView):
     model = Product
@@ -441,14 +433,7 @@ class WarehouseListView(LoginRequiredMixin, StoreOwnerMixin, ListView):
 
 
 class WarehouseCreateView(LoginRequiredMixin, StoreOwnerMixin, CreateView):
-    model = Warehouse
-    form_class = WarehouseForm
-    template_name = 'inventory/warehouse_form.html'
-    success_url = reverse_lazy('warehouse_list')
-
-    def form_valid(self, form):
-        messages.success(self.request, f"Warehouse '{form.instance.name}' created successfully!")
-        return super().form_valid(form)
+    pass
 
 
 class WarehouseUpdateView(LoginRequiredMixin, StoreOwnerMixin, UpdateView):
@@ -577,34 +562,7 @@ class SupplierProductListView(LoginRequiredMixin, StoreOwnerMixin, ListView):
 
 
 class WarehouseProductCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
-    model = WarehouseProduct
-    form_class = WarehouseProductForm
-    template_name = 'inventory/warehouse_product_form.html'
-
-    def test_func(self):
-        # Allow admin users and Head Managers
-        return self.request.user.is_superuser or self.request.user.role in ['admin', 'head_manager']
-
-    def handle_no_permission(self):
-        messages.error(self.request, "You don't have permission to create products. Only administrators and Head Managers can add products to supplier catalogs.")
-        return redirect('supplier_list')
-
-    def get_initial(self):
-        initial = super().get_initial()
-        supplier_id = self.kwargs.get('supplier_id')
-        if supplier_id:
-            initial['supplier'] = supplier_id
-        return initial
-
-    def get_success_url(self):
-        supplier_id = self.kwargs.get('supplier_id')
-        if supplier_id:
-            return reverse_lazy('supplier_products', kwargs={'supplier_id': supplier_id})
-        return reverse_lazy('product_list')
-
-    def form_valid(self, form):
-        messages.success(self.request, f"Product '{form.instance.product_name}' added successfully!")
-        return super().form_valid(form)
+    pass
 
 
 class WarehouseProductUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):

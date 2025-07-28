@@ -205,6 +205,67 @@ class Supplier(models.Model):
     def __str__(self):
         return self.name
 
+    def get_estimated_delivery_days(self):
+        """
+        Get estimated delivery days for this supplier.
+        Returns the number of days based on supplier profile or default.
+        """
+        try:
+            if hasattr(self, 'profile') and self.profile.estimated_delivery_timeframe:
+                return self._parse_delivery_timeframe(self.profile.estimated_delivery_timeframe)
+        except:
+            pass
+
+        # Default to 7 days if no specific timeframe is set
+        return 7
+
+    def _parse_delivery_timeframe(self, timeframe):
+        """
+        Parse delivery timeframe text and return number of days.
+        Examples: "3-5 business days" -> 5, "1-2 weeks" -> 14, "2 days" -> 2
+        """
+        import re
+
+        if not timeframe:
+            return 7
+
+        timeframe = timeframe.lower().strip()
+
+        # Look for patterns like "3-5 days", "1-2 weeks", "2 days", etc.
+
+        # Pattern for ranges like "3-5 days" or "1-2 weeks"
+        range_pattern = r'(\d+)-(\d+)\s*(business\s+)?(days?|weeks?)'
+        range_match = re.search(range_pattern, timeframe)
+
+        if range_match:
+            start_num = int(range_match.group(1))
+            end_num = int(range_match.group(2))
+            unit = range_match.group(4)
+
+            # Use the higher end of the range for safety
+            days = end_num
+
+            if 'week' in unit:
+                days *= 7
+
+            return days
+
+        # Pattern for single numbers like "2 days" or "1 week"
+        single_pattern = r'(\d+)\s*(business\s+)?(days?|weeks?)'
+        single_match = re.search(single_pattern, timeframe)
+
+        if single_match:
+            num = int(single_match.group(1))
+            unit = single_match.group(3)
+
+            if 'week' in unit:
+                num *= 7
+
+            return num
+
+        # If no pattern matches, return default
+        return 7
+
 
 class SupplierProfile(models.Model):
     """
@@ -529,6 +590,64 @@ class SupplierProduct(models.Model):
             return "text-warning"
         else:
             return "text-success"
+
+    def get_estimated_delivery_days(self):
+        """
+        Get estimated delivery days for this specific product.
+        Uses product-specific delivery time, falls back to supplier default.
+        """
+        if self.estimated_delivery_time:
+            return self._parse_delivery_timeframe(self.estimated_delivery_time)
+
+        # Fall back to supplier's general delivery timeframe
+        return self.supplier.get_estimated_delivery_days()
+
+    def _parse_delivery_timeframe(self, timeframe):
+        """
+        Parse delivery timeframe text and return number of days.
+        Examples: "3-5 business days" -> 5, "1-2 weeks" -> 14, "2 days" -> 2
+        """
+        import re
+
+        if not timeframe:
+            return 7
+
+        timeframe = timeframe.lower().strip()
+
+        # Look for patterns like "3-5 days", "1-2 weeks", "2 days", etc.
+
+        # Pattern for ranges like "3-5 days" or "1-2 weeks"
+        range_pattern = r'(\d+)-(\d+)\s*(business\s+)?(days?|weeks?)'
+        range_match = re.search(range_pattern, timeframe)
+
+        if range_match:
+            start_num = int(range_match.group(1))
+            end_num = int(range_match.group(2))
+            unit = range_match.group(4)
+
+            # Use the higher end of the range for safety
+            days = end_num
+
+            if 'week' in unit:
+                days *= 7
+
+            return days
+
+        # Pattern for single numbers like "2 days" or "1 week"
+        single_pattern = r'(\d+)\s*(business\s+)?(days?|weeks?)'
+        single_match = re.search(single_pattern, timeframe)
+
+        if single_match:
+            num = int(single_match.group(1))
+            unit = single_match.group(3)
+
+            if 'week' in unit:
+                num *= 7
+
+            return num
+
+        # If no pattern matches, return supplier default
+        return self.supplier.get_estimated_delivery_days()
 
 
 class PurchaseRequest(models.Model):
@@ -1117,6 +1236,15 @@ class PurchaseOrder(models.Model):
             'cancelled': 'Order Cancelled'
         }
         return status_map.get(self.status, self.status.title())
+
+    def save(self, *args, **kwargs):
+        """Override save to set supplier-specific delivery times"""
+        # Set estimated delivery hours based on supplier's delivery timeframe
+        if not self.estimated_delivery_hours or self.estimated_delivery_hours == 168:  # 168 = default 7 days
+            delivery_days = self.supplier.get_estimated_delivery_days()
+            self.estimated_delivery_hours = delivery_days * 24  # Convert days to hours
+
+        super().save(*args, **kwargs)
 
 
 class PurchaseOrderItem(models.Model):

@@ -184,7 +184,13 @@
                         <div class="row">
                             <div class="col-12">
                                 <small class="text-muted">Delivery Time:</small>
-                                <div>{{ product.estimated_delivery_time|default:"Not specified" }}</div>
+                                <div>
+                                    {% if product.estimated_delivery_time %}
+                                        {{ product.estimated_delivery_time }}
+                                    {% else %}
+                                        {{ product.get_estimated_delivery_days }} days (supplier default)
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
                     </div>

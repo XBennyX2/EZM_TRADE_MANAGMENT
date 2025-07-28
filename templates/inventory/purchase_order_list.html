@@ -150,6 +150,21 @@
         animation: pulse 2s infinite;
     }
 
+    .timeline-date {
+        font-size: 0.7rem;
+        color: #28a745;
+        font-weight: 500;
+        margin-top: 2px;
+    }
+
+    .timeline-status {
+        font-size: 0.7rem;
+        color: #ffc107;
+        font-weight: 500;
+        margin-top: 2px;
+        font-style: italic;
+    }
+
     /* Enhanced Tab Styling */
     .nav-tabs {
         border-bottom: 2px solid var(--accent-teal);
@@ -479,34 +494,45 @@
                                     </div>
                                 </div>
 
-                                <!-- Progress Timeline -->
+                                <!-- Enhanced Progress Timeline -->
                                 <div class="progress-timeline">
                                     <div class="timeline-step {% if order.payment_confirmed_at %}completed{% endif %}">
                                         <div class="timeline-icon">
-                                            <i class="bi bi-credit-card"></i>
+                                            <i class="bi bi-credit-card-fill"></i>
                                         </div>
-                                        <small>Payment</small>
+                                        <small>Paid</small>
+                                        {% if order.payment_confirmed_at %}
+                                        <div class="timeline-date">{{ order.payment_confirmed_at|date:"M d, H:i" }}</div>
+                                        {% endif %}
                                     </div>
-                                    <div
-                                        class="timeline-step {% if order.shipped_at %}completed{% elif order.status == 'payment_confirmed' %}current{% endif %}">
+                                    <div class="timeline-step {% if order.shipped_at %}completed{% elif order.status == 'payment_confirmed' %}current{% endif %}">
                                         <div class="timeline-icon">
-                                            <i class="bi bi-box-seam"></i>
+                                            <i class="bi bi-box-seam-fill"></i>
                                         </div>
                                         <small>Shipped</small>
+                                        {% if order.shipped_at %}
+                                        <div class="timeline-date">{{ order.shipped_at|date:"M d, H:i" }}</div>
+                                        {% elif order.status == 'payment_confirmed' %}
+                                        <div class="timeline-status">Awaiting Shipment</div>
+                                        {% endif %}
                                     </div>
-                                    <div
-                                        class="timeline-step {% if order.is_in_transit %}current{% elif order.is_delivered %}completed{% endif %}">
+                                    <div class="timeline-step {% if order.is_in_transit %}current{% elif order.is_delivered %}completed{% endif %}">
                                         <div class="timeline-icon">
                                             <i class="bi bi-truck"></i>
                                         </div>
                                         <small>In Transit</small>
+                                        {% if order.is_in_transit and not order.is_delivered %}
+                                        <div class="timeline-status">On the way</div>
+                                        {% endif %}
                                     </div>
-                                    <div
-                                        class="timeline-step {% if order.is_delivered %}completed{% elif order.is_in_transit %}current{% endif %}">
+                                    <div class="timeline-step {% if order.is_delivered %}completed{% endif %}">
                                         <div class="timeline-icon">
-                                            <i class="bi bi-house-check"></i>
+                                            <i class="bi bi-house-check-fill"></i>
                                         </div>
                                         <small>Delivered</small>
+                                        {% if order.is_delivered %}
+                                        <div class="timeline-date">{{ order.delivered_at|date:"M d, H:i" }}</div>
+                                        {% endif %}
                                     </div>
                                 </div>
 

@@ -185,7 +185,7 @@ class PaymentTransactionService:
                 supplier=chapa_transaction.supplier,
                 created_by=chapa_transaction.user,
                 order_date=timezone.now().date(),
-                expected_delivery_date=timezone.now().date() + timedelta(days=7),
+                expected_delivery_date=timezone.now().date() + timedelta(days=chapa_transaction.supplier.get_estimated_delivery_days()),
                 delivery_address="Head Office - Main Location",
                 status='payment_confirmed',
                 payment_status='completed',

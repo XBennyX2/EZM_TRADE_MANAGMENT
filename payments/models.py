@@ -241,8 +241,9 @@ class PurchaseOrderPayment(models.Model):
             # Generate unique order number
             order_number = f"PO-{uuid.uuid4().hex[:8].upper()}"
 
-            # Calculate expected delivery date (7 days from now)
-            expected_delivery = timezone.now().date() + timedelta(days=7)
+            # Calculate expected delivery date using supplier's specific delivery time
+            delivery_days = self.supplier.get_estimated_delivery_days()
+            expected_delivery = timezone.now().date() + timedelta(days=delivery_days)
 
             # Create purchase order
             purchase_order = PurchaseOrder.objects.create(

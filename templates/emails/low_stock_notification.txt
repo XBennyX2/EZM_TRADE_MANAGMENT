@@ -1,0 +1,64 @@
+EZM TRADE MANAGEMENT - LOW STOCK ALERT
+========================================
+
+Dear {{ supplier.name }},
+
+This is an automated notification to inform you that some of your products in our system have low stock levels that require your attention.
+
+STOCK SUMMARY:
+{% if total_critical_stock > 0 %}
+- Critical Stock (≤ {{ critical_stock_threshold }} units): {{ total_critical_stock }} products
+{% endif %}
+{% if total_low_stock > 0 %}
+- Low Stock (≤ {{ low_stock_threshold }} units): {{ total_low_stock }} products
+{% endif %}
+{% if total_out_of_stock > 0 %}
+- Out of Stock (0 units): {{ total_out_of_stock }} products
+{% endif %}
+
+{% if out_of_stock_products %}
+OUT OF STOCK PRODUCTS:
+{% for product in out_of_stock_products %}
+- {{ product.product_name }}
+  SKU: {{ product.product_code|default:"N/A" }}
+  Category: {{ product.category }}
+  Status: OUT OF STOCK
+
+{% endfor %}
+{% endif %}
+
+{% if critical_stock_products %}
+CRITICAL STOCK PRODUCTS:
+{% for product in critical_stock_products %}
+- {{ product.product_name }}
+  SKU: {{ product.product_code|default:"N/A" }}
+  Category: {{ product.category }}
+  Stock: {{ product.stock_quantity }} units left
+
+{% endfor %}
+{% endif %}
+
+{% if low_stock_products and not critical_stock_products %}
+LOW STOCK PRODUCTS:
+{% for product in low_stock_products %}
+- {{ product.product_name }}
+  SKU: {{ product.product_code|default:"N/A" }}
+  Category: {{ product.category }}
+  Stock: {{ product.stock_quantity }} units left
+
+{% endfor %}
+{% endif %}
+
+RECOMMENDED ACTIONS:
+- Review and update stock quantities for the listed products
+- Consider restocking critical and out-of-stock items immediately
+- Update your product catalog with current inventory levels
+- Set up automatic reorder points to prevent future stockouts
+
+Note: This notification was generated automatically based on your current stock levels. Please update your inventory as soon as possible to ensure continuous availability for our customers.
+
+---
+EZM Trade Management System
+Generated on {{ notification_date|date:"F d, Y \a\t g:i A" }}
+
+If you have any questions, please contact our support team.

@@ -17,7 +17,7 @@ import logging
 logger = logging.getLogger(__name__)
 from django.utils import timezone
 from Inventory.models import SupplierProfile, SupplierProduct, WarehouseProduct, ProductCategory
-from Inventory.forms import SupplierProfileForm, SupplierProductForm
+from Inventory.forms import SupplierProfileForm, SupplierProductForm, SupplierStockAdjustmentForm
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.views.decorators.csrf import csrf_exempt
@@ -854,7 +854,12 @@ def supplier_product_catalog(request):
         'total_products': products.count(),
     }
 
-    return render(request, 'supplier/product_catalog.html', context)
+    response = render(request, 'supplier/product_catalog.html', context)
+    # Add cache-busting headers to ensure fresh data
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    return response
 
 
 @supplier_profile_required
@@ -871,8 +876,11 @@ def supplier_add_product(request):
         if form.is_valid():
             product = form.save(commit=False)
             product.supplier = supplier
+            # Don't override stock_quantity - let the form handle it
+            # The form's clean method will set the appropriate availability_status
             product.save()
-            messages.success(request, f"Product '{product.product_name}' added successfully!")
+            stock_msg = f" with {product.stock_quantity} units in stock" if product.stock_quantity > 0 else " (currently out of stock)"
+            messages.success(request, f"Product '{product.product_name}' added successfully{stock_msg}!")
             return redirect('supplier_product_catalog')
     else:
         form = SupplierProductForm(supplier=supplier)
@@ -912,7 +920,12 @@ def supplier_edit_product(request, product_id):
         'action': 'Edit',
     }
 
-    return render(request, 'supplier/product_form.html', context)
+    response = render(request, 'supplier/product_form.html', context)
+    # Add cache-busting headers to ensure fresh data
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    return response
 
 
 @supplier_profile_required
@@ -1102,3 +1115,43 @@ def api_product_categories(request):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+@supplier_profile_required
+def supplier_adjust_stock(request):
+    """Handle supplier stock quantity adjustments"""
+    if request.method == 'POST':
+        try:
+            supplier = Supplier.objects.get(email=request.user.email)
+            product_id = request.POST.get('product_id')
+            product = SupplierProduct.objects.get(id=product_id, supplier=supplier)
+
+            form = SupplierStockAdjustmentForm(request.POST, instance=product)
+            if form.is_valid():
+                old_stock = product.stock_quantity
+                updated_product = form.save()
+                new_stock = updated_product.stock_quantity
+                reason = form.cleaned_data.get('adjustment_reason', 'Manual stock adjustment')
+
+                messages.success(
+                    request,
+                    f"Stock updated for '{product.product_name}': {old_stock} → {new_stock} units. "
+                    f"Reason: {reason}"
+                )
+
+                # Log the adjustment
+                logger.info(f"Supplier {supplier.name} adjusted stock for {product.product_name}: "
+                           f"{old_stock} → {new_stock}. Reason: {reason}")
+
+            else:
+                for field, errors in form.errors.items():
+                    for error in errors:
+                        messages.error(request, f"Error in {field}: {error}")
+
+        except (Supplier.DoesNotExist, SupplierProduct.DoesNotExist):
+            messages.error(request, "Product not found.")
+        except Exception as e:
+            messages.error(request, f"Error updating stock: {str(e)}")
+            logger.error(f"Error in supplier stock adjustment: {str(e)}")
+
+    return redirect('supplier_product_catalog')

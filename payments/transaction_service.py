@@ -12,7 +12,7 @@ import logging
 
 from .models import ChapaTransaction, PurchaseOrderPayment
 from transactions.models import Transaction, FinancialRecord, SupplierTransaction
-from Inventory.models import PurchaseOrder, Store
+from Inventory.models import PurchaseOrder, Store, SupplierProduct, WarehouseProduct, PurchaseOrderItem
 from store.models import Store as StoreModel
 
 User = get_user_model()
@@ -195,24 +195,69 @@ class PaymentTransactionService:
                 notes=f"Order created from Chapa payment: {chapa_transaction.chapa_tx_ref}"
             )
 
-            # Create purchase order items from order_items
+            # Create purchase order items from order_items and update supplier stock
             order_items = order_payment.order_items or []
-            for item_data in order_items:
-                # Try to find warehouse product by name
-                try:
-                    warehouse_product = WarehouseProduct.objects.filter(
-                        product_name=item_data.get('product_name', ''),
-                        is_active=True
-                    ).first()
+            logger.info(f"Transaction Service: Processing {len(order_items)} order items for stock deduction")
 
-                    if warehouse_product:
-                        PurchaseOrderItem.objects.create(
-                            purchase_order=purchase_order,
-                            warehouse_product=warehouse_product,
-                            quantity_ordered=item_data.get('quantity', 1),
-                            unit_price=item_data.get('price', 0),
-                            total_price=item_data.get('total_price', 0)
+            for item_data in order_items:
+                try:
+                    product_id = item_data.get('product_id')
+                    logger.info(f"Transaction Service: Processing item with product_id: {product_id}")
+
+                    # First try to find supplier product by ID if available
+                    supplier_product = None
+                    if product_id:
+                        try:
+                            supplier_product = SupplierProduct.objects.get(
+                                id=product_id,
+                                supplier=chapa_transaction.supplier
+                            )
+                            logger.info(f"Transaction Service: Found supplier product: {supplier_product.product_name}, "
+                                      f"Current stock: {supplier_product.stock_quantity}")
+                        except SupplierProduct.DoesNotExist:
+                            logger.warning(f"Transaction Service: SupplierProduct not found for ID: {product_id}")
+                            pass
+
+                    # If no supplier product found, try to find warehouse product by name
+                    warehouse_product = None
+                    if supplier_product and supplier_product.warehouse_product:
+                        warehouse_product = supplier_product.warehouse_product
+                    else:
+                        warehouse_product = WarehouseProduct.objects.filter(
+                            product_name=item_data.get('product_name', ''),
+                            is_active=True
+                        ).first()
+
+                    # Always try to decrease supplier stock if supplier product is available
+                    if supplier_product:
+                        quantity_ordered = item_data.get('quantity', 1)
+
+                        # Decrease supplier stock first
+                        success = supplier_product.decrease_stock(
+                            quantity_ordered,
+                            f"Purchase order {purchase_order.order_number} - Payment confirmed"
                         )
+
+                        if not success:
+                            logger.error(f"Failed to decrease stock for {supplier_product.product_name}. "
+                                       f"Order: {purchase_order.order_number}, Quantity: {quantity_ordered}")
+                        else:
+                            logger.info(f"Successfully decreased stock for {supplier_product.product_name}: "
+                                      f"-{quantity_ordered} units. New stock: {supplier_product.stock_quantity}")
+
+                        # Create purchase order item if warehouse product exists
+                        if warehouse_product:
+                            PurchaseOrderItem.objects.create(
+                                purchase_order=purchase_order,
+                                warehouse_product=warehouse_product,
+                                quantity_ordered=quantity_ordered,
+                                unit_price=item_data.get('price', 0),
+                                total_price=item_data.get('total_price', 0)
+                            )
+                        else:
+                            logger.warning(f"No warehouse product found for {supplier_product.product_name}. "
+                                         f"Stock decreased but no purchase order item created.")
+
                 except Exception as e:
                     logger.error(f"Error creating purchase order item: {str(e)}")
                     continue

@@ -10,6 +10,7 @@ from utils.cart_views import (
     cart_update_quantity,
     cart_clear,
     cart_count,
+    cart_validate,
     order_confirmation,
     proceed_to_purchase_requests
 )
@@ -21,6 +22,7 @@ urlpatterns = [
     path('update/', cart_update_quantity, name='cart_update_quantity'),
     path('clear/', cart_clear, name='cart_clear'),
     path('count/', cart_count, name='cart_count'),
+    path('validate/', cart_validate, name='cart_validate'),
     path('order-confirmation/', order_confirmation, name='order_confirmation'),
     path('proceed/', proceed_to_purchase_requests, name='proceed_to_purchase_requests'),
 ]

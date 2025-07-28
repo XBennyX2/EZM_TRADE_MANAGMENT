@@ -139,14 +139,7 @@
 {% endblock %}
 
 {% block content %}
-<!-- Hidden restock request form -->
-<form id="restockRequestForm" method="post" action="{% url 'submit_restock_request' %}" style="display: none;">
-  {% csrf_token %}
-  <input type="hidden" id="restock_product_id" name="product_id">
-  <input type="hidden" id="restock_quantity" name="requested_quantity" value="50">
-  <input type="hidden" name="priority" value="medium">
-  <input type="hidden" name="reason" value="Low stock alert - requested from stock alerts dashboard">
-</form>
+<!-- Hidden form removed - now redirects to warehouse products page -->
 
 <div class="container-fluid">
   <!-- Header -->
@@ -371,18 +364,9 @@
 
 <script>
 function requestRestock(productId, productName) {
-  if (confirm('Request restock for ' + productName + '?\n\nThis will submit a restock request with default quantity of 50 units.')) {
-    // Use the existing hidden form
-    const form = document.getElementById('restockRequestForm');
-    const productIdInput = document.getElementById('restock_product_id');
-
-    if (form && productIdInput) {
-      productIdInput.value = productId;
-      form.submit();
-    } else {
-      alert('Form not found. Please refresh the page and try again.');
-    }
-  }
+  // Redirect to warehouse products page with search for this product
+  const searchQuery = encodeURIComponent(productName);
+  window.location.href = `/users/store-manager/warehouse-products/?search=${searchQuery}`;
 }
 </script>
 {% endblock %}

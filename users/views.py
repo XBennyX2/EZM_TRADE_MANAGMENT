@@ -1983,8 +1983,9 @@ def store_manager_warehouse_products(request):
     if search_query:
         warehouse_products = warehouse_products.filter(
             Q(product_name__icontains=search_query) |
-            Q(description__icontains=search_query) |
-            Q(supplier__name__icontains=search_query)
+            Q(supplier__name__icontains=search_query) |
+            Q(category__icontains=search_query) |
+            Q(sku__icontains=search_query)
         )
 
     # Apply category filter
@@ -2156,9 +2157,23 @@ def get_stores_with_product(request):
             'product_name': product.name
         })
 
+    # Debug logging
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Product ID: {product_id}, Product: {product.name}")
+    logger.info(f"Requesting store: {requesting_store.name}")
+    logger.info(f"Found {len(available_stores)} stores with product")
+    for store in available_stores:
+        logger.info(f"  - {store['name']}: {store['available_quantity']} units")
+
     return JsonResponse({
         'stores': available_stores,
-        'product_name': product.name
+        'product_name': product.name,
+        'debug': {
+            'product_id': product_id,
+            'requesting_store': requesting_store.name,
+            'total_stores_found': len(available_stores)
+        }
     })
 
 
@@ -2282,21 +2297,21 @@ def submit_transfer_request(request):
 
             if requested_quantity <= 0:
                 messages.error(request, "Requested quantity must be greater than 0.")
-                return redirect('store_manager_page')
+                return redirect('store_manager_transfer_requests')
 
             if requesting_store == from_store:
                 messages.error(request, "Cannot transfer from the same store.")
-                return redirect('store_manager_page')
+                return redirect('store_manager_transfer_requests')
 
             # Check if the source store has the product in stock
             try:
                 source_stock = Stock.objects.get(product=product, store=from_store)
                 if source_stock.quantity < requested_quantity:
                     messages.error(request, f"Insufficient stock. {from_store.name} only has {source_stock.quantity} units of {product.name}.")
-                    return redirect('store_manager_page')
+                    return redirect('store_manager_transfer_requests')
             except Stock.DoesNotExist:
                 messages.error(request, f"{product.name} is not available in {from_store.name}.")
-                return redirect('store_manager_page')
+                return redirect('store_manager_transfer_requests')
 
             # Check for existing pending requests
             existing_request = StoreStockTransferRequest.objects.filter(
@@ -2308,7 +2323,7 @@ def submit_transfer_request(request):
 
             if existing_request:
                 messages.warning(request, f"You already have a pending transfer request for {product.name} from {from_store.name}.")
-                return redirect('store_manager_page')
+                return redirect('store_manager_transfer_requests')
 
             # Create transfer request (FROM other store TO current store)
             transfer_request = StoreStockTransferRequest.objects.create(
@@ -2332,7 +2347,7 @@ def submit_transfer_request(request):
         except Exception as e:
             messages.error(request, f"Error submitting transfer request: {str(e)}")
 
-    return redirect('store_manager_page')
+    return redirect('store_manager_transfer_requests')
 
 
 @login_required
@@ -2550,15 +2565,38 @@ def store_manager_transfer_requests(request):
         'rejected_count': all_requests.filter(status='rejected').count(),
     }
 
-    # Get products available in other stores for transfer requests
-    # (excluding warehouse and current store)
-    other_stores_products = Stock.objects.filter(
-        quantity__gt=0
-    ).exclude(store=store).values_list('product', flat=True).distinct()
+    # Get detailed stock information for transfer requests
+    from collections import defaultdict
 
-    transfer_available_products = Product.objects.filter(
-        id__in=other_stores_products
-    ).order_by('name')
+    # Get all stock items from other stores (excluding current store)
+    other_stores_stock = Stock.objects.filter(
+        quantity__gt=0
+    ).exclude(store=store).select_related('product', 'store').order_by('product__name', 'store__name')
+
+    # Group stock by product for easy access in template
+    products_with_stores = defaultdict(list)
+    for stock in other_stores_stock:
+        products_with_stores[stock.product].append({
+            'store': stock.store,
+            'quantity': stock.quantity
+        })
+
+    # Convert to list for template with product-store combinations
+    transfer_product_store_combinations = []
+    for product, stores_data in products_with_stores.items():
+        for store_data in stores_data:
+            transfer_product_store_combinations.append({
+                'product_id': product.id,
+                'product_name': product.name,
+                'product_category': product.category,
+                'store_id': store_data['store'].id,
+                'store_name': store_data['store'].name,
+                'available_quantity': store_data['quantity'],
+                'display_text': f"{product.name} from {store_data['store'].name} ({store_data['quantity']} units)"
+            })
+
+    # Sort by product name then store name
+    transfer_product_store_combinations.sort(key=lambda x: (x['product_name'], x['store_name']))
 
     other_stores = Store.objects.exclude(id=store.id)
 
@@ -2594,7 +2632,7 @@ def store_manager_transfer_requests(request):
         'to_store_filter': to_store_filter,
         'status_choices': status_choices_with_selected,
         'priority_choices': priority_choices_with_selected,
-        'transfer_available_products': transfer_available_products,  # Products from other stores
+        'transfer_product_store_combinations': transfer_product_store_combinations,  # Product-store combinations with stock
         'other_stores': other_stores_with_selected,
         'status_all_selected': status_filter == 'all',
         'priority_all_selected': priority_filter == 'all',
@@ -2733,8 +2771,40 @@ def store_manager_stock_management(request):
     # in warehouse, other stores, or needs to be ordered from suppliers
     restock_available_products = Product.objects.all().order_by('name')
 
-    # For transfer requests, show products available in OTHER stores only
-    # (excluding warehouse and current store)
+    # For transfer requests, get detailed stock information for all products in other stores
+    from collections import defaultdict
+
+    # Get all stock items from other stores (excluding current store)
+    other_stores_stock = Stock.objects.filter(
+        quantity__gt=0
+    ).exclude(store=store).select_related('product', 'store').order_by('product__name', 'store__name')
+
+    # Group stock by product for easy access in template
+    products_with_stores = defaultdict(list)
+    for stock in other_stores_stock:
+        products_with_stores[stock.product].append({
+            'store': stock.store,
+            'quantity': stock.quantity
+        })
+
+    # Convert to list for template with product-store combinations
+    transfer_product_store_combinations = []
+    for product, stores_data in products_with_stores.items():
+        for store_data in stores_data:
+            transfer_product_store_combinations.append({
+                'product_id': product.id,
+                'product_name': product.name,
+                'product_category': product.category,
+                'store_id': store_data['store'].id,
+                'store_name': store_data['store'].name,
+                'available_quantity': store_data['quantity'],
+                'display_text': f"{product.name} from {store_data['store'].name} ({store_data['quantity']} units)"
+            })
+
+    # Sort by product name then store name
+    transfer_product_store_combinations.sort(key=lambda x: (x['product_name'], x['store_name']))
+
+    # Keep the old transfer_available_products for backward compatibility
     transfer_available_products = Product.objects.filter(
         id__in=other_stores_products
     ).order_by('name')

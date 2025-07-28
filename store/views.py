@@ -1365,7 +1365,7 @@ def approve_store_transfer_request(request, request_id):
                 messages.error(request, error_msg)
                 return redirect('store_manager_transfer_requests')
 
-            # Update transfer request
+            # Update transfer request (approve but don't transfer stock yet)
             transfer_request.status = 'approved'
             transfer_request.approved_quantity = approved_quantity
             transfer_request.reviewed_by = request.user
@@ -1373,28 +1373,10 @@ def approve_store_transfer_request(request, request_id):
             transfer_request.review_notes = review_notes
             transfer_request.save()
 
-            # Transfer stock
-            # Reduce stock from source store (this store)
-            source_stock.quantity -= approved_quantity
-            source_stock.last_updated = timezone.now()
-            source_stock.save()
+            # Note: Stock transfer will happen when the receiving store marks it as completed
+            # This ensures the receiving store actually receives the items before stock is updated
 
-            # Add stock to destination store
-            dest_stock, _ = Stock.objects.get_or_create(
-                store=transfer_request.to_store,
-                product=transfer_request.product,
-                defaults={
-                    'quantity': 0,
-                    'low_stock_threshold': 10,
-                    'selling_price': source_stock.selling_price,
-                    'last_updated': timezone.now()
-                }
-            )
-            dest_stock.quantity += approved_quantity
-            dest_stock.last_updated = timezone.now()
-            dest_stock.save()
-
-            success_msg = f"Transfer request #{transfer_request.request_number} approved. {approved_quantity} units transferred to {transfer_request.to_store.name}."
+            success_msg = f"Transfer request #{transfer_request.request_number} approved for {approved_quantity} units. Stock will be transferred when {transfer_request.to_store.name} confirms receipt."
 
             if request.content_type == 'application/json':
                 return JsonResponse({'success': True, 'message': success_msg})
@@ -1524,18 +1506,81 @@ def complete_store_transfer_request(request, request_id):
             if request.content_type == 'application/json':
                 data = json.loads(request.body)
                 completion_notes = data.get('completion_notes', '').strip()
+                received_quantity = int(data.get('received_quantity', transfer_request.approved_quantity))
             else:
                 completion_notes = request.POST.get('completion_notes', '').strip()
+                received_quantity = int(request.POST.get('received_quantity', transfer_request.approved_quantity))
+
+            # Validate received quantity
+            if received_quantity <= 0:
+                error_msg = "Received quantity must be greater than 0."
+                if request.content_type == 'application/json':
+                    return JsonResponse({'success': False, 'error': error_msg})
+                messages.error(request, error_msg)
+                return redirect('store_manager_transfer_requests')
+
+            if received_quantity > transfer_request.approved_quantity:
+                error_msg = f"Received quantity ({received_quantity}) cannot exceed approved quantity ({transfer_request.approved_quantity})."
+                if request.content_type == 'application/json':
+                    return JsonResponse({'success': False, 'error': error_msg})
+                messages.error(request, error_msg)
+                return redirect('store_manager_transfer_requests')
+
+            # Now perform the actual stock transfer
+            from Inventory.models import Stock
+            from django.utils import timezone
+
+            # Get source stock (from the sending store)
+            try:
+                source_stock = Stock.objects.get(
+                    store=transfer_request.from_store,
+                    product=transfer_request.product
+                )
+            except Stock.DoesNotExist:
+                error_msg = f"Source stock not found for {transfer_request.product.name} in {transfer_request.from_store.name}."
+                if request.content_type == 'application/json':
+                    return JsonResponse({'success': False, 'error': error_msg})
+                messages.error(request, error_msg)
+                return redirect('store_manager_transfer_requests')
+
+            # Check if source store still has enough stock
+            if source_stock.quantity < received_quantity:
+                error_msg = f"Insufficient stock in {transfer_request.from_store.name}. Available: {source_stock.quantity}, Required: {received_quantity}."
+                if request.content_type == 'application/json':
+                    return JsonResponse({'success': False, 'error': error_msg})
+                messages.error(request, error_msg)
+                return redirect('store_manager_transfer_requests')
+
+            # Perform stock transfer
+            # Reduce stock from source store
+            source_stock.quantity -= received_quantity
+            source_stock.last_updated = timezone.now()
+            source_stock.save()
+
+            # Add stock to destination store (this store)
+            dest_stock, created = Stock.objects.get_or_create(
+                store=store,
+                product=transfer_request.product,
+                defaults={
+                    'quantity': 0,
+                    'low_stock_threshold': 10,
+                    'selling_price': source_stock.selling_price,
+                    'last_updated': timezone.now()
+                }
+            )
+            dest_stock.quantity += received_quantity
+            dest_stock.last_updated = timezone.now()
+            dest_stock.save()
 
             # Update request status to completed
             transfer_request.status = 'completed'
-            transfer_request.review_notes = completion_notes or f"Transfer completed by {request.user.get_full_name() or request.user.username}"
-            transfer_request.reviewed_by = request.user
-            transfer_request.reviewed_date = timezone.now()
+            transfer_request.actual_quantity_transferred = received_quantity
+            transfer_request.received_date = timezone.now()
+            transfer_request.review_notes = completion_notes or f"Transfer completed by {request.user.get_full_name() or request.user.username}. Received {received_quantity} units."
             transfer_request.save()
 
             # Success response
-            success_msg = f"Transfer request {transfer_request.request_number} marked as completed successfully."
+            success_msg = f"Transfer request {transfer_request.request_number} completed successfully. {received_quantity} units added to your store inventory."
 
             if request.content_type == 'application/json':
                 return JsonResponse({

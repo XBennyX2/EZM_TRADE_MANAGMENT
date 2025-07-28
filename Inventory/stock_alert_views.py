@@ -79,8 +79,12 @@ def stock_alerts_dashboard(request):
             page_number = request.GET.get('page')
             page_obj = paginator.get_page(page_number)
 
-            # Get categories for filter dropdown
-            categories = Stock.objects.filter(store=store).values_list('product__category', flat=True).distinct()
+            # Get categories for filter dropdown (exclude null/empty categories)
+            categories = Stock.objects.filter(
+                store=store,
+                product__category__isnull=False,
+                product__category__gt=''
+            ).values_list('product__category', flat=True).distinct().order_by('product__category')
 
             # Get summary statistics
             total_low_stock = Stock.objects.filter(
@@ -136,8 +140,11 @@ def stock_alerts_dashboard(request):
         page_number = request.GET.get('page')
         page_obj = paginator.get_page(page_number)
 
-        # Get categories for filter dropdown
-        categories = WarehouseProduct.objects.values_list('category', flat=True).distinct()
+        # Get categories for filter dropdown (exclude null/empty categories)
+        categories = WarehouseProduct.objects.filter(
+            category__isnull=False,
+            category__gt=''
+        ).values_list('category', flat=True).distinct().order_by('category')
 
         # Get summary statistics
         total_low_stock = WarehouseProduct.get_low_stock_products().count()
@@ -284,8 +291,11 @@ def warehouse_inventory_overview(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
-    # Get categories for filter dropdown
-    categories = WarehouseProduct.objects.values_list('category', flat=True).distinct()
+    # Get categories for filter dropdown (exclude null/empty categories)
+    categories = WarehouseProduct.objects.filter(
+        category__isnull=False,
+        category__gt=''
+    ).values_list('category', flat=True).distinct().order_by('category')
     
     # Get summary statistics
     total_products = WarehouseProduct.objects.filter(is_active=True).count()
@@ -340,8 +350,12 @@ def store_inventory_view(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
-    # Get categories for filter dropdown
-    categories = Stock.objects.filter(store=store).values_list('product__category', flat=True).distinct()
+    # Get categories for filter dropdown (exclude null/empty categories)
+    categories = Stock.objects.filter(
+        store=store,
+        product__category__isnull=False,
+        product__category__gt=''
+    ).values_list('product__category', flat=True).distinct().order_by('product__category')
     
     # Get summary statistics
     total_items = store_stock.count()

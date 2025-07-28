@@ -1254,84 +1254,162 @@ def export_sales_report(sales_data, summary_data, export_format):
 
 def export_sales_pdf(sales_data, summary_data):
     """
-    Generate HTML-based PDF sales report (simplified version).
+    Generate PDF sales report using ReportLab.
     """
-    response = HttpResponse(content_type='text/html')
-    response['Content-Disposition'] = f'attachment; filename="sales_report_{summary_data["start_date"]}_{summary_data["end_date"]}.html"'
+    from reportlab.lib.pagesizes import A4, letter
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.units import inch
+    from io import BytesIO
+    from django.utils import timezone
 
-    # Create HTML content
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Sales Report - {summary_data['store'].name}</title>
-        <style>
-            body {{ font-family: Arial, sans-serif; margin: 20px; }}
-            .header {{ text-align: center; margin-bottom: 30px; }}
-            .summary {{ background: #f5f5f5; padding: 20px; margin-bottom: 30px; }}
-            table {{ width: 100%; border-collapse: collapse; }}
-            th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
-            th {{ background-color: #4CAF50; color: white; }}
-            .profit-positive {{ color: green; }}
-            .profit-negative {{ color: red; }}
-        </style>
-    </head>
-    <body>
-        <div class="header">
-            <h1>Sales Report - {summary_data['store'].name}</h1>
-            <p>Period: {summary_data['start_date']} to {summary_data['end_date']}</p>
-        </div>
+    # Create PDF buffer
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    styles = getSampleStyleSheet()
+    story = []
 
-        <div class="summary">
-            <h2>Summary Statistics</h2>
-            <p><strong>Total Revenue:</strong> ETB {summary_data['total_revenue']:,.2f}</p>
-            <p><strong>Total Units Sold:</strong> {summary_data['total_units_sold']:,}</p>
-            <p><strong>Total Transactions:</strong> {summary_data['total_transactions']:,}</p>
-            <p><strong>Average Transaction Value:</strong> ETB {summary_data['avg_transaction_value']:,.2f}</p>
-        </div>
+    # Title
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        spaceAfter=30,
+        textColor=colors.HexColor('#0B0C10'),
+        alignment=1  # Center alignment
+    )
 
-        <h2>Detailed Sales Data</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Product</th>
-                    <th>SKU</th>
-                    <th>Category</th>
-                    <th>Qty</th>
-                    <th>Unit Price</th>
-                    <th>Total</th>
-                    <th>Profit</th>
-                    <th>Payment</th>
-                </tr>
-            </thead>
-            <tbody>
-    """
+    story.append(Paragraph(f"Sales Report - {summary_data['store'].name}", title_style))
+    story.append(Paragraph(f"Period: {summary_data['start_date']} to {summary_data['end_date']}", styles['Normal']))
+    story.append(Spacer(1, 20))
 
-    for item in sales_data:
-        profit_class = "profit-positive" if item['total_profit'] >= 0 else "profit-negative"
-        html_content += f"""
-                <tr>
-                    <td>{item['sale_date'].strftime('%Y-%m-%d %H:%M')}</td>
-                    <td>{item['product_name']}</td>
-                    <td>{item['product_sku']}</td>
-                    <td>{item['category']}</td>
-                    <td>{item['quantity_sold']}</td>
-                    <td>ETB {item['unit_price']:.2f}</td>
-                    <td>ETB {item['line_total']:.2f}</td>
-                    <td class="{profit_class}">ETB {item['total_profit']:.2f}</td>
-                    <td>{item['payment_method'].title()}</td>
-                </tr>
-        """
+    # Summary section
+    summary_data_table = [
+        ['Metric', 'Value'],
+        ['Total Revenue', f"ETB {summary_data['total_revenue']:,.2f}"],
+        ['Total Transactions', f"{summary_data['total_transactions']:,}"],
+        ['Units Sold', f"{summary_data['total_units_sold']:,}"],
+        ['Average Transaction', f"ETB {summary_data['avg_transaction_value']:,.2f}"],
+    ]
 
-    html_content += """
-            </tbody>
-        </table>
-    </body>
-    </html>
-    """
+    summary_table = Table(summary_data_table, colWidths=[2*inch, 2*inch])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#66FCF1')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#0B0C10')),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
+    ]))
 
-    response.write(html_content)
+    story.append(Paragraph("Summary", styles['Heading2']))
+    story.append(summary_table)
+    story.append(Spacer(1, 20))
+
+    # Sales data table (all records)
+    if sales_data:
+        sales_table_data = [['Date', 'Product', 'SKU', 'Category', 'Qty', 'Unit Price', 'Total', 'Profit', 'Payment']]
+
+        for item in sales_data:  # Include all items
+            try:
+                # Safely get values with defaults
+                product_name = item.get('product_name', 'Unknown Product')
+                category = item.get('category', 'N/A')
+                product_sku = item.get('product_sku', 'N/A')
+                sale_date = item.get('sale_date', timezone.now())
+                quantity_sold = item.get('quantity_sold', 0)
+                unit_price = item.get('unit_price', 0)
+                line_total = item.get('line_total', 0)
+                total_profit = item.get('total_profit', 0)
+                payment_method = item.get('payment_method', 'N/A')
+
+                # Truncate long names for better table formatting
+                product_name = product_name[:25] + '...' if len(str(product_name)) > 25 else str(product_name)
+                category = category[:15] + '...' if len(str(category)) > 15 else str(category)
+
+                sales_table_data.append([
+                    sale_date.strftime('%m/%d/%Y %H:%M') if hasattr(sale_date, 'strftime') else str(sale_date),
+                    product_name,
+                    str(product_sku),
+                    category,
+                    str(quantity_sold),
+                    f"ETB {float(unit_price):,.2f}",
+                    f"ETB {float(line_total):,.2f}",
+                    f"ETB {float(total_profit):,.2f}",
+                    str(payment_method)
+                ])
+            except Exception as e:
+                # Skip problematic records and continue
+                print(f"Error processing sales record: {e}")
+                continue
+
+        # Adjust column widths for better fit
+        sales_table = Table(sales_table_data, colWidths=[0.8*inch, 1.5*inch, 0.6*inch, 0.8*inch, 0.5*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.7*inch])
+        sales_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#66FCF1')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#0B0C10')),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 7),  # Smaller font for more data
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8F9FA')])  # Alternating row colors
+        ]))
+
+        story.append(Paragraph(f"Complete Sales Details ({len(sales_data)} Records)", styles['Heading2']))
+        story.append(sales_table)
+        story.append(Spacer(1, 20))
+    else:
+        # No sales data available
+        story.append(Paragraph("Sales Details", styles['Heading2']))
+        story.append(Paragraph("No sales data found for the selected period.", styles['Normal']))
+        story.append(Spacer(1, 20))
+
+
+
+    # Payment method distribution
+    if summary_data.get('payment_distribution'):
+        payment_data = [['Payment Method', 'Transactions', 'Total Amount']]
+
+        for payment in summary_data['payment_distribution']:
+            try:
+                payment_type = payment.get('payment_type', 'Unknown')
+                count = payment.get('count', 0)
+                total = payment.get('total', 0)
+
+                payment_data.append([
+                    str(payment_type).title(),
+                    f"{int(count):,}",
+                    f"ETB {float(total):,.2f}"
+                ])
+            except Exception as e:
+                print(f"Error processing payment distribution: {e}")
+                continue
+
+        payment_table = Table(payment_data, colWidths=[2*inch, 1.5*inch, 2*inch])
+        payment_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#66FCF1')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#0B0C10')),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
+        ]))
+
+        story.append(Paragraph("Payment Method Distribution", styles['Heading2']))
+        story.append(payment_table)
+
+    # Build PDF
+    doc.build(story)
+
+    # Return PDF response
+    buffer.seek(0)
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="sales_report_{summary_data["start_date"]}_{summary_data["end_date"]}.pdf"'
+
     return response
 
 
@@ -1577,10 +1655,12 @@ def store_manager_page(request):
         total=Sum('total_amount')
     ).order_by('-total')
 
-    # Recent transactions
-    recent_transactions = Transaction.objects.filter(
-        store=store
-    ).select_related('cashier').order_by('-timestamp')[:10]
+    # Recent transactions - get receipts for sales transactions since they have more detailed info
+    from transactions.models import Receipt
+    recent_transactions = Receipt.objects.filter(
+        transaction__store=store,
+        transaction__transaction_type='sale'
+    ).select_related('transaction').order_by('-timestamp')[:10]
 
     # Compare with previous period
     previous_start = start_date - (now - start_date)
@@ -1792,17 +1872,24 @@ def export_store_report(request):
     story.append(financial_table)
     story.append(Spacer(1, 20))
 
-    # Recent Transactions (last 20)
-    if period_transactions.exists():
-        transaction_data = [['Date', 'Amount', 'Payment Method', 'Cashier']]
+    # Recent Transactions (last 20) - use receipts for sales transactions
+    from transactions.models import Receipt
+    recent_receipts = Receipt.objects.filter(
+        transaction__store=store,
+        transaction__transaction_type='sale',
+        transaction__timestamp__gte=start_date
+    ).select_related('transaction').order_by('-timestamp')[:20]
 
-        for transaction in period_transactions[:20]:
-            cashier_name = transaction.cashier.get_full_name() if transaction.cashier else 'System'
+    if recent_receipts.exists():
+        transaction_data = [['Date', 'Amount', 'Payment Method', 'Customer']]
+
+        for receipt in recent_receipts:
+            customer_name = receipt.customer_name if receipt.customer_name != 'Walk-in Customer' else 'Walk-in'
             transaction_data.append([
-                transaction.timestamp.strftime('%m/%d/%Y %H:%M'),
-                f'ETB {transaction.total_amount:,.2f}',
-                transaction.get_payment_type_display(),
-                cashier_name
+                receipt.timestamp.strftime('%m/%d/%Y %H:%M'),
+                f'ETB {receipt.total_amount:,.2f}',
+                receipt.transaction.get_payment_type_display(),
+                customer_name
             ])
 
         transaction_table = Table(transaction_data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])

@@ -2891,7 +2891,7 @@ def store_transactions_list(request):
     transactions = Transaction.objects.filter(
         store=store,
         timestamp__gte=start_date
-    ).select_related('cashier').order_by('-timestamp')
+    ).select_related('store', 'receipt').order_by('-timestamp')
 
     # Pagination
     paginator = Paginator(transactions, 25)  # Show 25 transactions per page
@@ -2903,6 +2903,9 @@ def store_transactions_list(request):
         total=models.Sum('total_amount')
     )['total'] or 0
 
+    total_transactions_count = transactions.count()
+    avg_transaction_value = total_revenue / total_transactions_count if total_transactions_count > 0 else 0
+
     context = {
         'store': store,
         'page_obj': page_obj,
@@ -2910,7 +2913,8 @@ def store_transactions_list(request):
         'start_date': start_date,
         'end_date': now,
         'total_revenue': total_revenue,
-        'total_transactions': transactions.count(),
+        'total_transactions': total_transactions_count,
+        'avg_transaction_value': avg_transaction_value,
     }
 
     return render(request, 'store/store_transactions_list.html', context)

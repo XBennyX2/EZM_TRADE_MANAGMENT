@@ -1345,7 +1345,7 @@ class RestockRequest(models.Model):
         ).exclude(pk=self.pk).exists()
 
     def approve(self, approved_by, approved_quantity=None, notes=""):
-        """Approve the restock request and immediately transfer inventory"""
+        """Approve the restock request and reduce warehouse stock - store stock updated when received"""
         from django.utils import timezone
         from django.db import transaction
         from users.notifications import NotificationManager
@@ -1353,66 +1353,55 @@ class RestockRequest(models.Model):
         approved_qty = approved_quantity or self.requested_quantity
 
         with transaction.atomic():
-            # Update request status
-            self.status = 'approved'
-            self.reviewed_by = approved_by
-            self.reviewed_date = timezone.now()
-            self.approved_quantity = approved_qty
-            self.review_notes = notes
-
-            # Immediately transfer inventory upon approval
+            # Validate and reduce warehouse stock
             try:
-                # 1. Decrease warehouse stock
-                warehouse_product = WarehouseProduct.objects.get(
+                # Get the warehouse product with the highest stock or most recent one
+                warehouse_product = WarehouseProduct.objects.filter(
                     product_name=self.product.name,
                     is_active=True
-                )
+                ).order_by('-quantity_in_stock', '-id').first()
 
-                # Check if warehouse has sufficient stock
+                if not warehouse_product:
+                    raise ValueError(f"Product '{self.product.name}' not found in warehouse")
+
                 if warehouse_product.quantity_in_stock < approved_qty:
                     raise ValueError(f"Insufficient warehouse stock. Available: {warehouse_product.quantity_in_stock}, Requested: {approved_qty}")
 
-                # Decrease warehouse stock
+                # Reduce warehouse stock immediately upon approval
                 warehouse_product.update_stock(
                     -approved_qty,
-                    f"Restock approval to {self.store.name} - {self.request_number}"
+                    f"Restock approval for {self.store.name} - {self.request_number}"
                 )
 
-                # 2. Increase store stock
-                stock, created = Stock.objects.get_or_create(
-                    product=self.product,
-                    store=self.store,
-                    defaults={
-                        'quantity': 0,
-                        'low_stock_threshold': 10,
-                        'selling_price': warehouse_product.unit_price * Decimal('1.25')  # 25% markup
-                    }
-                )
-                stock.quantity += approved_qty
-                stock.save()
-
-                # 3. Mark as fulfilled since inventory is immediately transferred
-                self.status = 'fulfilled'
-                self.fulfilled_quantity = approved_qty
-                self.fulfilled_date = timezone.now()
-
-            except WarehouseProduct.DoesNotExist:
-                raise ValueError(f"Product '{self.product.name}' not found in warehouse")
             except Exception as e:
-                raise ValueError(f"Inventory transfer failed: {str(e)}")
+                if "not found in warehouse" in str(e) or "Insufficient warehouse stock" in str(e):
+                    raise ValueError(str(e))
+                else:
+                    raise ValueError(f"Error processing warehouse stock: {str(e)}")
 
+            # Update request status to shipped (ready for store manager to receive)
+            self.status = 'shipped'
+            self.reviewed_by = approved_by
+            self.reviewed_date = timezone.now()
+            self.approved_quantity = approved_qty
+            self.shipped_quantity = approved_qty
+            self.shipped_by = approved_by
+            self.shipped_date = timezone.now()
+            self.review_notes = notes
             self.save()
 
-        # Create notification for store manager
-        NotificationManager.create_notification(
-            notification_type='request_approved',
-            title=f'Restock Request Approved & Fulfilled: {self.product.name}',
-            message=f'Your request for {self.approved_quantity} units has been approved and inventory has been transferred to your store',
-            target_users=[self.requested_by],
-            priority='medium',
-            related_object_type='restock_request',
-            related_object_id=self.id
-        )
+            # Create notification for store manager
+            NotificationManager.create_notification(
+                notification_type='request_approved',
+                title=f'Restock Request Approved: {self.product.name}',
+                message=f'Your request for {self.approved_quantity} units has been approved. Please mark as received to update your store stock.',
+                target_users=[self.requested_by],
+                priority='medium',
+                related_object_type='restock_request',
+                related_object_id=self.id
+            )
+
+
 
     def reject(self, rejected_by, notes=""):
         """Reject the restock request"""
@@ -1461,31 +1450,62 @@ class RestockRequest(models.Model):
             pass
 
     def receive(self, received_by, received_quantity=None, notes=""):
-        """Mark request as received by store"""
+        """Mark request as received by store and update store stock"""
         from django.utils import timezone
+        from django.db import transaction
+        from decimal import Decimal
 
-        self.status = 'received'
-        self.received_by = received_by
-        self.received_date = timezone.now()
-        self.received_quantity = received_quantity or self.shipped_quantity
-        self.receiving_notes = notes
-        self.save()
+        if self.status != 'shipped':
+            raise ValueError("Only shipped requests can be marked as received")
 
-        # Update store stock
-        try:
-            stock, created = Stock.objects.get_or_create(
-                product=self.product,
-                store=self.store,
-                defaults={'quantity': 0, 'low_stock_threshold': 10}
-            )
-            stock.quantity += self.received_quantity
-            stock.save()
-        except Exception:
-            pass
+        received_qty = received_quantity or self.shipped_quantity
 
-        # Mark as fulfilled if fully received
-        if self.received_quantity >= self.approved_quantity:
-            self.fulfill()
+        with transaction.atomic():
+            # Update request status
+            self.status = 'received'
+            self.received_by = received_by
+            self.received_date = timezone.now()
+            self.received_quantity = received_qty
+            self.receiving_notes = notes
+
+            # Update store stock
+            try:
+                # Get warehouse product for pricing
+                warehouse_product = WarehouseProduct.objects.filter(
+                    product_name=self.product.name,
+                    is_active=True
+                ).order_by('-quantity_in_stock', '-id').first()
+
+                # Set default values for stock creation
+                stock_defaults = {
+                    'quantity': 0,
+                    'low_stock_threshold': 10
+                }
+
+                # Add selling price if warehouse product found
+                if warehouse_product:
+                    stock_defaults['selling_price'] = warehouse_product.unit_price * Decimal('1.25')  # 25% markup
+
+                stock, created = Stock.objects.get_or_create(
+                    product=self.product,
+                    store=self.store,
+                    defaults=stock_defaults
+                )
+
+                # Add received quantity to store stock
+                stock.quantity += received_qty
+                stock.save()
+
+                # Mark as fulfilled if fully received
+                if received_qty >= self.approved_quantity:
+                    self.status = 'fulfilled'
+                    self.fulfilled_quantity = received_qty
+                    self.fulfilled_date = timezone.now()
+
+                self.save()
+
+            except Exception as e:
+                raise ValueError(f"Failed to update store stock: {str(e)}")
 
     def fulfill(self):
         """Mark request as completely fulfilled"""

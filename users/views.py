@@ -418,7 +418,7 @@ def approve_restock_request(request, request_id):
             if approved_quantity > restock_request.requested_quantity * 2:
                 messages.warning(request, f"Approved quantity ({approved_quantity}) is significantly higher than requested ({restock_request.requested_quantity}). Please confirm this is intentional.")
 
-            # Use the new approve method which handles notifications and immediate inventory transfer
+            # Use the approve method which validates and approves the request
             restock_request.approve(
                 approved_by=request.user,
                 approved_quantity=approved_quantity,
@@ -426,7 +426,7 @@ def approve_restock_request(request, request_id):
             )
 
             # Success message with details
-            success_msg = f"✅ Restock request #{restock_request.request_number} approved and inventory transferred! {approved_quantity} units of {restock_request.product.name} have been moved from warehouse to {restock_request.store.name}."
+            success_msg = f"✅ Restock request #{restock_request.request_number} approved! {approved_quantity} units of {restock_request.product.name} are ready for the store manager to receive."
             if approved_quantity != restock_request.requested_quantity:
                 success_msg += f" (Originally requested: {restock_request.requested_quantity} units)"
             messages.success(request, success_msg)
@@ -2596,6 +2596,75 @@ def store_manager_restock_requests(request):
     }
 
     return render(request, 'mainpages/store_manager_restock_requests.html', context)
+
+
+@login_required
+def mark_restock_received(request):
+    """
+    Mark a restock request as received and update store stock
+    """
+    if request.user.role != 'store_manager':
+        messages.error(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
+    if request.method != 'POST':
+        messages.error(request, "Invalid request method.")
+        return redirect('store_manager_restock_requests')
+
+    try:
+        from Inventory.models import RestockRequest
+        from django.db import transaction
+
+        request_id = request.POST.get('request_id')
+        received_quantity = int(request.POST.get('received_quantity', 0))
+        receiving_notes = request.POST.get('receiving_notes', '').strip()
+
+        # Get the restock request
+        restock_request = RestockRequest.objects.get(
+            id=request_id,
+            requested_by=request.user,
+            status='shipped'
+        )
+
+        if received_quantity <= 0:
+            messages.error(request, "Received quantity must be greater than 0.")
+            return redirect('store_manager_restock_requests')
+
+        if received_quantity > restock_request.shipped_quantity:
+            messages.error(request, f"Received quantity cannot exceed shipped quantity ({restock_request.shipped_quantity}).")
+            return redirect('store_manager_restock_requests')
+
+        # Use the existing receive method from the model
+        with transaction.atomic():
+            restock_request.receive(
+                received_by=request.user,
+                received_quantity=received_quantity,
+                notes=receiving_notes
+            )
+
+            # Create notification for head manager if there's a discrepancy
+            if received_quantity < restock_request.shipped_quantity:
+                from users.notifications import NotificationManager
+                NotificationManager.create_notification(
+                    notification_type='low_stock_alert',
+                    title=f'Restock Delivery Discrepancy: {restock_request.product.name}',
+                    message=f'Store received {received_quantity} units but {restock_request.shipped_quantity} were shipped. Store: {restock_request.store.name}',
+                    target_roles=['head_manager'],
+                    priority='high',
+                    related_object_type='restock_request',
+                    related_object_id=restock_request.id
+                )
+
+        messages.success(request, f"Restock request marked as received. {received_quantity} units of {restock_request.product.name} added to your store stock.")
+
+    except RestockRequest.DoesNotExist:
+        messages.error(request, "Restock request not found or not eligible for receiving.")
+    except ValueError:
+        messages.error(request, "Invalid quantity specified.")
+    except Exception as e:
+        messages.error(request, f"Error processing receipt: {str(e)}")
+
+    return redirect('store_manager_restock_requests')
 
 
 @login_required

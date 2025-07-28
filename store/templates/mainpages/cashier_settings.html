@@ -1,8 +1,8 @@
 {% extends 'base_sidebar.html' %}
 {% load static %}
 
-{% block title %}Cashier Settings{% endblock %}
-{% block page_title %}Cashier Settings{% endblock %}
+{% block title %}Salesperson Settings{% endblock %}
+{% block page_title %}Salesperson Settings{% endblock %}
 
 {% block sidebar_menu %}
 {% include 'sidebar_navigation.html' %}
@@ -15,7 +15,7 @@
         <div class="col-12">
             <div class="ezm-card">
                 <div class="ezm-card-header">
-                    <i class="bi bi-gear me-2"></i>Cashier Settings
+                    <i class="bi bi-gear me-2"></i>Salesperson Settings
                 </div>
                 <div class="card-body">
                     {% if user.is_first_login %}
@@ -26,7 +26,7 @@
                         information for security.
                     </div>
                     {% endif %}
-                    <p class="mb-0">Manage your cashier account settings and preferences.</p>
+                    <p class="mb-0">Manage your salesperson account settings and preferences.</p>
                 </div>
             </div>
         </div>
@@ -64,7 +64,7 @@
                     <div class="card-body">
                         <i class="bi bi-speedometer2"></i>
                         <h5>Back to Dashboard</h5>
-                        <p>Return to the cashier dashboard</p>
+                        <p>Return to the salesperson dashboard</p>
                     </div>
                 </div>
             </a>

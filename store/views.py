@@ -1138,6 +1138,107 @@ def complete_order(request):
         return JsonResponse({'error': f'Order completion failed: {str(e)}'}, status=500)
 
 
+def generate_simple_html_receipt(receipt, transaction_obj, order_items, user, receipt_id):
+    """
+    Generate a simple HTML receipt for download when PDF generation fails
+    """
+    from django.template.loader import render_to_string
+
+    context = {
+        'receipt': receipt,
+        'transaction': transaction_obj,
+        'order_items': order_items,
+        'subtotal': receipt.subtotal,
+        'store': transaction_obj.store,
+        'cashier': user,
+        'timestamp': transaction_obj.timestamp,
+        'customer_name': receipt.customer_name,
+        'customer_phone': receipt.customer_phone,
+        'discount_amount': receipt.discount_amount,
+        'discount_percent': receipt.discount_percent,
+        'tax_amount': receipt.tax_amount,
+        'payment_method': transaction_obj.payment_type,
+    }
+
+    # Generate clean HTML receipt
+    receipt_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Receipt #{receipt.id}</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 20px; }}
+            .header {{ text-align: center; margin-bottom: 20px; }}
+            .store-name {{ font-size: 18px; font-weight: bold; }}
+            .receipt-info {{ margin: 20px 0; }}
+            .items-table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+            .items-table th, .items-table td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+            .items-table th {{ background-color: #f2f2f2; }}
+            .totals {{ margin-top: 20px; text-align: right; }}
+            .total-line {{ font-weight: bold; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div class="store-name">EZM Trade & Investment</div>
+            <div>Receipt #{receipt.id}</div>
+        </div>
+
+        <div class="receipt-info">
+            <p><strong>Transaction ID:</strong> {transaction_obj.id}</p>
+            <p><strong>Date:</strong> {transaction_obj.timestamp.strftime('%B %d, %Y at %I:%M %p')}</p>
+            <p><strong>Salesperson:</strong> {user.get_full_name() or user.username}</p>
+            <p><strong>Customer:</strong> {receipt.customer_name or 'Walk-in Customer'}</p>
+            <p><strong>Phone:</strong> {receipt.customer_phone or 'N/A'}</p>
+            <p><strong>Payment Method:</strong> {transaction_obj.get_payment_type_display()}</p>
+        </div>
+
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Unit Price</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+    """
+
+    for item in order_items:
+        line_total = item.quantity * item.price_at_time_of_sale
+        receipt_html += f"""
+                <tr>
+                    <td>{item.product.name}</td>
+                    <td>{item.quantity}</td>
+                    <td>ETB {item.price_at_time_of_sale:.2f}</td>
+                    <td>ETB {line_total:.2f}</td>
+                </tr>
+        """
+
+    receipt_html += f"""
+            </tbody>
+        </table>
+
+        <div class="totals">
+            <p>Subtotal: ETB {receipt.subtotal:.2f}</p>
+            <p>Tax (15%): ETB {receipt.tax_amount:.2f}</p>
+            <p>Discount: ETB {receipt.discount_amount:.2f}</p>
+            <p class="total-line">Total: ETB {receipt.total_amount:.2f}</p>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px;">
+            <p>Thank you for your business!</p>
+        </div>
+    </body>
+    </html>
+    """
+
+    response = HttpResponse(receipt_html, content_type='text/html')
+    response['Content-Disposition'] = f'attachment; filename="receipt_{receipt_id}.html"'
+    return response
+
+
 @login_required
 def generate_receipt_pdf(request, receipt_id):
     """
@@ -1190,65 +1291,175 @@ def generate_receipt_pdf(request, receipt_id):
         # Render HTML template
         receipt_html = render_to_string('store/receipt_pdf_template.html', context)
 
-        # Generate PDF using weasyprint with error handling
+        # Generate PDF using ReportLab for reliable PDF generation
         try:
-            from weasyprint import HTML, CSS
-            from weasyprint.text.fonts import FontConfiguration
+            from reportlab.lib.pagesizes import letter
+            from reportlab.lib import colors
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+            from reportlab.lib.units import inch
+            from reportlab.pdfgen import canvas
+            from io import BytesIO
 
-            # Create font configuration for better PDF rendering
-            font_config = FontConfiguration()
+            # Create PDF buffer with receipt-like dimensions
+            buffer = BytesIO()
 
-            # Add basic CSS for better PDF formatting
-            css = CSS(string='''
-                @page {
-                    size: A4;
-                    margin: 1cm;
-                }
-                body {
-                    font-family: Arial, sans-serif;
-                    font-size: 12px;
-                    line-height: 1.4;
-                }
-                .header {
-                    text-align: center;
-                    margin-bottom: 20px;
-                }
-                .store-name {
-                    font-size: 18px;
-                    font-weight: bold;
-                }
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                }
-                th, td {
-                    padding: 8px;
-                    text-align: left;
-                    border-bottom: 1px solid #ddd;
-                }
-                .total-line {
-                    font-weight: bold;
-                }
-            ''', font_config=font_config)
+            # Create canvas for custom receipt layout
+            c = canvas.Canvas(buffer, pagesize=(4*inch, 11*inch))  # Receipt paper size
+            width, height = 4*inch, 11*inch
 
-            # Generate PDF
-            html_doc = HTML(string=receipt_html)
-            pdf = html_doc.write_pdf(stylesheets=[css], font_config=font_config)
+            # Set font
+            c.setFont("Courier", 10)  # Monospace font for receipt look
 
-            response = HttpResponse(pdf, content_type='application/pdf')
-            response['Content-Disposition'] = f'inline; filename="receipt_{receipt_id}.pdf"'
+            y_position = height - 0.5*inch
+
+            # Store header (centered)
+            store_name = "EZM TRADE & INVESTMENT"
+            c.setFont("Courier-Bold", 12)
+            text_width = c.stringWidth(store_name, "Courier-Bold", 12)
+            c.drawString((width - text_width) / 2, y_position, store_name)
+            y_position -= 20
+
+            # Store address (centered)
+            c.setFont("Courier", 9)
+            address = "Piassa, Addis Ababa"
+            text_width = c.stringWidth(address, "Courier", 9)
+            c.drawString((width - text_width) / 2, y_position, address)
+            y_position -= 15
+
+            phone = f"Phone: {transaction_obj.store.phone_number or 'N/A'}"
+            text_width = c.stringWidth(phone, "Courier", 9)
+            c.drawString((width - text_width) / 2, y_position, phone)
+            y_position -= 25
+
+            # Separator line
+            c.line(0.2*inch, y_position, width - 0.2*inch, y_position)
+            y_position -= 20
+
+            # Receipt details
+            c.setFont("Courier", 9)
+            receipt_details = [
+                f"Receipt #: {receipt.id}",
+                f"Trans ID: {transaction_obj.id}",
+                f"Date: {transaction_obj.timestamp.strftime('%m/%d/%Y %I:%M %p')}",
+                f"Salesperson: {request.user.get_full_name() or request.user.username}",
+                f"Customer: {receipt.customer_name or 'Walk-in Customer'}",
+                f"Payment: {transaction_obj.get_payment_type_display()}"
+            ]
+
+            for detail in receipt_details:
+                c.drawString(0.2*inch, y_position, detail)
+                y_position -= 12
+
+            y_position -= 10
+
+            # Items separator
+            c.line(0.2*inch, y_position, width - 0.2*inch, y_position)
+            y_position -= 15
+
+            # Items header
+            c.setFont("Courier-Bold", 9)
+            c.drawString(0.2*inch, y_position, "ITEM")
+            c.drawString(2.2*inch, y_position, "QTY")
+            c.drawString(2.8*inch, y_position, "PRICE")
+            c.drawString(3.4*inch, y_position, "TOTAL")
+            y_position -= 12
+
+            # Items separator
+            c.line(0.2*inch, y_position, width - 0.2*inch, y_position)
+            y_position -= 15
+
+            # Items
+            c.setFont("Courier", 8)
+            for item in order_items:
+                line_total = item.quantity * item.price_at_time_of_sale
+
+                # Item name (truncate if too long)
+                item_name = item.product.name[:20] if len(item.product.name) > 20 else item.product.name
+                c.drawString(0.2*inch, y_position, item_name)
+
+                # Quantity (right aligned)
+                qty_str = str(item.quantity)
+                qty_width = c.stringWidth(qty_str, "Courier", 8)
+                c.drawString(2.5*inch - qty_width, y_position, qty_str)
+
+                # Unit price (right aligned)
+                price_str = f"{item.price_at_time_of_sale:.2f}"
+                price_width = c.stringWidth(price_str, "Courier", 8)
+                c.drawString(3.2*inch - price_width, y_position, price_str)
+
+                # Line total (right aligned)
+                total_str = f"{line_total:.2f}"
+                total_width = c.stringWidth(total_str, "Courier", 8)
+                c.drawString(3.8*inch - total_width, y_position, total_str)
+
+                y_position -= 12
+
+            y_position -= 10
+
+            # Totals separator
+            c.line(0.2*inch, y_position, width - 0.2*inch, y_position)
+            y_position -= 15
+
+            # Totals
+            c.setFont("Courier", 9)
+            totals = [
+                ("Subtotal", receipt.subtotal),
+                ("Tax (15%)", receipt.tax_amount),
+                ("Discount", receipt.discount_amount),
+            ]
+
+            for label, amount in totals:
+                # Create dot leaders
+                dots_needed = 25 - len(label) - len(f"{amount:.2f}")
+                dots = "." * max(0, dots_needed)
+                line = f"{label}{dots}ETB {amount:.2f}"
+                c.drawString(0.2*inch, y_position, line)
+                y_position -= 12
+
+            # Total line (bold)
+            c.setFont("Courier-Bold", 10)
+            total_dots = 22 - len(f"{receipt.total_amount:.2f}")
+            total_dots_str = "." * max(0, total_dots)
+            total_line = f"TOTAL{total_dots_str}ETB {receipt.total_amount:.2f}"
+            c.drawString(0.2*inch, y_position, total_line)
+            y_position -= 25
+
+            # Final separator
+            c.line(0.2*inch, y_position, width - 0.2*inch, y_position)
+            y_position -= 20
+
+            # Thank you message (centered)
+            c.setFont("Courier", 9)
+            thank_you = "THANK YOU FOR YOUR BUSINESS!"
+            text_width = c.stringWidth(thank_you, "Courier", 9)
+            c.drawString((width - text_width) / 2, y_position, thank_you)
+            y_position -= 15
+
+            visit_again = "Please visit us again!"
+            text_width = c.stringWidth(visit_again, "Courier", 9)
+            c.drawString((width - text_width) / 2, y_position, visit_again)
+
+            # Save the PDF
+            c.save()
+
+            # Return PDF response
+            buffer.seek(0)
+            response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="receipt_{receipt_id}.pdf"'
             return response
 
-        except ImportError:
-            # Fallback: If weasyprint is not available, return HTML view
-            messages.warning(request, "PDF generation not available. Showing receipt in browser.")
-            return HttpResponse(receipt_html, content_type='text/html')
+        except ImportError as e:
+            print(f"ReportLab not available: {str(e)}")
+            # Fallback: Generate simple HTML receipt for download
+            return generate_simple_html_receipt(receipt, transaction_obj, order_items, request.user, receipt_id)
 
         except Exception as pdf_error:
             print(f"PDF Generation Error: {str(pdf_error)}")
-            # Fallback: Return HTML view if PDF generation fails
-            messages.warning(request, f"PDF generation failed: {str(pdf_error)}. Showing receipt in browser.")
-            return HttpResponse(receipt_html, content_type='text/html')
+            import traceback
+            traceback.print_exc()
+            # Fallback: Generate simple HTML receipt for download
+            return generate_simple_html_receipt(receipt, transaction_obj, order_items, request.user, receipt_id)
 
     except Exception as e:
         print(f"Receipt Generation Error: {str(e)}")  # Debug print
@@ -1679,59 +1890,171 @@ def email_receipt(request, receipt_id):
             'payment_method': transaction_obj.payment_type,
         }
 
-        # Generate PDF with error handling
-        receipt_html = render_to_string('store/receipt_pdf_template.html', context)
+        # Generate PDF using ReportLab for reliable PDF generation
         pdf = None
 
         try:
-            from weasyprint import HTML, CSS
-            from weasyprint.text.fonts import FontConfiguration
+            from reportlab.lib.pagesizes import letter
+            from reportlab.lib import colors
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+            from reportlab.lib.units import inch
+            from reportlab.pdfgen import canvas
+            from io import BytesIO
 
-            # Create font configuration for better PDF rendering
-            font_config = FontConfiguration()
+            # Create PDF buffer with receipt-like dimensions
+            buffer = BytesIO()
 
-            # Add basic CSS for email PDF
-            css = CSS(string='''
-                @page {
-                    size: A4;
-                    margin: 1cm;
-                }
-                body {
-                    font-family: Arial, sans-serif;
-                    font-size: 12px;
-                    line-height: 1.4;
-                }
-                .header {
-                    text-align: center;
-                    margin-bottom: 20px;
-                }
-                .store-name {
-                    font-size: 18px;
-                    font-weight: bold;
-                }
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                }
-                th, td {
-                    padding: 8px;
-                    text-align: left;
-                    border-bottom: 1px solid #ddd;
-                }
-                .total-line {
-                    font-weight: bold;
-                }
-            ''', font_config=font_config)
+            # Create canvas for custom receipt layout
+            c = canvas.Canvas(buffer, pagesize=(4*inch, 11*inch))  # Receipt paper size
+            width, height = 4*inch, 11*inch
 
-            # Generate PDF
-            html_doc = HTML(string=receipt_html)
-            pdf = html_doc.write_pdf(stylesheets=[css], font_config=font_config)
+            # Set font
+            c.setFont("Courier", 10)  # Monospace font for receipt look
 
-        except ImportError:
-            print("WeasyPrint not available for PDF generation")
+            y_position = height - 0.5*inch
+
+            # Store header (centered)
+            store_name = "EZM TRADE & INVESTMENT"
+            c.setFont("Courier-Bold", 12)
+            text_width = c.stringWidth(store_name, "Courier-Bold", 12)
+            c.drawString((width - text_width) / 2, y_position, store_name)
+            y_position -= 20
+
+            # Store address (centered)
+            c.setFont("Courier", 9)
+            address = "Piassa, Addis Ababa"
+            text_width = c.stringWidth(address, "Courier", 9)
+            c.drawString((width - text_width) / 2, y_position, address)
+            y_position -= 15
+
+            phone = f"Phone: {transaction_obj.store.phone_number or 'N/A'}"
+            text_width = c.stringWidth(phone, "Courier", 9)
+            c.drawString((width - text_width) / 2, y_position, phone)
+            y_position -= 25
+
+            # Separator line
+            c.line(0.2*inch, y_position, width - 0.2*inch, y_position)
+            y_position -= 20
+
+            # Receipt details
+            c.setFont("Courier", 9)
+            receipt_details = [
+                f"Receipt #: {receipt.id}",
+                f"Trans ID: {transaction_obj.id}",
+                f"Date: {transaction_obj.timestamp.strftime('%m/%d/%Y %I:%M %p')}",
+                f"Salesperson: {request.user.get_full_name() or request.user.username}",
+                f"Customer: {receipt.customer_name or 'Walk-in Customer'}",
+                f"Payment: {transaction_obj.get_payment_type_display()}"
+            ]
+
+            for detail in receipt_details:
+                c.drawString(0.2*inch, y_position, detail)
+                y_position -= 12
+
+            y_position -= 10
+
+            # Items separator
+            c.line(0.2*inch, y_position, width - 0.2*inch, y_position)
+            y_position -= 15
+
+            # Items header
+            c.setFont("Courier-Bold", 9)
+            c.drawString(0.2*inch, y_position, "ITEM")
+            c.drawString(2.2*inch, y_position, "QTY")
+            c.drawString(2.8*inch, y_position, "PRICE")
+            c.drawString(3.4*inch, y_position, "TOTAL")
+            y_position -= 12
+
+            # Items separator
+            c.line(0.2*inch, y_position, width - 0.2*inch, y_position)
+            y_position -= 15
+
+            # Items
+            c.setFont("Courier", 8)
+            for item in order_items:
+                line_total = item.quantity * item.price_at_time_of_sale
+
+                # Item name (truncate if too long)
+                item_name = item.product.name[:20] if len(item.product.name) > 20 else item.product.name
+                c.drawString(0.2*inch, y_position, item_name)
+
+                # Quantity (right aligned)
+                qty_str = str(item.quantity)
+                qty_width = c.stringWidth(qty_str, "Courier", 8)
+                c.drawString(2.5*inch - qty_width, y_position, qty_str)
+
+                # Unit price (right aligned)
+                price_str = f"{item.price_at_time_of_sale:.2f}"
+                price_width = c.stringWidth(price_str, "Courier", 8)
+                c.drawString(3.2*inch - price_width, y_position, price_str)
+
+                # Line total (right aligned)
+                total_str = f"{line_total:.2f}"
+                total_width = c.stringWidth(total_str, "Courier", 8)
+                c.drawString(3.8*inch - total_width, y_position, total_str)
+
+                y_position -= 12
+
+            y_position -= 10
+
+            # Totals separator
+            c.line(0.2*inch, y_position, width - 0.2*inch, y_position)
+            y_position -= 15
+
+            # Totals
+            c.setFont("Courier", 9)
+            totals = [
+                ("Subtotal", receipt.subtotal),
+                ("Tax (15%)", receipt.tax_amount),
+                ("Discount", receipt.discount_amount),
+            ]
+
+            for label, amount in totals:
+                # Create dot leaders
+                dots_needed = 25 - len(label) - len(f"{amount:.2f}")
+                dots = "." * max(0, dots_needed)
+                line = f"{label}{dots}ETB {amount:.2f}"
+                c.drawString(0.2*inch, y_position, line)
+                y_position -= 12
+
+            # Total line (bold)
+            c.setFont("Courier-Bold", 10)
+            total_dots = 22 - len(f"{receipt.total_amount:.2f}")
+            total_dots_str = "." * max(0, total_dots)
+            total_line = f"TOTAL{total_dots_str}ETB {receipt.total_amount:.2f}"
+            c.drawString(0.2*inch, y_position, total_line)
+            y_position -= 25
+
+            # Final separator
+            c.line(0.2*inch, y_position, width - 0.2*inch, y_position)
+            y_position -= 20
+
+            # Thank you message (centered)
+            c.setFont("Courier", 9)
+            thank_you = "THANK YOU FOR YOUR BUSINESS!"
+            text_width = c.stringWidth(thank_you, "Courier", 9)
+            c.drawString((width - text_width) / 2, y_position, thank_you)
+            y_position -= 15
+
+            visit_again = "Please visit us again!"
+            text_width = c.stringWidth(visit_again, "Courier", 9)
+            c.drawString((width - text_width) / 2, y_position, visit_again)
+
+            # Save the PDF
+            c.save()
+
+            # Get PDF bytes
+            buffer.seek(0)
+            pdf = buffer.getvalue()
+
+        except ImportError as e:
+            print(f"ReportLab not available for PDF generation: {str(e)}")
             pdf = None
         except Exception as pdf_error:
             print(f"PDF generation failed: {pdf_error}")
+            import traceback
+            traceback.print_exc()
             pdf = None
 
         # Send email
@@ -1775,10 +2098,81 @@ Phone: {transaction_obj.store.phone_number}
                 'application/pdf'
             )
         else:
-            # Fallback: attach HTML receipt if PDF generation failed
+            # Generate HTML receipt for email attachment
+            html_receipt = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Receipt #{receipt.id}</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; }}
+        .header {{ text-align: center; margin-bottom: 20px; }}
+        .store-name {{ font-size: 18px; font-weight: bold; }}
+        .receipt-info {{ margin: 20px 0; }}
+        .items-table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+        .items-table th, .items-table td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+        .items-table th {{ background-color: #f2f2f2; }}
+        .totals {{ margin-top: 20px; text-align: right; }}
+        .total-line {{ font-weight: bold; }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="store-name">EZM Trade & Investment</div>
+        <div>Receipt #{receipt.id}</div>
+    </div>
+
+    <div class="receipt-info">
+        <p><strong>Transaction ID:</strong> {transaction_obj.id}</p>
+        <p><strong>Date:</strong> {transaction_obj.timestamp.strftime('%B %d, %Y at %I:%M %p')}</p>
+        <p><strong>Salesperson:</strong> {request.user.get_full_name() or request.user.username}</p>
+        <p><strong>Customer:</strong> {receipt.customer_name or 'Walk-in Customer'}</p>
+        <p><strong>Phone:</strong> {receipt.customer_phone or 'N/A'}</p>
+        <p><strong>Payment Method:</strong> {transaction_obj.get_payment_type_display()}</p>
+    </div>
+
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th>Qty</th>
+                <th>Unit Price</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>"""
+
+            for item in order_items:
+                line_total = item.quantity * item.price_at_time_of_sale
+                html_receipt += f"""
+            <tr>
+                <td>{item.product.name}</td>
+                <td>{item.quantity}</td>
+                <td>ETB {item.price_at_time_of_sale:.2f}</td>
+                <td>ETB {line_total:.2f}</td>
+            </tr>"""
+
+            html_receipt += f"""
+        </tbody>
+    </table>
+
+    <div class="totals">
+        <p>Subtotal: ETB {receipt.subtotal:.2f}</p>
+        <p>Tax (15%): ETB {receipt.tax_amount:.2f}</p>
+        <p>Discount: ETB {receipt.discount_amount:.2f}</p>
+        <p class="total-line">Total: ETB {receipt.total_amount:.2f}</p>
+    </div>
+
+    <div style="text-align: center; margin-top: 30px;">
+        <p>Thank you for your business!</p>
+    </div>
+</body>
+</html>"""
+
+            # Attach HTML receipt
             email.attach(
                 f'receipt_{receipt.id}.html',
-                receipt_html.encode('utf-8'),
+                html_receipt.encode('utf-8'),
                 'text/html'
             )
 

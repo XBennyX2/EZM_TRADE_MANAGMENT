@@ -17,7 +17,7 @@
             <h3 class="mb-1 text-white">
               <i class="bi bi-cart-plus me-2" style="color: #66FCF1;"></i>Point of Sale
             </h3>
-            <p class="mb-0" style="color: #C5C6C7;">Store: {{ store.name }} | Cashier: {{ request.user.first_name }}</p>
+            <p class="mb-0" style="color: #C5C6C7;">Store: {{ store.name }} | Salesperson: {{ request.user.first_name }}</p>
           </div>
           <div>
             <a href="{% url 'ticket_management' %}" class="btn btn-ezm-secondary btn-sm">

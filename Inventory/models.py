@@ -903,20 +903,37 @@ class WarehouseProduct(models.Model):
             quantity_in_stock__lte=models.F('minimum_stock_level')
         )
 
-    def update_stock(self, quantity_change, reason="Manual adjustment"):
+    def update_stock(self, quantity_change, reason="Manual adjustment", movement_type=None, purchase_order=None):
         """Update stock quantity with logging"""
         old_quantity = self.quantity_in_stock
         self.quantity_in_stock = max(0, self.quantity_in_stock + quantity_change)
         self.save()
 
+        # Determine movement type based on reason if not explicitly provided
+        if movement_type is None:
+            if "Purchase order delivery" in reason:
+                movement_type = 'purchase_delivery'
+            elif "restock" in reason.lower():
+                movement_type = 'restock_fulfillment'
+            elif "sale" in reason.lower():
+                movement_type = 'sale'
+            elif "transfer" in reason.lower():
+                if quantity_change > 0:
+                    movement_type = 'transfer_in'
+                else:
+                    movement_type = 'transfer_out'
+            else:
+                movement_type = 'adjustment'
+
         # Log the stock change
         InventoryMovement.objects.create(
             warehouse_product=self,
-            movement_type='adjustment' if quantity_change != 0 else 'no_change',
+            movement_type=movement_type,
             quantity_change=quantity_change,
             old_quantity=old_quantity,
             new_quantity=self.quantity_in_stock,
-            reason=reason
+            reason=reason,
+            purchase_order=purchase_order
         )
 
 

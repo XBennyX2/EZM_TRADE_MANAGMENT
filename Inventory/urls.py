@@ -19,8 +19,8 @@ from . import fifo_views
 urlpatterns = [
     # Product URLs
     path('products/', ProductListView.as_view(), name='product_list'),
+    path('products/new/', ProductCreateView.as_view(), name='product_create'),
     path('products/<int:pk>/edit/', ProductUpdateView.as_view(), name='product_update'),
-    #path('products/new/', name='product_create'),
     path('products/<int:pk>/delete/', ProductDeleteView.as_view(), name='product_delete'),
     path('products/<int:pk>/edit-threshold/', ProductStockThresholdEditView.as_view(), name='product_stock_threshold_edit'),
     path('products/<int:pk>/toggle-status/', product_toggle_status, name='product_toggle_status'),

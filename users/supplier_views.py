@@ -314,24 +314,60 @@ def supplier_mark_in_transit(request, order_id):
     """
     Enhanced supplier functionality to mark order as shipped/in transit
     """
+    logger.info(f"Supplier mark in transit request received for order {order_id} by user {request.user.email}")
+
     try:
+        # Validate user authentication
+        if not request.user.is_authenticated:
+            logger.warning(f"Unauthenticated user attempted to mark order {order_id} as shipped")
+            return JsonResponse({
+                'success': False,
+                'message': 'Authentication required'
+            }, status=401)
+
         # Get supplier
-        supplier = Supplier.objects.get(email=request.user.email)
+        try:
+            supplier = Supplier.objects.get(email=request.user.email)
+            logger.info(f"Found supplier: {supplier.name} for user {request.user.email}")
+        except Supplier.DoesNotExist:
+            logger.error(f"No supplier found for user {request.user.email}")
+            return JsonResponse({
+                'success': False,
+                'message': 'Supplier profile not found'
+            }, status=403)
 
         # Get the purchase order
-        order = get_object_or_404(PurchaseOrder, id=order_id, supplier=supplier)
+        try:
+            order = get_object_or_404(PurchaseOrder, id=order_id, supplier=supplier)
+            logger.info(f"Found order: {order.order_number}, current status: {order.status}")
+        except Exception as e:
+            logger.error(f"Order {order_id} not found for supplier {supplier.name}: {str(e)}")
+            return JsonResponse({
+                'success': False,
+                'message': 'Order not found or access denied'
+            }, status=404)
 
         # Check if order can be marked as in transit
         if order.status != 'payment_confirmed':
+            logger.warning(f"Order {order.order_number} cannot be shipped - current status: {order.status}")
             return JsonResponse({
                 'success': False,
-                'message': 'Order must be payment confirmed to mark as shipped'
+                'message': f'Order must be payment confirmed to mark as shipped. Current status: {order.status}'
             })
 
         # Get shipping details from request
-        tracking_number = request.POST.get('tracking_number', '').strip()
-        shipping_notes = request.POST.get('shipping_notes', '').strip()
-        shipping_carrier = request.POST.get('shipping_carrier', '').strip()
+        try:
+            tracking_number = request.POST.get('tracking_number', '').strip()
+            shipping_notes = request.POST.get('shipping_notes', '').strip()
+            shipping_carrier = request.POST.get('shipping_carrier', '').strip()
+
+            logger.info(f"Shipping details - Tracking: {tracking_number}, Carrier: {shipping_carrier}, Notes: {shipping_notes[:50]}...")
+        except Exception as e:
+            logger.error(f"Error extracting shipping details: {str(e)}")
+            return JsonResponse({
+                'success': False,
+                'message': 'Invalid request data format'
+            }, status=400)
 
         # Mark order as in transit
         from django.db import transaction
@@ -394,16 +430,15 @@ def supplier_mark_in_transit(request, order_id):
             'shipped_at': order.shipped_at.isoformat() if order.shipped_at else None
         })
 
-    except Supplier.DoesNotExist:
-        return JsonResponse({
-            'success': False,
-            'message': 'Supplier profile not found'
-        }, status=403)
     except Exception as e:
-        logger.error(f"Error marking order {order_id} as in transit: {str(e)}")
+        logger.error(f"Unexpected error marking order {order_id} as in transit: {str(e)}")
+        logger.error(f"Error type: {type(e).__name__}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+
         return JsonResponse({
             'success': False,
-            'message': 'Unable to update order status'
+            'message': f'Unable to update order status: {str(e)}'
         }, status=500)
 
 

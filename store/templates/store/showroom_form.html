@@ -182,34 +182,7 @@
                 </div>
             </form>
 
-            <!-- Quick Actions (only for edit) -->
-            {% if object %}
-            <div class="ezm-card mt-4">
-                <div class="card-body">
-                    <h6 class="mb-3">
-                        <i class="bi bi-lightning me-2"></i>Quick Actions
-                    </h6>
-                    <div class="row g-2">
-                        <div class="col-md-4">
-                            <a href="{% url 'showroom_detail' object.pk %}" class="btn btn-ezm-secondary w-100">
-                                <i class="bi bi-eye me-2"></i>View Details
-                            </a>
-                        </div>
-                        <div class="col-md-4">
-                            <a href="#" class="btn btn-ezm-secondary w-100"
-                                onclick="alert('Stock management coming soon!')">
-                                <i class="bi bi-boxes me-2"></i>Manage Stock
-                            </a>
-                        </div>
-                        <div class="col-md-4">
-                            <a href="#" class="btn btn-ezm-secondary w-100" onclick="alert('Reports coming soon!')">
-                                <i class="bi bi-graph-up me-2"></i>View Reports
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
+
         </div>
     </div>
 </div>

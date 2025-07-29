@@ -27,7 +27,7 @@
     <!-- Settings Options -->
     <div class="row g-4">
         <div class="col-lg-6 col-md-6">
-            <a href="#" onclick="showComingSoon('Edit Profile')" class="text-decoration-none">
+            <a href="{% url 'store_manager_edit_profile' %}" class="text-decoration-none">
                 <div class="feature-card">
                     <div class="card-body">
                         <i class="bi bi-person-circle"></i>
@@ -39,7 +39,7 @@
         </div>
 
         <div class="col-lg-6 col-md-6">
-            <a href="{% url 'password_change' %}" class="text-decoration-none">
+            <a href="{% url 'store_manager_change_password' %}" class="text-decoration-none">
                 <div class="feature-card">
                     <div class="card-body">
                         <i class="bi bi-key"></i>

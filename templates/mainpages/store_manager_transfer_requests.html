@@ -321,7 +321,7 @@
                             <th>Priority</th>
                             <th>Status</th>
                             <th>Requested Date</th>
-                            <th>Actions</th>
+                            <!-- <th>Actions</th> -->
                         </tr>
                     </thead>
                     <tbody>
@@ -377,16 +377,16 @@
                                     onclick="completeTransferRequest({{ request.id }}, '{{ request.request_number }}', '{{ request.product.name }}', {{ request.approved_quantity }}, '{{ request.from_store.name }}')">
                                     <i class="bi bi-check2-all"></i> Mark as Completed
                                 </button>
-                                <button class="btn btn-outline-primary btn-sm"
+                                <!-- <button class="btn btn-outline-primary btn-sm"
                                     onclick="viewTransferDetails({{request.id}})">
                                     <i class="bi bi-eye"></i> View
-                                </button>
+                                </button> -->
                                 {% else %}
                                 <!-- Outgoing request or already processed -->
-                                <button class="btn btn-outline-primary btn-sm"
+                                <!-- <button class="btn btn-outline-primary btn-sm"
                                     onclick="viewTransferDetails({{request.id}})">
                                     <i class="bi bi-eye"></i> View
-                                </button>
+                                </button> -->
                                 {% endif %}
                             </td>
                         </tr>

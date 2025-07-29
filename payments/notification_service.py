@@ -3,6 +3,7 @@ Supplier notification service for payment-related events
 """
 
 import logging
+from datetime import timedelta
 from django.core.mail import send_mail, EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.conf import settings

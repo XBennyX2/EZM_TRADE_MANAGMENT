@@ -56,6 +56,29 @@ class ObjectManagerRequiredMixin(UserPassesTestMixin):
             return obj.store.manager == user # Is the user the manager of this stock's store?
         return False
 
+
+class PurchaseOrderAccessMixin(UserPassesTestMixin):
+    """
+    Limits access to Head Managers and Suppliers (for their own orders only).
+    Used for purchase order detail views.
+    """
+    def test_func(self):
+        user = self.request.user
+        if user.role == 'head_manager':
+            return True  # Head manager can view any purchase order
+        
+        if user.role == 'supplier':
+            obj = self.get_object()  # Gets the PurchaseOrder instance
+            try:
+                # Check if the supplier user's email matches the order's supplier
+                from Inventory.models import Supplier
+                supplier = Supplier.objects.get(email=user.email)
+                return obj.supplier == supplier
+            except Supplier.DoesNotExist:
+                return False
+        
+        return False
+
 # --- Product Views (Catalog Management) ---
 
 class ProductListView(LoginRequiredMixin, ListView):
@@ -766,6 +789,16 @@ class PurchaseOrderListView(LoginRequiredMixin, StoreOwnerMixin, ListView):
         else:
             queryset = queryset.order_by('-order_date')
 
+        if self.request.user.role == 'supplier':
+            # Get the supplier object based on the user's email
+            from Inventory.models import Supplier
+            try:
+                supplier = Supplier.objects.get(email=self.request.user.email)
+                queryset = queryset.filter(supplier=supplier)
+            except Supplier.DoesNotExist:
+                # If the supplier doesn't exist, return an empty queryset
+                queryset = PurchaseOrder.objects.none()
+
         return queryset
 
     def get_context_data(self, **kwargs):
@@ -877,7 +910,7 @@ class PurchaseOrderCreateView(LoginRequiredMixin, StoreOwnerMixin, CreateView):
             return self.render_to_response(self.get_context_data(form=form))
 
 
-class PurchaseOrderDetailView(LoginRequiredMixin, StoreOwnerMixin, DetailView):
+class PurchaseOrderDetailView(LoginRequiredMixin, PurchaseOrderAccessMixin, DetailView):
     model = PurchaseOrder
     template_name = 'inventory/purchase_order_detail.html'
     context_object_name = 'purchase_order'

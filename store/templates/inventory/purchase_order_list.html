@@ -108,7 +108,7 @@
                                 </button>
                                 <a href="{% url 'purchase_order_list' %}" class="btn btn-outline-secondary">
                                     <i class="bi bi-arrow-clockwise"></i>
-                                </a>
+                                </button>
                             </div>
                         </div>
                     </form>
@@ -195,10 +195,10 @@
                                             <button class="btn btn-sm btn-outline-danger" title="Cancel Order">
                                                 <i class="bi bi-x-circle"></i>
                                             </button>
-                                            {% elif order.status == 'approved' %}
-                                            <button class="btn btn-sm btn-outline-info" title="Mark as Shipped">
+                                            {% elif order.status == 'approved' and request.user.role == 'head_manager' %}
+                                            <a href="{% url 'mark_order_in_transit' order.pk %}" class="btn btn-sm btn-outline-info" title="Mark as Shipped">
                                                 <i class="bi bi-truck"></i>
-                                            </button>
+                                            </a>
                                             {% elif order.status == 'shipped' %}
                                             <button class="btn btn-sm btn-outline-primary" title="Mark as Received">
                                                 <i class="bi bi-box-arrow-in-down"></i>
@@ -266,4 +266,60 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function confirmDelivery(orderId) {
+        console.log('confirmDelivery called with orderId:', orderId);
+
+        // Check if the user is a head manager
+        if ("{{ request.user.role }}" !== "head_manager") {
+            alert("Only head managers can confirm deliveries.");
+            return;
+        }
+
+        // Prompt for delivery notes
+        const deliveryNotes = prompt("Enter delivery notes (optional):", "");
+
+        // Confirm with the user
+        if (confirm("Confirm that you want to mark this order as delivered?")) {
+            // Prepare form data
+            const formData = new FormData();
+            formData.append('order_id', orderId);
+            formData.append('delivery_notes', deliveryNotes);
+
+            // Send AJAX request
+            fetch(`/purchase-orders/${orderId}/confirm-delivery/`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': getCSRFToken()
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    window.location.reload(); // Refresh the page
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while confirming delivery.');
+            });
+        }
+    }
+
+    function getCSRFToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]').value;
+    }
+</script>
 {% endblock %}

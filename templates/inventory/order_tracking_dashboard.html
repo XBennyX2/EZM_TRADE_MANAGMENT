@@ -284,6 +284,12 @@
 
 <script>
     function confirmDelivery(orderId) {
+        // Check if the user is a head manager
+        if ("{{ request.user.role }}" !== "head_manager") {
+            alert("Only head managers can confirm deliveries.");
+            return;
+        }
+
         const notes = prompt('Delivery notes (optional):');
         if (notes === null) return; // User cancelled
 

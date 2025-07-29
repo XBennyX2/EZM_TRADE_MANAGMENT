@@ -4,6 +4,7 @@ from django.conf import settings
 from store.models import Store
 from transactions.models import Transaction
 from decimal import Decimal
+from django.core.validators import MinValueValidator
 
 SETTINGS_CHOICES = [
     ('Plumbing', 'Plumbing Supplies'),
@@ -421,7 +422,8 @@ class SupplierProduct(models.Model):
     subcategory = models.CharField(max_length=100, blank=True)
 
     # Pricing and Quantities
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0.01)],
+    help_text="Price must be greater than 0")
     currency = models.CharField(max_length=3, default='ETB')
     minimum_order_quantity = models.PositiveIntegerField(default=1)
     maximum_order_quantity = models.PositiveIntegerField(null=True, blank=True)

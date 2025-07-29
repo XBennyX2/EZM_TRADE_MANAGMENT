@@ -142,26 +142,7 @@
         <div class="card shadow-sm h-100 hover-shadow transition">
             <div class="card-header bg-light d-flex justify-content-between align-items-center">
                 <h6 class="mb-0 fw-bold">{{ store.name }}</h6>
-                <div class="dropdown">
-                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
-                        data-bs-toggle="dropdown">
-                        <i class="bi bi-three-dots"></i>
-                    </button>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{% url 'showroom_detail' store.pk %}">
-                                <i class="bi bi-eye me-2"></i>View Details
-                            </a></li>
-                        <li><a class="dropdown-item" href="{% url 'showroom_update' store.pk %}">
-                                <i class="bi bi-pencil me-2"></i>Edit Store
-                            </a></li>
-                        <li>
-                            <hr class="dropdown-divider">
-                        </li>
-                        <li><a class="dropdown-item text-danger" href="{% url 'showroom_delete' store.pk %}">
-                                <i class="bi bi-trash me-2"></i>Delete Store
-                            </a></li>
-                    </ul>
-                </div>
+
             </div>
             <div class="card-body">
                 <div class="mb-3">
@@ -198,10 +179,7 @@
                 </div>
             </div>
             <div class="card-footer bg-light">
-                <div class="d-flex justify-content-between">
-                    <a href="{% url 'showroom_detail' store.pk %}" class="btn btn-sm btn-outline-primary">
-                        <i class="bi bi-eye me-1"></i>View Details
-                    </a>
+                <div class="d-flex justify-content-center">
                     {% if not store.store_manager and available_managers %}
                     <a href="{% url 'showroom_update' store.pk %}" class="btn btn-sm btn-warning">
                         <i class="bi bi-person-plus me-1"></i>Assign Manager

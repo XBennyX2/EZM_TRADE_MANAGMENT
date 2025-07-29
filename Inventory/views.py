@@ -131,7 +131,15 @@ class ProductListView(LoginRequiredMixin, ListView):
         return context
 
 class ProductCreateView(LoginRequiredMixin, ManagerAndOwnerMixin, CreateView):
-    pass
+    model = Product
+    form_class = ProductForm
+    template_name = 'inventory/product_form.html'
+    extra_context = {'title': 'Add New Product'}
+    success_url = reverse_lazy('product_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Product "{form.instance.name}" has been created successfully.')
+        return super().form_valid(form)
 
 class ProductUpdateView(LoginRequiredMixin, ManagerAndOwnerMixin, UpdateView):
     model = Product

@@ -84,16 +84,16 @@ class Command(BaseCommand):
     def test_user_creation_email(self, email_address):
         """Test user creation email"""
         self.stdout.write('👤 Testing user creation email...')
-        
+
         # Create a mock user object for testing
         class MockUser:
             def __init__(self):
-                self.username = f'testuser_{self.generate_random_string(6)}'
+                self.username = f'testuser_{"".join(random.choices(string.ascii_lowercase + string.digits, k=6))}'
                 self.first_name = 'Test'
                 self.last_name = 'User'
                 self.email = email_address
                 self.role = 'store_manager'
-            
+
             def get_role_display(self):
                 return 'Store Manager'
         
@@ -115,11 +115,11 @@ class Command(BaseCommand):
     def test_otp_email(self, email_address):
         """Test OTP email"""
         self.stdout.write('🔐 Testing OTP email...')
-        
+
         # Create a mock user object for testing
         class MockUser:
             def __init__(self):
-                self.username = f'testuser_{self.generate_random_string(6)}'
+                self.username = f'testuser_{"".join(random.choices(string.ascii_lowercase + string.digits, k=6))}'
                 self.email = email_address
         
         mock_user = MockUser()
@@ -140,11 +140,11 @@ class Command(BaseCommand):
     def test_password_reset_email(self, email_address):
         """Test password reset email"""
         self.stdout.write('🔑 Testing password reset email...')
-        
+
         # Create a mock user object for testing
         class MockUser:
             def __init__(self):
-                self.username = f'testuser_{self.generate_random_string(6)}'
+                self.username = f'testuser_{"".join(random.choices(string.ascii_lowercase + string.digits, k=6))}'
                 self.first_name = 'Test'
                 self.last_name = 'User'
                 self.email = email_address

@@ -885,20 +885,47 @@ def remove_from_cart(request):
         data = json.loads(request.body)
         product_id = data.get('product_id')
 
+        # Convert to int to ensure proper comparison
+        try:
+            product_id = int(product_id)
+        except (ValueError, TypeError):
+            return JsonResponse({'error': 'Invalid product ID'}, status=400)
+
         cart = request.session.get('cart', {'items': [], 'total': 0})
-        cart['items'] = [item for item in cart['items'] if item['product_id'] != product_id]
+
+        # Debug logging
+        print(f"DEBUG: Removing product_id {product_id} from cart")
+        print(f"DEBUG: Cart before removal: {cart}")
+
+        # Count items before removal
+        items_before = len(cart['items'])
+
+        # Remove item with proper type comparison
+        cart['items'] = [item for item in cart['items'] if int(item['product_id']) != product_id]
+
+        # Count items after removal
+        items_after = len(cart['items'])
+
+        print(f"DEBUG: Items before: {items_before}, Items after: {items_after}")
+
+        # Recalculate total
         cart['total'] = sum(item['subtotal'] for item in cart['items'])
 
         request.session['cart'] = cart
         request.session.modified = True
 
+        print(f"DEBUG: Cart after removal: {cart}")
+
         return JsonResponse({
             'success': True,
             'cart': cart,
-            'message': 'Item removed from cart'
+            'message': f'Item removed from cart (removed {items_before - items_after} items)'
         })
 
     except Exception as e:
+        print(f"DEBUG: Error in remove_from_cart: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return JsonResponse({'error': str(e)}, status=500)
 
 

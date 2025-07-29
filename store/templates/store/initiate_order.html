@@ -92,7 +92,7 @@
 
     <!-- Shopping Cart -->
     <div class="col-lg-4">
-      <div class="ezm-card sticky-top" style="top: 20px; z-index: 100;">
+      <div class="ezm-card " style="top: 20px; z-index: 100;">
         <div class="ezm-card-header d-flex justify-content-between align-items-center">
           <h5 class="mb-0 text-white">
             <i class="bi bi-cart3 me-2" style="color: #66FCF1;"></i>Shopping Cart
@@ -869,7 +869,15 @@
             console.log('Response data:', data); // Debug log
             if (data.success) {
               cart = data.cart;
+              console.log('DEBUG: Updated cart after adding item:', cart);
+
+              // Update localStorage to keep it in sync
+              saveCartToLocalStorage();
+
+              // Update the display and totals
               updateCartDisplay();
+              updateTotals();
+
               showNotification(data.message, 'success');
             } else {
               showNotification(data.error || 'Unknown error occurred', 'error');
@@ -905,48 +913,63 @@
   // Update cart display
   function updateCartDisplay() {
     console.log('DEBUG: updateCartDisplay called with cart:', cart);
+    console.log('DEBUG: Cart items array:', cart.items);
+    console.log('DEBUG: Number of items in cart:', cart.items ? cart.items.length : 0);
+
     const cartItems = document.getElementById('cartItems');
+
+    // Force clear the container
     cartItems.innerHTML = '';
 
-    if (cart.items && cart.items.length > 0) {
-      console.log('DEBUG: Displaying', cart.items.length, 'cart items');
-      cart.items.forEach((item, index) => {
-        const itemDiv = document.createElement('div');
-        itemDiv.className = 'cart-item';
-        itemDiv.style.animationDelay = `${index * 0.1}s`;
-        itemDiv.innerHTML = `
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="mb-1 text-white">${item.product_name}</h6>
-                        <small style="color: #C5C6C7;">ETB ${(item.price || 0)} x ${item.quantity}</small>
-                    </div>
-                    <div class="text-end">
-                        <div class="mb-2" style="color: #66FCF1; font-weight: bold;">ETB ${(item.subtotal || item.total_price || (item.price * item.quantity) || 0).toFixed(2)}</div>
-                        <button class="btn btn-sm" onclick="removeFromCart(${item.product_id})"
-                                style="background-color: #dc3545; border-color: #dc3545; color: white;"
-                                onmouseover="this.style.backgroundColor='#c82333'"
-                                onmouseout="this.style.backgroundColor='#dc3545'">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-        cartItems.appendChild(itemDiv);
-      });
+    // Add a small delay to ensure DOM is updated
+    setTimeout(() => {
+      if (cart.items && cart.items.length > 0) {
+        console.log('DEBUG: Displaying', cart.items.length, 'cart items');
 
-      document.getElementById('completeOrder').disabled = false;
-    } else {
-      console.log('DEBUG: Cart is empty or has no items');
-      cartItems.innerHTML = `
-        <div class="text-center py-4">
-          <i class="bi bi-cart-x fs-2" style="color: #C5C6C7;"></i>
-          <p class="mt-2 mb-0" style="color: #C5C6C7;">Cart is empty</p>
-        </div>
-      `;
-      document.getElementById('completeOrder').disabled = true;
-    }
+        cart.items.forEach((item, index) => {
+          console.log('DEBUG: Processing cart item:', item);
 
-    updateTotals();
+          const itemDiv = document.createElement('div');
+          itemDiv.className = 'cart-item';
+          itemDiv.style.animationDelay = `${index * 0.1}s`;
+          itemDiv.setAttribute('data-product-id', item.product_id); // Add data attribute for easier debugging
+
+          itemDiv.innerHTML = `
+                  <div class="d-flex justify-content-between align-items-center">
+                      <div>
+                          <h6 class="mb-1 text-white">${item.product_name}</h6>
+                          <small style="color: #C5C6C7;">ETB ${(item.price || 0)} x ${item.quantity}</small>
+                      </div>
+                      <div class="text-end">
+                          <div class="mb-2" style="color: #66FCF1; font-weight: bold;">ETB ${(item.subtotal || item.total_price || (item.price * item.quantity) || 0).toFixed(2)}</div>
+                          <button class="btn btn-sm remove-btn" onclick="removeFromCart(${item.product_id})"
+                                  style="background-color: #dc3545; border-color: #dc3545; color: white;"
+                                  onmouseover="this.style.backgroundColor='#c82333'"
+                                  onmouseout="this.style.backgroundColor='#dc3545'"
+                                  data-product-id="${item.product_id}">
+                              <i class="bi bi-trash"></i>
+                          </button>
+                      </div>
+                  </div>
+              `;
+          cartItems.appendChild(itemDiv);
+        });
+
+        document.getElementById('completeOrder').disabled = false;
+        console.log('DEBUG: Cart display updated with', cart.items.length, 'items');
+      } else {
+        console.log('DEBUG: Cart is empty or has no items');
+        cartItems.innerHTML = `
+          <div class="text-center py-4">
+            <i class="bi bi-cart-x fs-2" style="color: #C5C6C7;"></i>
+            <p class="mt-2 mb-0" style="color: #C5C6C7;">Cart is empty</p>
+          </div>
+        `;
+        document.getElementById('completeOrder').disabled = true;
+      }
+
+      updateTotals();
+    }, 50); // Small delay to ensure DOM updates
   }
 
   // Update totals
@@ -1061,8 +1084,39 @@
     showNotification(message, type);
   }
 
+  // Save cart to localStorage
+  function saveCartToLocalStorage() {
+    try {
+      console.log('DEBUG: Saving cart to localStorage:', cart);
+      localStorage.setItem('pos_cart_data', JSON.stringify(cart));
+
+      // Also save customer info if available
+      const customerName = document.getElementById('customerName')?.value || '';
+      const customerPhone = document.getElementById('customerPhone')?.value || '';
+      if (customerName || customerPhone) {
+        const customerInfo = {
+          name: customerName,
+          phone: customerPhone
+        };
+        localStorage.setItem('pos_customer_info', JSON.stringify(customerInfo));
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error saving cart to localStorage:', error);
+      return false;
+    }
+  }
+
   // Remove from cart
   function removeFromCart(productId) {
+    console.log('DEBUG: Removing product from cart:', productId, typeof productId);
+    console.log('DEBUG: Current cart before removal:', cart);
+
+    // Ensure productId is a number
+    productId = parseInt(productId);
+    console.log('DEBUG: Converted productId to:', productId, typeof productId);
+
     // Use XMLHttpRequest to avoid fetch context issues
     const xhr = new XMLHttpRequest();
     xhr.open('POST', '{% url "remove_from_cart" %}', true);
@@ -1074,9 +1128,28 @@
         try {
           if (xhr.status === 200) {
             const data = JSON.parse(xhr.responseText);
+            console.log('DEBUG: Remove from cart response:', data);
+
             if (data.success) {
+              console.log('DEBUG: Cart before update:', cart);
+
+              // Update the cart variable with the response from server
               cart = data.cart;
-              updateCartDisplay();
+              console.log('DEBUG: Cart after update from server:', cart);
+
+              // Force a complete re-render by clearing the cart display first
+              const cartItems = document.getElementById('cartItems');
+              cartItems.innerHTML = '<div class="text-center py-2"><i class="bi bi-hourglass-split"></i> Updating...</div>';
+
+              // Update localStorage to keep it in sync
+              saveCartToLocalStorage();
+
+              // Update the display immediately with a small delay to ensure DOM is ready
+              setTimeout(() => {
+                updateCartDisplay();
+                updateTotals();
+              }, 100);
+
               showNotification(data.message, 'success');
             } else {
               showNotification(data.error || 'Error removing item', 'error');

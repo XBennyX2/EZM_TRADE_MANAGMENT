@@ -3,6 +3,7 @@ Supplier notification service for payment-related events
 """
 
 import logging
+from datetime import timedelta
 from django.core.mail import send_mail, EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.conf import settings
@@ -206,12 +207,18 @@ class SupplierNotificationService:
             logger.error(f"Failed to send payment status change email to supplier {supplier.name}: {str(e)}")
             return False
     
-    def _calculate_estimated_delivery(self):
+    def _calculate_estimated_delivery(self, supplier=None):
         """
-        Calculate estimated delivery date (business logic can be customized)
+        Calculate estimated delivery date using supplier-specific delivery time
         """
         from datetime import timedelta
-        return timezone.now().date() + timedelta(days=7)  # Default 7 days
+
+        if supplier:
+            delivery_days = supplier.get_estimated_delivery_days()
+        else:
+            delivery_days = 7  # Default fallback
+
+        return timezone.now().date() + timedelta(days=delivery_days)
     
     def _get_order_items_from_purchase_order(self, purchase_order):
         """
@@ -409,6 +416,68 @@ class SupplierNotificationService:
 
         except Exception as e:
             logger.error(f"Failed to send order status change notification: {str(e)}")
+            return False
+
+    def send_order_shipped_notification(self, order, tracking_number=None, shipping_carrier=None, shipping_notes=None, shipped_by=None):
+        """
+        Send notification to Head Manager when supplier marks order as shipped
+        """
+        try:
+            # Get head manager email
+            head_manager = order.created_by
+            if not head_manager.email:
+                logger.warning(f"No email found for head manager {head_manager.username}")
+                return False
+
+            # Calculate delivery estimate from shipping date
+            delivery_days = order.supplier.get_estimated_delivery_days()
+            estimated_delivery = timezone.now().date() + timedelta(days=delivery_days)
+
+            # Email context
+            context = {
+                'order': order,
+                'supplier': order.supplier,
+                'head_manager': head_manager,
+                'tracking_number': tracking_number,
+                'shipping_carrier': shipping_carrier,
+                'shipping_notes': shipping_notes,
+                'shipped_by': shipped_by,
+                'shipped_at': order.shipped_at,
+                'estimated_delivery': estimated_delivery,
+                'delivery_days': delivery_days,
+                'company_name': self.company_name,
+                'order_items': order.items.all(),
+            }
+
+            subject = f"Order Shipped - #{order.order_number} from {order.supplier.name}"
+
+            # HTML email
+            html_content = render_to_string(
+                'payments/emails/order_shipped.html',
+                context
+            )
+
+            # Plain text email
+            text_content = render_to_string(
+                'payments/emails/order_shipped.txt',
+                context
+            )
+
+            # Send email to Head Manager
+            msg = EmailMultiAlternatives(
+                subject=subject,
+                body=text_content,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[head_manager.email]
+            )
+            msg.attach_alternative(html_content, "text/html")
+            msg.send()
+
+            logger.info(f"Order shipped notification sent to {head_manager.email} for order {order.order_number}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to send order shipped notification: {str(e)}")
             return False
 
 

@@ -140,10 +140,11 @@
                                                 onclick="viewProduct({{ product.id }})">
                                                 <i class="bi bi-eye"></i>
                                             </button>
-                                            <button class="btn btn-outline-secondary"
-                                                onclick="editStock({{ product.id }})">
+                                            <a href="{% url 'supplier_edit_product' product.id %}"
+                                               class="btn btn-outline-secondary"
+                                               title="Edit Product & Stock">
                                                 <i class="bi bi-pencil"></i>
-                                            </button>
+                                            </a>
                                         </div>
                                     </td>
                                 </tr>
@@ -265,9 +266,10 @@
         console.log('Viewing product:', productId);
     }
 
-    function editStock(productId) {
-        // Add edit stock logic here
-        console.log('Editing stock for product:', productId);
+    function editProduct(productId) {
+        // Redirect to product edit page
+        window.location.href = `/users/supplier/catalog/${productId}/edit/`;
     }
 </script>
+
 {% endblock %}

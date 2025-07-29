@@ -17,7 +17,7 @@ import logging
 logger = logging.getLogger(__name__)
 from django.utils import timezone
 from Inventory.models import SupplierProfile, SupplierProduct, WarehouseProduct, ProductCategory
-from Inventory.forms import SupplierProfileForm, SupplierProductForm
+from Inventory.forms import SupplierProfileForm, SupplierProductForm, SupplierStockAdjustmentForm
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.views.decorators.csrf import csrf_exempt
@@ -275,14 +275,30 @@ def supplier_account(request):
 
 @supplier_profile_required
 def supplier_purchase_orders(request):
-    """List of purchase orders for the supplier"""
+    """Enhanced list of purchase orders for the supplier with shipping management"""
     try:
         supplier = Supplier.objects.get(email=request.user.email)
-        purchase_orders = PurchaseOrder.objects.filter(supplier=supplier).order_by('-created_date')
+
+        # Get orders by status for better organization
+        all_orders = PurchaseOrder.objects.filter(supplier=supplier).order_by('-created_date')
+
+        # Categorize orders
+        orders_to_ship = all_orders.filter(status='payment_confirmed')
+        orders_in_transit = all_orders.filter(status='in_transit')
+        orders_delivered = all_orders.filter(status='delivered')
+        orders_pending_payment = all_orders.filter(status='payment_pending')
+        orders_with_issues = all_orders.filter(status='issue_reported')
 
         context = {
             'supplier': supplier,
-            'purchase_orders': purchase_orders,
+            'purchase_orders': all_orders,
+            'orders_to_ship': orders_to_ship,
+            'orders_in_transit': orders_in_transit,
+            'orders_delivered': orders_delivered,
+            'orders_pending_payment': orders_pending_payment,
+            'orders_with_issues': orders_with_issues,
+            'orders_to_ship_count': orders_to_ship.count(),
+            'orders_in_transit_count': orders_in_transit.count(),
         }
 
     except Supplier.DoesNotExist:
@@ -296,7 +312,7 @@ def supplier_purchase_orders(request):
 @require_http_methods(["POST"])
 def supplier_mark_in_transit(request, order_id):
     """
-    Allow supplier to mark order as in transit
+    Enhanced supplier functionality to mark order as shipped/in transit
     """
     try:
         # Get supplier
@@ -309,11 +325,13 @@ def supplier_mark_in_transit(request, order_id):
         if order.status != 'payment_confirmed':
             return JsonResponse({
                 'success': False,
-                'message': 'Order must be payment confirmed to mark as in transit'
+                'message': 'Order must be payment confirmed to mark as shipped'
             })
 
-        # Get tracking number from request
+        # Get shipping details from request
         tracking_number = request.POST.get('tracking_number', '').strip()
+        shipping_notes = request.POST.get('shipping_notes', '').strip()
+        shipping_carrier = request.POST.get('shipping_carrier', '').strip()
 
         # Mark order as in transit
         from django.db import transaction
@@ -323,31 +341,57 @@ def supplier_mark_in_transit(request, order_id):
             previous_status = order.status
             order.mark_in_transit(tracking_number)
 
-            # Create status history record
+            # Add shipping notes to order notes
+            if shipping_notes:
+                if order.notes:
+                    order.notes += f"\n\nShipping Notes: {shipping_notes}"
+                else:
+                    order.notes = f"Shipping Notes: {shipping_notes}"
+                order.save()
+
+            # Create detailed status history record
+            reason_parts = ['Marked as shipped by supplier']
+            if tracking_number:
+                reason_parts.append(f"Tracking: {tracking_number}")
+            if shipping_carrier:
+                reason_parts.append(f"Carrier: {shipping_carrier}")
+            if shipping_notes:
+                reason_parts.append(f"Notes: {shipping_notes}")
+
             OrderStatusHistory.objects.create(
                 purchase_order=order,
                 previous_status=previous_status,
                 new_status=order.status,
                 changed_by=request.user,
-                reason=f'Marked as in transit by supplier{" with tracking: " + tracking_number if tracking_number else ""}',
+                reason=' | '.join(reason_parts),
                 ip_address=request.META.get('REMOTE_ADDR'),
                 user_agent=request.META.get('HTTP_USER_AGENT', '')
             )
 
-            # Send notification to head manager
+            # Send enhanced notification to head manager about shipping
             try:
                 from payments.notification_service import supplier_notification_service
-                supplier_notification_service.send_order_status_change_notification(
-                    order, previous_status, order.status, request.user
+
+                # Send shipping notification with tracking details
+                supplier_notification_service.send_order_shipped_notification(
+                    order=order,
+                    tracking_number=tracking_number,
+                    shipping_carrier=shipping_carrier,
+                    shipping_notes=shipping_notes,
+                    shipped_by=request.user
                 )
+                logger.info(f"Order shipped notification sent for order {order.order_number}")
             except Exception as e:
-                logger.error(f"Failed to send status change notification: {str(e)}")
+                logger.error(f"Failed to send shipping notification: {str(e)}")
 
         return JsonResponse({
             'success': True,
-            'message': 'Order marked as in transit successfully',
+            'message': f'Order {order.order_number} marked as shipped successfully',
+            'order_number': order.order_number,
+            'tracking_number': tracking_number,
+            'shipping_carrier': shipping_carrier,
             'new_status': order.status,
-            'tracking_number': tracking_number
+            'shipped_at': order.shipped_at.isoformat() if order.shipped_at else None
         })
 
     except Supplier.DoesNotExist:
@@ -854,7 +898,12 @@ def supplier_product_catalog(request):
         'total_products': products.count(),
     }
 
-    return render(request, 'supplier/product_catalog.html', context)
+    response = render(request, 'supplier/product_catalog.html', context)
+    # Add cache-busting headers to ensure fresh data
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    return response
 
 
 @supplier_profile_required
@@ -871,8 +920,11 @@ def supplier_add_product(request):
         if form.is_valid():
             product = form.save(commit=False)
             product.supplier = supplier
+            # Don't override stock_quantity - let the form handle it
+            # The form's clean method will set the appropriate availability_status
             product.save()
-            messages.success(request, f"Product '{product.product_name}' added successfully!")
+            stock_msg = f" with {product.stock_quantity} units in stock" if product.stock_quantity > 0 else " (currently out of stock)"
+            messages.success(request, f"Product '{product.product_name}' added successfully{stock_msg}!")
             return redirect('supplier_product_catalog')
     else:
         form = SupplierProductForm(supplier=supplier)
@@ -912,7 +964,12 @@ def supplier_edit_product(request, product_id):
         'action': 'Edit',
     }
 
-    return render(request, 'supplier/product_form.html', context)
+    response = render(request, 'supplier/product_form.html', context)
+    # Add cache-busting headers to ensure fresh data
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    return response
 
 
 @supplier_profile_required
@@ -1102,3 +1159,43 @@ def api_product_categories(request):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+@supplier_profile_required
+def supplier_adjust_stock(request):
+    """Handle supplier stock quantity adjustments"""
+    if request.method == 'POST':
+        try:
+            supplier = Supplier.objects.get(email=request.user.email)
+            product_id = request.POST.get('product_id')
+            product = SupplierProduct.objects.get(id=product_id, supplier=supplier)
+
+            form = SupplierStockAdjustmentForm(request.POST, instance=product)
+            if form.is_valid():
+                old_stock = product.stock_quantity
+                updated_product = form.save()
+                new_stock = updated_product.stock_quantity
+                reason = form.cleaned_data.get('adjustment_reason', 'Manual stock adjustment')
+
+                messages.success(
+                    request,
+                    f"Stock updated for '{product.product_name}': {old_stock} → {new_stock} units. "
+                    f"Reason: {reason}"
+                )
+
+                # Log the adjustment
+                logger.info(f"Supplier {supplier.name} adjusted stock for {product.product_name}: "
+                           f"{old_stock} → {new_stock}. Reason: {reason}")
+
+            else:
+                for field, errors in form.errors.items():
+                    for error in errors:
+                        messages.error(request, f"Error in {field}: {error}")
+
+        except (Supplier.DoesNotExist, SupplierProduct.DoesNotExist):
+            messages.error(request, "Product not found.")
+        except Exception as e:
+            messages.error(request, f"Error updating stock: {str(e)}")
+            logger.error(f"Error in supplier stock adjustment: {str(e)}")
+
+    return redirect('supplier_product_catalog')

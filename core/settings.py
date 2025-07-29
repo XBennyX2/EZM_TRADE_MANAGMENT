@@ -158,7 +158,8 @@ STATICFILES_DIRS = [
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Email Configuration - Django SMTP Backend
-EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", 'django.core.mail.backends.smtp.EmailBackend')
+# For development, use console backend to avoid network issues
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", 'django.core.mail.backends.console.EmailBackend')
 EMAIL_HOST = os.getenv("EMAIL_HOST", 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
@@ -174,7 +175,10 @@ COMPANY_NAME = os.getenv("COMPANY_NAME", 'EZM Trade Management System')
 COMPANY_EMAIL = os.getenv("COMPANY_EMAIL", EMAIL_HOST_USER)
 
 # Email backend status
-if EMAIL_HOST and EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
+if EMAIL_BACKEND == 'django.core.mail.backends.console.EmailBackend':
+    print("📧 Email configured: Using console backend for development")
+    print(f"📧 From: {DEFAULT_FROM_EMAIL}")
+elif EMAIL_HOST and EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
     print(f"✅ Email configured: Using SMTP backend with {EMAIL_HOST}")
     print(f"📧 From: {DEFAULT_FROM_EMAIL}")
 else:

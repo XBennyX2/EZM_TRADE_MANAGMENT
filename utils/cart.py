@@ -27,14 +27,53 @@ class Cart:
     def add(self, product, quantity=1, override_quantity=False):
         """
         Add a product to the cart or update its quantity
-        
+
         Args:
             product: SupplierProduct instance
             quantity: int, quantity to add
             override_quantity: bool, if True, replace quantity instead of adding
+
+        Returns:
+            dict: Result with success status and message
         """
         product_id = str(product.id)
-        
+
+        # Check if product is available and has stock
+        if not product.is_available():
+            return {
+                'success': False,
+                'message': f'{product.product_name} is not available for ordering.'
+            }
+
+        if not product.is_in_stock():
+            return {
+                'success': False,
+                'message': f'{product.product_name} is out of stock.'
+            }
+
+        # Calculate new quantity
+        current_quantity = 0
+        if product_id in self.cart:
+            current_quantity = self.cart[product_id]['quantity']
+
+        if override_quantity:
+            new_quantity = quantity
+        else:
+            new_quantity = current_quantity + quantity
+
+        # Ensure minimum order quantity is met
+        if new_quantity < product.minimum_order_quantity:
+            new_quantity = product.minimum_order_quantity
+
+        # Check if supplier has sufficient stock
+        if not product.can_fulfill_quantity(new_quantity):
+            return {
+                'success': False,
+                'message': f'Insufficient stock for {product.product_name}. '
+                          f'Available: {product.stock_quantity}, Requested: {new_quantity}'
+            }
+
+        # Add or update cart item
         if product_id not in self.cart:
             self.cart[product_id] = {
                 'quantity': 0,
@@ -46,18 +85,17 @@ class Cart:
                 'currency': product.currency,
                 'minimum_order_quantity': product.minimum_order_quantity,
                 'availability_status': product.availability_status,
+                'stock_quantity': product.stock_quantity,
             }
-        
-        if override_quantity:
-            self.cart[product_id]['quantity'] = quantity
-        else:
-            self.cart[product_id]['quantity'] += quantity
-            
-        # Ensure minimum order quantity is met
-        if self.cart[product_id]['quantity'] < product.minimum_order_quantity:
-            self.cart[product_id]['quantity'] = product.minimum_order_quantity
-            
+
+        self.cart[product_id]['quantity'] = new_quantity
+        self.cart[product_id]['stock_quantity'] = product.stock_quantity  # Update current stock
         self.save()
+
+        return {
+            'success': True,
+            'message': f'{product.product_name} added to cart successfully.'
+        }
 
     def save(self):
         """
@@ -77,22 +115,67 @@ class Cart:
     def update_quantity(self, product_id, quantity):
         """
         Update the quantity of a specific product
+
+        Returns:
+            dict: Result with success status and message
         """
         product_id = str(product_id)
-        if product_id in self.cart:
-            if quantity <= 0:
-                del self.cart[product_id]
-            else:
-                # Get the product to check minimum order quantity
-                try:
-                    product = SupplierProduct.objects.get(id=product_id)
-                    if quantity < product.minimum_order_quantity:
-                        quantity = product.minimum_order_quantity
-                except SupplierProduct.DoesNotExist:
-                    pass
-                    
-                self.cart[product_id]['quantity'] = quantity
+        if product_id not in self.cart:
+            return {
+                'success': False,
+                'message': 'Product not found in cart'
+            }
+
+        if quantity <= 0:
+            del self.cart[product_id]
             self.save()
+            return {
+                'success': True,
+                'message': 'Product removed from cart'
+            }
+
+        # Get the product to check stock and minimum order quantity
+        try:
+            product = SupplierProduct.objects.get(id=product_id)
+
+            # Check if product is still available
+            if not product.is_available():
+                del self.cart[product_id]
+                self.save()
+                return {
+                    'success': False,
+                    'message': f'{product.product_name} is no longer available and has been removed from cart'
+                }
+
+            # Ensure minimum order quantity is met
+            if quantity < product.minimum_order_quantity:
+                quantity = product.minimum_order_quantity
+
+            # Check if supplier has sufficient stock
+            if not product.can_fulfill_quantity(quantity):
+                return {
+                    'success': False,
+                    'message': f'Insufficient stock for {product.product_name}. '
+                              f'Available: {product.stock_quantity}, Requested: {quantity}'
+                }
+
+            # Update quantity
+            self.cart[product_id]['quantity'] = quantity
+            self.cart[product_id]['stock_quantity'] = product.stock_quantity
+            self.save()
+
+            return {
+                'success': True,
+                'message': 'Quantity updated successfully'
+            }
+
+        except SupplierProduct.DoesNotExist:
+            del self.cart[product_id]
+            self.save()
+            return {
+                'success': False,
+                'message': 'Product no longer exists and has been removed from cart'
+            }
 
     def get_total_price(self):
         """
@@ -113,6 +196,81 @@ class Cart:
         """
         del self.session[settings.CART_SESSION_ID]
         self.save()
+
+    def validate_stock(self):
+        """
+        Validate that all items in cart have sufficient stock
+
+        Returns:
+            dict: Validation result with success status and any issues
+        """
+        issues = []
+        product_ids = list(self.cart.keys())
+        products = SupplierProduct.objects.filter(id__in=product_ids)
+
+        for product in products:
+            cart_data = self.cart[str(product.id)]
+            requested_quantity = cart_data['quantity']
+
+            # Check if product is still available
+            if not product.is_available():
+                issues.append({
+                    'product_name': product.product_name,
+                    'issue': 'Product is no longer available',
+                    'action': 'remove'
+                })
+                continue
+
+            # Check if product has sufficient stock
+            if not product.can_fulfill_quantity(requested_quantity):
+                issues.append({
+                    'product_name': product.product_name,
+                    'issue': f'Insufficient stock. Available: {product.stock_quantity}, Requested: {requested_quantity}',
+                    'action': 'reduce',
+                    'max_quantity': product.stock_quantity
+                })
+                continue
+
+            # Check if stock has changed since added to cart
+            if product.stock_quantity != cart_data.get('stock_quantity', 0):
+                # Update cart with current stock info
+                self.cart[str(product.id)]['stock_quantity'] = product.stock_quantity
+
+        if issues:
+            return {
+                'success': False,
+                'message': 'Some items in your cart have stock issues',
+                'issues': issues
+            }
+
+        # Update all stock quantities in cart
+        self.save()
+        return {
+            'success': True,
+            'message': 'All items in cart are available'
+        }
+
+    def remove_unavailable_items(self):
+        """
+        Remove items from cart that are no longer available or out of stock
+
+        Returns:
+            list: List of removed items
+        """
+        removed_items = []
+        product_ids = list(self.cart.keys())
+        products = SupplierProduct.objects.filter(id__in=product_ids)
+
+        for product in products:
+            if not product.is_available() or not product.is_in_stock():
+                removed_items.append({
+                    'product_name': product.product_name,
+                    'reason': 'Out of stock' if not product.is_in_stock() else 'No longer available'
+                })
+                del self.cart[str(product.id)]
+
+        self.save()
+        return removed_items
 
     def get_cart_items(self):
         """

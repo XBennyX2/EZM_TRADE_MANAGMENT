@@ -253,7 +253,13 @@ def mark_order_in_transit(request, order_id):
     """
     try:
         order = get_object_or_404(PurchaseOrder, id=order_id)
-        
+
+        if not is_head_manager(request.user):
+            return JsonResponse({
+                'success': False,
+                'message': 'Only head managers can mark orders as in transit'
+            }, status=403)
+            
         if order.status != 'payment_confirmed':
             return JsonResponse({
                 'success': False,
@@ -312,6 +318,8 @@ def confirm_delivery(request, order_id):
     """
     try:
         order = get_object_or_404(PurchaseOrder, id=order_id)
+
+        logger.info(f"Attempting to confirm delivery for order {order_id} by user {request.user.username}")
         
         if order.status not in ['in_transit', 'payment_confirmed']:
             return JsonResponse({

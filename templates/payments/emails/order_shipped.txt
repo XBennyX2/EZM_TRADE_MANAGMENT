@@ -1,0 +1,53 @@
+ORDER SHIPPED - {{ order.order_number }}
+{{ company_name }}
+
+🚚 YOUR ORDER IS ON THE WAY! 🚚
+
+Dear {{ head_manager.get_full_name|default:head_manager.username }},
+
+Great news! Your order has been shipped by {{ supplier.name }} and is now on its way to you.
+
+ORDER INFORMATION
+=================
+Order Number: #{{ order.order_number }}
+Order Date: {{ order.order_date|date:"F d, Y" }}
+Total Amount: ETB {{ order.total_amount|floatformat:2 }}
+Supplier: {{ supplier.name }}
+
+SHIPPING DETAILS
+================
+Shipped Date: {{ shipped_at|date:"F d, Y H:i" }}
+Estimated Delivery: {{ estimated_delivery|date:"F d, Y" }} ({{ delivery_days }} days)
+{% if tracking_number %}
+Tracking Number: {{ tracking_number }}
+{% if shipping_carrier %}Carrier: {{ shipping_carrier }}{% endif %}
+{% endif %}
+{% if shipping_notes %}
+Shipping Notes: {{ shipping_notes }}
+{% endif %}
+
+SHIPPED ITEMS
+=============
+{% for item in order_items %}
+- {{ item.warehouse_product.product_name }}
+  Quantity: {{ item.quantity_ordered }}
+  Unit Price: ETB {{ item.unit_price|floatformat:2 }}
+  Total: ETB {{ item.total_price|floatformat:2 }}
+
+{% endfor %}
+
+WHAT'S NEXT?
+============
+• Your order is now in transit
+• Expected delivery: {{ estimated_delivery|date:"F d, Y" }}
+{% if tracking_number %}• Track your shipment using tracking number: {{ tracking_number }}{% endif %}
+• You'll receive a delivery confirmation once the order arrives
+• You can track the progress in your dashboard
+
+Your order is on its way! We'll keep you updated on the delivery progress.
+
+---
+{{ company_name }}
+Thank you for your business!
+
+This is an automated notification. Please do not reply to this email.

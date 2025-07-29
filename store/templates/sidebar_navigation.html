@@ -177,6 +177,59 @@
     </li>
 </ul>
 
+<!-- Supplier Sidebar -->
+{% elif user.role == 'supplier' %}
+<ul>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'supplier_dashboard' %}" data-tooltip="Dashboard">
+            <i class="bi bi-speedometer2"></i>
+            <span>Dashboard</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'supplier_purchase_orders' %}" data-tooltip="Purchase Orders">
+            <i class="bi bi-clipboard-check"></i>
+            <span>Purchase Orders</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'supplier_products' %}" data-tooltip="Products">
+            <i class="bi bi-box-seam"></i>
+            <span>Products</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'supplier_product_catalog' %}" data-tooltip="Product Catalog">
+            <i class="bi bi-grid"></i>
+            <span>Product Catalog</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'supplier_transactions' %}" data-tooltip="Transactions">
+            <i class="bi bi-credit-card"></i>
+            <span>Transactions</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'supplier_payments' %}" data-tooltip="Payments">
+            <i class="bi bi-wallet"></i>
+            <span>Payments</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'supplier_invoices' %}" data-tooltip="Invoices">
+            <i class="bi bi-receipt"></i>
+            <span>Invoices</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'supplier_account' %}" data-tooltip="Account Settings">
+            <i class="bi bi-gear"></i>
+            <span>Account Settings</span>
+        </a>
+    </li>
+</ul>
+
 <!-- Default/Customer Sidebar -->
 {% else %}
 <ul>

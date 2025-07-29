@@ -348,131 +348,231 @@ def confirm_delivery(request, order_id):
 
         logger.info(f"Attempting to confirm delivery for order {order_id} by user {request.user.username}")
         
+        # Validate order status
         if order.status not in ['in_transit', 'payment_confirmed']:
+            logger.warning(f"Order {order_id} has invalid status for delivery confirmation: {order.status}")
             return JsonResponse({
                 'success': False,
                 'message': 'Order must be in transit or payment confirmed to confirm delivery'
             })
         
-        # Parse form data
-        delivery_condition = request.POST.get('delivery_condition')
-        all_items_received = request.POST.get('all_items_received') == 'true'
-        delivery_notes = request.POST.get('delivery_notes', '')
-        received_items = json.loads(request.POST.get('received_items', '[]'))
+        # Check if delivery is already confirmed
+        if hasattr(order, 'delivery_confirmation') and order.delivery_confirmation:
+            logger.warning(f"Order {order_id} already has delivery confirmation")
+            return JsonResponse({
+                'success': False,
+                'message': 'Delivery has already been confirmed for this order'
+            })
         
+        # Parse and validate form data
+        try:
+            delivery_condition = request.POST.get('delivery_condition')
+            all_items_received = request.POST.get('all_items_received') == 'true'
+            delivery_notes = request.POST.get('delivery_notes', '')
+            received_items_str = request.POST.get('received_items', '[]')
+            
+            # Safely parse JSON
+            try:
+                received_items = json.loads(received_items_str) if received_items_str else []
+            except json.JSONDecodeError as e:
+                logger.error(f"Invalid JSON in received_items: {received_items_str}, error: {str(e)}")
+                received_items = []
+            
+        except Exception as e:
+            logger.error(f"Error parsing form data for order {order_id}: {str(e)}")
+            return JsonResponse({
+                'success': False,
+                'message': 'Invalid form data provided'
+            })
+        
+        # Validate required fields
         if not delivery_condition:
+            logger.warning(f"Missing delivery condition for order {order_id}")
             return JsonResponse({
                 'success': False,
                 'message': 'Delivery condition is required'
             })
         
-        with transaction.atomic():
-            # Create delivery confirmation
-            delivery_confirmation = DeliveryConfirmation.objects.create(
-                purchase_order=order,
-                confirmed_by=request.user,
-                delivery_condition=delivery_condition,
-                all_items_received=all_items_received,
-                delivery_notes=delivery_notes
-            )
-            
-            # Handle photo uploads
-            photos = []
-            for i, file in enumerate(request.FILES.getlist('delivery_photos')):
-                if file:
-                    filename = f"delivery_photos/{order.order_number}_{i}_{file.name}"
-                    path = default_storage.save(filename, ContentFile(file.read()))
-                    photos.append(path)
-            
-            if photos:
-                delivery_confirmation.delivery_photos = photos
-                delivery_confirmation.save()
-            
-            # Update order items and warehouse stock
-            # Process all items in the order, not just received_items list
-            for item in order.items.all():
-                try:
-                    # Determine if this item was received
-                    item_was_received = str(item.id) in received_items if received_items else all_items_received
-
-                    if item_was_received:
-                        # Only update if not already confirmed to avoid double-counting
-                        if not item.is_confirmed_received:
-                            # Calculate quantity to add to warehouse stock
-                            quantity_to_add = item.quantity_ordered - item.quantity_received
-
-                            # Update item status
-                            item.is_confirmed_received = True
-                            item.quantity_received = item.quantity_ordered
-                            item.confirmed_at = timezone.now()
-                            item.save()
-
-                            # Update warehouse stock for received items
-                            warehouse_product = item.warehouse_product
-                            if warehouse_product and quantity_to_add > 0:
-                                warehouse_product.update_stock(
-                                    quantity_to_add,
-                                    f"Purchase order delivery - {order.order_number}",
-                                    movement_type='purchase_delivery',
-                                    purchase_order=order
-                                )
-                                logger.info(f"Updated warehouse stock for {warehouse_product.product_name}: +{quantity_to_add} (Total received: {item.quantity_received})")
-                        else:
-                            logger.info(f"Item {item.warehouse_product.product_name} already confirmed, skipping stock update")
-                    else:
-                        # Item not received - mark as having issues if not already marked
-                        if not item.has_issues:
-                            item.has_issues = True
-                            item.issue_description = "Item not received during delivery confirmation"
-                            item.save()
-                            logger.info(f"Marked item {item.warehouse_product.product_name} as having delivery issues")
-
-                except Exception as e:
-                    logger.error(f"Error processing item {item.id}: {str(e)}")
-                    continue
-            
-            # Validate that all items have been processed correctly
-            total_items = order.items.count()
-            confirmed_items = order.items.filter(is_confirmed_received=True).count()
-            items_with_issues = order.items.filter(has_issues=True).count()
-
-            logger.info(f"Delivery confirmation summary for order {order.order_number}: "
-                       f"Total items: {total_items}, Confirmed: {confirmed_items}, "
-                       f"With issues: {items_with_issues}")
-
-            # Update order status
-            previous_status = order.status
-            order.confirm_delivery(request.user, delivery_notes)
-            
-            # Create status history record
-            OrderStatusHistory.objects.create(
-                purchase_order=order,
-                previous_status=previous_status,
-                new_status=order.status,
-                changed_by=request.user,
-                reason='Delivery confirmed by Head Manager',
-                notes=f"Condition: {delivery_condition}, All items received: {all_items_received}",
-                ip_address=request.META.get('REMOTE_ADDR'),
-                user_agent=request.META.get('HTTP_USER_AGENT', '')
-            )
-            
-            # Send notification to supplier
-            try:
-                supplier_notification_service.send_delivery_confirmation_notification(delivery_confirmation)
-            except Exception as e:
-                logger.error(f"Failed to send delivery confirmation notification: {str(e)}")
+        # Validate delivery condition choice
+        valid_conditions = ['excellent', 'good', 'fair', 'poor', 'damaged']
+        if delivery_condition not in valid_conditions:
+            logger.warning(f"Invalid delivery condition '{delivery_condition}' for order {order_id}")
+            return JsonResponse({
+                'success': False,
+                'message': f'Invalid delivery condition. Must be one of: {", ".join(valid_conditions)}'
+            })
         
+        with transaction.atomic():
+            try:
+                # Create delivery confirmation
+                logger.info(f"Creating delivery confirmation for order {order_id}")
+                delivery_confirmation = DeliveryConfirmation.objects.create(
+                    purchase_order=order,
+                    confirmed_by=request.user,
+                    delivery_condition=delivery_condition,
+                    all_items_received=all_items_received,
+                    delivery_notes=delivery_notes
+                )
+                
+                # Handle photo uploads
+                photos = []
+                try:
+                    for i, file in enumerate(request.FILES.getlist('delivery_photos')):
+                        if file:
+                            # Validate file
+                            if file.size > 10 * 1024 * 1024:  # 10MB limit
+                                logger.warning(f"File {file.name} too large ({file.size} bytes)")
+                                continue
+                            
+                            filename = f"delivery_photos/{order.order_number}_{i}_{file.name}"
+                            path = default_storage.save(filename, ContentFile(file.read()))
+                            photos.append(path)
+                            logger.info(f"Saved delivery photo: {path}")
+                    
+                    if photos:
+                        delivery_confirmation.delivery_photos = photos
+                        delivery_confirmation.save()
+                        logger.info(f"Saved {len(photos)} delivery photos for order {order_id}")
+                        
+                except Exception as e:
+                    logger.error(f"Error handling photo uploads for order {order_id}: {str(e)}")
+                    # Continue without photos rather than failing the entire operation
+                
+                # Update order items and warehouse stock
+                order_items = order.items.all()
+                if not order_items.exists():
+                    logger.error(f"Order {order_id} has no items")
+                    raise ValueError("Order has no items to confirm")
+                
+                logger.info(f"Processing {order_items.count()} items for order {order_id}")
+                
+                processed_items = 0
+                error_items = 0
+                
+                for item in order_items:
+                    try:
+                        # Determine if this item was received
+                        item_was_received = str(item.id) in received_items if received_items else all_items_received
+                        logger.debug(f"Item {item.id}: received={item_was_received}")
+
+                        if item_was_received:
+                            # Only update if not already confirmed to avoid double-counting
+                            if not item.is_confirmed_received:
+                                # Calculate quantity to add to warehouse stock
+                                quantity_to_add = item.quantity_ordered - item.quantity_received
+
+                                # Update item status
+                                item.is_confirmed_received = True
+                                item.quantity_received = item.quantity_ordered
+                                item.confirmed_at = timezone.now()
+                                item.save()
+
+                                # Update warehouse stock for received items
+                                warehouse_product = item.warehouse_product
+                                if warehouse_product and quantity_to_add > 0:
+                                    try:
+                                        warehouse_product.update_stock(
+                                            quantity_to_add,
+                                            f"Purchase order delivery - {order.order_number}",
+                                            movement_type='purchase_delivery',
+                                            purchase_order=order
+                                        )
+                                        logger.info(f"Updated warehouse stock for {warehouse_product.product_name}: +{quantity_to_add} (Total received: {item.quantity_received})")
+                                    except Exception as stock_error:
+                                        logger.error(f"Failed to update warehouse stock for item {item.id}: {str(stock_error)}")
+                                        # Continue processing other items
+                                        
+                                processed_items += 1
+                            else:
+                                logger.info(f"Item {item.warehouse_product.product_name} already confirmed, skipping stock update")
+                        else:
+                            # Item not received - mark as having issues if not already marked
+                            if not item.has_issues:
+                                item.has_issues = True
+                                item.issue_description = "Item not received during delivery confirmation"
+                                item.save()
+                                logger.info(f"Marked item {item.warehouse_product.product_name} as having delivery issues")
+
+                    except Exception as item_error:
+                        logger.error(f"Error processing item {item.id}: {str(item_error)}")
+                        error_items += 1
+                        continue
+                
+                # Validate that all items have been processed correctly
+                total_items = order.items.count()
+                confirmed_items = order.items.filter(is_confirmed_received=True).count()
+                items_with_issues = order.items.filter(has_issues=True).count()
+
+                logger.info(f"Delivery confirmation summary for order {order.order_number}: "
+                           f"Total items: {total_items}, Confirmed: {confirmed_items}, "
+                           f"With issues: {items_with_issues}, Processed: {processed_items}, Errors: {error_items}")
+
+                # Update order status
+                previous_status = order.status
+                try:
+                    order.confirm_delivery(request.user, delivery_notes)
+                    logger.info(f"Order {order_id} status updated from {previous_status} to {order.status}")
+                except Exception as status_error:
+                    logger.error(f"Failed to update order status for order {order_id}: {str(status_error)}")
+                    raise
+                
+                # Create status history record
+                try:
+                    OrderStatusHistory.objects.create(
+                        purchase_order=order,
+                        previous_status=previous_status,
+                        new_status=order.status,
+                        changed_by=request.user,
+                        reason='Delivery confirmed by Head Manager',
+                        notes=f"Condition: {delivery_condition}, All items received: {all_items_received}",
+                        ip_address=request.META.get('REMOTE_ADDR'),
+                        user_agent=request.META.get('HTTP_USER_AGENT', '')
+                    )
+                    logger.info(f"Created status history record for order {order_id}")
+                except Exception as history_error:
+                    logger.error(f"Failed to create status history for order {order_id}: {str(history_error)}")
+                    # Continue without status history rather than failing
+                
+            except Exception as transaction_error:
+                logger.error(f"Transaction error for order {order_id}: {str(transaction_error)}")
+                raise
+        
+        # Send notification to supplier (outside transaction to avoid rollback on notification failure)
+        try:
+            supplier_notification_service.send_delivery_confirmation_notification(delivery_confirmation)
+            logger.info(f"Delivery confirmation notification sent for order {order_id}")
+        except Exception as notification_error:
+            logger.error(f"Failed to send delivery confirmation notification for order {order_id}: {str(notification_error)}")
+            # Don't fail the entire operation for notification errors
+        
+        logger.info(f"Successfully confirmed delivery for order {order_id}")
         return JsonResponse({
             'success': True,
             'message': 'Delivery confirmed successfully',
             'new_status': order.status
         })
         
-    except Exception as e:
-        logger.error(f"Error confirming delivery for order {order_id}: {str(e)}")
+    except PurchaseOrder.DoesNotExist:
+        logger.error(f"Order {order_id} not found")
         return JsonResponse({
             'success': False,
-            'message': 'Unable to confirm delivery'
+            'message': 'Order not found'
+        }, status=404)
+        
+    except ValueError as ve:
+        logger.error(f"Validation error for order {order_id}: {str(ve)}")
+        return JsonResponse({
+            'success': False,
+            'message': str(ve)
+        }, status=400)
+        
+    except Exception as e:
+        logger.error(f"Unexpected error confirming delivery for order {order_id}: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return JsonResponse({
+            'success': False,
+            'message': 'Unable to confirm delivery. Please check the logs for details.'
         }, status=500)
 
 

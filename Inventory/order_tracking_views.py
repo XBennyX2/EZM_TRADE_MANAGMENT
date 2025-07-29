@@ -23,6 +23,7 @@ from payments.notification_service import supplier_notification_service
 
 def is_head_manager(user):
     """Check if user is a head manager"""
+    logger.info(f"Checking if user {user.username} is head manager. Role: {user.role}")
     return user.is_authenticated and user.role == 'head_manager'
 
 logger = logging.getLogger(__name__)
@@ -118,52 +119,98 @@ def order_tracking_detail(request, order_id):
 
 
 @login_required
-@user_passes_test(is_head_manager)
 def purchase_order_details_api(request, order_id):
     """
     API endpoint to get purchase order details for modals
     """
+    logger.info(f"purchase_order_details_api called with order_id: {order_id}, user: {request.user.username}, role: {request.user.role}")
+
     try:
-        order = get_object_or_404(PurchaseOrder, id=order_id)
-        
-        # Serialize order data
-        order_data = {
-            'id': order.id,
-            'order_number': order.order_number,
-            'supplier': {
-                'id': order.supplier.id,
-                'name': order.supplier.name,
-                'email': order.supplier.email,
-                'phone': order.supplier.phone,
-            },
-            'total_amount': float(order.total_amount),
-            'status': order.status,
-            'order_date': order.order_date.isoformat(),
-            'expected_delivery_date': order.expected_delivery_date.isoformat() if order.expected_delivery_date else None,
-            'estimated_delivery_datetime': order.estimated_delivery_datetime.isoformat() if order.estimated_delivery_datetime else None,
-            'delivery_countdown_seconds': order.delivery_countdown_seconds,
-            'tracking_number': order.tracking_number,
-            'items': []
-        }
-        
+        # Check if user is authenticated
+        if not request.user.is_authenticated:
+            logger.error(f"Unauthenticated user attempted to access order details")
+            return JsonResponse({'error': 'Authentication required'}, status=401)
+
+        # Check if user is head manager
+        if not is_head_manager(request.user):
+            logger.warning(f"User {request.user.username} (role: {request.user.role}) attempted to access order details but is not a head manager")
+            return JsonResponse({'error': 'Access denied. Head Manager role required.'}, status=403)
+
+        logger.info(f"Fetching order details for order_id: {order_id}")
+
+        try:
+            order = get_object_or_404(PurchaseOrder, id=order_id)
+            logger.info(f"Found order: {order.order_number}")
+        except Exception as e:
+            logger.error(f"Order {order_id} not found: {str(e)}")
+            return JsonResponse({'error': f'Order not found: {str(e)}'}, status=404)
+
+        # Serialize order data with error handling
+        try:
+            order_data = {
+                'id': order.id,
+                'order_number': order.order_number,
+                'supplier': {
+                    'id': order.supplier.id if order.supplier else None,
+                    'name': order.supplier.name if order.supplier else 'Unknown',
+                    'email': order.supplier.email if order.supplier else '',
+                    'phone': order.supplier.phone if order.supplier else '',
+                },
+                'total_amount': float(order.total_amount) if order.total_amount else 0.0,
+                'status': order.status,
+                'order_date': order.order_date.isoformat() if order.order_date else None,
+                'expected_delivery_date': order.expected_delivery_date.isoformat() if order.expected_delivery_date else None,
+                'estimated_delivery_datetime': order.estimated_delivery_datetime.isoformat() if order.estimated_delivery_datetime else None,
+                'delivery_countdown_seconds': order.delivery_countdown_seconds if hasattr(order, 'delivery_countdown_seconds') else 0,
+                'tracking_number': order.tracking_number or '',
+                'items': []
+            }
+            logger.info(f"Successfully created order_data with id: {order_data['id']}")
+        except Exception as serialization_error:
+            logger.error(f"Error serializing order data: {str(serialization_error)}")
+            return JsonResponse({'error': f'Error serializing order data: {str(serialization_error)}'}, status=500)
+
         # Add order items
-        for item in order.items.all():
-            order_data['items'].append({
-                'id': item.id,
-                'product_name': item.warehouse_product.product_name,
-                'quantity_ordered': item.quantity_ordered,
-                'quantity_received': item.quantity_received,
-                'unit_price': float(item.unit_price),
-                'total_price': float(item.total_price),
-                'is_confirmed_received': item.is_confirmed_received,
-                'has_issues': item.has_issues,
-                'issue_description': item.issue_description,
-            })
-        
+        try:
+            items_count = order.items.count()
+            logger.info(f"Processing {items_count} items")
+
+            if items_count == 0:
+                logger.warning(f"Order {order.order_number} has no items")
+
+            for item in order.items.all():
+                try:
+                    item_data = {
+                        'id': item.id,
+                        'product_name': item.warehouse_product.product_name if item.warehouse_product else 'Unknown Product',
+                        'quantity_ordered': item.quantity_ordered or 0,
+                        'quantity_received': item.quantity_received or 0,
+                        'unit_price': float(item.unit_price) if item.unit_price else 0.0,
+                        'total_price': float(item.total_price) if item.total_price else 0.0,
+                        'is_confirmed_received': getattr(item, 'is_confirmed_received', False),
+                        'has_issues': getattr(item, 'has_issues', False),
+                        'issue_description': getattr(item, 'issue_description', ''),
+                    }
+                    order_data['items'].append(item_data)
+                    logger.debug(f"Successfully processed item {item.id}")
+                except Exception as item_error:
+                    logger.error(f"Error processing item {item.id}: {str(item_error)}")
+                    # Continue processing other items
+
+        except Exception as items_error:
+            logger.error(f"Error processing items for order {order.id}: {str(items_error)}")
+            # Continue with empty items list
+
+        logger.info(f"Successfully serialized order data for {order.order_number} with {len(order_data['items'])} items")
+        logger.info(f"Final order_data keys: {list(order_data.keys())}")
+        logger.info(f"Order ID in response: {order_data.get('id')}")
+
         return JsonResponse(order_data)
-        
+
     except Exception as e:
         logger.error(f"Error fetching order details for {order_id}: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return JsonResponse({'error': 'Unable to fetch order details'}, status=500)
 
 
@@ -233,7 +280,13 @@ def mark_order_in_transit(request, order_id):
     """
     try:
         order = get_object_or_404(PurchaseOrder, id=order_id)
-        
+
+        if not is_head_manager(request.user):
+            return JsonResponse({
+                'success': False,
+                'message': 'Only head managers can mark orders as in transit'
+            }, status=403)
+            
         if order.status != 'payment_confirmed':
             return JsonResponse({
                 'success': False,
@@ -292,6 +345,8 @@ def confirm_delivery(request, order_id):
     """
     try:
         order = get_object_or_404(PurchaseOrder, id=order_id)
+
+        logger.info(f"Attempting to confirm delivery for order {order_id} by user {request.user.username}")
         
         if order.status not in ['in_transit', 'payment_confirmed']:
             return JsonResponse({
@@ -334,26 +389,57 @@ def confirm_delivery(request, order_id):
                 delivery_confirmation.save()
             
             # Update order items and warehouse stock
-            for item_id in received_items:
+            # Process all items in the order, not just received_items list
+            for item in order.items.all():
                 try:
-                    item = PurchaseOrderItem.objects.get(id=item_id, purchase_order=order)
-                    item.is_confirmed_received = True
-                    item.quantity_received = item.quantity_ordered
-                    item.confirmed_at = timezone.now()
-                    item.save()
+                    # Determine if this item was received
+                    item_was_received = str(item.id) in received_items if received_items else all_items_received
 
-                    # Update warehouse stock for received items
-                    warehouse_product = item.warehouse_product
-                    if warehouse_product:
-                        warehouse_product.update_stock(
-                            item.quantity_received,
-                            f"Purchase order delivery - {order.order_number}"
-                        )
-                        logger.info(f"Updated warehouse stock for {warehouse_product.product_name}: +{item.quantity_received}")
+                    if item_was_received:
+                        # Only update if not already confirmed to avoid double-counting
+                        if not item.is_confirmed_received:
+                            # Calculate quantity to add to warehouse stock
+                            quantity_to_add = item.quantity_ordered - item.quantity_received
 
-                except PurchaseOrderItem.DoesNotExist:
+                            # Update item status
+                            item.is_confirmed_received = True
+                            item.quantity_received = item.quantity_ordered
+                            item.confirmed_at = timezone.now()
+                            item.save()
+
+                            # Update warehouse stock for received items
+                            warehouse_product = item.warehouse_product
+                            if warehouse_product and quantity_to_add > 0:
+                                warehouse_product.update_stock(
+                                    quantity_to_add,
+                                    f"Purchase order delivery - {order.order_number}",
+                                    movement_type='purchase_delivery',
+                                    purchase_order=order
+                                )
+                                logger.info(f"Updated warehouse stock for {warehouse_product.product_name}: +{quantity_to_add} (Total received: {item.quantity_received})")
+                        else:
+                            logger.info(f"Item {item.warehouse_product.product_name} already confirmed, skipping stock update")
+                    else:
+                        # Item not received - mark as having issues if not already marked
+                        if not item.has_issues:
+                            item.has_issues = True
+                            item.issue_description = "Item not received during delivery confirmation"
+                            item.save()
+                            logger.info(f"Marked item {item.warehouse_product.product_name} as having delivery issues")
+
+                except Exception as e:
+                    logger.error(f"Error processing item {item.id}: {str(e)}")
                     continue
             
+            # Validate that all items have been processed correctly
+            total_items = order.items.count()
+            confirmed_items = order.items.filter(is_confirmed_received=True).count()
+            items_with_issues = order.items.filter(has_issues=True).count()
+
+            logger.info(f"Delivery confirmation summary for order {order.order_number}: "
+                       f"Total items: {total_items}, Confirmed: {confirmed_items}, "
+                       f"With issues: {items_with_issues}")
+
             # Update order status
             previous_status = order.status
             order.confirm_delivery(request.user, delivery_notes)

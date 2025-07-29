@@ -1,8 +1,8 @@
 {% extends 'base_sidebar.html' %}
 {% load static %}
 
-{% block title %}Manage Cashiers - {{ store.name }}{% endblock %}
-{% block page_title %}Manage Cashiers{% endblock %}
+{% block title %}Manage Salespersons - {{ store.name }}{% endblock %}
+{% block page_title %}Manage Salespersons{% endblock %}
 
 {% block sidebar_menu %}
 {% include 'sidebar_navigation.html' %}
@@ -15,17 +15,17 @@
     <div class="col-12">
       <div class="ezm-card">
         <div class="ezm-card-header">
-          <i class="bi bi-people me-2"></i>Manage Cashiers
+          <i class="bi bi-people me-2"></i>Manage Salespersons
         </div>
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-center">
             <p class="mb-0">Store: <strong>{{ store.name }}</strong></p>
             <div class="d-flex gap-2">
               <a href="{% url 'create_cashier' %}" class="btn btn-ezm-primary">
-                <i class="bi bi-person-plus me-2"></i>Create New Cashier
+                <i class="bi bi-person-plus me-2"></i>Create New Sales Person
               </a>
               <a href="{% url 'assign_cashier' %}" class="btn btn-outline-primary">
-                <i class="bi bi-person-check me-2"></i>Assign Existing Cashier
+                <i class="bi bi-person-check me-2"></i>Assign Existing Sales Person
               </a>
               <a href="{% url 'store_manager_page' %}" class="btn btn-ezm-secondary">
                 <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
@@ -52,7 +52,7 @@
     <div class="col-lg-8">
       <div class="ezm-card">
         <div class="ezm-card-header d-flex justify-content-between align-items-center">
-          <h5 class="mb-0">Assigned Cashiers ({{ assigned_cashiers|length }})</h5>
+          <h5 class="mb-0">Assigned Salespersons ({{ assigned_cashiers|length }})</h5>
           <span class="badge bg-light text-dark">{{ assigned_cashiers|length }} Active</span>
         </div>
         <div class="card-body">
@@ -79,7 +79,7 @@
                       </div>
                       <div>
                         <h6 class="mb-0">{{ cashier.get_full_name|default:cashier.username }}</h6>
-                        <small class="text-muted">Cashier</small>
+                        <small class="text-muted">Sales Person</small>
                       </div>
                     </div>
                   </td>
@@ -93,78 +93,55 @@
                   </td>
                   <td>
                     <div class="btn-group" role="group">
-                      <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal"
-                        data-bs-target="#cashierModal{{ cashier.id }}" title="View Details">
+                      <button type="button" class="btn btn-sm btn-outline-info"
+                        onclick="showCashierDetails({{ cashier.id }}, event)" title="View Details">
                         <i class="bi bi-eye"></i>
                       </button>
                       <a href="{% url 'edit_cashier' cashier.id %}" class="btn btn-sm btn-outline-warning"
-                        title="Edit Cashier">
+                        title="Edit Sales Person">
                         <i class="bi bi-pencil"></i>
                       </a>
                       <a href="{% url 'remove_cashier' cashier.id %}" class="btn btn-sm btn-outline-danger"
-                        title="Remove Cashier"
+                        title="Remove Sales Person"
                         onclick="return confirm('Are you sure you want to remove {{ cashier.get_full_name|default:cashier.username }} from this store?')">
                         <i class="bi bi-person-dash"></i>
                       </a>
                     </div>
                   </td>
                 </tr>
-
-                <!-- Cashier Details Modal -->
-                <div class="modal fade" id="cashierModal{{ cashier.id }}" tabindex="-1">
-                  <div class="modal-dialog">
-                    <div class="modal-content">
-                      <div class="modal-header">
-                        <h5 class="modal-title">Cashier Details</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                      </div>
-                      <div class="modal-body">
-                        <div class="row">
-                          <div class="col-sm-4"><strong>Full Name:</strong></div>
-                          <div class="col-sm-8">{{ cashier.get_full_name|default:"Not provided" }}</div>
-                        </div>
-                        <div class="row mt-2">
-                          <div class="col-sm-4"><strong>Username:</strong></div>
-                          <div class="col-sm-8">{{ cashier.username }}</div>
-                        </div>
-                        <div class="row mt-2">
-                          <div class="col-sm-4"><strong>Email:</strong></div>
-                          <div class="col-sm-8">{{ cashier.email }}</div>
-                        </div>
-                        <div class="row mt-2">
-                          <div class="col-sm-4"><strong>Phone:</strong></div>
-                          <div class="col-sm-8">{{ cashier.phone_number|default:"Not provided" }}</div>
-                        </div>
-                        <div class="row mt-2">
-                          <div class="col-sm-4"><strong>Date Joined:</strong></div>
-                          <div class="col-sm-8">{{ cashier.date_joined|date:"M d, Y" }}</div>
-                        </div>
-                        <div class="row mt-2">
-                          <div class="col-sm-4"><strong>Status:</strong></div>
-                          <div class="col-sm-8">
-                            <span class="badge bg-{% if cashier.is_active %}success{% else %}danger{% endif %}">
-                              {% if cashier.is_active %}Active{% else %}Inactive{% endif %}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
                 {% endfor %}
               </tbody>
             </table>
           </div>
+
+
+
+          <!-- Cashier data for JavaScript -->
+          <script type="application/json" id="cashierData">
+          {
+            {% for cashier in assigned_cashiers %}
+            "{{ cashier.id }}": {
+              "id": {{ cashier.id }},
+              "full_name": "{{ cashier.get_full_name|default:'Not provided'|escapejs }}",
+              "username": "{{ cashier.username|escapejs }}",
+              "email": "{{ cashier.email|escapejs }}",
+              "phone": "{{ cashier.phone_number|default:'Not provided'|escapejs }}",
+              "date_joined": "{{ cashier.date_joined|date:'M d, Y'|escapejs }}",
+              "last_login": "{% if cashier.last_login %}{{ cashier.last_login|date:'M d, Y H:i'|escapejs }}{% else %}Never{% endif %}",
+              "is_active": {{ cashier.is_active|yesno:"true,false" }},
+              "store": "{{ store.name|escapejs }}"
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+          }
+          </script>
+
           {% else %}
           <div class="text-center py-5">
             <i class="bi bi-person-plus fs-1 text-muted"></i>
-            <h5 class="text-muted mt-3">No Cashiers Assigned</h5>
-            <p class="text-muted">You haven't assigned any cashiers to your store yet.</p>
+            <h5 class="text-muted mt-3">No Salespersons Assigned</h5>
+            <p class="text-muted">You haven't assigned any salespersons to your store yet.</p>
             <a href="{% url 'create_cashier' %}" class="btn btn-ezm-primary">
-              <i class="bi bi-person-plus me-2"></i>Create First Cashier
+              <i class="bi bi-person-plus me-2"></i>Create First Sales Person
             </a>
           </div>
           {% endif %}
@@ -176,11 +153,11 @@
     <div class="col-lg-4">
       <div class="ezm-card">
         <div class="ezm-card-header">
-          <h5 class="mb-0">Available Cashiers</h5>
+          <h5 class="mb-0">Available Salespersons</h5>
         </div>
         <div class="card-body">
           {% if available_cashiers %}
-          <p class="text-muted small mb-3">These cashiers are not assigned to any store and can be assigned to yours:
+          <p class="text-muted small mb-3">These salespersons are not assigned to any store and can be assigned to yours:
           </p>
           <div class="list-group list-group-flush">
             {% for cashier in available_cashiers %}
@@ -195,15 +172,15 @@
           </div>
           <div class="mt-3">
             <a href="{% url 'assign_cashier' %}" class="btn btn-ezm-primary btn-sm w-100">
-              <i class="bi bi-person-plus me-2"></i>Assign Cashier
+              <i class="bi bi-person-plus me-2"></i>Assign Sales Person
             </a>
           </div>
           {% else %}
           <div class="text-center py-4">
             <i class="bi bi-person-x fs-2 text-muted"></i>
-            <p class="text-muted mt-2 small">No available cashiers</p>
-            <p class="text-muted small">All cashiers are either assigned or inactive. Contact your administrator to
-              create new cashier accounts.</p>
+            <p class="text-muted mt-2 small">No available salespersons</p>
+            <p class="text-muted small">All salespersons are either assigned or inactive. Contact your administrator to
+              create new sales person accounts.</p>
           </div>
           {% endif %}
         </div>
@@ -243,4 +220,165 @@
     font-size: 16px;
   }
 </style>
+
+<script>
+// Load cashier data
+let cashierData = {};
+try {
+    const dataScript = document.getElementById('cashierData');
+    if (dataScript) {
+        cashierData = JSON.parse(dataScript.textContent);
+        console.log('Cashier data loaded:', Object.keys(cashierData).length, 'records');
+    }
+} catch (e) {
+    console.error('Error loading cashier data:', e);
+}
+
+// Initialize modal when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, initializing modal...');
+
+    // Pre-initialize the modal
+    const modalElement = document.getElementById('cashierDetailsModal');
+    if (modalElement) {
+        // Ensure modal is properly initialized
+        const modal = new bootstrap.Modal(modalElement, {
+            backdrop: true,
+            keyboard: true,
+            focus: true
+        });
+        console.log('Modal initialized successfully');
+
+        // Add event listeners for modal events
+        modalElement.addEventListener('show.bs.modal', function () {
+            console.log('Modal is about to show');
+        });
+
+        modalElement.addEventListener('shown.bs.modal', function () {
+            console.log('Modal is now visible');
+        });
+
+        modalElement.addEventListener('hide.bs.modal', function () {
+            console.log('Modal is about to hide');
+        });
+    } else {
+        console.error('Modal element not found!');
+    }
+});
+
+function showCashierDetails(cashierId, event) {
+    // Prevent event bubbling
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+
+    console.log('Showing details for cashier ID:', cashierId);
+
+    const cashier = cashierData[cashierId];
+    if (!cashier) {
+        console.error('Cashier data not found for ID:', cashierId);
+        alert('Sales person data not found');
+        return;
+    }
+
+    try {
+        // Get modal elements
+        const modalElement = document.getElementById('cashierDetailsModal');
+        const modalContent = document.getElementById('cashierDetailsContent');
+        const editLink = document.getElementById('editCashierLink');
+
+        if (!modalElement || !modalContent || !editLink) {
+            console.error('Modal elements not found');
+            alert('Modal elements not found. Please refresh the page.');
+            return;
+        }
+
+        // Populate modal content
+        modalContent.innerHTML = `
+            <div class="container-fluid">
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Full Name:</strong></div>
+                    <div class="col-sm-8">${cashier.full_name}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Username:</strong></div>
+                    <div class="col-sm-8">${cashier.username}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Email:</strong></div>
+                    <div class="col-sm-8">${cashier.email}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Phone:</strong></div>
+                    <div class="col-sm-8">${cashier.phone}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Date Joined:</strong></div>
+                    <div class="col-sm-8">${cashier.date_joined}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Last Login:</strong></div>
+                    <div class="col-sm-8">${cashier.last_login}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Status:</strong></div>
+                    <div class="col-sm-8">
+                        <span class="badge bg-${cashier.is_active ? 'success' : 'danger'}">
+                            ${cashier.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Store:</strong></div>
+                    <div class="col-sm-8">${cashier.store}</div>
+                </div>
+            </div>
+        `;
+
+        // Update edit link
+        editLink.href = `/stores/manager/edit-cashier/${cashier.id}/`;
+        editLink.style.display = 'inline-block';
+
+        // Show modal with delay to ensure DOM is ready
+        setTimeout(() => {
+            const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+            modal.show();
+        }, 100);
+
+    } catch (error) {
+        console.error('Error showing cashier details:', error);
+        alert('Error displaying sales person details. Please try again.');
+    }
+}
+</script>
+
+<!-- Sales Person Details Modal - Placed outside main container -->
+<div class="modal fade" id="cashierDetailsModal" tabindex="-1" aria-labelledby="cashierDetailsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="cashierDetailsModalLabel">Sales Person Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="cashierDetailsContent">
+        <!-- Content will be populated by JavaScript -->
+        <div class="text-center">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="mt-2 text-muted">Loading sales person details...</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="bi bi-x-circle me-1"></i>Close
+        </button>
+        <a href="#" id="editCashierLink" class="btn btn-ezm-primary" style="display: none;">
+          <i class="bi bi-pencil me-1"></i>Edit Sales Person
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}

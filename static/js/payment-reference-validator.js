@@ -12,11 +12,11 @@ class PaymentReferenceValidator {
 
     initializeValidator() {
         console.log('🔧 Payment Reference Validator initialized');
-        
-        // Override fetch for payment requests
-        this.originalFetch = window.fetch;
+
+        // Override fetch for payment requests - bind to window context
+        this.originalFetch = window.fetch.bind(window);
         window.fetch = this.interceptFetch.bind(this);
-        
+
         // Override XMLHttpRequest for older AJAX requests
         this.interceptXHR();
     }
@@ -27,7 +27,8 @@ class PaymentReferenceValidator {
             console.log('🔍 Intercepting payment request:', url);
             return this.validateAndRetryPayment(url, options);
         }
-        
+
+        // Call original fetch (already bound to window context)
         return this.originalFetch(url, options);
     }
 

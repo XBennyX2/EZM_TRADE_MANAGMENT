@@ -56,13 +56,36 @@ class ObjectManagerRequiredMixin(UserPassesTestMixin):
             return obj.store.manager == user # Is the user the manager of this stock's store?
         return False
 
+
+class PurchaseOrderAccessMixin(UserPassesTestMixin):
+    """
+    Limits access to Head Managers and Suppliers (for their own orders only).
+    Used for purchase order detail views.
+    """
+    def test_func(self):
+        user = self.request.user
+        if user.role == 'head_manager':
+            return True  # Head manager can view any purchase order
+        
+        if user.role == 'supplier':
+            obj = self.get_object()  # Gets the PurchaseOrder instance
+            try:
+                # Check if the supplier user's email matches the order's supplier
+                from Inventory.models import Supplier
+                supplier = Supplier.objects.get(email=user.email)
+                return obj.supplier == supplier
+            except Supplier.DoesNotExist:
+                return False
+        
+        return False
+
 # --- Product Views (Catalog Management) ---
 
 class ProductListView(LoginRequiredMixin, ListView):
-    model = Product
+    model = WarehouseProduct
     template_name = 'inventory/product_list.html'
     context_object_name = 'products'
-    paginate_by = 12
+    paginate_by = 24  # Show 24 products per page instead of 12
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -71,9 +94,10 @@ class ProductListView(LoginRequiredMixin, ListView):
         search_query = self.request.GET.get('search')
         if search_query:
             queryset = queryset.filter(
-                Q(name__icontains=search_query) |
-                Q(description__icontains=search_query) |
-                Q(category__icontains=search_query)
+                Q(product_name__icontains=search_query) |
+                Q(category__icontains=search_query) |
+                Q(sku__icontains=search_query) |
+                Q(supplier__name__icontains=search_query)
             )
 
         # Category filter
@@ -92,18 +116,29 @@ class ProductListView(LoginRequiredMixin, ListView):
             # Non-Head Managers only see active products
             queryset = queryset.filter(is_active=True)
 
-        return queryset.order_by('name')
+        return queryset.order_by('product_name')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # Add categories for filter dropdown
-        context['categories'] = Product.objects.values_list('category', flat=True).distinct().order_by('category')
+        # Add categories for filter dropdown from WarehouseProduct
+        context['categories'] = WarehouseProduct.objects.values_list('category', flat=True).distinct().order_by('category')
 
         # Add search and filter parameters to context
         context['search_query'] = self.request.GET.get('search', '')
         context['selected_category'] = self.request.GET.get('category', '')
         context['selected_product_status'] = self.request.GET.get('product_status', '')
+
+        # Add warehouse product statistics
+        total_products = WarehouseProduct.objects.count()
+        active_products = WarehouseProduct.objects.filter(is_active=True).count()
+        low_stock_products = WarehouseProduct.objects.filter(
+            quantity_in_stock__lte=models.F('minimum_stock_level')
+        ).count()
+
+        context['total_products'] = total_products
+        context['active_products'] = active_products
+        context['low_stock_products'] = low_stock_products
 
         return context
 
@@ -111,7 +146,7 @@ class ProductCreateView(LoginRequiredMixin, ManagerAndOwnerMixin, CreateView):
     model = Product
     form_class = ProductForm
     template_name = 'inventory/product_form.html'
-    extra_context = {'title': 'Create New Product'}
+    extra_context = {'title': 'Add New Product'}
     success_url = reverse_lazy('product_list')
 
     def form_valid(self, form):
@@ -193,53 +228,7 @@ def product_toggle_status(request, pk):
 
 # --- Stock Views (Inventory Management) ---
 
-class StockListView(LoginRequiredMixin, ListView):
-    model = Stock
-    template_name = 'inventory/stock_list.html'
-    context_object_name = 'stock_levels'
-
-    def get_queryset(self):
-        """
-        Overrides the default queryset to filter stock based on user role and the correct models.
-        """
-        user = self.request.user
-        
-        if user.role == 'head_manager':
-            return Stock.objects.all().select_related('product', 'store')
-        
-        elif user.role == 'store_manager':
-            # Get the store manager's store - handle both relationship patterns
-            user_store = None
-
-            # Try the OneToOneField relationship first (store_manager -> managed_store)
-            if hasattr(user, 'managed_store') and user.managed_store:
-                user_store = user.managed_store
-            # Fallback to ForeignKey relationship (user -> store)
-            elif hasattr(user, 'store') and user.store:
-                user_store = user.store
-
-            if user_store:
-                return Stock.objects.filter(store=user_store).select_related('product', 'store')
-
-        elif user.role == 'cashier':
-            # For cashiers, use the ForeignKey relationship (user -> store)
-            if hasattr(user, 'store') and user.store:
-                return Stock.objects.filter(store=user.store).select_related('product', 'store')
-        
-        # Return an empty list if the user has no role or assigned store
-        return Stock.objects.none()
-    
-    # Low stock alerts
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        low_stock_items = self.get_queryset().filter(quantity__lt=models.F('low_stock_threshold'))
-
-        if self.request.user.role == 'store_manager':
-            context['low_stock_alerts'] = low_stock_items
-            if low_stock_items.exists():
-                messages.warning(self.request, f" You have {low_stock_items.count()} product(s) below the low stock threshold!")
-
-        return context
+# StockListView removed - use store manager stock management instead
 
 class StockCreateView(LoginRequiredMixin, ManagerOnlyMixin, CreateView):
     model = Stock
@@ -480,18 +469,14 @@ class WarehouseListView(LoginRequiredMixin, StoreOwnerMixin, ListView):
         context['categories'] = [choice[0] for choice in SETTINGS_CHOICES]
         context['warehouses'] = Warehouse.objects.filter(is_active=True)
 
+        # Ensure pagination context is properly set
+        context['is_paginated'] = context.get('page_obj') and context['page_obj'].has_other_pages()
+
         return context
 
 
 class WarehouseCreateView(LoginRequiredMixin, StoreOwnerMixin, CreateView):
-    model = Warehouse
-    form_class = WarehouseForm
-    template_name = 'inventory/warehouse_form.html'
-    success_url = reverse_lazy('warehouse_list')
-
-    def form_valid(self, form):
-        messages.success(self.request, f"Warehouse '{form.instance.name}' created successfully!")
-        return super().form_valid(form)
+    pass
 
 
 class WarehouseUpdateView(LoginRequiredMixin, StoreOwnerMixin, UpdateView):
@@ -620,34 +605,7 @@ class SupplierProductListView(LoginRequiredMixin, StoreOwnerMixin, ListView):
 
 
 class WarehouseProductCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
-    model = WarehouseProduct
-    form_class = WarehouseProductForm
-    template_name = 'inventory/warehouse_product_form.html'
-
-    def test_func(self):
-        # Only allow admin users, not Head Managers
-        return self.request.user.is_superuser or self.request.user.role == 'admin'
-
-    def handle_no_permission(self):
-        messages.error(self.request, "You don't have permission to create products. Only administrators can add products to supplier catalogs.")
-        return redirect('supplier_list')
-
-    def get_initial(self):
-        initial = super().get_initial()
-        supplier_id = self.kwargs.get('supplier_id')
-        if supplier_id:
-            initial['supplier'] = supplier_id
-        return initial
-
-    def get_success_url(self):
-        supplier_id = self.kwargs.get('supplier_id')
-        if supplier_id:
-            return reverse_lazy('supplier_products', kwargs={'supplier_id': supplier_id})
-        return reverse_lazy('product_list')
-
-    def form_valid(self, form):
-        messages.success(self.request, f"Product '{form.instance.product_name}' added successfully!")
-        return super().form_valid(form)
+    pass
 
 
 class WarehouseProductUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
@@ -656,11 +614,11 @@ class WarehouseProductUpdateView(LoginRequiredMixin, UserPassesTestMixin, Update
     template_name = 'inventory/warehouse_product_form.html'
 
     def test_func(self):
-        # Only allow admin users, not Head Managers
-        return self.request.user.is_superuser or self.request.user.role == 'admin'
+        # Allow admin users and Head Managers
+        return self.request.user.is_superuser or self.request.user.role in ['admin', 'head_manager']
 
     def handle_no_permission(self):
-        messages.error(self.request, "You don't have permission to edit products. Only administrators can modify supplier catalogs.")
+        messages.error(self.request, "You don't have permission to edit products. Only administrators and Head Managers can modify supplier catalogs.")
         return redirect('supplier_list')
 
     def get_success_url(self):
@@ -677,11 +635,11 @@ class WarehouseProductDeleteView(LoginRequiredMixin, UserPassesTestMixin, Delete
     success_url = reverse_lazy('warehouse_list')
 
     def test_func(self):
-        # Only allow admin users, not Head Managers
-        return self.request.user.is_superuser or self.request.user.role == 'admin'
+        # Allow admin users and Head Managers
+        return self.request.user.is_superuser or self.request.user.role in ['admin', 'head_manager']
 
     def handle_no_permission(self):
-        messages.error(self.request, "You don't have permission to delete products. Only administrators can modify supplier catalogs.")
+        messages.error(self.request, "You don't have permission to delete products. Only administrators and Head Managers can modify supplier catalogs.")
         return redirect('supplier_list')
 
     def form_valid(self, form):
@@ -780,7 +738,20 @@ class PurchaseOrderListView(LoginRequiredMixin, StoreOwnerMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        queryset = PurchaseOrder.objects.all().select_related('supplier').order_by('-created_date')
+        queryset = PurchaseOrder.objects.all().select_related('supplier', 'created_by').prefetch_related('items__warehouse_product')
+
+        # Search functionality
+        search_query = self.request.GET.get('search', '').strip()
+        if search_query:
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(order_number__icontains=search_query) |
+                Q(supplier__name__icontains=search_query) |
+                Q(supplier__contact_person__icontains=search_query) |
+                Q(payment_reference__icontains=search_query) |
+                Q(tracking_number__icontains=search_query) |
+                Q(notes__icontains=search_query)
+            )
 
         # Filter by status
         status = self.request.GET.get('status')
@@ -792,19 +763,136 @@ class PurchaseOrderListView(LoginRequiredMixin, StoreOwnerMixin, ListView):
         if supplier_id:
             queryset = queryset.filter(supplier_id=supplier_id)
 
+        # Date range filtering
+        date_from = self.request.GET.get('date_from')
+        date_to = self.request.GET.get('date_to')
+        if date_from:
+            try:
+                from datetime import datetime
+                date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+                queryset = queryset.filter(order_date__gte=date_from_obj)
+            except ValueError:
+                pass
+        if date_to:
+            try:
+                from datetime import datetime
+                date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
+                queryset = queryset.filter(order_date__lte=date_to_obj)
+            except ValueError:
+                pass
+
+        # Amount range filtering
+        amount_min = self.request.GET.get('amount_min')
+        amount_max = self.request.GET.get('amount_max')
+        if amount_min:
+            try:
+                queryset = queryset.filter(total_amount__gte=float(amount_min))
+            except ValueError:
+                pass
+        if amount_max:
+            try:
+                queryset = queryset.filter(total_amount__lte=float(amount_max))
+            except ValueError:
+                pass
+
+        # Sorting
+        sort_by = self.request.GET.get('sort', '-order_date')
+        valid_sorts = [
+            'order_date', '-order_date',
+            'total_amount', '-total_amount',
+            'supplier__name', '-supplier__name',
+            'status', '-status',
+            'expected_delivery_date', '-expected_delivery_date'
+        ]
+        if sort_by in valid_sorts:
+            queryset = queryset.order_by(sort_by)
+        else:
+            queryset = queryset.order_by('-order_date')
+
+        if self.request.user.role == 'supplier':
+            # Get the supplier object based on the user's email
+            from Inventory.models import Supplier
+            try:
+                supplier = Supplier.objects.get(email=self.request.user.email)
+                queryset = queryset.filter(supplier=supplier)
+            except Supplier.DoesNotExist:
+                # If the supplier doesn't exist, return an empty queryset
+                queryset = PurchaseOrder.objects.none()
+
         return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['status_choices'] = PurchaseOrder.STATUS_CHOICES
-        context['suppliers'] = Supplier.objects.filter(is_active=True)
+        context['suppliers'] = Supplier.objects.filter(is_active=True).order_by('name')
+
+        # Add selected filter values to maintain state
         context['selected_status'] = self.request.GET.get('status', '')
         context['selected_supplier'] = self.request.GET.get('supplier', '')
+        context['search_query'] = self.request.GET.get('search', '')
+        context['date_from'] = self.request.GET.get('date_from', '')
+        context['date_to'] = self.request.GET.get('date_to', '')
+        context['amount_min'] = self.request.GET.get('amount_min', '')
+        context['amount_max'] = self.request.GET.get('amount_max', '')
+        context['current_sort'] = self.request.GET.get('sort', '-order_date')
 
-        # Statistics
-        context['total_orders'] = PurchaseOrder.objects.count()
-        context['pending_orders'] = PurchaseOrder.objects.filter(status='pending').count()
-        context['approved_orders'] = PurchaseOrder.objects.filter(status='approved').count()
+        # Enhanced Statistics
+        all_orders = PurchaseOrder.objects.all()
+        context['total_orders'] = all_orders.count()
+        context['pending_orders'] = all_orders.filter(status='payment_pending').count()
+        context['confirmed_orders'] = all_orders.filter(status='payment_confirmed').count()
+        context['in_transit_orders'] = all_orders.filter(status='in_transit').count()
+        context['delivered_orders'] = all_orders.filter(status='delivered').count()
+        context['issue_orders'] = all_orders.filter(status='issue_reported').count()
+
+        # Financial statistics
+        from django.db.models import Sum
+        context['total_value'] = all_orders.aggregate(total=Sum('total_amount'))['total'] or 0
+        context['pending_value'] = all_orders.filter(status='payment_pending').aggregate(total=Sum('total_amount'))['total'] or 0
+        context['delivered_value'] = all_orders.filter(status='delivered').aggregate(total=Sum('total_amount'))['total'] or 0
+
+        # Filter result count
+        context['filtered_count'] = context['purchase_orders'].count() if hasattr(context['purchase_orders'], 'count') else len(context['purchase_orders'])
+
+        # Prepare orders data as JSON for JavaScript access (to avoid API authentication issues)
+        import json
+        from django.core.serializers.json import DjangoJSONEncoder
+
+        orders_data = {}
+        for order in context['purchase_orders']:
+            orders_data[order.id] = {
+                'id': order.id,
+                'order_number': order.order_number,
+                'supplier': {
+                    'id': order.supplier.id,
+                    'name': order.supplier.name,
+                    'email': order.supplier.email,
+                    'phone': order.supplier.phone or '',
+                },
+                'total_amount': float(order.total_amount),
+                'status': order.status,
+                'order_date': order.order_date.isoformat() if order.order_date else None,
+                'expected_delivery_date': order.expected_delivery_date.isoformat() if order.expected_delivery_date else None,
+                'estimated_delivery_datetime': order.estimated_delivery_datetime.isoformat() if hasattr(order, 'estimated_delivery_datetime') and order.estimated_delivery_datetime else None,
+                'delivery_countdown_seconds': getattr(order, 'delivery_countdown_seconds', 0),
+                'tracking_number': order.tracking_number or '',
+                'items': [
+                    {
+                        'id': item.id,
+                        'product_name': item.warehouse_product.product_name,
+                        'quantity_ordered': item.quantity_ordered,
+                        'quantity_received': getattr(item, 'quantity_received', 0),
+                        'unit_price': float(item.unit_price),
+                        'total_price': float(item.total_price),
+                        'is_confirmed_received': getattr(item, 'is_confirmed_received', False),
+                        'has_issues': getattr(item, 'has_issues', False),
+                        'issue_description': getattr(item, 'issue_description', '') or '',
+                    }
+                    for item in order.items.all()
+                ]
+            }
+
+        context['orders_json'] = json.dumps(orders_data, cls=DjangoJSONEncoder)
 
         return context
 
@@ -842,7 +930,7 @@ class PurchaseOrderCreateView(LoginRequiredMixin, StoreOwnerMixin, CreateView):
             return self.render_to_response(self.get_context_data(form=form))
 
 
-class PurchaseOrderDetailView(LoginRequiredMixin, StoreOwnerMixin, DetailView):
+class PurchaseOrderDetailView(LoginRequiredMixin, PurchaseOrderAccessMixin, DetailView):
     model = PurchaseOrder
     template_name = 'inventory/purchase_order_detail.html'
     context_object_name = 'purchase_order'

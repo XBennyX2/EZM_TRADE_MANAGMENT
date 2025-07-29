@@ -162,9 +162,25 @@
                         <p class="text-muted mb-1">
                             <i class="bi bi-building me-1"></i>{{ item.supplier_name }}
                         </p>
-                        <p class="text-muted mb-0">
+                        <p class="text-muted mb-1">
                             <small>Code: {{ item.product.product_code }}</small>
                         </p>
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            {% if item.product.is_out_of_stock %}
+                            <span class="badge bg-danger">
+                                <i class="bi bi-x-circle me-1"></i>Out of Stock
+                            </span>
+                            {% elif item.product.is_low_stock %}
+                            <span class="badge bg-warning">
+                                <i class="bi bi-exclamation-triangle me-1"></i>Low Stock
+                            </span>
+                            {% else %}
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-circle me-1"></i>In Stock
+                            </span>
+                            {% endif %}
+                            <small class="text-muted">{{ item.product.stock_quantity }} available</small>
+                        </div>
                     </div>
                     <div class="col-md-2">
                         <div class="text-center">
@@ -232,9 +248,9 @@
                 </div>
 
                 <div class="d-grid gap-2">
-                    <a href="{% url 'order_confirmation' %}" class="btn btn-light btn-lg">
+                    <button onclick="validateCartAndProceed()" class="btn btn-light btn-lg">
                         <i class="bi bi-check-circle me-2"></i>Proceed to Order
-                    </a>
+                    </button>
                     <a href="{% url 'supplier_list' %}" class="btn btn-outline-light">
                         <i class="bi bi-arrow-left me-2"></i>Continue Shopping
                     </a>
@@ -372,6 +388,46 @@
         // Remove toast element after it's hidden
         $toast.on('hidden.bs.toast', function () {
             $(this).remove();
+        });
+    }
+
+    function validateCartAndProceed() {
+        // Show loading state
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Validating...';
+        button.disabled = true;
+
+        $.ajax({
+            url: '/cart/validate/',
+            type: 'POST',
+            data: {
+                'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function (response) {
+                if (response.success) {
+                    // Cart is valid, proceed to order confirmation
+                    window.location.href = "{% url 'order_confirmation' %}";
+                } else {
+                    // Show validation issues
+                    let message = response.message + '\n\nIssues found:\n';
+                    response.issues.forEach(function(issue) {
+                        message += '• ' + issue.product_name + ': ' + issue.issue + '\n';
+                    });
+
+                    if (confirm(message + '\nWould you like to refresh the cart to see updated stock levels?')) {
+                        location.reload();
+                    }
+                }
+            },
+            error: function () {
+                showToast('error', 'Error validating cart. Please try again.');
+            },
+            complete: function () {
+                // Reset button state
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }
         });
     }
 </script>

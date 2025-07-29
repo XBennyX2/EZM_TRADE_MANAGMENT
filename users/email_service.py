@@ -16,10 +16,11 @@ logger = logging.getLogger(__name__)
 
 class EZMEmailService:
     """Enhanced email service with comprehensive error handling and logging"""
-    
+
     def __init__(self):
         self.from_email = settings.DEFAULT_FROM_EMAIL
-        self.company_name = "EZM Trade Management"
+        self.company_name = getattr(settings, 'COMPANY_NAME', 'EZM Trade Management System')
+        self.company_email = getattr(settings, 'COMPANY_EMAIL', settings.EMAIL_HOST_USER)
         
     def send_user_creation_email(self, user, password: str) -> Tuple[bool, str]:
         """

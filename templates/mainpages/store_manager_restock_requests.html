@@ -85,6 +85,16 @@
         color: white;
     }
 
+    .status-shipped {
+        background-color: #fd7e14;
+        color: white;
+    }
+
+    .status-received {
+        background-color: #20c997;
+        color: white;
+    }
+
     .priority-badge {
         font-size: 0.7rem;
         padding: 0.2rem 0.5rem;
@@ -166,9 +176,9 @@
                     <h1 class="h3 mb-0 text-gray-800">My Restock Requests</h1>
                     <p class="text-muted">Track and manage your restock requests</p>
                 </div>
-                <button class="btn btn-ezm-primary" data-bs-toggle="modal" data-bs-target="#restockRequestModal">
+                <a href="{% url 'store_manager_warehouse_products' %}" class="btn btn-ezm-primary">
                     <i class="bi bi-plus-circle me-2"></i>New Restock Request
-                </button>
+                </a>
             </div>
         </div>
     </div>
@@ -251,10 +261,10 @@
                             <th>Request #</th>
                             <th>Product</th>
                             <th>Requested Qty</th>
-                            <th>Current Stock</th>
+                            <th>Approved/Shipped Qty</th>
                             <th>Priority</th>
                             <th>Status</th>
-                            <th>Requested Date</th>
+                            <th>Date</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -266,7 +276,19 @@
                             </td>
                             <td>{{ request.product.name }}</td>
                             <td>{{ request.requested_quantity }}</td>
-                            <td>{{ request.current_stock }}</td>
+                            <td>
+                                {% if request.status == 'approved' or request.status == 'shipped' or request.status == 'received' %}
+                                    {% if request.shipped_quantity %}
+                                        {{ request.shipped_quantity }}
+                                    {% elif request.approved_quantity %}
+                                        {{ request.approved_quantity }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
                             <td>
                                 <span class="priority-badge priority-{{ request.priority }}">
                                     {{ request.get_priority_display }}
@@ -277,12 +299,30 @@
                                     {{ request.get_status_display }}
                                 </span>
                             </td>
-                            <td>{{ request.requested_date|date:"M d, Y H:i" }}</td>
                             <td>
-                                <button class="btn btn-outline-primary btn-sm"
-                                    onclick="viewRequestDetails({{ request.id }})">
-                                    <i class="bi bi-eye"></i> View
-                                </button>
+                                {% if request.status == 'received' %}
+                                    {{ request.received_date|date:"M d, Y H:i" }}
+                                {% elif request.status == 'shipped' %}
+                                    {{ request.shipped_date|date:"M d, Y H:i" }}
+                                {% elif request.status == 'approved' %}
+                                    {{ request.reviewed_date|date:"M d, Y H:i" }}
+                                {% else %}
+                                    {{ request.requested_date|date:"M d, Y H:i" }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <button class="btn btn-outline-primary btn-sm"
+                                        onclick="viewRequestDetails({{ request.id }})">
+                                        <i class="bi bi-eye"></i> View
+                                    </button>
+                                    {% if request.status == 'shipped' %}
+                                    <button class="btn btn-success btn-sm"
+                                        onclick="markAsReceived({{ request.id }}, '{{ request.request_number }}', '{{ request.product.name }}', {{ request.shipped_quantity|default:request.approved_quantity }})">
+                                        <i class="bi bi-check-circle"></i> Received
+                                    </button>
+                                    {% endif %}
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -340,55 +380,7 @@
     </div>
 </div>
 
-<!-- Restock Request Modal -->
-<div class="modal fade" id="restockRequestModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Submit Restock Request</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="post" action="{% url 'submit_restock_request' %}">
-                {% csrf_token %}
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="product_id" class="form-label">Product *</label>
-                        <select class="form-select" id="product_id" name="product_id" required>
-                            <option value="">Select a product</option>
-                            {% for product in restock_available_products %}
-                            <option value="{{ product.id }}">
-                                {{ product.name }} - {{ product.category }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="requested_quantity" class="form-label">Requested Quantity *</label>
-                        <input type="number" class="form-control" id="requested_quantity" name="requested_quantity"
-                            min="1" required>
-                        <div class="form-text">Enter the quantity you need to restock.</div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="priority" class="form-label">Priority Level *</label>
-                        <select class="form-select" id="priority" name="priority" required>
-                            <option value="low">Low - Can wait</option>
-                            <option value="medium" selected>Medium - Normal priority</option>
-                            <option value="high">High - Needed soon</option>
-                            <option value="urgent">Urgent - Critical need</option>
-                        </select>
-                    </div>
-
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-ezm-primary">
-                        <i class="bi bi-send me-1"></i>Submit Request
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+<!-- Old restock request modal removed - now using warehouse products page -->
 
 <!-- Request Details Modal -->
 <div class="modal fade" id="requestDetailsModal" tabindex="-1">
@@ -404,6 +396,48 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mark as Received Modal -->
+<div class="modal fade" id="markReceivedModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Mark Restock as Received</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'mark_restock_received' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="hidden" id="receiveRequestId" name="request_id">
+
+                    <div class="alert alert-info">
+                        <h6><i class="bi bi-info-circle me-2"></i>Confirm Receipt</h6>
+                        <p class="mb-1"><strong>Request:</strong> <span id="receiveRequestNumber"></span></p>
+                        <p class="mb-1"><strong>Product:</strong> <span id="receiveProductName"></span></p>
+                        <p class="mb-0"><strong>Shipped Quantity:</strong> <span id="receiveShippedQuantity"></span> units</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="received_quantity" class="form-label">Quantity Received <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="received_quantity" name="received_quantity" min="1" required>
+                        <div class="form-text">Enter the actual quantity received. This will update your store stock.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="receiving_notes" class="form-label">Receiving Notes (Optional)</label>
+                        <textarea class="form-control" id="receiving_notes" name="receiving_notes" rows="3" placeholder="Any notes about the delivery condition, discrepancies, etc."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle me-2"></i>Mark as Received
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -436,6 +470,19 @@
                 </div>
             `;
         }, 1000);
+    }
+
+    // Mark as Received functionality
+    function markAsReceived(requestId, requestNumber, productName, shippedQuantity) {
+        document.getElementById('receiveRequestId').value = requestId;
+        document.getElementById('receiveRequestNumber').textContent = requestNumber;
+        document.getElementById('receiveProductName').textContent = productName;
+        document.getElementById('receiveShippedQuantity').textContent = shippedQuantity;
+        document.getElementById('received_quantity').value = shippedQuantity;
+        document.getElementById('received_quantity').max = shippedQuantity;
+
+        const modal = new bootstrap.Modal(document.getElementById('markReceivedModal'));
+        modal.show();
     }
 
     // Auto-focus on quantity field when product is selected

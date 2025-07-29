@@ -106,7 +106,7 @@
                             <th><i class="bi bi-tags me-1"></i>Category</th>
                             <th><i class="bi bi-stack me-1"></i>Available</th>
                             <th><i class="bi bi-currency-dollar me-1"></i>Price</th>
-                            <th><i class="bi bi-calculator me-1"></i>Calculate</th>
+                            <th><i class="bi bi-calculator me-1"></i>Total (incl. tax)</th>
                             <th><i class="bi bi-check-circle me-1"></i>Status</th>
                             <th><i class="bi bi-eye me-1"></i>Details</th>
                         </tr>
@@ -154,7 +154,10 @@
                                 </div>
                             </td>
                             <td>
-                                <span class="fw-bold text-dark fs-6">ETB {{ stock.selling_price }}</span>
+                                <div>
+                                    <span class="fw-bold text-dark fs-6">ETB {{ stock.selling_price }}</span>
+                                    <small class="text-muted d-block">+ 15% tax</small>
+                                </div>
                             </td>
                             <td>
                                 <div class="quantity-calculator">
@@ -165,7 +168,7 @@
                                                data-price="{{ stock.selling_price }}"
                                                data-stock-id="{{ stock.id }}"
                                                title="Enter quantity (max: {{ stock.quantity }} units)">
-                                        <span class="input-group-text total-price" data-stock-id="{{ stock.id }}">ETB 0</span>
+                                        <span class="input-group-text total-price" data-stock-id="{{ stock.id }}" title="Price includes 15% tax">ETB 0</span>
                                     </div>
                                 </div>
                             </td>
@@ -331,10 +334,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.value = 0;
             }
 
-            const totalPrice = quantity * price;
+            // Calculate subtotal and add 15% tax
+            const subtotal = quantity * price;
+            const taxAmount = subtotal * 0.15; // 15% tax
+            const totalPrice = subtotal + taxAmount;
+
             const totalPriceElement = document.querySelector(`[data-stock-id="${stockId}"].total-price`);
             if (totalPriceElement) {
                 totalPriceElement.textContent = `ETB ${totalPrice.toFixed(2)}`;
+                totalPriceElement.title = `Subtotal: ETB ${subtotal.toFixed(2)} + Tax (15%): ETB ${taxAmount.toFixed(2)} = Total: ETB ${totalPrice.toFixed(2)}`;
             }
         });
 
@@ -352,9 +360,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.value = maxQuantity;
                     const price = parseFloat(this.dataset.price) || 0;
                     const stockId = this.dataset.stockId;
+
+                    // Calculate with tax
+                    const subtotal = maxQuantity * price;
+                    const taxAmount = subtotal * 0.15; // 15% tax
+                    const totalPrice = subtotal + taxAmount;
+
                     const totalPriceElement = document.querySelector(`[data-stock-id="${stockId}"].total-price`);
                     if (totalPriceElement) {
-                        totalPriceElement.textContent = `ETB ${(maxQuantity * price).toFixed(2)}`;
+                        totalPriceElement.textContent = `ETB ${totalPrice.toFixed(2)}`;
+                        totalPriceElement.title = `Subtotal: ETB ${subtotal.toFixed(2)} + Tax (15%): ETB ${taxAmount.toFixed(2)} = Total: ETB ${totalPrice.toFixed(2)}`;
                     }
                 }
             }

@@ -28,40 +28,131 @@ def is_store_manager(user):
 @user_passes_test(is_store_manager_or_head_manager)
 def stock_alerts_dashboard(request):
     """Dashboard showing low stock alerts and threshold management"""
-    
-    # Get low stock products
-    low_stock_products = WarehouseProduct.get_low_stock_products()
-    
-    # Get search and filter parameters
-    search_query = request.GET.get('search', '')
-    category_filter = request.GET.get('category', '')
-    
-    # Apply filters
-    if search_query:
-        low_stock_products = low_stock_products.filter(
-            Q(product_name__icontains=search_query) |
-            Q(sku__icontains=search_query) |
-            Q(supplier__name__icontains=search_query)
-        )
-    
-    if category_filter:
-        low_stock_products = low_stock_products.filter(category=category_filter)
-    
-    # Pagination
-    paginator = Paginator(low_stock_products, 20)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    
-    # Get categories for filter dropdown
-    categories = WarehouseProduct.objects.values_list('category', flat=True).distinct()
-    
-    # Get summary statistics
-    total_low_stock = WarehouseProduct.get_low_stock_products().count()
-    out_of_stock = WarehouseProduct.objects.filter(quantity_in_stock=0, is_active=True).count()
-    critical_stock = WarehouseProduct.objects.filter(
-        quantity_in_stock__lte=5,
-        is_active=True
-    ).count()
+
+    # Check if user is a store manager
+    if request.user.role == 'store_manager':
+        # For store managers, show store-specific stock alerts
+        try:
+            from store.models import Store
+            store = Store.objects.get(store_manager=request.user)
+
+            # Get low stock products from the store
+            from Inventory.models import Stock
+            from django.db.models import F
+
+            low_stock_products = Stock.objects.filter(
+                store=store,
+                quantity__lte=F('low_stock_threshold')
+            ).select_related('product').order_by('quantity')
+
+            # Get search and filter parameters
+            search_query = request.GET.get('search', '')
+            category_filter = request.GET.get('category', '')
+            filter_type = request.GET.get('filter', '')
+
+            # Apply filters
+            if search_query:
+                low_stock_products = low_stock_products.filter(
+                    Q(product__name__icontains=search_query) |
+                    Q(product__category__icontains=search_query)
+                )
+
+            if category_filter:
+                low_stock_products = low_stock_products.filter(product__category=category_filter)
+
+            # Apply specific filter types
+            if filter_type == 'low_stock':
+                # Show only items that are low stock but not out of stock
+                low_stock_products = low_stock_products.filter(
+                    quantity__gt=0,
+                    quantity__lte=F('low_stock_threshold')
+                )
+            elif filter_type == 'out_of_stock':
+                # Show only out of stock items
+                low_stock_products = low_stock_products.filter(quantity=0)
+            elif filter_type == 'critical':
+                # Show only critical stock (≤5 units)
+                low_stock_products = low_stock_products.filter(quantity__lte=5)
+
+            # Pagination
+            paginator = Paginator(low_stock_products, 20)
+            page_number = request.GET.get('page')
+            page_obj = paginator.get_page(page_number)
+
+            # Get categories for filter dropdown (exclude null/empty categories)
+            categories = Stock.objects.filter(
+                store=store,
+                product__category__isnull=False,
+                product__category__gt=''
+            ).values_list('product__category', flat=True).distinct().order_by('product__category')
+
+            # Get summary statistics
+            total_low_stock = Stock.objects.filter(
+                store=store,
+                quantity__lte=F('low_stock_threshold')
+            ).count()
+            out_of_stock = Stock.objects.filter(store=store, quantity=0).count()
+            critical_stock = Stock.objects.filter(
+                store=store,
+                quantity__lte=5
+            ).count()
+
+            context = {
+                'page_obj': page_obj,
+                'search_query': search_query,
+                'category_filter': category_filter,
+                'filter_type': filter_type,
+                'categories': categories,
+                'total_low_stock': total_low_stock,
+                'out_of_stock': out_of_stock,
+                'critical_stock': critical_stock,
+                'is_store_manager': True,
+                'store': store,
+            }
+
+            return render(request, 'inventory/store_stock_alerts_dashboard.html', context)
+
+        except Store.DoesNotExist:
+            messages.error(request, "You are not assigned to manage any store.")
+            return redirect('store_manager_page')
+
+    else:
+        # For head managers, show warehouse stock alerts
+        low_stock_products = WarehouseProduct.get_low_stock_products()
+
+        # Get search and filter parameters
+        search_query = request.GET.get('search', '')
+        category_filter = request.GET.get('category', '')
+
+        # Apply filters
+        if search_query:
+            low_stock_products = low_stock_products.filter(
+                Q(product_name__icontains=search_query) |
+                Q(sku__icontains=search_query) |
+                Q(supplier__name__icontains=search_query)
+            )
+
+        if category_filter:
+            low_stock_products = low_stock_products.filter(category=category_filter)
+
+        # Pagination
+        paginator = Paginator(low_stock_products, 20)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+
+        # Get categories for filter dropdown (exclude null/empty categories)
+        categories = WarehouseProduct.objects.filter(
+            category__isnull=False,
+            category__gt=''
+        ).values_list('category', flat=True).distinct().order_by('category')
+
+        # Get summary statistics
+        total_low_stock = WarehouseProduct.get_low_stock_products().count()
+        out_of_stock = WarehouseProduct.objects.filter(quantity_in_stock=0, is_active=True).count()
+        critical_stock = WarehouseProduct.objects.filter(
+            quantity_in_stock__lte=5,
+            is_active=True
+        ).count()
     
     context = {
         'page_obj': page_obj,
@@ -200,8 +291,11 @@ def warehouse_inventory_overview(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
-    # Get categories for filter dropdown
-    categories = WarehouseProduct.objects.values_list('category', flat=True).distinct()
+    # Get categories for filter dropdown (exclude null/empty categories)
+    categories = WarehouseProduct.objects.filter(
+        category__isnull=False,
+        category__gt=''
+    ).values_list('category', flat=True).distinct().order_by('category')
     
     # Get summary statistics
     total_products = WarehouseProduct.objects.filter(is_active=True).count()
@@ -256,8 +350,12 @@ def store_inventory_view(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
-    # Get categories for filter dropdown
-    categories = Stock.objects.filter(store=store).values_list('product__category', flat=True).distinct()
+    # Get categories for filter dropdown (exclude null/empty categories)
+    categories = Stock.objects.filter(
+        store=store,
+        product__category__isnull=False,
+        product__category__gt=''
+    ).values_list('product__category', flat=True).distinct().order_by('product__category')
     
     # Get summary statistics
     total_items = store_stock.count()

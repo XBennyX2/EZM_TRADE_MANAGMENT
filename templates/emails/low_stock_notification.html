@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Low Stock Alert - EZM Trade Management</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #66FCF1;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #0B0C10;
+            margin-bottom: 10px;
+        }
+        .alert-badge {
+            background: linear-gradient(45deg, #ff6b6b, #ffa500);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        .summary-cards {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .summary-card {
+            flex: 1;
+            min-width: 150px;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            color: white;
+            font-weight: bold;
+        }
+        .critical { background: linear-gradient(45deg, #dc3545, #c82333); }
+        .warning { background: linear-gradient(45deg, #ffc107, #e0a800); }
+        .danger { background: linear-gradient(45deg, #6f42c1, #5a32a3); }
+        .product-list {
+            margin: 20px 0;
+        }
+        .product-item {
+            background: #f8f9fa;
+            border-left: 4px solid #66FCF1;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .product-name {
+            font-weight: bold;
+            color: #0B0C10;
+            margin-bottom: 5px;
+        }
+        .product-details {
+            font-size: 14px;
+            color: #666;
+        }
+        .stock-level {
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .stock-critical { background: #dc3545; color: white; }
+        .stock-low { background: #ffc107; color: #000; }
+        .stock-out { background: #6f42c1; color: white; }
+        .action-section {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #2196f3;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(45deg, #66FCF1, #45A29E);
+            color: #0B0C10;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            margin: 10px 5px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">EZM Trade Management</div>
+            <h2 style="color: #0B0C10; margin: 0;">Low Stock Alert</h2>
+            <div class="alert-badge">⚠️ Immediate Attention Required</div>
+        </div>
+
+        <p>Dear <strong>{{ supplier.name }}</strong>,</p>
+        
+        <p>This is an automated notification to inform you that some of your products in our system have low stock levels that require your attention.</p>
+
+        <div class="summary-cards">
+            {% if total_critical_stock > 0 %}
+            <div class="summary-card critical">
+                <div style="font-size: 24px;">{{ total_critical_stock }}</div>
+                <div>Critical Stock</div>
+                <div style="font-size: 12px;">≤ {{ critical_stock_threshold }} units</div>
+            </div>
+            {% endif %}
+            
+            {% if total_low_stock > 0 %}
+            <div class="summary-card warning">
+                <div style="font-size: 24px;">{{ total_low_stock }}</div>
+                <div>Low Stock</div>
+                <div style="font-size: 12px;">≤ {{ low_stock_threshold }} units</div>
+            </div>
+            {% endif %}
+            
+            {% if total_out_of_stock > 0 %}
+            <div class="summary-card danger">
+                <div style="font-size: 24px;">{{ total_out_of_stock }}</div>
+                <div>Out of Stock</div>
+                <div style="font-size: 12px;">0 units</div>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if out_of_stock_products %}
+        <h3 style="color: #dc3545;">🚨 Out of Stock Products</h3>
+        <div class="product-list">
+            {% for product in out_of_stock_products %}
+            <div class="product-item">
+                <div class="product-name">{{ product.product_name }}</div>
+                <div class="product-details">
+                    SKU: {{ product.product_code|default:"N/A" }} | 
+                    Category: {{ product.category }} | 
+                    <span class="stock-level stock-out">OUT OF STOCK</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if critical_stock_products %}
+        <h3 style="color: #dc3545;">🔴 Critical Stock Products</h3>
+        <div class="product-list">
+            {% for product in critical_stock_products %}
+            <div class="product-item">
+                <div class="product-name">{{ product.product_name }}</div>
+                <div class="product-details">
+                    SKU: {{ product.product_code|default:"N/A" }} | 
+                    Category: {{ product.category }} | 
+                    <span class="stock-level stock-critical">{{ product.stock_quantity }} units left</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if low_stock_products and not critical_stock_products %}
+        <h3 style="color: #ffc107;">🟡 Low Stock Products</h3>
+        <div class="product-list">
+            {% for product in low_stock_products %}
+            <div class="product-item">
+                <div class="product-name">{{ product.product_name }}</div>
+                <div class="product-details">
+                    SKU: {{ product.product_code|default:"N/A" }} | 
+                    Category: {{ product.category }} | 
+                    <span class="stock-level stock-low">{{ product.stock_quantity }} units left</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="action-section">
+            <h4 style="margin-top: 0; color: #1976d2;">📋 Recommended Actions</h4>
+            <ul style="margin: 10px 0;">
+                <li>Review and update stock quantities for the listed products</li>
+                <li>Consider restocking critical and out-of-stock items immediately</li>
+                <li>Update your product catalog with current inventory levels</li>
+                <li>Set up automatic reorder points to prevent future stockouts</li>
+            </ul>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <a href="#" class="btn">Update Stock Levels</a>
+                <a href="#" class="btn">View Product Catalog</a>
+            </div>
+        </div>
+
+        <p><strong>Note:</strong> This notification was generated automatically based on your current stock levels. Please update your inventory as soon as possible to ensure continuous availability for our customers.</p>
+
+        <div class="footer">
+            <p><strong>EZM Trade Management System</strong></p>
+            <p>Generated on {{ notification_date|date:"F d, Y \a\t g:i A" }}</p>
+            <p>If you have any questions, please contact our support team.</p>
+        </div>
+    </div>
+</body>
+</html>

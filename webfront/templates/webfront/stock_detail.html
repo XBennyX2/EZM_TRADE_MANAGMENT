@@ -1,6 +1,7 @@
 {% extends 'webfront/webfront_base.html' %}
 {% load widget_tweaks %}
 {% load webfront_extras %}
+{% load webfront_extras %}
 
 {% block title %}{{ stock.product.name }} - Product Details - EZM Trade{% endblock %}
 
@@ -202,7 +203,7 @@
                         </h6>
 
                         <div class="calculator-container-small">
-                            <div class="row g-2 align-items-center">
+                            <div class="row g-2 align-items-center mb-3">
                                 <div class="col-4">
                                     <label class="form-label small text-muted mb-1">Quantity</label>
                                     <div class="input-group input-group-sm">
@@ -238,6 +239,30 @@
                                     <div class="total-display-small">
                                         <span id="totalPrice" class="fw-bold text-success">ETB 0.00</span>
                                     </div>
+                                </div>
+                            </div>
+
+                            <!-- Tax Toggle -->
+                            <div class="row g-2 align-items-center">
+                                <div class="col-12">
+                                    <div class="form-check form-switch d-flex justify-content-center">
+                                        <input class="form-check-input" type="checkbox" id="includeTax" checked>
+                                        <label class="form-check-label ms-2 small text-muted" for="includeTax">
+                                            Include 15% Tax
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tax Breakdown (shown when tax is included) -->
+                            <div id="taxBreakdown" class="row g-2 mt-2" style="display: none;">
+                                <div class="col-6">
+                                    <small class="text-muted">Subtotal:</small>
+                                    <div class="fw-bold" id="subtotalAmount">ETB 0.00</div>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted">Tax (15%):</small>
+                                    <div class="fw-bold text-warning" id="taxAmount">ETB 0.00</div>
                                 </div>
                             </div>
                         </div>
@@ -346,71 +371,84 @@ document.addEventListener('DOMContentLoaded', function() {
     // Quantity calculator functionality
     const quantityInput = document.getElementById('quantityInput');
     const totalPriceElement = document.getElementById('totalPrice');
+    const includeTaxCheckbox = document.getElementById('includeTax');
+    const taxBreakdown = document.getElementById('taxBreakdown');
+    const subtotalElement = document.getElementById('subtotalAmount');
+    const taxAmountElement = document.getElementById('taxAmount');
 
     if (quantityInput && totalPriceElement) {
         const maxQuantity = parseInt(quantityInput.getAttribute('max')) || 0;
 
-        quantityInput.addEventListener('input', function() {
-            let quantity = parseFloat(this.value) || 0;
-            const price = parseFloat(this.dataset.price) || 0;
+        function calculatePrice() {
+            let quantity = parseFloat(quantityInput.value) || 0;
+            const price = parseFloat(quantityInput.dataset.price) || 0;
 
-            // Prevent calculation beyond max allowed quantity
+            // Validate quantity
             if (quantity > maxQuantity) {
                 quantity = maxQuantity;
-                this.value = maxQuantity;
-
-                // Show warning message
-                if (!document.querySelector('.quantity-warning')) {
-                    const warning = document.createElement('small');
-                    warning.className = 'quantity-warning text-danger d-block mt-1';
-                    warning.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Maximum available quantity is ' + maxQuantity + ' units';
-                    this.parentNode.parentNode.appendChild(warning);
-
-                    // Remove warning after 3 seconds
-                    setTimeout(() => {
-                        if (warning.parentNode) {
-                            warning.parentNode.removeChild(warning);
-                        }
-                    }, 3000);
-                }
+                quantityInput.value = maxQuantity;
+                showNotification(`Maximum available quantity is ${maxQuantity}`, 'warning');
             }
 
-            // Prevent negative values
             if (quantity < 0) {
                 quantity = 0;
-                this.value = 0;
+                quantityInput.value = 0;
             }
 
-            const totalPrice = quantity * price;
-            totalPriceElement.textContent = `ETB ${totalPrice.toFixed(2)}`;
-        });
+            // Calculate subtotal
+            const subtotal = quantity * price;
+
+            // Calculate tax and total based on checkbox
+            const includeTax = includeTaxCheckbox.checked;
+            let taxAmount = 0;
+            let total = subtotal;
+
+            if (includeTax) {
+                taxAmount = subtotal * 0.15; // 15% tax
+                total = subtotal + taxAmount;
+
+                // Show tax breakdown
+                if (taxBreakdown) {
+                    taxBreakdown.style.display = 'block';
+                    if (subtotalElement) subtotalElement.textContent = `ETB ${subtotal.toFixed(2)}`;
+                    if (taxAmountElement) taxAmountElement.textContent = `ETB ${taxAmount.toFixed(2)}`;
+                }
+            } else {
+                // Hide tax breakdown
+                if (taxBreakdown) taxBreakdown.style.display = 'none';
+            }
+
+            // Update total display
+            totalPriceElement.textContent = `ETB ${total.toFixed(2)}`;
+        }
+
+        // Event listeners
+        quantityInput.addEventListener('input', calculatePrice);
+        if (includeTaxCheckbox) {
+            includeTaxCheckbox.addEventListener('change', calculatePrice);
+        }
 
         // Additional validation on blur
         quantityInput.addEventListener('blur', function() {
             if (!this.value) {
                 totalPriceElement.textContent = 'ETB 0.00';
+                if (taxBreakdown) taxBreakdown.style.display = 'none';
             } else {
-                let quantity = parseFloat(this.value) || 0;
-                if (quantity > maxQuantity) {
-                    this.value = maxQuantity;
-                    const price = parseFloat(this.dataset.price) || 0;
-                    totalPriceElement.textContent = `ETB ${(maxQuantity * price).toFixed(2)}`;
-                }
+                calculatePrice();
             }
         });
 
-        // Prevent typing beyond max on keypress
+        // Prevent invalid input
         quantityInput.addEventListener('keypress', function(e) {
-            // Allow backspace, delete, tab, escape, enter
-            if ([8, 9, 27, 13, 46].indexOf(e.keyCode) !== -1 ||
-                // Allow Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+            // Allow: backspace, delete, tab, escape, enter
+            if ([46, 8, 9, 27, 13].indexOf(e.keyCode) !== -1 ||
+                // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
                 (e.keyCode === 65 && e.ctrlKey === true) ||
                 (e.keyCode === 67 && e.ctrlKey === true) ||
                 (e.keyCode === 86 && e.ctrlKey === true) ||
                 (e.keyCode === 88 && e.ctrlKey === true)) {
                 return;
             }
-
             // Ensure that it is a number and stop the keypress
             if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
                 e.preventDefault();

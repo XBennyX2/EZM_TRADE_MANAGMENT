@@ -2,8 +2,8 @@
 {% load static %}
 {% load analytics_extras %}
 
-{% block title %}Store Manager Dashboard{% endblock %}
-{% block page_title %}Store Manager Dashboard{% endblock %}
+{% block title %}{{ store.name }} - Analytics Dashboard{% endblock %}
+{% block page_title %}Store Analytics Dashboard{% endblock %}
 
 {% block sidebar_menu %}
 {% include 'sidebar_navigation.html' %}
@@ -11,91 +11,16 @@
 
 {% block extra_css %}
 <style>
-    .analytics-card {
-        background: var(--white);
-        border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    .stats-card {
         border: none;
-        transition: all 0.3s ease;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s ease;
         margin-bottom: 1.5rem;
     }
 
-    .analytics-card:hover {
+    .stats-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-    }
-
-    /* Low Stock Alert Card Styling */
-    .low-stock-item {
-        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-        border: 1px solid #e9ecef;
-        transition: all 0.3s ease;
-    }
-
-    .low-stock-item:hover {
-        background: linear-gradient(135deg, #e9ecef 0%, #f8f9fa 100%);
-        border-color: var(--accent-teal);
-        transform: translateX(5px);
-    }
-
-    .stock-badge-critical {
-        background: linear-gradient(135deg, #dc3545, #c82333) !important;
-        animation: pulse-critical 2s infinite;
-    }
-
-    .stock-badge-warning {
-        background: linear-gradient(135deg, #fd7e14, #e55a00) !important;
-        animation: pulse-warning 2s infinite;
-    }
-
-    .stock-badge-info {
-        background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan)) !important;
-    }
-
-    @keyframes pulse-critical {
-        0% {
-            transform: scale(1);
-        }
-
-        50% {
-            transform: scale(1.05);
-        }
-
-        100% {
-            transform: scale(1);
-        }
-    }
-
-    @keyframes pulse-warning {
-        0% {
-            transform: scale(1);
-        }
-
-        50% {
-            transform: scale(1.03);
-        }
-
-        100% {
-            transform: scale(1);
-        }
-    }
-
-    .low-stock-list::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    .low-stock-list::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 3px;
-    }
-
-    .low-stock-list::-webkit-scrollbar-thumb {
-        background: var(--accent-teal);
-        border-radius: 3px;
-    }
-
-    .low-stock-list::-webkit-scrollbar-thumb:hover {
-        background: var(--accent-cyan);
     }
 
     .metric-card {
@@ -144,243 +69,16 @@
         z-index: 1;
     }
 
-    .trend-indicator {
-        display: inline-flex;
-        align-items: center;
-        font-size: 0.9rem;
-        font-weight: 600;
-        margin-top: 0.5rem;
-    }
-
-    .trend-up {
-        color: #10b981;
-    }
-
-    .trend-down {
-        color: #ef4444;
-    }
-
-    .trend-neutral {
-        color: #6b7280;
-    }
-
-    .progress-bar-custom {
-        height: 8px;
-        border-radius: 4px;
-        background: rgba(255, 255, 255, 0.2);
-        overflow: hidden;
-        margin-top: 0.5rem;
-    }
-
-    .progress-fill {
-        height: 100%;
-        background: rgba(255, 255, 255, 0.8);
-        border-radius: 4px;
-        transition: width 0.3s ease;
-    }
-
-    .chart-container {
-        position: relative;
-        height: 300px;
-        margin: 1rem 0;
-    }
-
-    .chart-small {
-        height: 200px;
-    }
-
-    .kpi-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-        margin-bottom: 2rem;
-    }
-
-    .kpi-item {
-        background: var(--white);
-        border-radius: 8px;
-        padding: 1rem;
-        border-left: 4px solid var(--accent-teal);
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-    }
-
-    .kpi-value {
-        font-size: 1.8rem;
-        font-weight: 700;
-        color: var(--primary-dark);
-        margin-bottom: 0.25rem;
-    }
-
-    .kpi-label {
-        font-size: 0.9rem;
-        color: var(--secondary-dark);
-        margin-bottom: 0.5rem;
-    }
-
-    .status-indicator {
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        margin-right: 0.5rem;
-    }
-
-    .status-excellent {
-        background: #10b981;
-    }
-
-    .status-good {
-        background: #3b82f6;
-    }
-
-    .status-warning {
-        background: #f59e0b;
-    }
-
-    .status-critical {
-        background: #ef4444;
-    }
-
-    .insight-card {
-        background: linear-gradient(135deg, #f8fafc, #e2e8f0);
-        border-radius: 8px;
-        padding: 1rem;
-        margin-bottom: 1rem;
-        border-left: 4px solid var(--accent-cyan);
-    }
-
-    .insight-title {
-        font-weight: 600;
-        color: var(--primary-dark);
-        margin-bottom: 0.5rem;
-    }
-
-    .insight-text {
-        color: var(--secondary-dark);
-        font-size: 0.9rem;
-        line-height: 1.4;
-    }
-
-    .comparison-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 1rem;
-    }
-
-    .comparison-table th,
-    .comparison-table td {
-        padding: 0.75rem;
-        text-align: left;
-        border-bottom: 1px solid #e5e7eb;
-    }
-
-    .comparison-table th {
-        background: var(--light-gray);
-        font-weight: 600;
-        color: var(--primary-dark);
-    }
-
-    .performance-badge {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: 12px;
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-
-    .badge-excellent {
-        background: #dcfce7;
-        color: #166534;
-    }
-
-    .badge-good {
-        background: #dbeafe;
-        color: #1e40af;
-    }
-
-    .badge-average {
-        background: #fef3c7;
-        color: #92400e;
-    }
-
-    .badge-poor {
-        background: #fee2e2;
-        color: #991b1b;
-    }
-
-    .analytics-tabs {
-        border-bottom: 2px solid #e5e7eb;
-        margin-bottom: 2rem;
-    }
-
-    .analytics-tab {
-        display: inline-block;
-        padding: 0.75rem 1.5rem;
-        background: none;
-        border: none;
-        color: var(--secondary-dark);
-        font-weight: 500;
-        cursor: pointer;
-        border-bottom: 2px solid transparent;
+    .low-stock-item {
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        border: 1px solid #e9ecef;
         transition: all 0.3s ease;
     }
 
-    .analytics-tab.active {
-        color: var(--accent-teal);
-        border-bottom-color: var(--accent-teal);
-    }
-
-    .analytics-tab:hover {
-        color: var(--accent-teal);
-    }
-
-    .tab-content {
-        display: none !important;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
-
-    .tab-content.active {
-        display: block !important;
-        opacity: 1;
-    }
-
-    /* Ensure charts are visible when tab is active */
-    .tab-content.active .chart-container {
-        visibility: visible;
-    }
-
-    .tab-content .chart-container {
-        visibility: hidden;
-    }
-
-    .low-stock-alert {
-        background: linear-gradient(135deg, #ff6b6b, #ee5a52);
-        color: white;
-        border-radius: 8px;
-        padding: 0.75rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .request-badge {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
-        border-radius: 12px;
-    }
-
-    .badge-pending {
-        background-color: #ffc107;
-        color: #000;
-    }
-
-    .badge-approved {
-        background-color: #28a745;
-        color: white;
-    }
-
-    .badge-rejected {
-        background-color: #dc3545;
-        color: white;
+    .low-stock-item:hover {
+        background: linear-gradient(135deg, #e9ecef 0%, #f8f9fa 100%);
+        border-color: var(--accent-teal);
+        transform: translateX(5px);
     }
 
     .btn-ezm-primary {
@@ -408,18 +106,25 @@
         font-weight: 500;
     }
 
-    .spin {
-        animation: spin 1s linear infinite;
+    .ezm-card {
+        background: var(--white);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        border: none;
+        transition: all 0.3s ease;
+        margin-bottom: 1.5rem;
     }
 
-    @keyframes spin {
-        from {
-            transform: rotate(0deg);
-        }
+    .ezm-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    }
 
-        to {
-            transform: rotate(360deg);
-        }
+    .ezm-card-header {
+        background: var(--light-gray);
+        border-bottom: 1px solid #e9ecef;
+        padding: 1rem 1.5rem;
+        border-radius: 12px 12px 0 0;
     }
 </style>
 {% endblock %}
@@ -427,722 +132,317 @@
 {% block content %}
 <div class="container-fluid">
     <!-- Page Header -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h1 class="h3 mb-0 text-gray-800">
-                        <i class="bi bi-graph-up-arrow text-primary me-2"></i>
-                        Store Analytics Dashboard
-                    </h1>
-                    <p class="text-muted">{{ store.name }} - Comprehensive Performance Analysis</p>
-                </div>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-outline-primary btn-sm" onclick="refreshAnalytics()">
-                        <i class="bi bi-arrow-clockwise me-1"></i>Refresh
-                    </button>
-                    <button class="btn btn-outline-secondary btn-sm" onclick="exportReport()">
-                        <i class="bi bi-download me-1"></i>Export
-                    </button>
-                </div>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">
+                <i class="bi bi-graph-up-arrow text-primary me-2"></i>
+                Store Analytics Dashboard
+            </h1>
+            <p class="text-muted">{{ store.name }} - Comprehensive Performance Analysis</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'export_store_report' %}?period={{ period|default:'30' }}" class="btn btn-ezm-primary">
+                <i class="bi bi-download me-1"></i>Export Report
+            </a>
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="bi bi-calendar-range me-1"></i>
+                    {% if period == '7' %}Last 7 Days
+                    {% elif period == '90' %}Last 90 Days
+                    {% elif period == '365' %}Last Year
+                    {% else %}Last 30 Days{% endif %}
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="?period=7">Last 7 Days</a></li>
+                    <li><a class="dropdown-item" href="?period=30">Last 30 Days</a></li>
+                    <li><a class="dropdown-item" href="?period=90">Last 90 Days</a></li>
+                    <li><a class="dropdown-item" href="?period=365">Last Year</a></li>
+                </ul>
             </div>
         </div>
     </div>
 
     <!-- Key Performance Indicators -->
-    <div class="kpi-grid">
-        <div class="kpi-item">
-            <div class="kpi-value">ETB {{ analytics.current_month_revenue|default:0|floatformat:0 }}</div>
-            <div class="kpi-label">Current Month Revenue</div>
-            <div class="trend-indicator {% if analytics.revenue_trend >= 0 %}trend-up{% else %}trend-down{% endif %}">
-                <i class="bi bi-{% if analytics.revenue_trend >= 0 %}arrow-up{% else %}arrow-down{% endif %} me-1"></i>
-                {{ analytics.revenue_trend|default:0|floatformat:1 }}% vs last month
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6">
+            <div class="metric-card">
+                <div class="metric-icon">
+                    <i class="bi bi-currency-dollar"></i>
+                </div>
+                <h3>ETB {{ total_revenue|default:0|floatformat:0 }}</h3>
+                <p>Total Revenue</p>
+                {% if revenue_change %}
+                <small class="{% if revenue_change > 0 %}text-success{% elif revenue_change < 0 %}text-danger{% else %}text-muted{% endif %}">
+                    <i class="bi bi-{% if revenue_change > 0 %}arrow-up{% elif revenue_change < 0 %}arrow-down{% else %}dash{% endif %}"></i>
+                    {{ revenue_change|floatformat:1 }}% vs previous period
+                </small>
+                {% endif %}
             </div>
         </div>
-
-        <div class="kpi-item">
-            <div class="kpi-value">{{ analytics.avg_transaction_value|default:0|floatformat:0 }}</div>
-            <div class="kpi-label">Avg Transaction Value</div>
-            <div
-                class="trend-indicator {% if analytics.transaction_value_trend >= 0 %}trend-up{% else %}trend-down{% endif %}">
-                <i
-                    class="bi bi-{% if analytics.transaction_value_trend >= 0 %}arrow-up{% else %}arrow-down{% endif %} me-1"></i>
-                {{ analytics.transaction_value_trend|default:0|floatformat:1 }}%
+        <div class="col-lg-3 col-md-6">
+            <div class="metric-card">
+                <div class="metric-icon">
+                    <i class="bi bi-receipt"></i>
+                </div>
+                <h3>{{ total_transactions|default:0 }}</h3>
+                <p>Total Transactions</p>
+                {% if avg_transaction_value %}
+                <small class="text-muted">Avg: ETB {{ avg_transaction_value|floatformat:2 }}</small>
+                {% endif %}
             </div>
         </div>
-
-        <div class="kpi-item">
-            <div class="kpi-value">{{ analytics.daily_transactions|default:0 }}</div>
-            <div class="kpi-label">Daily Avg Transactions</div>
-            <div
-                class="trend-indicator {% if analytics.transaction_count_trend >= 0 %}trend-up{% else %}trend-down{% endif %}">
-                <i
-                    class="bi bi-{% if analytics.transaction_count_trend >= 0 %}arrow-up{% else %}arrow-down{% endif %} me-1"></i>
-                {{ analytics.transaction_count_trend|default:0|floatformat:1 }}%
+        <div class="col-lg-3 col-md-6">
+            <div class="metric-card">
+                <div class="metric-icon">
+                    <i class="bi bi-box-seam"></i>
+                </div>
+                <h3>{{ total_products|default:0 }}</h3>
+                <p>Products in Stock</p>
+                {% if out_of_stock_count > 0 %}
+                <small class="text-danger">{{ out_of_stock_count }} out of stock</small>
+                {% else %}
+                <small class="text-success">All products in stock</small>
+                {% endif %}
             </div>
         </div>
-
-        <div class="kpi-item">
-            <div class="kpi-value">{{ analytics.inventory_turnover|default:0|floatformat:1 }}</div>
-            <div class="kpi-label">Inventory Turnover Rate</div>
-            <span
-                class="status-indicator {% if analytics.inventory_turnover >= 4 %}status-excellent{% elif analytics.inventory_turnover >= 2 %}status-good{% elif analytics.inventory_turnover >= 1 %}status-warning{% else %}status-critical{% endif %}"></span>
-            <small class="text-muted">
-                {% if analytics.inventory_turnover >= 4 %}Excellent
-                {% elif analytics.inventory_turnover >= 2 %}Good
-                {% elif analytics.inventory_turnover >= 1 %}Average
-                {% else %}Needs Attention{% endif %}
-            </small>
-        </div>
-
-        <div class="kpi-item">
-            <div class="kpi-value">{{ analytics.stock_out_frequency|default:0 }}</div>
-            <div class="kpi-label">Stock-outs This Month</div>
-            <span class="status-indicator {{ analytics.stock_out_frequency|stock_status_class }}"></span>
-            <small class="text-muted">{{ analytics.stock_out_frequency|stock_status_text }}</small>
-        </div>
-
-        <div class="kpi-item">
-            <div class="kpi-value">{{ analytics.customer_satisfaction|default:0|floatformat:1 }}%</div>
-            <div class="kpi-label">Customer Satisfaction</div>
-            <span
-                class="status-indicator {% if analytics.customer_satisfaction >= 90 %}status-excellent{% elif analytics.customer_satisfaction >= 80 %}status-good{% elif analytics.customer_satisfaction >= 70 %}status-warning{% else %}status-critical{% endif %}"></span>
-            <small class="text-muted">Based on return rates</small>
+        <div class="col-lg-3 col-md-6">
+            <div class="metric-card">
+                <div class="metric-icon">
+                    <i class="bi bi-graph-up"></i>
+                </div>
+                <h3>ETB {{ total_stock_value|default:0|floatformat:0 }}</h3>
+                <p>Total Stock Value</p>
+                {% if critical_stock_count > 0 %}
+                <small class="text-warning">{{ critical_stock_count }} items low stock</small>
+                {% else %}
+                <small class="text-success">Stock levels healthy</small>
+                {% endif %}
+            </div>
         </div>
     </div>
 
-    <!-- Analytics Tabs -->
-    <div class="analytics-tabs">
-        <button class="analytics-tab active" data-tab="performance" onclick="showTab('performance', this)">
-            <i class="bi bi-graph-up me-1"></i>Performance
-        </button>
-        <button class="analytics-tab" data-tab="inventory" onclick="showTab('inventory', this)">
-            <i class="bi bi-boxes me-1"></i>Inventory
-        </button>
-        <button class="analytics-tab" data-tab="operations" onclick="showTab('operations', this)">
-            <i class="bi bi-gear me-1"></i>Operations
-        </button>
-        <button class="analytics-tab" data-tab="insights" onclick="showTab('insights', this)">
-            <i class="bi bi-lightbulb me-1"></i>Insights
-        </button>
-    </div>
-
-    <!-- Performance Analytics Tab -->
-    <div id="performance-tab" class="tab-content active">
-        <div class="row">
-            <div class="col-lg-8">
-                <div class="analytics-card">
-                    <div class="card-header bg-light border-0">
-                        <h5 class="mb-0">
-                            <i class="bi bi-graph-up me-2"></i>
-                            Sales Performance Trends
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="chart-container">
-                            <canvas id="salesTrendChart"></canvas>
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <a href="{% url 'store_manager_stock_management' %}" class="text-decoration-none">
+                <div class="stats-card h-100">
+                    <div class="card-body text-center">
+                        <div class="mb-3">
+                            <i class="bi bi-boxes text-primary" style="font-size: 2.5rem;"></i>
                         </div>
+                        <h5 class="card-title">Stock Management</h5>
+                        <p class="card-text text-muted">View and manage inventory levels</p>
+                        <span class="badge bg-info">{{ total_products|default:0 }} products</span>
                     </div>
                 </div>
-            </div>
-            <div class="col-lg-4">
-                <div class="analytics-card">
-                    <div class="card-header bg-light border-0">
-                        <h5 class="mb-0">
-                            <i class="bi bi-exclamation-triangle text-warning me-2"></i>
-                            Low Stock Alerts
-                        </h5>
-                        <span class="badge bg-danger ms-auto">{{ low_stock_items.count }} Alert{{
-                            low_stock_items.count|pluralize }}</span>
-                    </div>
-                    <div class="card-body">
-                        {% if low_stock_items %}
-                        <div class="low-stock-list" style="max-height: 300px; overflow-y: auto;">
-                            {% for item in low_stock_items|slice:":5" %}
-                            <div
-                                class="low-stock-item d-flex justify-content-between align-items-center mb-3 p-2 border rounded">
-                                <div class="item-info">
-                                    <div class="fw-bold text-dark">{{ item.product.name }}</div>
-                                    <small class="text-muted">SKU: {{ item.product.sku|default:"N/A" }}</small>
-                                </div>
-                                <div class="stock-info text-end">
-                                    <div class="current-stock">
-                                        <span
-                                            class="badge {% if item.quantity == 0 %}stock-badge-critical{% elif item.quantity <= 5 %}stock-badge-warning{% else %}stock-badge-info{% endif %}">
-                                            {{ item.quantity }} units
-                                        </span>
-                                    </div>
-                                    <small class="text-muted">Threshold: {{ item.low_stock_threshold }}</small>
-                                </div>
-                            </div>
-                            {% endfor %}
-                            {% if low_stock_items.count > 5 %}
-                            <div class="text-center mt-2">
-                                <small class="text-muted">+{{ low_stock_items.count|add:"-5" }} more items</small>
-                            </div>
-                            {% endif %}
+            </a>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <a href="{% url 'store_manager_transfer_requests' %}" class="text-decoration-none">
+                <div class="stats-card h-100">
+                    <div class="card-body text-center">
+                        <div class="mb-3">
+                            <i class="bi bi-arrow-left-right text-info" style="font-size: 2.5rem;"></i>
                         </div>
+                        <h5 class="card-title">Transfer Requests</h5>
+                        <p class="card-text text-muted">Request stock transfers between stores</p>
+                        {% if pending_transfer_count > 0 %}
+                        <span class="badge bg-warning">{{ pending_transfer_count }} pending</span>
                         {% else %}
-                        <div class="text-center py-4">
-                            <i class="bi bi-check-circle text-success fs-2"></i>
-                            <p class="mt-2 mb-0 text-muted">All products are well stocked!</p>
-                            <small class="text-muted">No items below threshold</small>
-                        </div>
+                        <span class="badge bg-success">Up to date</span>
                         {% endif %}
-                        <div class="mt-3 d-grid">
-                            <a href="{% url 'stock_alerts_dashboard' %}" class="btn btn-outline-primary btn-sm">
-                                <i class="bi bi-gear me-1"></i>Manage Stock Alerts
-                            </a>
-                        </div>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
-
-        <div class="row">
-            <div class="col-lg-6">
-                <div class="analytics-card">
-                    <div class="card-header bg-light border-0">
-                        <h5 class="mb-0">
-                            <i class="bi bi-calendar-range me-2"></i>
-                            Monthly Comparison
-                        </h5>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <a href="{% url 'store_manager_restock_requests' %}" class="text-decoration-none">
+                <div class="stats-card h-100">
+                    <div class="card-body text-center">
+                        <div class="mb-3">
+                            <i class="bi bi-arrow-up-circle text-success" style="font-size: 2.5rem;"></i>
+                        </div>
+                        <h5 class="card-title">Restock Requests</h5>
+                        <p class="card-text text-muted">Request inventory from warehouse</p>
+                        {% if pending_restock_count > 0 %}
+                        <span class="badge bg-warning">{{ pending_restock_count }} pending</span>
+                        {% else %}
+                        <span class="badge bg-success">Up to date</span>
+                        {% endif %}
                     </div>
-                    <div class="card-body">
-                        <table class="comparison-table">
-                            <thead>
+                </div>
+            </a>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <a href="{% url 'manage_cashiers' %}" class="text-decoration-none">
+                <div class="stats-card h-100">
+                    <div class="card-body text-center">
+                        <div class="mb-3">
+                            <i class="bi bi-people text-warning" style="font-size: 2.5rem;"></i>
+                        </div>
+                        <h5 class="card-title">Sales Person Management</h5>
+                        <p class="card-text text-muted">Manage store sales personnel</p>
+                        {% if cashier_assignment %}
+                        <span class="badge bg-success">Active staff</span>
+                        {% else %}
+                        <span class="badge bg-danger">No active staff</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Data Tables Section -->
+    <div class="row">
+        <!-- Recent Transactions -->
+        <div class="col-lg-8">
+            <div class="ezm-card">
+                <div class="ezm-card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-receipt me-2"></i>
+                        Recent Transactions
+                    </h5>
+                    <a href="{% url 'store_transactions_list' %}" class="btn btn-sm btn-outline-primary">
+                        View All
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_transactions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
                                 <tr>
-                                    <th>Metric</th>
-                                    <th>Current Month</th>
-                                    <th>Previous Month</th>
-                                    <th>Change</th>
+                                    <th>Date & Time</th>
+                                    <th>Amount</th>
+                                    <th>Payment Method</th>
+                                    <th>Customer</th>
+                                    <th>Type</th>
                                 </tr>
                             </thead>
                             <tbody>
+                                {% for receipt in recent_transactions|slice:":10" %}
                                 <tr>
-                                    <td>Revenue</td>
-                                    <td>ETB {{ analytics.current_month_revenue|default:0|floatformat:0 }}</td>
-                                    <td>ETB {{ analytics.previous_month_revenue|default:0|floatformat:0 }}</td>
                                     <td>
-                                        <span
-                                            class="trend-indicator {% if analytics.revenue_trend >= 0 %}trend-up{% else %}trend-down{% endif %}">
-                                            {{ analytics.revenue_trend|default:0|floatformat:1 }}%
-                                        </span>
+                                        <div>
+                                            <div class="fw-semibold">{{ receipt.timestamp|date:"M d, Y" }}</div>
+                                            <small class="text-muted">{{ receipt.timestamp|date:"H:i A" }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="fw-semibold text-success">ETB {{ receipt.total_amount|floatformat:2 }}</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ receipt.transaction.get_payment_type_display }}</span>
+                                    </td>
+                                    <td>
+                                        {% if receipt.customer_name and receipt.customer_name != 'Walk-in Customer' %}
+                                            {{ receipt.customer_name }}
+                                        {% else %}
+                                            <span class="text-muted">Walk-in Customer</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success">Sale</span>
                                     </td>
                                 </tr>
-                                <tr>
-                                    <td>Transactions</td>
-                                    <td>{{ analytics.current_month_transactions|default:0 }}</td>
-                                    <td>{{ analytics.previous_month_transactions|default:0 }}</td>
-                                    <td>
-                                        <span
-                                            class="trend-indicator {% if analytics.transaction_count_trend >= 0 %}trend-up{% else %}trend-down{% endif %}">
-                                            {{ analytics.transaction_count_trend|default:0|floatformat:1 }}%
-                                        </span>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>Avg Transaction</td>
-                                    <td>ETB {{ analytics.current_avg_transaction|default:0|floatformat:0 }}</td>
-                                    <td>ETB {{ analytics.previous_month_revenue|default:0|floatformat:0 }}</td>
-                                    <td>
-                                        <span
-                                            class="trend-indicator {% if analytics.transaction_value_trend >= 0 %}trend-up{% else %}trend-down{% endif %}">
-                                            {{ analytics.transaction_value_trend|default:0|floatformat:1 }}%
-                                        </span>
-                                    </td>
-                                </tr>
+                                {% endfor %}
                             </tbody>
                         </table>
                     </div>
-                </div>
-            </div>
-
-        </div>
-    </div>
-
-    <!-- Inventory Analytics Tab -->
-    <div id="inventory-tab" class="tab-content">
-        <div class="row">
-            <div class="col-lg-6">
-                <div class="analytics-card">
-                    <div class="card-header bg-light border-0">
-                        <h5 class="mb-0">
-                            <i class="bi bi-pie-chart me-2"></i>
-                            Inventory Value by Category
-                        </h5>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-receipt fs-1 text-muted"></i>
+                        <h5 class="text-muted mt-3">No Transactions</h5>
+                        <p class="text-muted">No transactions found for the selected period.</p>
                     </div>
-                    <div class="card-body">
-                        <div class="chart-container chart-small">
-                            <canvas id="inventoryValueChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-6">
-                <div class="analytics-card">
-                    <div class="card-header bg-light border-0">
-                        <h5 class="mb-0">
-                            <i class="bi bi-speedometer2 me-2"></i>
-                            Top Performing Products
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>Product</th>
-                                        <th>Turnover Rate</th>
-                                        <th>Revenue</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for product in analytics.top_products|slice:":5" %}
-                                    <tr>
-                                        <td>{{ product.name|truncatechars:20 }}</td>
-                                        <td>{{ product.turnover_rate|floatformat:1 }}</td>
-                                        <td>ETB {{ product.revenue|floatformat:0 }}</td>
-                                        <td>
-                                            <span
-                                                class="performance-badge {% if product.turnover_rate >= 4 %}badge-excellent{% elif product.turnover_rate >= 2 %}badge-good{% elif product.turnover_rate >= 1 %}badge-average{% else %}badge-poor{% endif %}">
-                                                {% if product.turnover_rate >= 4 %}Excellent
-                                                {% elif product.turnover_rate >= 2 %}Good
-                                                {% elif product.turnover_rate >= 1 %}Average
-                                                {% else %}Poor{% endif %}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                    {% empty %}
-                                    <tr>
-                                        <td colspan="4" class="text-center text-muted">No data available</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
 
-        <div class="row">
-            <div class="col-lg-4">
-                <div class="analytics-card">
-                    <div class="card-header bg-warning bg-opacity-10 border-0">
-                        <h5 class="mb-0 text-warning">
-                            <i class="bi bi-exclamation-triangle me-2"></i>
-                            Expiring Soon
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        {% if analytics.expiring_products %}
-                        <div class="list-group list-group-flush">
-                            {% for product in analytics.expiring_products|slice:":5" %}
-                            <div class="list-group-item border-0 px-0 py-2">
-                                <div class="d-flex justify-content-between">
-                                    <div>
-                                        <strong class="d-block">{{ product.name|truncatechars:15 }}</strong>
-                                        <small class="text-muted">{{ product.expiry_date|date:"M d, Y" }}</small>
-                                    </div>
-                                    <span class="badge bg-warning text-dark">{{ product.days_to_expiry }} days</span>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        {% else %}
-                        <div class="text-center py-3">
-                            <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
-                            <p class="text-muted mt-2 mb-0">No products expiring soon</p>
-                        </div>
-                        {% endif %}
+        <!-- Low Stock Items -->
+        <div class="col-lg-4">
+            <div class="ezm-card">
+                <div class="ezm-card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-exclamation-triangle text-warning me-2"></i>
+                        Low Stock Alerts
+                    </h5>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-danger">{{ low_stock_items.count }} Alert{{ low_stock_items.count|pluralize }}</span>
+                        <a href="/inventory/stock-alerts/" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-gear me-1"></i>Manage
+                        </a>
                     </div>
                 </div>
-            </div>
-            <div class="col-lg-4">
-                <div class="analytics-card">
-                    <div class="card-header bg-danger bg-opacity-10 border-0">
-                        <h5 class="mb-0 text-danger">
-                            <i class="bi bi-arrow-down-circle me-2"></i>
-                            Slow Moving Items
-                        </h5>
+                <div class="card-body p-0">
+                    {% if low_stock_items %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Stock</th>
+                                    <th>Threshold</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in low_stock_items|slice:":8" %}
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <div class="fw-semibold">{{ item.product.name }}</div>
+                                            <small class="text-muted">{{ item.product.category|default:"No category" }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if item.quantity == 0 %}bg-danger{% elif item.quantity <= 5 %}bg-warning{% else %}bg-success{% endif %}">
+                                            {{ item.quantity }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ item.low_stock_threshold|default:10 }}</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="card-body">
-                        {% if analytics.slow_moving_products %}
-                        <div class="list-group list-group-flush">
-                            {% for product in analytics.slow_moving_products|slice:":5" %}
-                            <div class="list-group-item border-0 px-0 py-2">
-                                <div class="d-flex justify-content-between">
-                                    <div>
-                                        <strong class="d-block">{{ product.name|truncatechars:15 }}</strong>
-                                        <small class="text-muted">{{ product.days_since_sale }} days since last
-                                            sale</small>
-                                    </div>
-                                    <span class="badge bg-danger">{{ product.current_stock }}</span>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        {% else %}
-                        <div class="text-center py-3">
-                            <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
-                            <p class="text-muted mt-2 mb-0">All products moving well</p>
-                        </div>
-                        {% endif %}
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-check-circle text-success fs-2"></i>
+                        <h6 class="text-success mt-2">All Good!</h6>
+                        <p class="text-muted small">No low stock items</p>
                     </div>
+                    {% endif %}
                 </div>
             </div>
-            <div class="col-lg-4">
-                <div class="analytics-card">
-                    <div class="card-header bg-info bg-opacity-10 border-0">
-                        <h5 class="mb-0 text-info">
-                            <i class="bi bi-graph-up me-2"></i>
-                            Reorder Recommendations
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        {% if analytics.reorder_recommendations %}
-                        <div class="list-group list-group-flush">
-                            {% for product in analytics.reorder_recommendations|slice:":5" %}
-                            <div class="list-group-item border-0 px-0 py-2">
-                                <div class="d-flex justify-content-between">
-                                    <div>
-                                        <strong class="d-block">{{ product.name|truncatechars:15 }}</strong>
-                                        <small class="text-muted">Suggested: {{ product.suggested_quantity }}
-                                            units</small>
-                                    </div>
-                                    <button class="btn btn-sm btn-outline-primary"
-                                        onclick="quickReorder('{{ product.id }}', '{{ product.suggested_quantity }}')">
-                                        <i class="bi bi-plus"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        {% else %}
-                        <div class="text-center py-3">
-                            <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
-                            <p class="text-muted mt-2 mb-0">No reorders needed</p>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Operations Analytics Tab -->
-    <div id="operations-tab" class="tab-content">
-        <div class="row">
-            <div class="col-lg-8">
-                <div class="analytics-card">
-                    <div class="card-header bg-light border-0">
-                        <h5 class="mb-0">
-                            <i class="bi bi-people me-2"></i>
-                            Cashier Performance
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Cashier</th>
-                                        <th>Transactions/Hour</th>
-                                        <th>Accuracy Rate</th>
-                                        <th>Total Sales</th>
-                                        <th>Performance</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for cashier in analytics.cashier_performance|slice:":5" %}
-                                    <tr>
-                                        <td>{{ cashier.name }}</td>
-                                        <td>{{ cashier.transactions_per_hour|floatformat:1 }}</td>
-                                        <td>{{ cashier.accuracy_rate|floatformat:1 }}%</td>
-                                        <td>ETB {{ cashier.total_sales|floatformat:0 }}</td>
-                                        <td>
-                                            <span
-                                                class="performance-badge {% if cashier.performance_score >= 90 %}badge-excellent{% elif cashier.performance_score >= 80 %}badge-good{% elif cashier.performance_score >= 70 %}badge-average{% else %}badge-poor{% endif %}">
-                                                {% if cashier.performance_score >= 90 %}Excellent
-                                                {% elif cashier.performance_score >= 80 %}Good
-                                                {% elif cashier.performance_score >= 70 %}Average
-                                                {% else %}Needs Improvement{% endif %}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                    {% empty %}
-                                    <tr>
-                                        <td colspan="5" class="text-center text-muted">No cashier data available</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-4">
-                <div class="analytics-card">
-                    <div class="card-header bg-light border-0">
-                        <h5 class="mb-0">
-                            <i class="bi bi-graph-down me-2"></i>
-                            Return Analysis
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="chart-container chart-small">
-                            <canvas id="returnAnalysisChart"></canvas>
-                        </div>
-                        <div class="mt-3">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span class="text-muted">Return Rate:</span>
-                                <strong>{{ analytics.return_rate|default:0|floatformat:1 }}%</strong>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span class="text-muted">Most Returned:</span>
-                                <strong>{{ analytics.most_returned_product|default:"N/A" }}</strong>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="text-muted">Return Value:</span>
-                                <strong>ETB {{ analytics.return_value|default:0|floatformat:0 }}</strong>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-lg-6">
-                <div class="analytics-card">
-                    <div class="card-header bg-light border-0">
-                        <h5 class="mb-0">
-                            <i class="bi bi-clock me-2"></i>
-                            Customer Traffic Patterns
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="chart-container chart-small">
-                            <canvas id="trafficPatternsChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        initializeSalesTrendChart();
-        initializeInventoryValueChart();
-        initializeReturnAnalysisChart();
-        initializeTrafficPatternsChart();
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Store Manager Dashboard loaded for {{ store.name }}');
+
+    // Auto-refresh metrics every 5 minutes
+    setInterval(function() {
+        // You can add auto-refresh functionality here if needed
+        console.log('Dashboard metrics could be refreshed here');
+    }, 300000); // 5 minutes
+
+    // Add smooth scrolling for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            document.querySelector(this.getAttribute('href')).scrollIntoView({
+                behavior: 'smooth'
+            });
+        });
     });
-
-    function initializeSalesTrendChart() {
-        const ctx = document.getElementById('salesTrendChart');
-        if (!ctx) return;
-
-        try {
-            const salesLabels = JSON.parse('{{ analytics.sales_trend_labels|escapejs }}');
-            const salesData = JSON.parse('{{ analytics.sales_trend_data|escapejs }}');
-
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: salesLabels,
-                    datasets: [{
-                        label: 'Daily Sales (ETB)',
-                        data: salesData,
-                        borderColor: '#66FCF1',
-                        backgroundColor: 'rgba(102, 252, 241, 0.1)',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4,
-                        pointBackgroundColor: '#45A29E',
-                        pointBorderColor: '#66FCF1',
-                        pointBorderWidth: 2,
-                        pointRadius: 4,
-                        pointHoverRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'top',
-                            labels: {
-                                color: '#1F2833',
-                                font: {
-                                    size: 12,
-                                    weight: 'bold'
-                                }
-                            }
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(31, 40, 51, 0.9)',
-                            titleColor: '#66FCF1',
-                            bodyColor: '#C5C6C7',
-                            borderColor: '#66FCF1',
-                            borderWidth: 1,
-                            callbacks: {
-                                label: function (context) {
-                                    return 'Sales: ETB ' + context.parsed.y.toLocaleString();
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: 'rgba(197, 198, 199, 0.2)'
-                            },
-                            ticks: {
-                                color: '#1F2833',
-                                callback: function (value) {
-                                    return 'ETB ' + value.toLocaleString();
-                                }
-                            }
-                        },
-                        x: {
-                            grid: {
-                                color: 'rgba(197, 198, 199, 0.2)'
-                            },
-                            ticks: {
-                                color: '#1F2833'
-                            }
-                        }
-                    }
-                }
-            });
-        } catch (error) {
-            console.error('Error initializing sales trend chart:', error);
-            // Show fallback message
-            ctx.parentElement.innerHTML = '<div class="text-center text-muted p-4"><i class="bi bi-graph-up me-2"></i>Sales trend data will appear here once transactions are recorded.</div>';
-        }
-    }
-
-    function initializeInventoryValueChart() {
-        const ctx = document.getElementById('inventoryValueChart');
-        if (!ctx) return;
-
-        // Placeholder chart - can be enhanced with actual inventory data
-        new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Electronics', 'Clothing', 'Home & Garden', 'Sports', 'Books'],
-                datasets: [{
-                    data: [30, 25, 20, 15, 10],
-                    backgroundColor: ['#66FCF1', '#45A29E', '#C5C6C7', '#1F2833', '#0B0C10'],
-                    borderWidth: 2,
-                    borderColor: '#ffffff'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            color: '#1F2833',
-                            padding: 15
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    function initializeReturnAnalysisChart() {
-        const ctx = document.getElementById('returnAnalysisChart');
-        if (!ctx) return;
-
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-                datasets: [{
-                    label: 'Returns',
-                    data: [2, 1, 3, 1],
-                    backgroundColor: 'rgba(220, 53, 69, 0.7)',
-                    borderColor: '#dc3545',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                }
-            }
-        });
-    }
-
-    function initializeTrafficPatternsChart() {
-        const ctx = document.getElementById('trafficPatternsChart');
-        if (!ctx) return;
-
-        try {
-            const peakHoursLabels = JSON.parse('{{ analytics.peak_hours_labels|escapejs }}');
-            const peakHoursData = JSON.parse('{{ analytics.peak_hours_data|escapejs }}');
-
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: peakHoursLabels,
-                    datasets: [{
-                        label: 'Sales Volume',
-                        data: peakHoursData,
-                        backgroundColor: 'rgba(102, 252, 241, 0.7)',
-                        borderColor: '#66FCF1',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function (value) {
-                                    return 'ETB ' + value.toLocaleString();
-                                }
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    }
-                }
-            });
-        } catch (error) {
-            console.error('Error initializing traffic patterns chart:', error);
-        }
-    }
+});
 </script>
 {% endblock %}

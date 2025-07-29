@@ -483,6 +483,7 @@ class SupplierProfileForm(forms.ModelForm):
 class SupplierProductForm(forms.ModelForm):
     """
     Form for suppliers to add/edit products in their catalog.
+    Suppliers can set and edit stock quantities which are visible to Head Managers.
     """
     # Product name as free text input
     product_name = forms.CharField(
@@ -503,6 +504,18 @@ class SupplierProductForm(forms.ModelForm):
         required=False,
         widget=forms.HiddenInput(),
         help_text="Optional reference to warehouse product if applicable"
+    )
+
+    # Stock quantity field - suppliers can edit this
+    stock_quantity = forms.IntegerField(
+        min_value=0,
+        required=True,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter available stock quantity',
+            'min': '0'
+        }),
+        help_text="Current stock quantity available for this product"
     )
 
     category_choice = forms.ChoiceField(
@@ -577,18 +590,19 @@ class SupplierProductForm(forms.ModelForm):
         self.fields['product_code'].help_text = "Unique identifier for this product"
         self.fields['minimum_order_quantity'].help_text = "Minimum quantity customers must order"
         self.fields['maximum_order_quantity'].help_text = "Maximum quantity per order (leave blank for unlimited)"
-        self.fields['stock_quantity'].help_text = "Current available stock (optional)"
+        self.fields['stock_quantity'].help_text = "Current available stock (automatically decreases when orders are placed)"
         self.fields['category_choice'].help_text = "Select an existing category or choose 'Other' to create a new one"
 
     class Meta:
         model = SupplierProduct
         exclude = ['supplier', 'created_date', 'updated_date', 'category']
 
-        # Custom field ordering
+        # Custom field ordering including stock_quantity
         field_order = [
             'warehouse_product', 'product_name', 'product_code', 'description',
             'category_choice', 'custom_category', 'subcategory', 'unit_price',
-            'currency', 'minimum_order_quantity', 'maximum_order_quantity'
+            'currency', 'minimum_order_quantity', 'maximum_order_quantity',
+            'stock_quantity'
         ]
 
         widgets = {
@@ -666,7 +680,13 @@ class SupplierProductForm(forms.ModelForm):
             }),
             'stock_quantity': forms.NumberInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Current stock quantity (optional)'
+                'placeholder': 'Enter available stock quantity',
+                'min': '0'
+            }),
+            'stock_quantity': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter available stock quantity',
+                'min': '0'
             }),
 
             # Product Images
@@ -776,6 +796,20 @@ class SupplierProductForm(forms.ModelForm):
                     counter += 1
                 cleaned_data['product_code'] = base_code
 
+        # Validate stock quantity and set availability status
+        stock_quantity = cleaned_data.get('stock_quantity')
+        if stock_quantity is not None:
+            if stock_quantity < 0:
+                raise forms.ValidationError("Stock quantity cannot be negative.")
+
+            # Set availability status based on stock quantity
+            if stock_quantity == 0:
+                cleaned_data['availability_status'] = 'out_of_stock'
+            elif stock_quantity <= 10:
+                cleaned_data['availability_status'] = 'limited_stock'
+            else:
+                cleaned_data['availability_status'] = 'in_stock'
+
         return cleaned_data
 
     def save(self, commit=True):
@@ -806,6 +840,71 @@ class SupplierProductForm(forms.ModelForm):
 
         if commit:
             instance.save()
+        return instance
+
+
+class SupplierStockAdjustmentForm(forms.ModelForm):
+    """
+    Form for suppliers to manually adjust their stock levels.
+    This is separate from product editing and allows stock corrections/increases.
+    """
+    stock_quantity = forms.IntegerField(
+        min_value=0,
+        required=True,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter new stock quantity',
+            'min': '0'
+        }),
+        help_text="Update your current stock quantity"
+    )
+
+    adjustment_reason = forms.CharField(
+        max_length=255,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Reason for stock adjustment (optional)'
+        }),
+        help_text="Optional: Explain why you're adjusting the stock"
+    )
+
+    class Meta:
+        model = SupplierProduct
+        fields = ['stock_quantity']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.fields['stock_quantity'].initial = self.instance.stock_quantity
+
+    def clean_stock_quantity(self):
+        stock_quantity = self.cleaned_data.get('stock_quantity')
+        if stock_quantity is not None and stock_quantity < 0:
+            raise forms.ValidationError("Stock quantity cannot be negative.")
+        return stock_quantity
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+
+        # Update availability status based on new stock quantity
+        if instance.stock_quantity == 0:
+            instance.availability_status = 'out_of_stock'
+        elif instance.stock_quantity <= 10:
+            instance.availability_status = 'limited_stock'
+        else:
+            instance.availability_status = 'in_stock'
+
+        if commit:
+            instance.save()
+
+            # Log the stock adjustment
+            import logging
+            logger = logging.getLogger(__name__)
+            reason = self.cleaned_data.get('adjustment_reason', 'Manual stock adjustment')
+            logger.info(f"Stock manually adjusted for {instance.product_name} (ID: {instance.id}): "
+                       f"New stock: {instance.stock_quantity}. Reason: {reason}")
+
         return instance
 
 

@@ -149,6 +149,189 @@
         color: white;
         animation: pulse 2s infinite;
     }
+
+    .timeline-date {
+        font-size: 0.7rem;
+        color: #28a745;
+        font-weight: 500;
+        margin-top: 2px;
+    }
+
+    .timeline-status {
+        font-size: 0.7rem;
+        color: #ffc107;
+        font-weight: 500;
+        margin-top: 2px;
+        font-style: italic;
+    }
+
+    /* Enhanced Tab Styling */
+    .nav-tabs {
+        border-bottom: 2px solid var(--accent-teal);
+    }
+
+    .nav-tabs .nav-link {
+        border: none;
+        color: var(--primary-dark);
+        font-weight: 500;
+        padding: 1rem 1.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .nav-tabs .nav-link:hover {
+        border-color: transparent;
+        color: var(--accent-teal);
+        background-color: rgba(102, 252, 241, 0.1);
+    }
+
+    .nav-tabs .nav-link.active {
+        color: var(--accent-teal);
+        background-color: rgba(102, 252, 241, 0.1);
+        border-color: transparent;
+        border-bottom: 3px solid var(--accent-teal);
+    }
+
+    /* Tab Content Styling */
+    .tab-content {
+        margin-top: 0;
+    }
+
+    .tab-pane {
+        display: none !important;
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+    }
+
+    .tab-pane.active {
+        display: block !important;
+        opacity: 1;
+    }
+
+    .tab-pane.show.active {
+        display: block !important;
+        opacity: 1;
+    }
+
+    /* Force visibility for active tab panes */
+    .tab-pane.show {
+        display: block !important;
+        opacity: 1;
+    }
+
+    /* Ensure tab content is visible */
+    #orderTabsContent .tab-pane {
+        min-height: 200px;
+    }
+
+    #orderTabsContent .tab-pane.active {
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+
+    /* Enhanced tab animation */
+    .tab-pane.show.active {
+        border: 2px solid transparent;
+        animation: fadeInTab 0.4s ease-in-out;
+    }
+
+    @keyframes fadeInTab {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Ensure Bootstrap tab navigation works */
+    .nav-tabs .nav-link.active {
+        background-color: rgba(102, 252, 241, 0.1) !important;
+        border-bottom: 3px solid var(--accent-teal) !important;
+        color: var(--accent-teal) !important;
+        font-weight: 600 !important;
+    }
+
+    /* Tab hover effects */
+    .nav-tabs .nav-link:hover:not(.active) {
+        background-color: rgba(102, 252, 241, 0.05);
+        border-bottom: 2px solid rgba(102, 252, 241, 0.3);
+    }
+
+    /* Search and Filter Enhancements */
+    .form-control:focus {
+        border-color: var(--accent-teal);
+        box-shadow: 0 0 0 0.2rem rgba(102, 252, 241, 0.25);
+    }
+
+    .form-select:focus {
+        border-color: var(--accent-teal);
+        box-shadow: 0 0 0 0.2rem rgba(102, 252, 241, 0.25);
+    }
+
+    /* Quick Filter Buttons */
+    .btn-outline-secondary:hover {
+        background-color: var(--accent-teal);
+        border-color: var(--accent-teal);
+        color: white;
+    }
+
+    /* Enhanced Statistics Cards */
+    .stats-card {
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .stats-card:hover {
+        border-color: var(--accent-teal);
+        box-shadow: 0 4px 15px rgba(102, 252, 241, 0.2);
+        transform: translateY(-2px);
+    }
+
+    .stats-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-right: 1rem;
+    }
+
+
+
+    /* Real-time indicator */
+    .real-time-indicator {
+        width: 8px;
+        height: 8px;
+        background: #28a745;
+        border-radius: 50%;
+        display: inline-block;
+        animation: pulse 2s infinite;
+        margin-left: 10px;
+    }
+
+    /* Responsive improvements */
+    @media (max-width: 768px) {
+        .nav-tabs .nav-link {
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
+        }
+
+        .stats-card .card-body {
+            padding: 1rem !important;
+        }
+
+        .stats-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 1.2rem;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -159,23 +342,16 @@
         <div class="col-12">
             <div class="ezm-card">
                 <div class="ezm-card-header">
-                    <i class="bi bi-truck me-2"></i>Order Tracking & Delivery Management
+                    <i class="bi bi-truck me-2"></i>Purchase Order Management
                     <span class="real-time-indicator"></span>
-                    <small class="text-muted ms-2">Real-time tracking</small>
+                    <small class="text-muted ms-2">Real-time tracking & management</small>
                 </div>
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
-                        <p class="mb-0">Track delivery status, confirm deliveries, and report issues for all purchase
-                            orders</p>
+                        <p class="mb-0">Comprehensive purchase order tracking, delivery management, and supplier coordination</p>
                         <div class="d-flex gap-2">
-                            <button class="btn btn-ezm-secondary btn-sm" onclick="filterOrders('all')">
-                                <i class="bi bi-funnel me-1"></i>All Orders
-                            </button>
-                            <button class="btn btn-ezm-secondary btn-sm" onclick="filterOrders('in_transit')">
-                                <i class="bi bi-truck me-1"></i>In Transit
-                            </button>
-                            <button class="btn btn-ezm-secondary btn-sm" onclick="filterOrders('overdue')">
-                                <i class="bi bi-exclamation-triangle me-1"></i>Overdue
+                            <button class="btn btn-ezm-secondary btn-sm" onclick="window.location.reload()">
+                                <i class="bi bi-arrow-clockwise me-1"></i>Refresh
                             </button>
                         </div>
                     </div>
@@ -184,60 +360,122 @@
         </div>
     </div>
 
-    <!-- Order Statistics -->
+    <!-- Internal Navigation Tabs -->
     <div class="row mb-4">
-        <div class="col-lg-3 col-md-6 mb-3">
+        <div class="col-12">
+            <div class="ezm-card">
+                <div class="card-body p-0">
+                    <ul class="nav nav-tabs nav-fill" id="orderTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview"
+                                    type="button" role="tab" aria-controls="overview" aria-selected="true">
+                                <i class="bi bi-grid-3x3-gap me-2"></i>Overview
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="tracking-tab" data-bs-toggle="tab" data-bs-target="#tracking"
+                                    type="button" role="tab" aria-controls="tracking" aria-selected="false">
+                                <i class="bi bi-truck me-2"></i>Order Tracking
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="table-tab" data-bs-toggle="tab" data-bs-target="#table"
+                                    type="button" role="tab" aria-controls="table" aria-selected="false">
+                                <i class="bi bi-table me-2"></i>Table View
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="orderTabsContent">
+        <!-- Overview Tab -->
+        <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
+            <!-- Enhanced Order Statistics -->
+            <div class="row mb-4">
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
             <div class="stats-card">
-                <div class="card-body d-flex align-items-center p-4">
+                <div class="card-body d-flex align-items-center p-3">
+                    <div class="stats-icon" style="background: rgba(102, 252, 241, 0.1); color: var(--accent-teal);">
+                        <i class="bi bi-list-ul"></i>
+                    </div>
+                    <div>
+                        <p class="mb-1 text-muted small">Total Orders</p>
+                        <h4 class="fw-bold mb-0" style="color: var(--accent-teal);">{{ total_orders }}</h4>
+                        <small class="text-muted">All time</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+            <div class="stats-card">
+                <div class="card-body d-flex align-items-center p-3">
+                    <div class="stats-icon" style="background: rgba(255, 193, 7, 0.1); color: #ffc107;">
+                        <i class="bi bi-clock"></i>
+                    </div>
+                    <div>
+                        <p class="mb-1 text-muted small">Pending Payment</p>
+                        <h4 class="fw-bold mb-0" style="color: #ffc107;">{{ pending_orders }}</h4>
+                        <small class="text-muted">Awaiting payment</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+            <div class="stats-card">
+                <div class="card-body d-flex align-items-center p-3">
                     <div class="stats-icon" style="background: rgba(23, 162, 184, 0.1); color: #17a2b8;">
                         <i class="bi bi-truck"></i>
                     </div>
                     <div>
-                        <p class="mb-1 text-muted">In Transit</p>
-                        <h3 class="fw-bold mb-0" style="color: #17a2b8;" id="in-transit-count">0</h3>
+                        <p class="mb-1 text-muted small">In Transit</p>
+                        <h4 class="fw-bold mb-0" style="color: #17a2b8;" id="in-transit-count">{{ in_transit_orders }}</h4>
                         <small class="text-muted">Active deliveries</small>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-lg-3 col-md-6 mb-3">
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
             <div class="stats-card">
-                <div class="card-body d-flex align-items-center p-4">
-                    <div class="stats-icon" style="background: rgba(220, 53, 69, 0.1); color: #dc3545;">
-                        <i class="bi bi-exclamation-triangle"></i>
-                    </div>
-                    <div>
-                        <p class="mb-1 text-muted">Overdue</p>
-                        <h3 class="fw-bold mb-0" style="color: #dc3545;" id="overdue-count">0</h3>
-                        <small class="text-muted">Require attention</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6 mb-3">
-            <div class="stats-card">
-                <div class="card-body d-flex align-items-center p-4">
+                <div class="card-body d-flex align-items-center p-3">
                     <div class="stats-icon" style="background: rgba(40, 167, 69, 0.1); color: #28a745;">
                         <i class="bi bi-check-circle"></i>
                     </div>
                     <div>
-                        <p class="mb-1 text-muted">Delivered</p>
-                        <h3 class="fw-bold mb-0" style="color: #28a745;" id="delivered-count">0</h3>
-                        <small class="text-muted">This month</small>
+                        <p class="mb-1 text-muted small">Delivered</p>
+                        <h4 class="fw-bold mb-0" style="color: #28a745;" id="delivered-count">{{ delivered_orders }}</h4>
+                        <small class="text-muted">Completed</small>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-lg-3 col-md-6 mb-3">
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
             <div class="stats-card">
-                <div class="card-body d-flex align-items-center p-4">
-                    <div class="stats-icon" style="background: rgba(255, 193, 7, 0.1); color: #ffc107;">
-                        <i class="bi bi-exclamation-circle"></i>
+                <div class="card-body d-flex align-items-center p-3">
+                    <div class="stats-icon" style="background: rgba(220, 53, 69, 0.1); color: #dc3545;">
+                        <i class="bi bi-exclamation-triangle"></i>
                     </div>
                     <div>
-                        <p class="mb-1 text-muted">Issues Reported</p>
-                        <h3 class="fw-bold mb-0" style="color: #ffc107;" id="issues-count">0</h3>
-                        <small class="text-muted">Pending resolution</small>
+                        <p class="mb-1 text-muted small">Issues</p>
+                        <h4 class="fw-bold mb-0" style="color: #dc3545;" id="issues-count">{{ issue_orders }}</h4>
+                        <small class="text-muted">Need attention</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+            <div class="stats-card">
+                <div class="card-body d-flex align-items-center p-3">
+                    <div class="stats-icon" style="background: rgba(69, 162, 158, 0.1); color: var(--accent-cyan);">
+                        <i class="bi bi-currency-exchange"></i>
+                    </div>
+                    <div>
+                        <p class="mb-1 text-muted small">Total Value</p>
+                        <h4 class="fw-bold mb-0" style="color: var(--accent-cyan);">{{ total_value|floatformat:0 }}</h4>
+                        <small class="text-muted">ETB</small>
                     </div>
                 </div>
             </div>
@@ -289,40 +527,50 @@
                                             {% endif %}
                                         </div>
                                         <div class="mt-1">
-                                            <strong style="color: var(--accent-teal);">ETB {{
-                                                order.total_amount|floatformat:2 }}</strong>
+                                            <strong style="color: var(--accent-teal);">ETB {{ order.total_amount|floatformat:2 }}</strong>
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Progress Timeline -->
+                                <!-- Enhanced Progress Timeline -->
                                 <div class="progress-timeline">
                                     <div class="timeline-step {% if order.payment_confirmed_at %}completed{% endif %}">
                                         <div class="timeline-icon">
-                                            <i class="bi bi-credit-card"></i>
+                                            <i class="bi bi-credit-card-fill"></i>
                                         </div>
-                                        <small>Payment</small>
+                                        <small>Paid</small>
+                                        {% if order.payment_confirmed_at %}
+                                        <div class="timeline-date">{{ order.payment_confirmed_at|date:"M d, H:i" }}</div>
+                                        {% endif %}
                                     </div>
-                                    <div
-                                        class="timeline-step {% if order.shipped_at %}completed{% elif order.status == 'payment_confirmed' %}current{% endif %}">
+                                    <div class="timeline-step {% if order.shipped_at %}completed{% elif order.status == 'payment_confirmed' %}current{% endif %}">
                                         <div class="timeline-icon">
-                                            <i class="bi bi-box-seam"></i>
+                                            <i class="bi bi-box-seam-fill"></i>
                                         </div>
                                         <small>Shipped</small>
+                                        {% if order.shipped_at %}
+                                        <div class="timeline-date">{{ order.shipped_at|date:"M d, H:i" }}</div>
+                                        {% elif order.status == 'payment_confirmed' %}
+                                        <div class="timeline-status">Awaiting Shipment</div>
+                                        {% endif %}
                                     </div>
-                                    <div
-                                        class="timeline-step {% if order.is_in_transit %}current{% elif order.is_delivered %}completed{% endif %}">
+                                    <div class="timeline-step {% if order.is_in_transit %}current{% elif order.is_delivered %}completed{% endif %}">
                                         <div class="timeline-icon">
                                             <i class="bi bi-truck"></i>
                                         </div>
                                         <small>In Transit</small>
+                                        {% if order.is_in_transit and not order.is_delivered %}
+                                        <div class="timeline-status">On the way</div>
+                                        {% endif %}
                                     </div>
-                                    <div
-                                        class="timeline-step {% if order.is_delivered %}completed{% elif order.is_in_transit %}current{% endif %}">
+                                    <div class="timeline-step {% if order.is_delivered %}completed{% endif %}">
                                         <div class="timeline-icon">
-                                            <i class="bi bi-house-check"></i>
+                                            <i class="bi bi-house-check-fill"></i>
                                         </div>
                                         <small>Delivered</small>
+                                        {% if order.is_delivered %}
+                                        <div class="timeline-date">{{ order.delivered_at|date:"M d, H:i" }}</div>
+                                        {% endif %}
                                     </div>
                                 </div>
 
@@ -353,8 +601,7 @@
                                     <small class="text-muted">Items:</small>
                                     <div class="d-flex flex-wrap gap-1 mt-1">
                                         {% for item in order.items.all|slice:":3" %}
-                                        <span class="badge bg-light text-dark">{{ item.quantity_ordered }}x {{
-                                            item.warehouse_product.product_name|truncatechars:20 }}</span>
+                                        <span class="badge bg-light text-dark">{{ item.quantity_ordered }}x {{ item.warehouse_product.product_name|truncatechars:20 }}</span>
                                         {% endfor %}
                                         {% if order.items.count > 3 %}
                                         <span class="badge bg-secondary">+{{ order.items.count|add:"-3" }} more</span>
@@ -373,17 +620,13 @@
                                     <button class="btn btn-success btn-sm" onclick="confirmDelivery({{ order.id }})">
                                         <i class="bi bi-check-circle me-1"></i>Confirm Delivery
                                     </button>
-                                    <button class="btn btn-warning btn-sm" onclick="reportIssue({{ order.id }})">
-                                        <i class="bi bi-exclamation-triangle me-1"></i>Report Issue
-                                    </button>
                                     {% elif order.status == 'payment_confirmed' %}
                                     <span class="badge bg-success">
                                         <i class="bi bi-check-circle me-1"></i>Payment Confirmed
                                     </span>
                                     {% elif order.is_delivered %}
                                     <span class="badge bg-success">
-                                        <i class="bi bi-check-circle me-1"></i>Delivered {{ order.delivered_at|date:"M
-                                        d" }}
+                                        <i class="bi bi-check-circle me-1"></i>Delivered {{ order.delivered_at|date:"Md" }}
                                     </span>
                                     {% elif order.has_delivery_issues %}
                                     <button class="btn btn-outline-warning btn-sm" onclick="viewIssues({{ order.id }})">
@@ -408,41 +651,125 @@
         </div>
     </div>
 
-    <!-- Filter Section -->
-    <div class="card shadow-sm mb-4">
+    <!-- Enhanced Search and Filter Section -->
+    <div class="ezm-card mb-4">
+        <div class="ezm-card-header">
+            <i class="bi bi-search me-2"></i>Search & Filter Purchase Orders
+            {% if search_query or selected_status or selected_supplier or date_from or date_to or amount_min or amount_max %}
+            <span class="badge bg-info ms-2">{{ filtered_count }} results</span>
+            {% endif %}
+        </div>
         <div class="card-body">
-            <form method="get" class="row g-3">
-                <div class="col-md-4">
-                    <label for="status" class="form-label">Status</label>
-                    <select name="status" id="status" class="form-select">
-                        <option value="">All Statuses</option>
-                        {% for value, label in status_choices %}
-                        <option value="{{ value }}" {% if value in selected_status %} selected{% endif %}>
-                            {{ label }}
-                        </option>
-                        {% endfor %}
-                    </select>
+            <form method="get" id="filterForm">
+                <!-- Search Bar -->
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" name="search" class="form-control"
+                                   placeholder="Search by order number, supplier, contact person, payment reference, tracking number, or notes..."
+                                   value="{{ search_query }}" id="searchInput">
+                            <button type="submit" class="btn btn-ezm-primary">
+                                <i class="bi bi-search me-1"></i>Search
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-md-4">
-                    <label for="supplier" class="form-label">Supplier</label>
-                    <select name="supplier" id="supplier" class="form-select">
-                        <option value="">All Suppliers</option>
-                        {% for supplier in suppliers %}
-                        <option value="{{ supplier.pk }}" {% if supplier.pk|stringformat:"s" in selected_supplier %}
-                            selected{% endif %}>
-                            {{ supplier.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
+
+                <!-- Advanced Filters -->
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label for="status" class="form-label">Status</label>
+                        <select name="status" id="status" class="form-select">
+                            <option value="">All Statuses</option>
+                            {% for value, label in status_choices %}
+                            <option value="{{ value }}" {% if value == selected_status %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="supplier" class="form-label">Supplier</label>
+                        <select name="supplier" id="supplier" class="form-select">
+                            <option value="">All Suppliers</option>
+                            {% for supplier in suppliers %}
+                            <option value="{{ supplier.pk }}" {% if supplier.pk|stringformat:"s" == selected_supplier %}selected{% endif %}>
+                                {{ supplier.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="date_from" class="form-label">Date From</label>
+                        <input type="date" name="date_from" id="date_from" class="form-control" value="{{ date_from }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="date_to" class="form-label">Date To</label>
+                        <input type="date" name="date_to" id="date_to" class="form-control" value="{{ date_to }}">
+                    </div>
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <div class="d-flex gap-2 w-100">
-                        <button type="submit" class="btn btn-outline-primary flex-fill">
-                            <i class="bi bi-funnel me-2"></i>Filter
-                        </button>
-                        <a href="{% url 'purchase_order_list' %}" class="btn btn-outline-secondary">
-                            <i class="bi bi-arrow-clockwise"></i>
-                        </a>
+
+                <div class="row g-3 mt-2">
+                    <div class="col-md-3">
+                        <label for="amount_min" class="form-label">Min Amount (ETB)</label>
+                        <input type="number" name="amount_min" id="amount_min" class="form-control"
+                               placeholder="0.00" step="0.01" value="{{ amount_min }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="amount_max" class="form-label">Max Amount (ETB)</label>
+                        <input type="number" name="amount_max" id="amount_max" class="form-control"
+                               placeholder="999999.99" step="0.01" value="{{ amount_max }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="sort" class="form-label">Sort By</label>
+                        <select name="sort" id="sort" class="form-select">
+                            <option value="-order_date" {% if current_sort == "-order_date" %}selected{% endif %}>Newest First</option>
+                            <option value="order_date" {% if current_sort == "order_date" %}selected{% endif %}>Oldest First</option>
+                            <option value="-total_amount" {% if current_sort == "-total_amount" %}selected{% endif %}>Highest Amount</option>
+                            <option value="total_amount" {% if current_sort == "total_amount" %}selected{% endif %}>Lowest Amount</option>
+                            <option value="supplier__name" {% if current_sort == "supplier__name" %}selected{% endif %}>Supplier A-Z</option>
+                            <option value="-supplier__name" {% if current_sort == "-supplier__name" %}selected{% endif %}>Supplier Z-A</option>
+                            <option value="status" {% if current_sort == "status" %}selected{% endif %}>Status</option>
+                            <option value="-expected_delivery_date" {% if current_sort == "-expected_delivery_date" %}selected{% endif %}>Delivery Date</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <div class="d-flex gap-2 w-100">
+                            <button type="submit" class="btn btn-ezm-primary flex-fill">
+                                <i class="bi bi-funnel me-1"></i>Apply Filters
+                            </button>
+                            <a href="{% url 'purchase_order_list' %}" class="btn btn-ezm-secondary" title="Clear All Filters">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Filter Buttons -->
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="d-flex flex-wrap gap-2">
+                            <span class="text-muted me-2">Quick Filters:</span>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="quickFilter('status', 'payment_pending')">
+                                <i class="bi bi-clock me-1"></i>Payment Pending
+                            </button>
+                            <button type="button" class="btn btn-outline-info btn-sm" onclick="quickFilter('status', 'in_transit')">
+                                <i class="bi bi-truck me-1"></i>In Transit
+                            </button>
+                            <button type="button" class="btn btn-outline-success btn-sm" onclick="quickFilter('status', 'delivered')">
+                                <i class="bi bi-check-circle me-1"></i>Delivered
+                            </button>
+                            <button type="button" class="btn btn-outline-warning btn-sm" onclick="quickFilter('status', 'issue_reported')">
+                                <i class="bi bi-exclamation-triangle me-1"></i>Issues
+                            </button>
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="quickFilter('date_range', 'today')">
+                                <i class="bi bi-calendar-day me-1"></i>Today
+                            </button>
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="quickFilter('date_range', 'week')">
+                                <i class="bi bi-calendar-week me-1"></i>This Week
+                            </button>
+                        </div>
                     </div>
                 </div>
             </form>
@@ -480,8 +807,7 @@
                             </td>
                             <td>
                                 <div class="fw-bold">{{ order.supplier.name }}</div>
-                                <small class="text-muted">{{ order.supplier.contact_person|default:"No contact"
-                                    }}</small>
+                                <small class="text-muted">{{ order.supplier.contact_person|default:"No contact" }}</small>
                             </td>
                             <td>{{ order.order_date|date:"M d, Y" }}</td>
                             <td>
@@ -495,16 +821,22 @@
                                 <div class="fw-bold">ETB {{ order.total_amount|floatformat:2 }}</div>
                             </td>
                             <td>
-                                {% if order.status == 'pending' %}
-                                <span class="badge bg-warning">Pending</span>
-                                {% elif order.status == 'approved' %}
-                                <span class="badge bg-success">Approved</span>
-                                {% elif order.status == 'shipped' %}
-                                <span class="badge bg-info">Shipped</span>
-                                {% elif order.status == 'received' %}
-                                <span class="badge bg-primary">Received</span>
+                                {% if order.status == 'initial' %}
+                                <span class="badge bg-secondary">Initial</span>
+                                {% elif order.status == 'payment_pending' %}
+                                <span class="badge bg-warning">Payment Pending</span>
+                                {% elif order.status == 'payment_confirmed' %}
+                                <span class="badge bg-success">Payment Confirmed</span>
+                                {% elif order.status == 'in_transit' %}
+                                <span class="badge bg-info">In Transit</span>
+                                {% elif order.status == 'delivered' %}
+                                <span class="badge bg-primary">Delivered</span>
+                                {% elif order.status == 'issue_reported' %}
+                                <span class="badge bg-warning">Issue Reported</span>
                                 {% elif order.status == 'cancelled' %}
                                 <span class="badge bg-danger">Cancelled</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ order.get_status_display }}</span>
                                 {% endif %}
                             </td>
                             <td>
@@ -541,40 +873,59 @@
                 </table>
             </div>
 
-            <!-- Pagination -->
+            <!-- Enhanced Pagination -->
             {% if is_paginated %}
             <div class="card-footer">
-                <nav aria-label="Purchase orders pagination">
-                    <ul class="pagination justify-content-center mb-0">
-                        {% if page_obj.has_previous %}
-                        <li class="page-item">
-                            <a class="page-link"
-                                href="?page=1{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_supplier %}&supplier={{ selected_supplier }}{% endif %}">First</a>
-                        </li>
-                        <li class="page-item">
-                            <a class="page-link"
-                                href="?page={{ page_obj.previous_page_number }}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_supplier %}&supplier={{ selected_supplier }}{% endif %}">Previous</a>
-                        </li>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="text-muted">
+                        Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} orders
+                        {% if search_query or selected_status or selected_supplier or date_from or date_to or amount_min or amount_max %}
+                        (filtered from {{ total_orders }} total)
                         {% endif %}
+                    </div>
+                    <nav aria-label="Purchase orders pagination">
+                        <ul class="pagination mb-0">
+                            {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_supplier %}&supplier={{ selected_supplier }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if amount_min %}&amount_min={{ amount_min }}{% endif %}{% if amount_max %}&amount_max={{ amount_max }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                                    <i class="bi bi-chevron-double-left"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_supplier %}&supplier={{ selected_supplier }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if amount_min %}&amount_min={{ amount_min }}{% endif %}{% if amount_max %}&amount_max={{ amount_max }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                                    <i class="bi bi-chevron-left"></i>
+                                </a>
+                            </li>
+                            {% endif %}
 
-                        <li class="page-item active">
-                            <span class="page-link">
-                                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-                            </span>
-                        </li>
+                            <!-- Page numbers -->
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_supplier %}&supplier={{ selected_supplier }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if amount_min %}&amount_min={{ amount_min }}{% endif %}{% if amount_max %}&amount_max={{ amount_max }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">{{ num }}</a>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
 
-                        {% if page_obj.has_next %}
-                        <li class="page-item">
-                            <a class="page-link"
-                                href="?page={{ page_obj.next_page_number }}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_supplier %}&supplier={{ selected_supplier }}{% endif %}">Next</a>
-                        </li>
-                        <li class="page-item">
-                            <a class="page-link"
-                                href="?page={{ page_obj.paginator.num_pages }}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_supplier %}&supplier={{ selected_supplier }}{% endif %}">Last</a>
-                        </li>
-                        {% endif %}
-                    </ul>
-                </nav>
+                            {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_supplier %}&supplier={{ selected_supplier }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if amount_min %}&amount_min={{ amount_min }}{% endif %}{% if amount_max %}&amount_max={{ amount_max }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                                    <i class="bi bi-chevron-right"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_supplier %}&supplier={{ selected_supplier }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if amount_min %}&amount_min={{ amount_min }}{% endif %}{% if amount_max %}&amount_max={{ amount_max }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                                    <i class="bi bi-chevron-double-right"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
             </div>
             {% endif %}
 
@@ -596,6 +947,271 @@
             {% endif %}
         </div>
     </div>
+        <!-- End Overview Tab -->
+
+        <!-- Order Tracking Tab -->
+        <div class="tab-pane fade" id="tracking" role="tabpanel" aria-labelledby="tracking-tab" tabindex="0">
+            <div class="row">
+                <div class="col-12">
+                    <div class="ezm-card">
+                        <div class="ezm-card-header">
+                            <i class="bi bi-truck me-2"></i>Order Tracking & Delivery Management
+                            <span class="badge bg-primary ms-2">{{ purchase_orders|length }}</span>
+                        </div>
+                        <div class="card-body">
+                            {% if purchase_orders %}
+                            <div id="tracking-container">
+                                {% for order in purchase_orders %}
+                                <div class="order-card {% if order.is_overdue %}overdue{% elif order.is_in_transit %}in-transit{% elif order.is_delivered %}delivered{% endif %}"
+                                    data-order-id="{{ order.id }}" data-status="{{ order.status }}"
+                                    data-countdown="{{ order.delivery_countdown_seconds|default:0 }}"
+                                    data-order-number="{{ order.order_number }}"
+                                    data-supplier="{{ order.supplier.name }}"
+                                    data-total="{{ order.total_amount|floatformat:2 }}">
+
+                                    <div class="card-body p-4">
+                                        <!-- Order Header -->
+                                        <div class="d-flex justify-content-between align-items-start mb-3">
+                                            <div>
+                                                <h5 class="mb-1 fw-bold">
+                                                    <i class="bi bi-cart-check me-2"></i>
+                                                    Order #{{ order.order_number }}
+                                                </h5>
+                                                <p class="text-muted mb-0">
+                                                    <i class="bi bi-building me-1"></i>{{ order.supplier.name }}
+                                                    <span class="mx-2">•</span>
+                                                    <i class="bi bi-calendar me-1"></i>{{ order.order_date|date:"M d, Y" }}
+                                                </p>
+                                            </div>
+                                            <div class="text-end">
+                                                <div class="status-indicator {% if order.is_in_transit %}in-transit{% endif %}">
+                                                    {% if order.status == 'initial' %}
+                                                    <span class="badge bg-secondary">Initial</span>
+                                                    {% elif order.status == 'payment_pending' %}
+                                                    <span class="badge bg-warning">Payment Pending</span>
+                                                    {% elif order.status == 'payment_confirmed' %}
+                                                    <span class="badge bg-success">Payment Confirmed</span>
+                                                    {% elif order.status == 'in_transit' %}
+                                                    <span class="badge bg-info">In Transit</span>
+                                                    {% elif order.status == 'delivered' %}
+                                                    <span class="badge bg-primary">Delivered</span>
+                                                    {% elif order.status == 'issue_reported' %}
+                                                    <span class="badge bg-warning">Issues Reported</span>
+                                                    {% else %}
+                                                    <span class="badge bg-secondary">{{ order.get_status_display }}</span>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="mt-1">
+                                                    <strong style="color: var(--accent-teal);">ETB {{ order.total_amount|floatformat:2 }}</strong>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Progress Timeline -->
+                                        <div class="progress-timeline">
+                                            <div class="timeline-step {% if order.payment_confirmed_at %}completed{% endif %}">
+                                                <div class="timeline-icon">
+                                                    <i class="bi bi-credit-card"></i>
+                                                </div>
+                                                <small>Payment</small>
+                                            </div>
+                                            <div class="timeline-step {% if order.shipped_at %}completed{% elif order.status == 'payment_confirmed' %}current{% endif %}">
+                                                <div class="timeline-icon">
+                                                    <i class="bi bi-box-seam"></i>
+                                                </div>
+                                                <small>Shipped</small>
+                                            </div>
+                                            <div class="timeline-step {% if order.is_in_transit %}current{% elif order.is_delivered %}completed{% endif %}">
+                                                <div class="timeline-icon">
+                                                    <i class="bi bi-truck"></i>
+                                                </div>
+                                                <small>In Transit</small>
+                                            </div>
+                                            <div class="timeline-step {% if order.is_delivered %}completed{% elif order.is_in_transit %}current{% endif %}">
+                                                <div class="timeline-icon">
+                                                    <i class="bi bi-house-check"></i>
+                                                </div>
+                                                <small>Delivered</small>
+                                            </div>
+                                        </div>
+
+                                        <!-- Countdown Timer -->
+                                        {% if order.is_in_transit or order.status == 'payment_confirmed' %}
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <div>
+                                                <small class="text-muted">Estimated Delivery:</small>
+                                                <div class="countdown-timer" id="countdown-{{ order.id }}">
+                                                    {% if order.delivery_countdown_seconds > 0 %}
+                                                    <span class="countdown-normal">Calculating...</span>
+                                                    {% else %}
+                                                    <span class="countdown-expired">OVERDUE</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            {% if order.tracking_number %}
+                                            <div class="text-end">
+                                                <small class="text-muted">Tracking:</small>
+                                                <div><code>{{ order.tracking_number }}</code></div>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
+
+                                        <!-- Order Items Summary -->
+                                        <div class="mb-3">
+                                            <small class="text-muted">Items:</small>
+                                            <div class="d-flex flex-wrap gap-1 mt-1">
+                                                {% for item in order.items.all|slice:":3" %}
+                                                <span class="badge bg-light text-dark">{{ item.quantity_ordered }}x {{ item.warehouse_product.product_name|truncatechars:20 }}</span>
+                                                {% endfor %}
+                                                {% if order.items.count > 3 %}
+                                                <span class="badge bg-secondary">+{{ order.items.count|add:"-3" }} more</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+
+                                        <!-- Action Buttons -->
+                                        <div class="delivery-actions">
+                                            <a href="{% url 'purchase_order_detail' order.pk %}" class="btn btn-outline-primary btn-sm">
+                                                <i class="bi bi-eye me-1"></i>View Details
+                                            </a>
+
+                                            {% if order.is_in_transit %}
+                                            <button class="btn btn-success btn-sm" onclick="confirmDelivery({{ order.id }})">
+                                                <i class="bi bi-check-circle me-1"></i>Confirm Delivery
+                                            </button>
+                                            {% elif order.status == 'payment_confirmed' %}
+                                            <span class="badge bg-success">
+                                                <i class="bi bi-check-circle me-1"></i>Payment Confirmed
+                                            </span>
+                                            {% elif order.is_delivered %}
+                                            <span class="badge bg-success">
+                                                <i class="bi bi-check-circle me-1"></i>Delivered {{ order.delivered_at|date:"Md" }}
+                                            </span>
+                                            {% elif order.has_delivery_issues %}
+                                            <button class="btn btn-outline-warning btn-sm" onclick="viewIssues({{ order.id }})">
+                                                <i class="bi bi-exclamation-circle me-1"></i>View Issues
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="text-center py-5">
+                                <i class="bi bi-truck" style="font-size: 4rem; color: var(--light-gray);"></i>
+                                <h4 class="mt-3 mb-2" style="color: var(--primary-dark);">No Purchase Orders Found</h4>
+                                <p class="text-muted">Purchase orders will appear here once payments are confirmed and orders are created.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- End Order Tracking Tab -->
+
+        <!-- Table View Tab -->
+        <div class="tab-pane fade" id="table" role="tabpanel" aria-labelledby="table-tab" tabindex="0">
+            <div class="row">
+                <div class="col-12">
+                    <div class="ezm-card">
+                        <div class="ezm-card-header">
+                            <i class="bi bi-table me-2"></i>Purchase Orders Table
+                            <span class="badge bg-primary ms-2">{{ purchase_orders|length }}</span>
+                        </div>
+                        <div class="card-body p-0">
+                            {% if purchase_orders %}
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Order #</th>
+                                            <th>Supplier</th>
+                                            <th>Order Date</th>
+                                            <th>Expected Delivery</th>
+                                            <th>Total Amount</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for order in purchase_orders %}
+                                        <tr>
+                                            <td>
+                                                <div class="fw-bold text-primary">{{ order.order_number }}</div>
+                                                <small class="text-muted">{{ order.created_date|date:"M d, Y" }}</small>
+                                            </td>
+                                            <td>
+                                                <div class="fw-bold">{{ order.supplier.name }}</div>
+                                                <small class="text-muted">{{ order.supplier.contact_person|default:"No contact" }}</small>
+                                            </td>
+                                            <td>{{ order.order_date|date:"M d, Y" }}</td>
+                                            <td>
+                                                {% if order.expected_delivery_date %}
+                                                {{ order.expected_delivery_date|date:"M d, Y" }}
+                                                {% else %}
+                                                <span class="text-muted">Not specified</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="fw-bold">ETB {{ order.total_amount|floatformat:2 }}</div>
+                                            </td>
+                                            <td>
+                                                {% if order.status == 'initial' %}
+                                                <span class="badge bg-secondary">Initial</span>
+                                                {% elif order.status == 'payment_pending' %}
+                                                <span class="badge bg-warning">Payment Pending</span>
+                                                {% elif order.status == 'payment_confirmed' %}
+                                                <span class="badge bg-success">Payment Confirmed</span>
+                                                {% elif order.status == 'in_transit' %}
+                                                <span class="badge bg-info">In Transit</span>
+                                                {% elif order.status == 'delivered' %}
+                                                <span class="badge bg-primary">Delivered</span>
+                                                {% elif order.status == 'issue_reported' %}
+                                                <span class="badge bg-warning">Issue Reported</span>
+                                                {% elif order.status == 'cancelled' %}
+                                                <span class="badge bg-danger">Cancelled</span>
+                                                {% else %}
+                                                <span class="badge bg-secondary">{{ order.get_status_display }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <a href="{% url 'purchase_order_detail' order.pk %}"
+                                                        class="btn btn-sm btn-outline-info" title="View Details">
+                                                        <i class="bi bi-eye"></i>
+                                                    </a>
+                                                    {% if order.is_in_transit %}
+                                                    <button class="btn btn-sm btn-success"
+                                                            onclick="confirmDelivery({{ order.id }})"
+                                                            title="Confirm Delivery">
+                                                        <i class="bi bi-check-circle"></i>
+                                                    </button>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-5">
+                                <i class="bi bi-table" style="font-size: 4rem; color: var(--light-gray);"></i>
+                                <h4 class="mt-3 mb-2" style="color: var(--primary-dark);">No Purchase Orders Found</h4>
+                                <p class="text-muted">Purchase orders will appear here once they are created.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- End Table View Tab -->
+    </div>
+    <!-- End Tab Content -->
 </div>
 
 <!-- Delivery Confirmation Modal -->
@@ -807,79 +1423,603 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- Embed order data as JSON for JavaScript access -->
+{{ orders_json|json_script:"orders-data" }}
+
 <script>
     // Order tracking and delivery confirmation system
-    let orderData = {};
-    let countdownIntervals = {};
+    var orderData = {};
+    var countdownIntervals = {};
+
+    // Get order data from embedded JSON
+    var ordersData = {};
+    try {
+        var ordersDataElement = document.getElementById('orders-data');
+        console.log('Orders data element found:', !!ordersDataElement);
+
+        if (ordersDataElement) {
+            var jsonText = ordersDataElement.textContent;
+            console.log('JSON text length:', jsonText.length);
+            console.log('JSON text preview:', jsonText.substring(0, 200));
+
+            ordersData = JSON.parse(jsonText);
+            console.log('Loaded orders data successfully');
+            console.log('Number of orders:', Object.keys(ordersData).length);
+            console.log('Order IDs:', Object.keys(ordersData));
+
+            // Log first order structure for debugging
+            var firstOrderId = Object.keys(ordersData)[0];
+            if (firstOrderId) {
+                console.log('First order structure:', ordersData[firstOrderId]);
+            }
+        } else {
+            console.warn('Orders data element not found');
+        }
+    } catch (e) {
+        console.error('Failed to load orders data:', e);
+        console.error('Error details:', e.message);
+    }
+
+    // Simple test function to show modal without data
+    window.testModal = function() {
+        console.log('Testing modal display...');
+        try {
+            var modal = document.getElementById('deliveryConfirmationModal');
+            if (!modal) {
+                console.error('Modal not found');
+                return;
+            }
+
+            // Set basic test data
+            document.getElementById('confirmOrderId').value = 'test';
+            document.getElementById('confirmOrderNumber').textContent = 'Test Order #123';
+            document.getElementById('confirmSupplier').textContent = 'Test Supplier';
+            document.getElementById('confirmAmount').textContent = 'ETB 1000.00';
+            document.getElementById('confirmExpectedDate').textContent = 'Today';
+            document.getElementById('itemChecklist').innerHTML = '<p>Test item</p>';
+
+            new bootstrap.Modal(modal).show();
+            console.log('Modal shown successfully');
+        } catch (error) {
+            console.error('Error showing test modal:', error);
+        }
+    };
+
+    // Test function for debugging (can be called from browser console)
+    window.testFetchAPI = function(orderId) {
+        orderId = orderId || 25; // Default test order ID
+        console.log('Testing fetch API with order ID:', orderId);
+
+        var url = '/inventory/purchase-orders/' + orderId + '/details/';
+        console.log('Test URL:', url);
+
+        return window.fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin'
+        })
+        .then(function(response) {
+            console.log('Test response:', response);
+            return response.text(); // Get as text first to see what we actually receive
+        })
+        .then(function(text) {
+            console.log('Test response text:', text);
+            try {
+                var json = JSON.parse(text);
+                console.log('Test parsed JSON:', json);
+                return json;
+            } catch (e) {
+                console.log('Test failed to parse as JSON:', e);
+                return text;
+            }
+        })
+        .catch(function(error) {
+            console.error('Test fetch error:', error);
+            return error;
+        });
+    };
 
     // Initialize the order tracking system
     document.addEventListener('DOMContentLoaded', function () {
+        console.log('DOM loaded, initializing order tracking system...');
+
+        // Initialize tabs first to ensure proper display
+        initializeTabs();
+
+        // Then initialize other components
         initializeCountdownTimers();
         updateOrderStatistics();
         setupPhotoPreview();
+        initializeSearchAndFilters();
 
         // Refresh data every 30 seconds
         setInterval(function () {
             updateOrderStatistics();
             refreshCountdownTimers();
         }, 30000);
+
+        console.log('Order tracking system initialized. You can test the API by calling: testFetchAPI(25)');
+
+        // Add validation function
+        window.validatePageComponents = function() {
+            console.log('=== Page Component Validation ===');
+
+            // Check Bootstrap
+            console.log('Bootstrap loaded:', typeof bootstrap !== 'undefined');
+
+            // Check tabs
+            var tabContainer = document.querySelector('#orderTabs');
+            var tabContent = document.querySelector('#orderTabsContent');
+            var tabs = document.querySelectorAll('#orderTabs button[data-bs-toggle="tab"]');
+            var panes = document.querySelectorAll('.tab-pane');
+
+            console.log('Tab container found:', !!tabContainer);
+            console.log('Tab content found:', !!tabContent);
+            console.log('Number of tabs:', tabs.length);
+            console.log('Number of panes:', panes.length);
+
+            // Log each tab and pane
+            tabs.forEach(function(tab, index) {
+                var target = tab.getAttribute('data-bs-target');
+                var targetPane = document.querySelector(target);
+                console.log('Tab ' + index + ':', {
+                    id: tab.id,
+                    target: target,
+                    active: tab.classList.contains('active'),
+                    paneExists: !!targetPane,
+                    paneActive: targetPane ? targetPane.classList.contains('active') : false,
+                    paneVisible: targetPane ? getComputedStyle(targetPane).display !== 'none' : false
+                });
+            });
+
+            // Check countdown timers
+            var countdownElements = document.querySelectorAll('[data-countdown]');
+            console.log('Countdown elements:', countdownElements.length);
+            console.log('Active intervals:', Object.keys(countdownIntervals).length);
+
+            // Check order data
+            console.log('Orders data loaded:', !!ordersData);
+            if (ordersData) {
+                console.log('Number of orders:', Array.isArray(ordersData) ? ordersData.length : Object.keys(ordersData).length);
+            }
+
+            // Check purchase_orders template variable
+            console.log('Purchase orders from template:', '{{ purchase_orders|length }}');
+
+            console.log('=== Validation Complete ===');
+            return {
+                bootstrap: typeof bootstrap !== 'undefined',
+                tabs: tabs.length,
+                panes: panes.length,
+                countdowns: countdownElements.length,
+                ordersData: !!ordersData
+            };
+        };
+
+        // Run validation after initialization
+        setTimeout(function() {
+            var result = window.validatePageComponents();
+            console.log('Validation result:', result);
+
+            // Force show tracking tab for testing
+            window.forceShowTab = function(tabId) {
+                console.log('Forcing tab show:', tabId);
+                var tab = document.querySelector('#' + tabId);
+                var target = tab ? tab.getAttribute('data-bs-target') : null;
+                var pane = target ? document.querySelector(target) : null;
+
+                if (tab && pane) {
+                    // Remove active from all tabs and panes
+                    document.querySelectorAll('#orderTabs .nav-link').forEach(function(t) {
+                        t.classList.remove('active');
+                        t.setAttribute('aria-selected', 'false');
+                    });
+                    document.querySelectorAll('.tab-pane').forEach(function(p) {
+                        p.classList.remove('show', 'active');
+                    });
+
+                    // Activate target tab and pane
+                    tab.classList.add('active');
+                    tab.setAttribute('aria-selected', 'true');
+                    pane.classList.add('show', 'active');
+
+                    console.log('Tab forced:', tabId, 'Pane visible:', getComputedStyle(pane).display !== 'none');
+                } else {
+                    console.error('Tab or pane not found:', tabId, !!tab, !!pane);
+                }
+            };
+
+            console.log('Force tab function available as window.forceShowTab("tracking-tab")');
+        }, 1000);
+
+        // Check current user authentication status
+        console.log('Current user info:', {
+            userRole: '{{ user.role }}',
+            isAuthenticated: '{{ user.is_authenticated }}',
+            username: '{{ user.username }}'
+        });
     });
 
-    function initializeCountdownTimers() {
-        document.querySelectorAll('[data-countdown]').forEach(function (element) {
-            const orderId = element.getAttribute('data-order-id');
-            const countdownSeconds = parseInt(element.getAttribute('data-countdown'));
+    // Initialize Bootstrap tabs
+    function initializeTabs() {
+        console.log('Initializing tabs...');
 
-            if (countdownSeconds > 0) {
-                startCountdown(orderId, countdownSeconds);
+        // Check if Bootstrap is loaded
+        if (typeof bootstrap === 'undefined') {
+            console.error('Bootstrap is not loaded!');
+            return;
+        }
+
+        // Get all tab elements
+        var tabContainer = document.querySelector('#orderTabs');
+        var tabContent = document.querySelector('#orderTabsContent');
+
+        if (!tabContainer || !tabContent) {
+            console.error('Tab container or content not found!');
+            return;
+        }
+
+        // Get all tab triggers and panes
+        var triggerTabList = [].slice.call(document.querySelectorAll('#orderTabs button[data-bs-toggle="tab"]'));
+        var tabPanes = document.querySelectorAll('.tab-pane');
+
+        console.log('Found tab triggers:', triggerTabList.length);
+        console.log('Found tab panes:', tabPanes.length);
+
+        if (triggerTabList.length === 0) {
+            console.error('No tab triggers found!');
+            return;
+        }
+
+        // Remove any existing active classes from non-overview tabs
+        tabPanes.forEach(function(pane) {
+            if (pane.id !== 'overview') {
+                pane.classList.remove('show', 'active');
+            }
+        });
+
+        // Set up each tab with proper Bootstrap 5 initialization
+        triggerTabList.forEach(function (triggerEl) {
+            console.log('Setting up tab:', triggerEl.id, 'target:', triggerEl.getAttribute('data-bs-target'));
+
+            // Initialize Bootstrap Tab instance
+            var tabInstance = new bootstrap.Tab(triggerEl);
+
+            // Add click event listener to ensure tab switching works
+            triggerEl.addEventListener('click', function (event) {
+                event.preventDefault();
+                console.log('Tab clicked:', triggerEl.id);
+
+                // Use Bootstrap's built-in tab switching
+                tabInstance.show();
+            });
+
+            // Enhanced event listeners for better tab management
+            triggerEl.addEventListener('show.bs.tab', function (event) {
+                console.log('Tab showing:', event.target.id);
+
+                // Hide all other panes
+                document.querySelectorAll('.tab-pane').forEach(function(pane) {
+                    if (pane.id !== event.target.getAttribute('data-bs-target').substring(1)) {
+                        pane.classList.remove('show', 'active');
+                    }
+                });
+            });
+
+            // Add event listeners for when tabs are shown
+            triggerEl.addEventListener('shown.bs.tab', function (event) {
+                console.log('Tab shown:', event.target.id);
+                var targetPane = event.target.getAttribute('data-bs-target');
+                console.log('Target pane:', targetPane);
+
+                // Refresh any dynamic content when tab is shown
+                if (event.target.id === 'tracking-tab') {
+                    console.log('Refreshing countdown timers for tracking tab');
+                    setTimeout(function() {
+                        refreshCountdownTimers();
+                    }, 100);
+                }
+            });
+        });
+
+        // Ensure the overview tab is properly set as active
+        var overviewTab = document.querySelector('#overview-tab');
+        var overviewPane = document.querySelector('#overview');
+
+        if (overviewTab && overviewPane) {
+            // Make sure overview tab is active
+            overviewTab.classList.add('active');
+            overviewTab.setAttribute('aria-selected', 'true');
+
+            // Make sure overview pane is active
+            overviewPane.classList.add('show', 'active');
+
+            console.log('Overview tab activated');
+        }
+
+        console.log('Bootstrap tabs initialized successfully');
+
+        // Add a test function to verify tabs are working
+        window.testTabs = function() {
+            console.log('=== Testing Tab Functionality ===');
+            var tabs = document.querySelectorAll('#orderTabs button[data-bs-toggle="tab"]');
+            var panes = document.querySelectorAll('.tab-pane');
+
+            console.log('Available tabs:', tabs.length);
+            console.log('Available panes:', panes.length);
+
+            tabs.forEach(function(tab, index) {
+                var target = tab.getAttribute('data-bs-target');
+                var targetPane = document.querySelector(target);
+                console.log('Tab ' + index + ':', {
+                    id: tab.id,
+                    target: target,
+                    active: tab.classList.contains('active'),
+                    paneExists: !!targetPane,
+                    paneActive: targetPane ? targetPane.classList.contains('active') : false
+                });
+            });
+
+            // Test manual tab switching
+            console.log('Testing manual tab switching...');
+            if (tabs.length > 1) {
+                // Test tracking tab
+                setTimeout(function() {
+                    console.log('Switching to tracking tab...');
+                    tabs[1].click(); // Use click instead of Bootstrap API
+                }, 1000);
+
+                // Test table tab
+                setTimeout(function() {
+                    if (tabs[2]) {
+                        console.log('Switching to table tab...');
+                        tabs[2].click(); // Use click instead of Bootstrap API
+                    }
+                }, 3000);
+
+                // Back to overview
+                setTimeout(function() {
+                    console.log('Switching back to overview tab...');
+                    tabs[0].click(); // Use click instead of Bootstrap API
+                }, 5000);
+            }
+        };
+
+        // Add manual tab switching functions
+        window.showTrackingTab = function() {
+            console.log('Manually showing tracking tab...');
+            var trackingTab = document.querySelector('#tracking-tab');
+            if (trackingTab) {
+                trackingTab.click();
+            }
+        };
+
+        window.showTableTab = function() {
+            console.log('Manually showing table tab...');
+            var tableTab = document.querySelector('#table-tab');
+            if (tableTab) {
+                tableTab.click();
+            }
+        };
+
+        window.showOverviewTab = function() {
+            console.log('Manually showing overview tab...');
+            var overviewTab = document.querySelector('#overview-tab');
+            if (overviewTab) {
+                overviewTab.click();
+            }
+        };
+
+        // Add a comprehensive tab test function
+        window.testOrderTrackingTab = function() {
+            console.log('=== Testing Order Tracking Tab Specifically ===');
+
+            var trackingTab = document.querySelector('#tracking-tab');
+            var trackingPane = document.querySelector('#tracking');
+
+            if (!trackingTab) {
+                console.error('❌ Tracking tab not found');
+                return false;
+            }
+
+            if (!trackingPane) {
+                console.error('❌ Tracking pane not found');
+                return false;
+            }
+
+            console.log('✅ Tracking tab and pane found');
+
+            // Test clicking the tracking tab
+            console.log('🔄 Clicking tracking tab...');
+            trackingTab.click();
+
+            // Check if it became active
+            setTimeout(function() {
+                var isTabActive = trackingTab.classList.contains('active');
+                var isPaneActive = trackingPane.classList.contains('active');
+                var isPaneVisible = trackingPane.classList.contains('show');
+
+                console.log('Tab active:', isTabActive);
+                console.log('Pane active:', isPaneActive);
+                console.log('Pane visible:', isPaneVisible);
+                console.log('Pane display style:', getComputedStyle(trackingPane).display);
+
+                if (isTabActive && isPaneActive && isPaneVisible) {
+                    console.log('✅ Order tracking tab is working perfectly!');
+                    return true;
+                } else {
+                    console.log('❌ Order tracking tab has issues');
+                    return false;
+                }
+            }, 500);
+        };
+
+        window.showOverviewTab = function() {
+            console.log('Manually showing overview tab...');
+            var overviewTab = document.querySelector('#overview-tab');
+            if (overviewTab) {
+                overviewTab.click();
+            }
+        };
+
+        console.log('Tab test functions available:');
+        console.log('- window.testTabs()');
+        console.log('- window.showTrackingTab()');
+        console.log('- window.showTableTab()');
+        console.log('- window.showOverviewTab()');
+    }
+
+    // Initialize search and filter functionality
+    function initializeSearchAndFilters() {
+        // Auto-submit form on filter changes
+        const filterSelects = document.querySelectorAll('#filterForm select');
+        filterSelects.forEach(function(select) {
+            select.addEventListener('change', function() {
+                if (this.value !== '') {
+                    document.getElementById('filterForm').submit();
+                }
+            });
+        });
+
+        // Search input with debounce
+        const searchInput = document.getElementById('searchInput');
+        let searchTimeout;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(function() {
+                if (searchInput.value.length >= 3 || searchInput.value.length === 0) {
+                    document.getElementById('filterForm').submit();
+                }
+            }, 500);
+        });
+
+        // Enter key search
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('filterForm').submit();
             }
         });
     }
 
+    // Quick filter functions
+    function quickFilter(type, value) {
+        const form = document.getElementById('filterForm');
+
+        if (type === 'status') {
+            document.getElementById('status').value = value;
+        } else if (type === 'date_range') {
+            const today = new Date();
+            const dateFrom = document.getElementById('date_from');
+            const dateTo = document.getElementById('date_to');
+
+            if (value === 'today') {
+                const todayStr = today.toISOString().split('T')[0];
+                dateFrom.value = todayStr;
+                dateTo.value = todayStr;
+            } else if (value === 'week') {
+                const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                dateFrom.value = weekAgo.toISOString().split('T')[0];
+                dateTo.value = today.toISOString().split('T')[0];
+            }
+        }
+
+        form.submit();
+    }
+
+    // Clear all filters
+    function clearAllFilters() {
+        window.location.href = '{% url "purchase_order_list" %}';
+    }
+
+
+
+    function initializeCountdownTimers() {
+        console.log('Initializing countdown timers...');
+        var countdownElements = document.querySelectorAll('[data-countdown]');
+        console.log('Found countdown elements:', countdownElements.length);
+
+        countdownElements.forEach(function (element) {
+            var orderId = element.getAttribute('data-order-id');
+            var countdownSeconds = parseInt(element.getAttribute('data-countdown')) || 0;
+
+            console.log('Processing order:', orderId, 'countdown:', countdownSeconds);
+
+            if (countdownSeconds > 0) {
+                startCountdown(orderId, countdownSeconds);
+            } else {
+                // Mark as overdue if countdown is 0 or negative
+                var countdownElement = document.getElementById('countdown-' + orderId);
+                if (countdownElement) {
+                    countdownElement.innerHTML = '<span class="countdown-expired">OVERDUE</span>';
+                }
+            }
+        });
+
+        console.log('Countdown timers initialized');
+    }
+
     function startCountdown(orderId, seconds) {
-        const countdownElement = document.getElementById(`countdown-${orderId}`);
-        if (!countdownElement) return;
+        console.log('Starting countdown for order:', orderId, 'seconds:', seconds);
+        var countdownElement = document.getElementById('countdown-' + orderId);
+
+        if (!countdownElement) {
+            console.warn('Countdown element not found for order:', orderId);
+            return;
+        }
 
         // Clear existing interval
         if (countdownIntervals[orderId]) {
             clearInterval(countdownIntervals[orderId]);
+            delete countdownIntervals[orderId];
         }
 
-        let remainingSeconds = seconds;
+        var remainingSeconds = Math.max(0, seconds);
+
+        // If already expired, show overdue immediately
+        if (remainingSeconds <= 0) {
+            countdownElement.innerHTML = '<span class="countdown-expired">OVERDUE</span>';
+            markOrderOverdue(orderId);
+            return;
+        }
 
         countdownIntervals[orderId] = setInterval(function () {
             if (remainingSeconds <= 0) {
                 countdownElement.innerHTML = '<span class="countdown-expired">OVERDUE</span>';
                 clearInterval(countdownIntervals[orderId]);
+                delete countdownIntervals[orderId];
                 markOrderOverdue(orderId);
                 return;
             }
 
-            const days = Math.floor(remainingSeconds / 86400);
-            const hours = Math.floor((remainingSeconds % 86400) / 3600);
-            const minutes = Math.floor((remainingSeconds % 3600) / 60);
-            const secs = remainingSeconds % 60;
+            var days = Math.floor(remainingSeconds / 86400);
+            var hours = Math.floor((remainingSeconds % 86400) / 3600);
+            var minutes = Math.floor((remainingSeconds % 3600) / 60);
+            var secs = remainingSeconds % 60;
 
-            let timeString = '';
-            let className = 'countdown-normal';
+            var timeString = '';
+            var className = 'countdown-normal';
 
             if (days > 0) {
-                timeString = `${days}d ${hours}h ${minutes}m`;
+                timeString = days + 'd ' + hours + 'h ' + minutes + 'm';
             } else if (hours > 0) {
-                timeString = `${hours}h ${minutes}m ${secs}s`;
+                timeString = hours + 'h ' + minutes + 'm ' + secs + 's';
                 if (hours < 24) className = 'countdown-warning';
             } else {
-                timeString = `${minutes}m ${secs}s`;
+                timeString = minutes + 'm ' + secs + 's';
                 className = 'countdown-warning';
             }
 
-            countdownElement.innerHTML = `<span class="${className}">${timeString}</span>`;
+            countdownElement.innerHTML = '<span class="' + className + '">' + timeString + '</span>';
             remainingSeconds--;
         }, 1000);
     }
 
     function markOrderOverdue(orderId) {
-        const orderCard = document.querySelector(`[data-order-id="${orderId}"]`);
+        var orderCard = document.querySelector('[data-order-id="' + orderId + '"]');
         if (orderCard) {
             orderCard.classList.add('overdue');
         }
@@ -887,24 +2027,43 @@
     }
 
     function refreshCountdownTimers() {
-        // Refresh countdown timers from server
-        fetch('/inventory/purchase-orders/countdown-data/')
-            .then(response => response.json())
-            .then(data => {
-                data.orders.forEach(order => {
+        // Check if fetch is available
+        if (typeof window.fetch !== 'function') {
+            console.warn('Fetch API not available, skipping countdown refresh');
+            return;
+        }
+
+        try {
+            // Refresh countdown timers from server
+            window.fetch('/inventory/purchase-orders/countdown-data/', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'same-origin'
+            })
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                data.orders.forEach(function(order) {
                     if (order.countdown_seconds > 0) {
                         startCountdown(order.id, order.countdown_seconds);
                     }
                 });
             })
-            .catch(error => console.error('Error refreshing countdown data:', error));
+            .catch(function(error) {
+                console.error('Error refreshing countdown data:', error);
+            });
+        } catch (error) {
+            console.error('Error in refreshCountdownTimers:', error);
+        }
     }
 
     function updateOrderStatistics() {
-        const inTransitCount = document.querySelectorAll('[data-status="in_transit"]').length;
-        const overdueCount = document.querySelectorAll('.order-card.overdue').length;
-        const deliveredCount = document.querySelectorAll('[data-status="delivered"]').length;
-        const issuesCount = document.querySelectorAll('[data-status="issue_reported"]').length;
+        var inTransitCount = document.querySelectorAll('[data-status="in_transit"]').length;
+        var overdueCount = document.querySelectorAll('.order-card.overdue').length;
+        var deliveredCount = document.querySelectorAll('[data-status="delivered"]').length;
+        var issuesCount = document.querySelectorAll('[data-status="issue_reported"]').length;
 
         document.getElementById('in-transit-count').textContent = inTransitCount;
         document.getElementById('overdue-count').textContent = overdueCount;
@@ -913,9 +2072,9 @@
     }
 
     function filterOrders(status) {
-        const orderCards = document.querySelectorAll('.order-card');
+        var orderCards = document.querySelectorAll('.order-card');
 
-        orderCards.forEach(card => {
+        orderCards.forEach(function(card) {
             if (status === 'all') {
                 card.style.display = 'block';
             } else if (status === 'in_transit') {
@@ -929,79 +2088,303 @@
     }
 
     function confirmDelivery(orderId) {
-        // Fetch order details and populate modal
-        fetch(`/inventory/purchase-orders/${orderId}/details/`)
-            .then(response => response.json())
-            .then(data => {
-                populateDeliveryModal(data);
-                new bootstrap.Modal(document.getElementById('deliveryConfirmationModal')).show();
-            })
-            .catch(error => {
-                console.error('Error fetching order details:', error);
-                alert('Unable to load order details. Please try again.');
-            });
+        console.log('confirmDelivery called with orderId:', orderId);
+        console.log('orderId type:', typeof orderId);
+
+        // Validate orderId
+        if (!orderId) {
+            alert('Invalid order ID');
+            return;
+        }
+
+        // Ensure orderId is a number
+        orderId = parseInt(orderId);
+        if (isNaN(orderId)) {
+            alert('Invalid order ID format');
+            return;
+        }
+
+        console.log('Using orderId:', orderId);
+
+        // Debug: Check if ordersData exists
+        console.log('ordersData available:', !!ordersData);
+        console.log('ordersData keys:', Object.keys(ordersData || {}));
+        console.log('Looking for order ID:', orderId);
+
+        // Get order data from embedded JSON (no API call needed)
+        var orderData = null;
+        if (ordersData) {
+            // Search for the order with matching ID (ordersData is an array, not an object keyed by ID)
+            for (var i = 0; i < ordersData.length; i++) {
+                if (ordersData[i] && ordersData[i].id === orderId) {
+                    orderData = ordersData[i];
+                    break;
+                }
+            }
+        }
+
+        if (orderData) {
+            console.log('Using embedded order data for order:', orderId);
+            console.log('Order data:', orderData);
+
+            try {
+                // Check if modal exists
+                var modal = document.getElementById('deliveryConfirmationModal');
+                if (!modal) {
+                    throw new Error('Delivery confirmation modal not found');
+                }
+
+                // Check if required elements exist
+                var requiredElements = ['confirmOrderId', 'confirmOrderNumber', 'confirmSupplier', 'confirmAmount', 'confirmExpectedDate', 'itemChecklist'];
+                for (var i = 0; i < requiredElements.length; i++) {
+                    var element = document.getElementById(requiredElements[i]);
+                    if (!element) {
+                        throw new Error('Required modal element not found: ' + requiredElements[i]);
+                    }
+                }
+
+                populateDeliveryModal(orderData);
+                new bootstrap.Modal(modal).show();
+                return;
+            } catch (error) {
+                console.error('Error populating delivery modal:', error);
+                alert('Error loading delivery confirmation form: ' + error.message);
+                return;
+            }
+        } else {
+            console.log('Order data not found in embedded data for order:', orderId);
+            // Simple fallback: show modal with basic info
+            try {
+                var modal = document.getElementById('deliveryConfirmationModal');
+                if (!modal) {
+                    throw new Error('Delivery confirmation modal not found');
+                }
+
+                // Set basic order info
+                document.getElementById('confirmOrderId').value = orderId;
+                document.getElementById('confirmOrderNumber').textContent = 'Order #' + orderId;
+                document.getElementById('confirmSupplier').textContent = 'Loading...';
+                document.getElementById('confirmAmount').textContent = 'Loading...';
+                document.getElementById('confirmExpectedDate').textContent = 'Loading...';
+
+                // Clear item checklist
+                document.getElementById('itemChecklist').innerHTML = '<p class="text-muted">Loading items...</p>';
+
+                new bootstrap.Modal(modal).show();
+                return;
+            } catch (error) {
+                console.error('Error showing modal:', error);
+                alert('Error loading delivery confirmation form: ' + error.message);
+                return;
+            }
+        }
+
+        // Fallback: if embedded data not available, try API call
+        console.log('Embedded data not found, falling back to API call...');
+
+        // Use XMLHttpRequest directly (same as working test function)
+        console.log('Using XMLHttpRequest for reliable API call...');
+
+        var url = '/inventory/purchase-orders/' + orderId + '/details/';
+        console.log('Attempting to fetch order details from URL:', url);
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.setRequestHeader('Accept', 'application/json');
+
+        var csrfToken = getCookie('csrftoken');
+        if (csrfToken) {
+            xhr.setRequestHeader('X-CSRFToken', csrfToken);
+        }
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                console.log('XHR Status:', xhr.status);
+                console.log('XHR Response:', xhr.responseText);
+
+                if (xhr.status === 200) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        console.log('Successfully parsed order data:', data);
+                        console.log('Order ID:', data.id);
+
+                        // Populate modal and show it
+                        populateDeliveryModal(data);
+                        new bootstrap.Modal(document.getElementById('deliveryConfirmationModal')).show();
+
+                    } catch (parseError) {
+                        console.error('JSON parse error:', parseError);
+                        alert('Error parsing server response: ' + parseError.message);
+                    }
+                } else if (xhr.status === 403) {
+                    alert('Access denied. Head Manager role required.');
+                } else if (xhr.status === 404) {
+                    alert('Order not found.');
+                } else {
+                    alert('Server error: HTTP ' + xhr.status);
+                }
+            }
+        };
+
+        xhr.onerror = function() {
+            console.error('XHR network error');
+            alert('Network error. Please check your connection and try again.');
+        };
+
+        xhr.send();
+
+
+
+
     }
 
     function populateDeliveryModal(orderData) {
-        document.getElementById('confirmOrderId').value = orderData.id;
-        document.getElementById('confirmOrderNumber').textContent = orderData.order_number;
-        document.getElementById('confirmSupplier').textContent = orderData.supplier.name;
-        document.getElementById('confirmAmount').textContent = `ETB ${orderData.total_amount}`;
-        document.getElementById('confirmExpectedDate').textContent = orderData.expected_delivery_date || 'Not specified';
+        console.log('populateDeliveryModal called with:', orderData);
+
+        // Validate orderData structure
+        if (!orderData) {
+            throw new Error('Order data is null or undefined');
+        }
+
+        if (!orderData.id) {
+            throw new Error('Order data missing id field');
+        }
+
+        if (!orderData.supplier) {
+            throw new Error('Order data missing supplier field');
+        }
+
+        if (!orderData.supplier.name) {
+            throw new Error('Order data missing supplier name field');
+        }
+
+        // Populate modal fields with error handling
+        try {
+            document.getElementById('confirmOrderId').value = orderData.id;
+            document.getElementById('confirmOrderNumber').textContent = orderData.order_number || 'Unknown';
+            document.getElementById('confirmSupplier').textContent = orderData.supplier.name;
+            document.getElementById('confirmAmount').textContent = 'ETB ' + (orderData.total_amount || '0.00');
+            document.getElementById('confirmExpectedDate').textContent = orderData.expected_delivery_date || 'Not specified';
+        } catch (error) {
+            console.error('Error setting modal fields:', error);
+            throw new Error('Failed to populate modal fields: ' + error.message);
+        }
 
         // Populate item checklist
-        const checklist = document.getElementById('itemChecklist');
+        var checklist = document.getElementById('itemChecklist');
         checklist.innerHTML = '';
 
-        orderData.items.forEach(item => {
-            const itemDiv = document.createElement('div');
+        orderData.items.forEach(function(item) {
+            var itemDiv = document.createElement('div');
             itemDiv.className = 'form-check mb-2';
-            itemDiv.innerHTML = `
-                <input class="form-check-input" type="checkbox" id="item-${item.id}" name="received_items" value="${item.id}" checked>
-                <label class="form-check-label" for="item-${item.id}">
-                    <strong>${item.quantity_ordered}x ${item.product_name}</strong>
-                    <small class="text-muted d-block">Expected: ${item.quantity_ordered} | Unit Price: ETB ${item.unit_price}</small>
-                </label>
-            `;
+            itemDiv.innerHTML =
+                '<input class="form-check-input" type="checkbox" id="item-' + item.id + '" name="received_items" value="' + item.id + '" checked>' +
+                '<label class="form-check-label" for="item-' + item.id + '">' +
+                    '<strong>' + item.quantity_ordered + 'x ' + item.product_name + '</strong>' +
+                    '<small class="text-muted d-block">Expected: ' + item.quantity_ordered + ' | Unit Price: ETB ' + item.unit_price + '</small>' +
+                '</label>';
             checklist.appendChild(itemDiv);
         });
     }
 
     function reportIssue(orderId) {
-        // Fetch order details and populate issue modal
-        fetch(`/inventory/purchase-orders/${orderId}/details/`)
-            .then(response => response.json())
-            .then(data => {
+        console.log('reportIssue called with orderId:', orderId);
+
+        // Validate orderId
+        if (!orderId) {
+            alert('Invalid order ID');
+            return;
+        }
+
+        // Get order data from embedded JSON (no API call needed)
+        if (ordersData && ordersData[orderId]) {
+            console.log('Using embedded order data for issue report:', orderId);
+            var orderData = ordersData[orderId];
+
+            try {
+                populateIssueModal(orderData);
+                new bootstrap.Modal(document.getElementById('issueReportModal')).show();
+                return;
+            } catch (error) {
+                console.error('Error populating issue modal:', error);
+                alert('Error loading issue report form. Please try again.');
+                return;
+            }
+        }
+
+        // Fallback: if embedded data not available, try API call
+        console.log('Embedded data not found, falling back to API call...');
+
+        // Check if fetch is available
+        if (typeof window.fetch !== 'function') {
+            alert('Your browser does not support this feature. Please update your browser.');
+            return;
+        }
+
+        // Construct URL safely
+        var url = '/inventory/purchase-orders/' + orderId + '/details/';
+
+        try {
+            // Fetch order details and populate issue modal
+            window.fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'same-origin'
+            })
+            .then(function(response) {
+                if (!response.ok) {
+                    if (response.status === 403) {
+                        throw new Error('Access denied. Head Manager role required.');
+                    } else if (response.status === 404) {
+                        throw new Error('Order not found.');
+                    } else if (response.status === 302) {
+                        throw new Error('Please log in as a Head Manager to access this feature.');
+                    } else {
+                        throw new Error('Server error: ' + response.status);
+                    }
+                }
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
                 populateIssueModal(data);
                 new bootstrap.Modal(document.getElementById('issueReportModal')).show();
             })
-            .catch(error => {
+            .catch(function(error) {
                 console.error('Error fetching order details:', error);
-                alert('Unable to load order details. Please try again.');
+                alert(error.message || 'Unable to load order details. Please try again.');
             });
+        } catch (error) {
+            console.error('Error in reportIssue:', error);
+            alert('An error occurred. Please try again.');
+        }
     }
 
     function populateIssueModal(orderData) {
         document.getElementById('issueOrderId').value = orderData.id;
         document.getElementById('issueOrderNumber').textContent = orderData.order_number;
         document.getElementById('issueSupplier').textContent = orderData.supplier.name;
-        document.getElementById('issueAmount').textContent = `ETB ${orderData.total_amount}`;
+        document.getElementById('issueAmount').textContent = 'ETB ' + orderData.total_amount;
         document.getElementById('issueExpectedDate').textContent = orderData.expected_delivery_date || 'Not specified';
 
         // Populate affected items checklist
-        const checklist = document.getElementById('affectedItemsChecklist');
+        var checklist = document.getElementById('affectedItemsChecklist');
         checklist.innerHTML = '';
 
-        orderData.items.forEach(item => {
-            const itemDiv = document.createElement('div');
+        orderData.items.forEach(function(item) {
+            var itemDiv = document.createElement('div');
             itemDiv.className = 'form-check mb-2';
-            itemDiv.innerHTML = `
-                <input class="form-check-input" type="checkbox" id="affected-item-${item.id}" name="affected_items" value="${item.id}">
-                <label class="form-check-label" for="affected-item-${item.id}">
-                    <strong>${item.quantity_ordered}x ${item.product_name}</strong>
-                    <small class="text-muted d-block">Unit Price: ETB ${item.unit_price}</small>
-                </label>
-            `;
+            itemDiv.innerHTML =
+                '<input class="form-check-input" type="checkbox" id="affected-item-' + item.id + '" name="affected_items" value="' + item.id + '">' +
+                '<label class="form-check-label" for="affected-item-' + item.id + '">' +
+                    '<strong>' + item.quantity_ordered + 'x ' + item.product_name + '</strong>' +
+                    '<small class="text-muted d-block">Unit Price: ETB ' + item.unit_price + '</small>' +
+                '</label>';
             checklist.appendChild(itemDiv);
         });
     }
@@ -1009,83 +2392,113 @@
 
 
     function submitDeliveryConfirmation() {
-        const form = document.getElementById('deliveryConfirmationForm');
-        const formData = new FormData(form);
-
-        // Add received items
-        const receivedItems = [];
-        document.querySelectorAll('input[name="received_items"]:checked').forEach(checkbox => {
-            receivedItems.push(checkbox.value);
-        });
-        formData.append('received_items', JSON.stringify(receivedItems));
-
-        // Add photos
-        const photos = document.getElementById('deliveryPhotos').files;
-        for (let i = 0; i < photos.length; i++) {
-            formData.append('delivery_photos', photos[i]);
+        // Check if fetch is available
+        if (typeof window.fetch !== 'function') {
+            alert('Your browser does not support this feature. Please update your browser.');
+            return;
         }
 
-        fetch(`/inventory/purchase-orders/${formData.get('order_id')}/confirm-delivery/`, {
+        try {
+            var form = document.getElementById('deliveryConfirmationForm');
+            var formData = new FormData(form);
+
+            // Add received items
+            var receivedItems = [];
+            document.querySelectorAll('input[name="received_items"]:checked').forEach(function(checkbox) {
+                receivedItems.push(checkbox.value);
+            });
+            formData.append('received_items', JSON.stringify(receivedItems));
+
+            // Add photos
+            var photos = document.getElementById('deliveryPhotos').files;
+            for (var i = 0; i < photos.length; i++) {
+                formData.append('delivery_photos', photos[i]);
+            }
+
+            var orderId = formData.get('order_id');
+            var url = '/inventory/purchase-orders/' + orderId + '/confirm-delivery/';
+
+            window.fetch(url, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCookie('csrftoken'),
             },
-            body: formData
+            body: formData,
+            credentials: 'same-origin'
         })
-            .then(response => response.json())
-            .then(data => {
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
                 if (data.success) {
                     bootstrap.Modal.getInstance(document.getElementById('deliveryConfirmationModal')).hide();
                     showSuccessMessage('Delivery confirmed successfully!');
-                    setTimeout(() => location.reload(), 1500);
+                    setTimeout(function() { location.reload(); }, 1500);
                 } else {
                     alert('Error: ' + data.message);
                 }
             })
-            .catch(error => {
+            .catch(function(error) {
                 console.error('Error confirming delivery:', error);
                 alert('Unable to confirm delivery. Please try again.');
             });
+        } catch (error) {
+            console.error('Error in submitDeliveryConfirmation:', error);
+            alert('An error occurred. Please try again.');
+        }
     }
 
     function submitIssueReport() {
-        const form = document.getElementById('issueReportForm');
-        const formData = new FormData(form);
-
-        // Add affected items
-        const affectedItems = [];
-        document.querySelectorAll('input[name="affected_items"]:checked').forEach(checkbox => {
-            affectedItems.push(checkbox.value);
-        });
-        formData.append('affected_items', JSON.stringify(affectedItems));
-
-        // Add photos
-        const photos = document.getElementById('issuePhotos').files;
-        for (let i = 0; i < photos.length; i++) {
-            formData.append('issue_photos', photos[i]);
+        // Check if fetch is available
+        if (typeof window.fetch !== 'function') {
+            alert('Your browser does not support this feature. Please update your browser.');
+            return;
         }
 
-        fetch(`/inventory/purchase-orders/${formData.get('order_id')}/report-issue/`, {
+        try {
+            var form = document.getElementById('issueReportForm');
+            var formData = new FormData(form);
+
+            // Add affected items
+            var affectedItems = [];
+            document.querySelectorAll('input[name="affected_items"]:checked').forEach(function(checkbox) {
+                affectedItems.push(checkbox.value);
+            });
+            formData.append('affected_items', JSON.stringify(affectedItems));
+
+            // Add photos
+            var photos = document.getElementById('issuePhotos').files;
+            for (var i = 0; i < photos.length; i++) {
+                formData.append('issue_photos', photos[i]);
+            }
+
+            var orderId = formData.get('order_id');
+            var url = '/inventory/purchase-orders/' + orderId + '/report-issue/';
+
+            window.fetch(url, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCookie('csrftoken'),
             },
-            body: formData
+            body: formData,
+            credentials: 'same-origin'
         })
-            .then(response => response.json())
-            .then(data => {
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
                 if (data.success) {
                     bootstrap.Modal.getInstance(document.getElementById('issueReportModal')).hide();
                     showWarningMessage('Issue reported successfully. Supplier has been notified.');
-                    setTimeout(() => location.reload(), 1500);
+                    setTimeout(function() { location.reload(); }, 1500);
                 } else {
                     alert('Error: ' + data.message);
                 }
             })
-            .catch(error => {
+            .catch(function(error) {
                 console.error('Error reporting issue:', error);
                 alert('Unable to report issue. Please try again.');
             });
+        } catch (error) {
+            console.error('Error in submitIssueReport:', error);
+            alert('An error occurred. Please try again.');
+        }
     }
 
     function setupPhotoPreview() {
@@ -1101,14 +2514,14 @@
     }
 
     function showPhotoPreview(files, containerId) {
-        const container = document.getElementById(containerId);
+        var container = document.getElementById(containerId);
         container.innerHTML = '';
 
-        Array.from(files).forEach(file => {
+        Array.from(files).forEach(function(file) {
             if (file.type.startsWith('image/')) {
-                const reader = new FileReader();
+                var reader = new FileReader();
                 reader.onload = function (e) {
-                    const img = document.createElement('img');
+                    var img = document.createElement('img');
                     img.src = e.target.result;
                     img.className = 'img-thumbnail';
                     img.style.width = '100px';
@@ -1122,49 +2535,47 @@
     }
 
     function showSuccessMessage(message) {
-        const toast = document.createElement('div');
+        var toast = document.createElement('div');
         toast.className = 'toast align-items-center text-white bg-success border-0';
-        toast.innerHTML = `
-            <div class="d-flex">
-                <div class="toast-body">
-                    <i class="bi bi-check-circle me-2"></i>${message}
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
-        `;
+        toast.innerHTML =
+            '<div class="d-flex">' +
+                '<div class="toast-body">' +
+                    '<i class="bi bi-check-circle me-2"></i>' + message +
+                '</div>' +
+                '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>' +
+            '</div>';
 
-        const container = getOrCreateToastContainer();
+        var container = getOrCreateToastContainer();
         container.appendChild(toast);
         new bootstrap.Toast(toast).show();
 
-        toast.addEventListener('hidden.bs.toast', () => {
+        toast.addEventListener('hidden.bs.toast', function() {
             container.removeChild(toast);
         });
     }
 
     function showWarningMessage(message) {
-        const toast = document.createElement('div');
+        var toast = document.createElement('div');
         toast.className = 'toast align-items-center text-white bg-warning border-0';
-        toast.innerHTML = `
-            <div class="d-flex">
-                <div class="toast-body">
-                    <i class="bi bi-exclamation-triangle me-2"></i>${message}
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
-        `;
+        toast.innerHTML =
+            '<div class="d-flex">' +
+                '<div class="toast-body">' +
+                    '<i class="bi bi-exclamation-triangle me-2"></i>' + message +
+                '</div>' +
+                '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>' +
+            '</div>';
 
-        const container = getOrCreateToastContainer();
+        var container = getOrCreateToastContainer();
         container.appendChild(toast);
         new bootstrap.Toast(toast).show();
 
-        toast.addEventListener('hidden.bs.toast', () => {
+        toast.addEventListener('hidden.bs.toast', function() {
             container.removeChild(toast);
         });
     }
 
     function getOrCreateToastContainer() {
-        let container = document.getElementById('toast-container');
+        var container = document.getElementById('toast-container');
         if (!container) {
             container = document.createElement('div');
             container.id = 'toast-container';
@@ -1176,11 +2587,11 @@
     }
 
     function getCookie(name) {
-        let cookieValue = null;
+        var cookieValue = null;
         if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = cookies[i].trim();
                 if (cookie.substring(0, name.length + 1) === (name + '=')) {
                     cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
                     break;
@@ -1192,7 +2603,53 @@
 
     function viewIssues(orderId) {
         // Redirect to order detail page with issues tab
-        window.location.href = `/inventory/purchase-orders/${orderId}/?tab=issues`;
+        window.location.href = '/inventory/purchase-orders/' + orderId + '/?tab=issues';
+    }
+
+    // Simple test function for delivery confirmation API
+    function testDeliveryAPI(orderId) {
+        console.log('Testing delivery API with order ID:', orderId);
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/inventory/purchase-orders/' + orderId + '/details/', true);
+        xhr.setRequestHeader('Accept', 'application/json');
+
+        var csrfToken = getCookie('csrftoken');
+        if (csrfToken) {
+            xhr.setRequestHeader('X-CSRFToken', csrfToken);
+        }
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                console.log('XHR Test - Status:', xhr.status);
+                console.log('XHR Test - Response:', xhr.responseText);
+
+                if (xhr.status === 200) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        console.log('XHR Test - Parsed data:', data);
+                        console.log('XHR Test - Has ID:', 'id' in data);
+                        console.log('XHR Test - ID value:', data.id);
+                        alert('API Test Success! Order ID: ' + data.id + ', Order Number: ' + data.order_number);
+
+                        // Now try to populate the modal
+                        try {
+                            populateDeliveryModal(data);
+                            alert('Modal population test successful!');
+                        } catch (modalError) {
+                            alert('Modal population failed: ' + modalError.message);
+                        }
+                    } catch (e) {
+                        console.error('XHR Test - Parse error:', e);
+                        alert('API Test Failed: Invalid JSON response');
+                    }
+                } else {
+                    alert('API Test Failed: HTTP ' + xhr.status);
+                }
+            }
+        };
+
+        xhr.send();
     }
 </script>
 {% endblock %}

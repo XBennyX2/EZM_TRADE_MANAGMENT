@@ -15,150 +15,21 @@
         <div class="ezm-card-header d-flex justify-content-between align-items-center">
           <div>
             <h3 class="mb-1 text-white">
-              <i class="bi bi-cart-plus me-2" style="color: #66FCF1;"></i>Order
+              <i class="bi bi-cart-plus me-2" style="color: #66FCF1;"></i>Point of Sale
             </h3>
-            <p class="mb-0" style="color: #C5C6C7;">Store: {{ store.name }} | Cashier: {{ request.user.first_name }}</p>
+            <p class="mb-0" style="color: #C5C6C7;">Store: {{ store.name }} | Salesperson: {{ request.user.first_name }}</p>
           </div>
-
+          <div>
+            <a href="{% url 'ticket_management' %}" class="btn btn-ezm-secondary btn-sm">
+              <i class="bi bi-ticket-perforated me-1"></i>Customer Tickets
+            </a>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Customer Tickets Section -->
-  {% if pending_count > 0 %}
-  <div class="row mb-4">
-    <div class="col-12">
-      <div class="ezm-card">
-        <div class="ezm-card-header">
-          <div class="d-flex justify-content-between align-items-center">
-            <h5 class="mb-0 text-white">
-              <i class="bi bi-ticket-perforated me-2" style="color: #66FCF1;"></i>Customer Tickets
-              <span class="badge ms-2" style="background-color: #dc3545;">{{ pending_count }} pending</span>
-            </h5>
-            <button class="btn btn-ezm-secondary btn-sm" onclick="toggleTicketsSection()">
-              <i class="bi bi-chevron-down me-1" id="tickets-toggle-icon"></i>
-              <span id="tickets-toggle-text">Show Tickets</span>
-            </button>
-          </div>
-        </div>
-        <div class="card-body" id="tickets-section" style="background-color: #1F2833; display: none;">
-          <!-- Search and Filter Controls -->
-          <form method="GET" class="row g-3 mb-4">
-            <div class="col-md-4">
-              <div class="input-group">
-                <span class="input-group-text" style="background-color: #45A29E; border-color: #45A29E; color: white;">
-                  <i class="bi bi-telephone"></i>
-                </span>
-                <input type="text" class="form-control" name="phone" value="{{ phone_search }}"
-                  placeholder="Phone number search"
-                  style="background-color: #0B0C10; border-color: #45A29E; color: #C5C6C7;">
-              </div>
-            </div>
-            <div class="col-md-3">
-              <select class="form-select" name="status"
-                style="background-color: #0B0C10; border-color: #45A29E; color: #C5C6C7;">
-                {% for value, label in status_choices %}
-                <option value="{{ value }}">{{ label }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="col-md-3">
-              <select class="form-select" name="sort"
-                style="background-color: #0B0C10; border-color: #45A29E; color: #C5C6C7;">
-                {% for value, label in sort_choices %}
-                <option value="{{ value }}">{{ label }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="col-md-2">
-              <button type="submit" class="btn btn-ezm-primary w-100">
-                <i class="bi bi-search me-1"></i>Search
-              </button>
-            </div>
-          </form>
 
-          <!-- Tickets Display -->
-          {% if tickets %}
-          <div class="row">
-            {% for ticket_data in tickets %}
-            <div class="col-md-6 col-xl-4 mb-3">
-              <div class="ezm-card h-100 ticket-card" style="transition: all 0.3s ease;">
-                <div class="card-header d-flex justify-content-between align-items-center"
-                  style="background-color: #0B0C10; border-bottom: 1px solid #45A29E;">
-                  <small style="color: #C5C6C7;">#{{ ticket_data.ticket.ticket_number }}</small>
-                  <span class="badge bg-{{ ticket_data.status_color }}">
-                    <i class="{{ ticket_data.status_icon }} me-1"></i>{{ ticket_data.ticket.status|upper }}
-                  </span>
-                </div>
-                <div class="card-body" style="background-color: #1F2833;">
-                  <h6 class="card-title mb-2 text-white">
-                    <i class="bi bi-person me-1"></i>{{ ticket_data.ticket.customer_name|default:"Customer" }}
-                  </h6>
-                  <div class="ticket-info mb-3">
-                    <div class="d-flex justify-content-between mb-1">
-                      <small style="color: #C5C6C7;">Phone:</small>
-                      <strong style="color: #66FCF1;">{{ ticket_data.ticket.customer_phone }}</strong>
-                    </div>
-                    <div class="d-flex justify-content-between mb-1">
-                      <small style="color: #C5C6C7;">Items:</small>
-                      <span style="color: #C5C6C7;">{{ ticket_data.total_quantity }} units ({{ ticket_data.items_count
-                        }} products)</span>
-                    </div>
-                    <div class="d-flex justify-content-between mb-2">
-                      <small style="color: #C5C6C7;">Total:</small>
-                      <strong style="color: #45A29E;">ETB {{ ticket_data.ticket.total_amount }}</strong>
-                    </div>
-                  </div>
-                  {% if ticket_data.items_preview %}
-                  <div class="items-preview mb-3">
-                    <small style="color: #C5C6C7;" class="d-block">Items:</small>
-                    <small style="color: #C5C6C7;" class="text-truncate d-block">
-                      {% for item in ticket_data.items_preview %}
-                      {{ item.quantity }}x {{ item.product_name }}{% if not forloop.last %}, {% endif %}
-                      {% endfor %}
-                      {% if ticket_data.has_more_items %} +{{ ticket_data.items_count|add:"-2" }} more{% endif %}
-                    </small>
-                  </div>
-                  {% endif %}
-
-                  <!-- Process Button -->
-                  {% if ticket_data.ticket.status != 'completed' and ticket_data.ticket.status != 'cancelled' %}
-                  <div class="d-grid">
-                    <button class="btn btn-ezm-primary btn-sm"
-                      onclick="processTicketToCart('{{ ticket_data.ticket.ticket_number }}')">
-                      <i class="bi bi-cart-plus me-1"></i>Process Order
-                    </button>
-                  </div>
-                  {% else %}
-                  <div class="d-grid">
-                    {% if ticket_data.ticket.status == 'completed' %}
-                    <button class="btn btn-success btn-sm" disabled>
-                      <i class="bi bi-check-circle me-1"></i>Completed
-                    </button>
-                    {% else %}
-                    <button class="btn btn-secondary btn-sm" disabled>
-                      <i class="bi bi-x-circle me-1"></i>Cancelled
-                    </button>
-                    {% endif %}
-                  </div>
-                  {% endif %}
-                </div>
-              </div>
-            </div>
-            {% endfor %}
-          </div>
-          {% else %}
-          <div class="text-center py-4">
-            <i class="bi bi-ticket-perforated fs-2" style="color: #C5C6C7;"></i>
-            <p class="mt-2 mb-0" style="color: #C5C6C7;">No tickets found</p>
-          </div>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </div>
-  {% endif %}
 
   <div class="row">
     <!-- Product Selection -->
@@ -221,7 +92,7 @@
 
     <!-- Shopping Cart -->
     <div class="col-lg-4">
-      <div class="ezm-card sticky-top" style="top: 20px; z-index: 100;">
+      <div class="ezm-card " style="top: 20px; z-index: 100;">
         <div class="ezm-card-header d-flex justify-content-between align-items-center">
           <h5 class="mb-0 text-white">
             <i class="bi bi-cart3 me-2" style="color: #66FCF1;"></i>Shopping Cart
@@ -686,20 +557,97 @@
   try {
     const cartDataElement = document.getElementById('cartData');
     const cartDataValue = cartDataElement ? cartDataElement.value : '{}';
+    console.log('DEBUG: Raw cart data from server:', cartDataValue);
     cart = JSON.parse(cartDataValue || '{}');
+    console.log('DEBUG: Parsed cart data:', cart);
     if (!cart.items) cart.items = [];
     if (!cart.total) cart.total = 0;
+    console.log('DEBUG: Final cart structure:', cart);
   } catch (error) {
     console.error('Error parsing cart data:', error);
     cart = { items: [], total: 0 };
   }
   let currentTicketNumber = null; // Track if this order is from a ticket
 
+  // Load cart data from localStorage
+  function loadCartFromLocalStorage() {
+    try {
+      const cartData = localStorage.getItem('pos_cart_data');
+      const customerInfo = localStorage.getItem('pos_customer_info');
+
+      if (cartData) {
+        console.log('DEBUG: Loading cart from localStorage');
+        const parsedCartData = JSON.parse(cartData);
+
+        // Update cart with localStorage data
+        cart = {
+          items: parsedCartData.items || [],
+          total: parsedCartData.total || 0
+        };
+
+        console.log('DEBUG: Cart loaded from localStorage:', cart);
+
+        // Load customer information if available
+        if (customerInfo) {
+          const parsedCustomerInfo = JSON.parse(customerInfo);
+          const customerNameField = document.getElementById('customerName');
+          const customerPhoneField = document.getElementById('customerPhone');
+
+          if (customerNameField && parsedCustomerInfo.name) {
+            customerNameField.value = parsedCustomerInfo.name;
+          }
+          if (customerPhoneField && parsedCustomerInfo.phone) {
+            customerPhoneField.value = parsedCustomerInfo.phone;
+          }
+        }
+
+        // Set ticket info if this cart is from a ticket
+        if (parsedCartData.from_ticket && parsedCartData.ticket_info) {
+          currentTicketNumber = parsedCartData.ticket_info.ticket_number;
+
+          // Update page header to show ticket info
+          const headerElement = document.querySelector('.ezm-card-header h3');
+          if (headerElement) {
+            headerElement.innerHTML = `
+              <i class="bi bi-ticket-perforated me-2" style="color: #66FCF1;"></i>
+              Processing Ticket #${parsedCartData.ticket_info.ticket_number}
+            `;
+          }
+
+          // Save ticket info to session for Django
+          saveTicketInfoToSession(parsedCartData.ticket_info);
+
+          // Show notification
+          showNotification(`Ticket #${parsedCartData.ticket_info.ticket_number} loaded successfully! ${cart.items.length} items in cart.`, 'success');
+        }
+
+        // Save cart to Django session immediately
+        saveCartToSession();
+
+        // Clear localStorage after loading (single use)
+        localStorage.removeItem('pos_cart_data');
+        localStorage.removeItem('pos_customer_info');
+
+        return true; // Indicate that cart was loaded from localStorage
+      }
+    } catch (error) {
+      console.error('Error loading cart from localStorage:', error);
+      showNotification('Error loading cart data', 'error');
+    }
+
+    return false; // No cart data in localStorage
+  }
+
   // Initialize
   document.addEventListener('DOMContentLoaded', function () {
-    // Check if we have ticket data to load
+    console.log('DEBUG: DOM loaded, initializing cart display');
+    // Load cart data from localStorage first
+    loadCartFromLocalStorage();
+    // Check if we have ticket data to load (legacy support)
     loadTicketDataIfExists();
+    // Always update cart display on page load
     updateCartDisplay();
+    updateTotals();
     attachEventListeners();
   });
 
@@ -921,7 +869,15 @@
             console.log('Response data:', data); // Debug log
             if (data.success) {
               cart = data.cart;
+              console.log('DEBUG: Updated cart after adding item:', cart);
+
+              // Update localStorage to keep it in sync
+              saveCartToLocalStorage();
+
+              // Update the display and totals
               updateCartDisplay();
+              updateTotals();
+
               showNotification(data.message, 'success');
             } else {
               showNotification(data.error || 'Unknown error occurred', 'error');
@@ -956,53 +912,84 @@
 
   // Update cart display
   function updateCartDisplay() {
+    console.log('DEBUG: updateCartDisplay called with cart:', cart);
+    console.log('DEBUG: Cart items array:', cart.items);
+    console.log('DEBUG: Number of items in cart:', cart.items ? cart.items.length : 0);
+
     const cartItems = document.getElementById('cartItems');
+
+    // Force clear the container
     cartItems.innerHTML = '';
 
-    if (cart.items && cart.items.length > 0) {
-      cart.items.forEach((item, index) => {
-        const itemDiv = document.createElement('div');
-        itemDiv.className = 'cart-item';
-        itemDiv.style.animationDelay = `${index * 0.1}s`;
-        itemDiv.innerHTML = `
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="mb-1 text-white">${item.product_name}</h6>
-                        <small style="color: #C5C6C7;">ETB ${item.price} x ${item.quantity}</small>
-                    </div>
-                    <div class="text-end">
-                        <div class="mb-2" style="color: #66FCF1; font-weight: bold;">ETB ${item.subtotal.toFixed(2)}</div>
-                        <button class="btn btn-sm" onclick="removeFromCart(${item.product_id})"
-                                style="background-color: #dc3545; border-color: #dc3545; color: white;"
-                                onmouseover="this.style.backgroundColor='#c82333'"
-                                onmouseout="this.style.backgroundColor='#dc3545'">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-        cartItems.appendChild(itemDiv);
-      });
+    // Add a small delay to ensure DOM is updated
+    setTimeout(() => {
+      if (cart.items && cart.items.length > 0) {
+        console.log('DEBUG: Displaying', cart.items.length, 'cart items');
 
-      document.getElementById('completeOrder').disabled = false;
-    } else {
-      cartItems.innerHTML = `
-        <div class="text-center py-4">
-          <i class="bi bi-cart-x fs-2" style="color: #C5C6C7;"></i>
-          <p class="mt-2 mb-0" style="color: #C5C6C7;">Cart is empty</p>
-        </div>
-      `;
-      document.getElementById('completeOrder').disabled = true;
-    }
+        cart.items.forEach((item, index) => {
+          console.log('DEBUG: Processing cart item:', item);
 
-    updateTotals();
+          const itemDiv = document.createElement('div');
+          itemDiv.className = 'cart-item';
+          itemDiv.style.animationDelay = `${index * 0.1}s`;
+          itemDiv.setAttribute('data-product-id', item.product_id); // Add data attribute for easier debugging
+
+          itemDiv.innerHTML = `
+                  <div class="d-flex justify-content-between align-items-center">
+                      <div>
+                          <h6 class="mb-1 text-white">${item.product_name}</h6>
+                          <small style="color: #C5C6C7;">ETB ${(item.price || 0)} x ${item.quantity}</small>
+                      </div>
+                      <div class="text-end">
+                          <div class="mb-2" style="color: #66FCF1; font-weight: bold;">ETB ${(item.subtotal || item.total_price || (item.price * item.quantity) || 0).toFixed(2)}</div>
+                          <button class="btn btn-sm remove-btn" onclick="removeFromCart(${item.product_id})"
+                                  style="background-color: #dc3545; border-color: #dc3545; color: white;"
+                                  onmouseover="this.style.backgroundColor='#c82333'"
+                                  onmouseout="this.style.backgroundColor='#dc3545'"
+                                  data-product-id="${item.product_id}">
+                              <i class="bi bi-trash"></i>
+                          </button>
+                      </div>
+                  </div>
+              `;
+          cartItems.appendChild(itemDiv);
+        });
+
+        document.getElementById('completeOrder').disabled = false;
+        console.log('DEBUG: Cart display updated with', cart.items.length, 'items');
+      } else {
+        console.log('DEBUG: Cart is empty or has no items');
+        cartItems.innerHTML = `
+          <div class="text-center py-4">
+            <i class="bi bi-cart-x fs-2" style="color: #C5C6C7;"></i>
+            <p class="mt-2 mb-0" style="color: #C5C6C7;">Cart is empty</p>
+          </div>
+        `;
+        document.getElementById('completeOrder').disabled = true;
+      }
+
+      updateTotals();
+    }, 50); // Small delay to ensure DOM updates
   }
 
   // Update totals
   function updateTotals() {
-    const subtotal = cart.total || 0;
+    // Calculate subtotal from cart items if cart.total is not available or incorrect
+    let subtotal = 0;
+    if (cart.items && cart.items.length > 0) {
+      subtotal = cart.items.reduce((sum, item) => {
+        const itemTotal = item.subtotal || item.total_price || (item.price * item.quantity) || 0;
+        return sum + parseFloat(itemTotal);
+      }, 0);
+    }
+
+    // Use calculated subtotal or fallback to cart.total
+    subtotal = subtotal || cart.total || 0;
+
     const taxAmount = subtotal * 0.15; // Always apply 15% tax
     const total = subtotal + taxAmount;
+
+    console.log('DEBUG: updateTotals - subtotal:', subtotal, 'tax:', taxAmount, 'total:', total);
 
     document.getElementById('subtotal').textContent = `ETB ${subtotal.toFixed(2)}`;
     document.getElementById('taxAmount').textContent = `ETB ${taxAmount.toFixed(2)}`;
@@ -1067,96 +1054,7 @@
     }
   });
 
-  // Ticket functionality
-  function toggleTicketsSection() {
-    const section = document.getElementById('tickets-section');
-    const icon = document.getElementById('tickets-toggle-icon');
-    const text = document.getElementById('tickets-toggle-text');
 
-    if (section.style.display === 'none') {
-      section.style.display = 'block';
-      icon.className = 'bi bi-chevron-up me-1';
-      text.textContent = 'Hide Tickets';
-    } else {
-      section.style.display = 'none';
-      icon.className = 'bi bi-chevron-down me-1';
-      text.textContent = 'Show Tickets';
-    }
-  }
-
-  // Process ticket to cart
-  async function processTicketToCart(ticketNumber) {
-    try {
-      // Show loading state
-      const button = event.target;
-      const originalText = button.innerHTML;
-      button.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Processing...';
-      button.disabled = true;
-
-      // Fetch ticket data
-      // Ensure fetch is available and properly scoped
-      const fetchFunction = window.fetch || fetch;
-      if (!fetchFunction) {
-        console.error('Fetch API not available');
-        showNotification('Browser does not support required features', 'error');
-        return;
-      }
-
-      const response = await fetchFunction(`/stores/api/tickets/${ticketNumber}/`);
-      const data = await response.json();
-
-      if (data.success) {
-        const ticket = data.ticket;
-
-        // Clear current cart
-        cart = { items: [], total: 0 };
-
-        // Add ticket items to cart
-        for (const item of ticket.items) {
-          const cartItem = {
-            product_id: item.product_id,
-            product_name: item.product_name,
-            price: parseFloat(item.unit_price),
-            quantity: item.quantity,
-            subtotal: parseFloat(item.total_price)
-          };
-          cart.items.push(cartItem);
-        }
-
-        // Update cart total
-        cart.total = ticket.total_amount;
-
-        // Pre-fill customer information
-        document.getElementById('customerName').value = ticket.customer_name || 'Walk-in Customer';
-        document.getElementById('customerPhone').value = ticket.customer_phone || '';
-
-        // Update cart display
-        updateCartDisplay();
-        updateTotals();
-
-        // Set ticket tracking
-        currentTicketNumber = ticketNumber;
-
-        // Show success message
-        showNotification(`Ticket #${ticketNumber} loaded successfully! ${ticket.items.length} items added to cart.`, 'success');
-
-        // Hide tickets section
-        document.getElementById('tickets-section').style.display = 'none';
-        document.getElementById('tickets-toggle-icon').className = 'bi bi-chevron-down me-1';
-        document.getElementById('tickets-toggle-text').textContent = 'Show Tickets';
-
-      } else {
-        showNotification('Failed to load ticket: ' + data.error, 'error');
-      }
-    } catch (error) {
-      console.error('Error processing ticket:', error);
-      showNotification('Network error. Please try again.', 'error');
-    } finally {
-      // Restore button state
-      button.innerHTML = originalText;
-      button.disabled = false;
-    }
-  }
 
   // Unified notification function
   function showNotification(message, type = 'info') {
@@ -1186,8 +1084,39 @@
     showNotification(message, type);
   }
 
+  // Save cart to localStorage
+  function saveCartToLocalStorage() {
+    try {
+      console.log('DEBUG: Saving cart to localStorage:', cart);
+      localStorage.setItem('pos_cart_data', JSON.stringify(cart));
+
+      // Also save customer info if available
+      const customerName = document.getElementById('customerName')?.value || '';
+      const customerPhone = document.getElementById('customerPhone')?.value || '';
+      if (customerName || customerPhone) {
+        const customerInfo = {
+          name: customerName,
+          phone: customerPhone
+        };
+        localStorage.setItem('pos_customer_info', JSON.stringify(customerInfo));
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error saving cart to localStorage:', error);
+      return false;
+    }
+  }
+
   // Remove from cart
   function removeFromCart(productId) {
+    console.log('DEBUG: Removing product from cart:', productId, typeof productId);
+    console.log('DEBUG: Current cart before removal:', cart);
+
+    // Ensure productId is a number
+    productId = parseInt(productId);
+    console.log('DEBUG: Converted productId to:', productId, typeof productId);
+
     // Use XMLHttpRequest to avoid fetch context issues
     const xhr = new XMLHttpRequest();
     xhr.open('POST', '{% url "remove_from_cart" %}', true);
@@ -1199,9 +1128,28 @@
         try {
           if (xhr.status === 200) {
             const data = JSON.parse(xhr.responseText);
+            console.log('DEBUG: Remove from cart response:', data);
+
             if (data.success) {
+              console.log('DEBUG: Cart before update:', cart);
+
+              // Update the cart variable with the response from server
               cart = data.cart;
-              updateCartDisplay();
+              console.log('DEBUG: Cart after update from server:', cart);
+
+              // Force a complete re-render by clearing the cart display first
+              const cartItems = document.getElementById('cartItems');
+              cartItems.innerHTML = '<div class="text-center py-2"><i class="bi bi-hourglass-split"></i> Updating...</div>';
+
+              // Update localStorage to keep it in sync
+              saveCartToLocalStorage();
+
+              // Update the display immediately with a small delay to ensure DOM is ready
+              setTimeout(() => {
+                updateCartDisplay();
+                updateTotals();
+              }, 100);
+
               showNotification(data.message, 'success');
             } else {
               showNotification(data.error || 'Error removing item', 'error');
@@ -1236,6 +1184,14 @@
   // Complete order
   document.getElementById('completeOrder').addEventListener('click', function () {
     console.log('Complete order button clicked'); // Debug log
+    console.log('Current cart:', cart); // Debug log
+
+    // Save cart to session one more time before completing order
+    const cartSaved = saveCartToSession();
+    if (!cartSaved) {
+      showNotification('Error saving cart data. Please try again.', 'error');
+      return;
+    }
 
     // Validate customer data before proceeding
     const customerName = document.getElementById('customerName').value.trim();
@@ -1346,7 +1302,11 @@
               updateCartDisplay();
 
               // Show success message and receipt
-              showNotification('Order completed successfully!', 'success');
+              let successMessage = 'Order completed successfully!';
+              if (currentTicketNumber) {
+                successMessage = `Order completed successfully! Ticket #${currentTicketNumber} has been processed.`;
+              }
+              showNotification(successMessage, 'success');
 
               // Store receipt data for modal
               window.currentReceipt = data.receipt || data;
@@ -1585,20 +1545,118 @@
   // Order button
   document.getElementById('newOrderBtn').addEventListener('click', function () {
     bootstrap.Modal.getInstance(document.getElementById('orderSuccessModal')).hide();
+
+    // Reset everything for new order
+    cart = { items: [], total: 0 };
+    currentTicketNumber = null;
+
     // Reset form
     document.getElementById('customerName').value = '';
     document.getElementById('customerPhone').value = '';
     document.getElementById('paymentType').value = 'cash';
+
+    // Reset page header to default
+    const headerElement = document.querySelector('.ezm-card-header h3');
+    if (headerElement) {
+      headerElement.innerHTML = '<i class="bi bi-cart-plus me-2" style="color: #66FCF1;"></i>Point of Sale';
+    }
+
+    // Clear any localStorage data
+    localStorage.removeItem('pos_cart_data');
+    localStorage.removeItem('pos_customer_info');
+
+    // Update display
+    updateCartDisplay();
     updateTotals();
+
+    showNotification('Ready for new order', 'info');
   });
 
   // Clear cart
   document.getElementById('clearCart').addEventListener('click', function () {
-    if (confirm('Are you sure you want to clear the cart?')) {
+    let confirmMessage = 'Are you sure you want to clear the cart?';
+    if (currentTicketNumber) {
+      confirmMessage = `Are you sure you want to clear the cart?\n\nThis will cancel processing of ticket #${currentTicketNumber}.`;
+    }
+
+    if (confirm(confirmMessage)) {
       cart = { items: [], total: 0 };
+      currentTicketNumber = null;
+
+      // Reset page header
+      const headerElement = document.querySelector('.ezm-card-header h3');
+      if (headerElement) {
+        headerElement.innerHTML = '<i class="bi bi-cart-plus me-2" style="color: #66FCF1;"></i>Point of Sale';
+      }
+
+      // Clear localStorage
+      localStorage.removeItem('pos_cart_data');
+      localStorage.removeItem('pos_customer_info');
+
       updateCartDisplay();
+      updateTotals();
+
+      showNotification('Cart cleared', 'info');
     }
   });
+
+
+
+  // Save cart to Django session (synchronous)
+  function saveCartToSession() {
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '{% url "save_cart_to_session" %}', false); // Synchronous
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+
+      xhr.send(JSON.stringify({
+        cart: cart
+      }));
+
+      if (xhr.status === 200) {
+        console.log('Cart saved to Django session successfully');
+        return true;
+      } else {
+        console.error('Failed to save cart to session:', xhr.status, xhr.responseText);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error saving cart to session:', error);
+      return false;
+    }
+  }
+
+  // Save ticket info to Django session (synchronous)
+  function saveTicketInfoToSession(ticketInfo) {
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '{% url "save_ticket_info_to_session" %}', false); // Synchronous
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+
+      xhr.send(JSON.stringify({
+        ticket_info: {
+          from_ticket: true,
+          ticket_id: ticketInfo.ticket_id,
+          ticket_number: ticketInfo.ticket_number,
+          customer_name: ticketInfo.customer_name,
+          customer_phone: ticketInfo.customer_phone
+        }
+      }));
+
+      if (xhr.status === 200) {
+        console.log('Ticket info saved to Django session successfully');
+        return true;
+      } else {
+        console.error('Failed to save ticket info to session:', xhr.status, xhr.responseText);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error saving ticket info to session:', error);
+      return false;
+    }
+  }
 
   // Utility functions are defined above
 

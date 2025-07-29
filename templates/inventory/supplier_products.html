@@ -128,8 +128,7 @@
                             <select name="category" class="form-select">
                                 <option value="">All Categories</option>
                                 {% for value, label in categories %}
-                                <option value="{{ value }}" {% ifequal value selected_category %}selected{% endifequal
-                                    %}>
+                                <option value="{{ value }}" {% if value == selected_category %}selected{% endif %}>
                                     {{ label }}
                                 </option>
                                 {% endfor %}

@@ -49,6 +49,41 @@ class EditProfileForm(forms.ModelForm):
     class Meta:
         model = CustomUser
         fields = ['first_name', 'last_name', 'email', 'phone_number']
+        widgets = {
+            'phone_number': forms.TextInput(attrs={
+                'placeholder': 'e.g., 09xxxxxxxx or +2519xxxxxxxx',
+                'class': 'form-control'
+            })
+        }
+
+    def clean_phone_number(self):
+        phone_number = self.cleaned_data.get('phone_number')
+
+        if not phone_number:
+            return phone_number  # Allow empty phone numbers
+
+        # Remove all spaces and special characters except +
+        clean_phone = phone_number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+
+        # Ethiopian phone number validation patterns
+        import re
+        patterns = [
+            r'^09\d{8}$',           # 09xxxxxxxx (10 digits total)
+            r'^07\d{8}$',           # 07xxxxxxxx (10 digits total)
+            r'^\+2519\d{8}$',       # +2519xxxxxxxx (international format)
+            r'^\+2517\d{8}$'        # +2517xxxxxxxx (international format)
+        ]
+
+        # Check if phone number matches any valid pattern
+        is_valid = any(re.match(pattern, clean_phone) for pattern in patterns)
+
+        if not is_valid:
+            raise forms.ValidationError(
+                'Please enter a valid Ethiopian phone number. '
+                'Valid formats: 09xxxxxxxx, 07xxxxxxxx, +2519xxxxxxxx, or +2517xxxxxxxx'
+            )
+
+        return clean_phone  # Return the cleaned phone number
 
 class AdminSettingsForm(forms.Form):
     CHOICES = [

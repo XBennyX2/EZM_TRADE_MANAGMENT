@@ -15,6 +15,7 @@ from django.db.models import Sum, Count, Avg, F, Q
 from django.utils import timezone
 from datetime import datetime, timedelta
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 from decimal import Decimal
@@ -1202,10 +1203,13 @@ def first_login_password_change(request):
             messages.error(request, 'New password must be different from current password.')
             return render(request, 'users/first_login_password_change.html', {'user': request.user})
 
-        # Verify password strength (basic validation)
-        if len(new_password) < 8:
-            messages.error(request, 'New password must be at least 8 characters long.')
-            return render(request, 'users/first_login_password_change.html', {'user': request.user})
+        # Verify password strength using regex
+        if len(new_password) < 8 or \
+            not re.search(r'[A-Z]', new_password) or \
+            not re.search(r'[a-z]', new_password) or \
+            not re.search(r'\d', new_password):
+                messages.error(request, 'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one digit.')
+                return render(request, 'users/first_login_password_change.html', {'user': request.user})
 
         # Update password and mark first login as complete
         request.user.set_password(new_password)

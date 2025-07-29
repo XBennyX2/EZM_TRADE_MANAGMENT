@@ -1,6 +1,15 @@
 {% extends 'base_sidebar.html' %}
 {% load static %}
+
 {% load widget_tweaks %}
+{% load static %}
+
+{% block title %}Edit Profile{% endblock %}
+{% block page_title %}Edit Profile{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
 
 {% block title %}Edit Profile{% endblock %}
 {% block page_title %}Edit Profile{% endblock %}
@@ -31,6 +40,7 @@
             <div class="ezm-card">
                 <div class="ezm-card-header">
                     <i class="bi bi-pencil-square me-2"></i>Profile Information
+
                 </div>
                 <div class="card-body p-4">
                     <form method="post">
@@ -47,6 +57,7 @@
                             <div class="text-danger mt-1">
                                 {% for error in field.errors %}
                                 <small>{{ error }}</small>
+
                                 {% endfor %}
                             </div>
                             {% endif %}
@@ -61,6 +72,7 @@
                                class="btn btn-secondary">
                                 <i class="bi bi-arrow-left me-2"></i>Back to Settings
                             </a>
+
                         </div>
                     </form>
                 </div>

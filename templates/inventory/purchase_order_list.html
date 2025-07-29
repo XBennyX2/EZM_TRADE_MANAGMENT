@@ -191,6 +191,74 @@
         border-bottom: 3px solid var(--accent-teal);
     }
 
+    /* Tab Content Styling */
+    .tab-content {
+        margin-top: 0;
+    }
+
+    .tab-pane {
+        display: none !important;
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+    }
+
+    .tab-pane.active {
+        display: block !important;
+        opacity: 1;
+    }
+
+    .tab-pane.show.active {
+        display: block !important;
+        opacity: 1;
+    }
+
+    /* Force visibility for active tab panes */
+    .tab-pane.show {
+        display: block !important;
+        opacity: 1;
+    }
+
+    /* Ensure tab content is visible */
+    #orderTabsContent .tab-pane {
+        min-height: 200px;
+    }
+
+    #orderTabsContent .tab-pane.active {
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+
+    /* Enhanced tab animation */
+    .tab-pane.show.active {
+        border: 2px solid transparent;
+        animation: fadeInTab 0.4s ease-in-out;
+    }
+
+    @keyframes fadeInTab {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Ensure Bootstrap tab navigation works */
+    .nav-tabs .nav-link.active {
+        background-color: rgba(102, 252, 241, 0.1) !important;
+        border-bottom: 3px solid var(--accent-teal) !important;
+        color: var(--accent-teal) !important;
+        font-weight: 600 !important;
+    }
+
+    /* Tab hover effects */
+    .nav-tabs .nav-link:hover:not(.active) {
+        background-color: rgba(102, 252, 241, 0.05);
+        border-bottom: 2px solid rgba(102, 252, 241, 0.3);
+    }
+
     /* Search and Filter Enhancements */
     .form-control:focus {
         border-color: var(--accent-teal);
@@ -234,31 +302,7 @@
         margin-right: 1rem;
     }
 
-    /* Enhanced Tab Styling */
-    .nav-tabs {
-        border-bottom: 2px solid var(--accent-teal);
-    }
 
-    .nav-tabs .nav-link {
-        border: none;
-        color: var(--primary-dark);
-        font-weight: 500;
-        padding: 1rem 1.5rem;
-        transition: all 0.3s ease;
-    }
-
-    .nav-tabs .nav-link:hover {
-        border-color: transparent;
-        color: var(--accent-teal);
-        background-color: rgba(102, 252, 241, 0.1);
-    }
-
-    .nav-tabs .nav-link.active {
-        color: var(--accent-teal);
-        background-color: rgba(102, 252, 241, 0.1);
-        border-color: transparent;
-        border-bottom: 3px solid var(--accent-teal);
-    }
 
     /* Real-time indicator */
     .real-time-indicator {
@@ -306,12 +350,6 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <p class="mb-0">Comprehensive purchase order tracking, delivery management, and supplier coordination</p>
                         <div class="d-flex gap-2">
-                            <a href="{% url 'purchase_order_create' %}" class="btn btn-ezm-primary btn-sm">
-                                <i class="bi bi-plus-circle me-1"></i>New Order
-                            </a>
-                            <button class="btn btn-ezm-secondary btn-sm" onclick="exportResults()">
-                                <i class="bi bi-download me-1"></i>Export
-                            </button>
                             <button class="btn btn-ezm-secondary btn-sm" onclick="window.location.reload()">
                                 <i class="bi bi-arrow-clockwise me-1"></i>Refresh
                             </button>
@@ -581,9 +619,6 @@
                                     {% if order.is_in_transit %}
                                     <button class="btn btn-success btn-sm" onclick="confirmDelivery({{ order.id }})">
                                         <i class="bi bi-check-circle me-1"></i>Confirm Delivery
-                                    </button>
-                                    <button class="btn btn-warning btn-sm" onclick="reportIssue({{ order.id }})">
-                                        <i class="bi bi-exclamation-triangle me-1"></i>Report Issue
                                     </button>
                                     {% elif order.status == 'payment_confirmed' %}
                                     <span class="badge bg-success">
@@ -915,7 +950,7 @@
         <!-- End Overview Tab -->
 
         <!-- Order Tracking Tab -->
-        <div class="tab-pane fade" id="tracking" role="tabpanel" aria-labelledby="tracking-tab">
+        <div class="tab-pane fade" id="tracking" role="tabpanel" aria-labelledby="tracking-tab" tabindex="0">
             <div class="row">
                 <div class="col-12">
                     <div class="ezm-card">
@@ -929,7 +964,10 @@
                                 {% for order in purchase_orders %}
                                 <div class="order-card {% if order.is_overdue %}overdue{% elif order.is_in_transit %}in-transit{% elif order.is_delivered %}delivered{% endif %}"
                                     data-order-id="{{ order.id }}" data-status="{{ order.status }}"
-                                    data-countdown="{{ order.delivery_countdown_seconds }}">
+                                    data-countdown="{{ order.delivery_countdown_seconds|default:0 }}"
+                                    data-order-number="{{ order.order_number }}"
+                                    data-supplier="{{ order.supplier.name }}"
+                                    data-total="{{ order.total_amount|floatformat:2 }}">
 
                                     <div class="card-body p-4">
                                         <!-- Order Header -->
@@ -1042,9 +1080,6 @@
                                             <button class="btn btn-success btn-sm" onclick="confirmDelivery({{ order.id }})">
                                                 <i class="bi bi-check-circle me-1"></i>Confirm Delivery
                                             </button>
-                                            <button class="btn btn-warning btn-sm" onclick="reportIssue({{ order.id }})">
-                                                <i class="bi bi-exclamation-triangle me-1"></i>Report Issue
-                                            </button>
                                             {% elif order.status == 'payment_confirmed' %}
                                             <span class="badge bg-success">
                                                 <i class="bi bi-check-circle me-1"></i>Payment Confirmed
@@ -1078,7 +1113,7 @@
         <!-- End Order Tracking Tab -->
 
         <!-- Table View Tab -->
-        <div class="tab-pane fade" id="table" role="tabpanel" aria-labelledby="table-tab">
+        <div class="tab-pane fade" id="table" role="tabpanel" aria-labelledby="table-tab" tabindex="0">
             <div class="row">
                 <div class="col-12">
                     <div class="ezm-card">
@@ -1087,7 +1122,7 @@
                             <span class="badge bg-primary ms-2">{{ purchase_orders|length }}</span>
                         </div>
                         <div class="card-body p-0">
-                            <!-- Table content will be moved here -->
+                            {% if purchase_orders %}
                             <div class="table-responsive">
                                 <table class="table table-hover mb-0">
                                     <thead class="table-light">
@@ -1148,6 +1183,13 @@
                                                         class="btn btn-sm btn-outline-info" title="View Details">
                                                         <i class="bi bi-eye"></i>
                                                     </a>
+                                                    {% if order.is_in_transit %}
+                                                    <button class="btn btn-sm btn-success"
+                                                            onclick="confirmDelivery({{ order.id }})"
+                                                            title="Confirm Delivery">
+                                                        <i class="bi bi-check-circle"></i>
+                                                    </button>
+                                                    {% endif %}
                                                 </div>
                                             </td>
                                         </tr>
@@ -1155,6 +1197,13 @@
                                     </tbody>
                                 </table>
                             </div>
+                            {% else %}
+                            <div class="text-center py-5">
+                                <i class="bi bi-table" style="font-size: 4rem; color: var(--light-gray);"></i>
+                                <h4 class="mt-3 mb-2" style="color: var(--primary-dark);">No Purchase Orders Found</h4>
+                                <p class="text-muted">Purchase orders will appear here once they are created.</p>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -1476,11 +1525,15 @@
     // Initialize the order tracking system
     document.addEventListener('DOMContentLoaded', function () {
         console.log('DOM loaded, initializing order tracking system...');
+
+        // Initialize tabs first to ensure proper display
+        initializeTabs();
+
+        // Then initialize other components
         initializeCountdownTimers();
         updateOrderStatistics();
         setupPhotoPreview();
         initializeSearchAndFilters();
-        initializeTabs();
 
         // Refresh data every 30 seconds
         setInterval(function () {
@@ -1489,6 +1542,98 @@
         }, 30000);
 
         console.log('Order tracking system initialized. You can test the API by calling: testFetchAPI(25)');
+
+        // Add validation function
+        window.validatePageComponents = function() {
+            console.log('=== Page Component Validation ===');
+
+            // Check Bootstrap
+            console.log('Bootstrap loaded:', typeof bootstrap !== 'undefined');
+
+            // Check tabs
+            var tabContainer = document.querySelector('#orderTabs');
+            var tabContent = document.querySelector('#orderTabsContent');
+            var tabs = document.querySelectorAll('#orderTabs button[data-bs-toggle="tab"]');
+            var panes = document.querySelectorAll('.tab-pane');
+
+            console.log('Tab container found:', !!tabContainer);
+            console.log('Tab content found:', !!tabContent);
+            console.log('Number of tabs:', tabs.length);
+            console.log('Number of panes:', panes.length);
+
+            // Log each tab and pane
+            tabs.forEach(function(tab, index) {
+                var target = tab.getAttribute('data-bs-target');
+                var targetPane = document.querySelector(target);
+                console.log('Tab ' + index + ':', {
+                    id: tab.id,
+                    target: target,
+                    active: tab.classList.contains('active'),
+                    paneExists: !!targetPane,
+                    paneActive: targetPane ? targetPane.classList.contains('active') : false,
+                    paneVisible: targetPane ? getComputedStyle(targetPane).display !== 'none' : false
+                });
+            });
+
+            // Check countdown timers
+            var countdownElements = document.querySelectorAll('[data-countdown]');
+            console.log('Countdown elements:', countdownElements.length);
+            console.log('Active intervals:', Object.keys(countdownIntervals).length);
+
+            // Check order data
+            console.log('Orders data loaded:', !!ordersData);
+            if (ordersData) {
+                console.log('Number of orders:', Array.isArray(ordersData) ? ordersData.length : Object.keys(ordersData).length);
+            }
+
+            // Check purchase_orders template variable
+            console.log('Purchase orders from template:', '{{ purchase_orders|length }}');
+
+            console.log('=== Validation Complete ===');
+            return {
+                bootstrap: typeof bootstrap !== 'undefined',
+                tabs: tabs.length,
+                panes: panes.length,
+                countdowns: countdownElements.length,
+                ordersData: !!ordersData
+            };
+        };
+
+        // Run validation after initialization
+        setTimeout(function() {
+            var result = window.validatePageComponents();
+            console.log('Validation result:', result);
+
+            // Force show tracking tab for testing
+            window.forceShowTab = function(tabId) {
+                console.log('Forcing tab show:', tabId);
+                var tab = document.querySelector('#' + tabId);
+                var target = tab ? tab.getAttribute('data-bs-target') : null;
+                var pane = target ? document.querySelector(target) : null;
+
+                if (tab && pane) {
+                    // Remove active from all tabs and panes
+                    document.querySelectorAll('#orderTabs .nav-link').forEach(function(t) {
+                        t.classList.remove('active');
+                        t.setAttribute('aria-selected', 'false');
+                    });
+                    document.querySelectorAll('.tab-pane').forEach(function(p) {
+                        p.classList.remove('show', 'active');
+                    });
+
+                    // Activate target tab and pane
+                    tab.classList.add('active');
+                    tab.setAttribute('aria-selected', 'true');
+                    pane.classList.add('show', 'active');
+
+                    console.log('Tab forced:', tabId, 'Pane visible:', getComputedStyle(pane).display !== 'none');
+                } else {
+                    console.error('Tab or pane not found:', tabId, !!tab, !!pane);
+                }
+            };
+
+            console.log('Force tab function available as window.forceShowTab("tracking-tab")');
+        }, 1000);
 
         // Check current user authentication status
         console.log('Current user info:', {
@@ -1508,30 +1653,223 @@
             return;
         }
 
-        // Initialize all tab triggers
+        // Get all tab elements
+        var tabContainer = document.querySelector('#orderTabs');
+        var tabContent = document.querySelector('#orderTabsContent');
+
+        if (!tabContainer || !tabContent) {
+            console.error('Tab container or content not found!');
+            return;
+        }
+
+        // Get all tab triggers and panes
         var triggerTabList = [].slice.call(document.querySelectorAll('#orderTabs button[data-bs-toggle="tab"]'));
+        var tabPanes = document.querySelectorAll('.tab-pane');
+
         console.log('Found tab triggers:', triggerTabList.length);
+        console.log('Found tab panes:', tabPanes.length);
 
+        if (triggerTabList.length === 0) {
+            console.error('No tab triggers found!');
+            return;
+        }
+
+        // Remove any existing active classes from non-overview tabs
+        tabPanes.forEach(function(pane) {
+            if (pane.id !== 'overview') {
+                pane.classList.remove('show', 'active');
+            }
+        });
+
+        // Set up each tab with proper Bootstrap 5 initialization
         triggerTabList.forEach(function (triggerEl) {
-            console.log('Initializing tab:', triggerEl.id);
-            var tabTrigger = new bootstrap.Tab(triggerEl);
+            console.log('Setting up tab:', triggerEl.id, 'target:', triggerEl.getAttribute('data-bs-target'));
 
+            // Initialize Bootstrap Tab instance
+            var tabInstance = new bootstrap.Tab(triggerEl);
+
+            // Add click event listener to ensure tab switching works
             triggerEl.addEventListener('click', function (event) {
                 event.preventDefault();
                 console.log('Tab clicked:', triggerEl.id);
-                tabTrigger.show();
+
+                // Use Bootstrap's built-in tab switching
+                tabInstance.show();
+            });
+
+            // Enhanced event listeners for better tab management
+            triggerEl.addEventListener('show.bs.tab', function (event) {
+                console.log('Tab showing:', event.target.id);
+
+                // Hide all other panes
+                document.querySelectorAll('.tab-pane').forEach(function(pane) {
+                    if (pane.id !== event.target.getAttribute('data-bs-target').substring(1)) {
+                        pane.classList.remove('show', 'active');
+                    }
+                });
+            });
+
+            // Add event listeners for when tabs are shown
+            triggerEl.addEventListener('shown.bs.tab', function (event) {
+                console.log('Tab shown:', event.target.id);
+                var targetPane = event.target.getAttribute('data-bs-target');
+                console.log('Target pane:', targetPane);
+
+                // Refresh any dynamic content when tab is shown
+                if (event.target.id === 'tracking-tab') {
+                    console.log('Refreshing countdown timers for tracking tab');
+                    setTimeout(function() {
+                        refreshCountdownTimers();
+                    }, 100);
+                }
             });
         });
 
-        // Ensure the first tab is active
-        var firstTab = document.querySelector('#orderTabs button[data-bs-toggle="tab"]');
-        if (firstTab) {
-            console.log('Activating first tab:', firstTab.id);
-            var firstTabInstance = new bootstrap.Tab(firstTab);
-            firstTabInstance.show();
+        // Ensure the overview tab is properly set as active
+        var overviewTab = document.querySelector('#overview-tab');
+        var overviewPane = document.querySelector('#overview');
+
+        if (overviewTab && overviewPane) {
+            // Make sure overview tab is active
+            overviewTab.classList.add('active');
+            overviewTab.setAttribute('aria-selected', 'true');
+
+            // Make sure overview pane is active
+            overviewPane.classList.add('show', 'active');
+
+            console.log('Overview tab activated');
         }
 
         console.log('Bootstrap tabs initialized successfully');
+
+        // Add a test function to verify tabs are working
+        window.testTabs = function() {
+            console.log('=== Testing Tab Functionality ===');
+            var tabs = document.querySelectorAll('#orderTabs button[data-bs-toggle="tab"]');
+            var panes = document.querySelectorAll('.tab-pane');
+
+            console.log('Available tabs:', tabs.length);
+            console.log('Available panes:', panes.length);
+
+            tabs.forEach(function(tab, index) {
+                var target = tab.getAttribute('data-bs-target');
+                var targetPane = document.querySelector(target);
+                console.log('Tab ' + index + ':', {
+                    id: tab.id,
+                    target: target,
+                    active: tab.classList.contains('active'),
+                    paneExists: !!targetPane,
+                    paneActive: targetPane ? targetPane.classList.contains('active') : false
+                });
+            });
+
+            // Test manual tab switching
+            console.log('Testing manual tab switching...');
+            if (tabs.length > 1) {
+                // Test tracking tab
+                setTimeout(function() {
+                    console.log('Switching to tracking tab...');
+                    tabs[1].click(); // Use click instead of Bootstrap API
+                }, 1000);
+
+                // Test table tab
+                setTimeout(function() {
+                    if (tabs[2]) {
+                        console.log('Switching to table tab...');
+                        tabs[2].click(); // Use click instead of Bootstrap API
+                    }
+                }, 3000);
+
+                // Back to overview
+                setTimeout(function() {
+                    console.log('Switching back to overview tab...');
+                    tabs[0].click(); // Use click instead of Bootstrap API
+                }, 5000);
+            }
+        };
+
+        // Add manual tab switching functions
+        window.showTrackingTab = function() {
+            console.log('Manually showing tracking tab...');
+            var trackingTab = document.querySelector('#tracking-tab');
+            if (trackingTab) {
+                trackingTab.click();
+            }
+        };
+
+        window.showTableTab = function() {
+            console.log('Manually showing table tab...');
+            var tableTab = document.querySelector('#table-tab');
+            if (tableTab) {
+                tableTab.click();
+            }
+        };
+
+        window.showOverviewTab = function() {
+            console.log('Manually showing overview tab...');
+            var overviewTab = document.querySelector('#overview-tab');
+            if (overviewTab) {
+                overviewTab.click();
+            }
+        };
+
+        // Add a comprehensive tab test function
+        window.testOrderTrackingTab = function() {
+            console.log('=== Testing Order Tracking Tab Specifically ===');
+
+            var trackingTab = document.querySelector('#tracking-tab');
+            var trackingPane = document.querySelector('#tracking');
+
+            if (!trackingTab) {
+                console.error('❌ Tracking tab not found');
+                return false;
+            }
+
+            if (!trackingPane) {
+                console.error('❌ Tracking pane not found');
+                return false;
+            }
+
+            console.log('✅ Tracking tab and pane found');
+
+            // Test clicking the tracking tab
+            console.log('🔄 Clicking tracking tab...');
+            trackingTab.click();
+
+            // Check if it became active
+            setTimeout(function() {
+                var isTabActive = trackingTab.classList.contains('active');
+                var isPaneActive = trackingPane.classList.contains('active');
+                var isPaneVisible = trackingPane.classList.contains('show');
+
+                console.log('Tab active:', isTabActive);
+                console.log('Pane active:', isPaneActive);
+                console.log('Pane visible:', isPaneVisible);
+                console.log('Pane display style:', getComputedStyle(trackingPane).display);
+
+                if (isTabActive && isPaneActive && isPaneVisible) {
+                    console.log('✅ Order tracking tab is working perfectly!');
+                    return true;
+                } else {
+                    console.log('❌ Order tracking tab has issues');
+                    return false;
+                }
+            }, 500);
+        };
+
+        window.showOverviewTab = function() {
+            console.log('Manually showing overview tab...');
+            var overviewTab = document.querySelector('#overview-tab');
+            if (overviewTab) {
+                overviewTab.click();
+            }
+        };
+
+        console.log('Tab test functions available:');
+        console.log('- window.testTabs()');
+        console.log('- window.showTrackingTab()');
+        console.log('- window.showTableTab()');
+        console.log('- window.showOverviewTab()');
     }
 
     // Initialize search and filter functionality
@@ -1597,39 +1935,62 @@
         window.location.href = '{% url "purchase_order_list" %}';
     }
 
-    // Export filtered results
-    function exportResults() {
-        const currentUrl = new URL(window.location);
-        currentUrl.searchParams.set('export', 'csv');
-        window.location.href = currentUrl.toString();
-    }
+
 
     function initializeCountdownTimers() {
-        document.querySelectorAll('[data-countdown]').forEach(function (element) {
+        console.log('Initializing countdown timers...');
+        var countdownElements = document.querySelectorAll('[data-countdown]');
+        console.log('Found countdown elements:', countdownElements.length);
+
+        countdownElements.forEach(function (element) {
             var orderId = element.getAttribute('data-order-id');
-            var countdownSeconds = parseInt(element.getAttribute('data-countdown'));
+            var countdownSeconds = parseInt(element.getAttribute('data-countdown')) || 0;
+
+            console.log('Processing order:', orderId, 'countdown:', countdownSeconds);
 
             if (countdownSeconds > 0) {
                 startCountdown(orderId, countdownSeconds);
+            } else {
+                // Mark as overdue if countdown is 0 or negative
+                var countdownElement = document.getElementById('countdown-' + orderId);
+                if (countdownElement) {
+                    countdownElement.innerHTML = '<span class="countdown-expired">OVERDUE</span>';
+                }
             }
         });
+
+        console.log('Countdown timers initialized');
     }
 
     function startCountdown(orderId, seconds) {
+        console.log('Starting countdown for order:', orderId, 'seconds:', seconds);
         var countdownElement = document.getElementById('countdown-' + orderId);
-        if (!countdownElement) return;
+
+        if (!countdownElement) {
+            console.warn('Countdown element not found for order:', orderId);
+            return;
+        }
 
         // Clear existing interval
         if (countdownIntervals[orderId]) {
             clearInterval(countdownIntervals[orderId]);
+            delete countdownIntervals[orderId];
         }
 
-        var remainingSeconds = seconds;
+        var remainingSeconds = Math.max(0, seconds);
+
+        // If already expired, show overdue immediately
+        if (remainingSeconds <= 0) {
+            countdownElement.innerHTML = '<span class="countdown-expired">OVERDUE</span>';
+            markOrderOverdue(orderId);
+            return;
+        }
 
         countdownIntervals[orderId] = setInterval(function () {
             if (remainingSeconds <= 0) {
                 countdownElement.innerHTML = '<span class="countdown-expired">OVERDUE</span>';
                 clearInterval(countdownIntervals[orderId]);
+                delete countdownIntervals[orderId];
                 markOrderOverdue(orderId);
                 return;
             }
@@ -1728,6 +2089,7 @@
 
     function confirmDelivery(orderId) {
         console.log('confirmDelivery called with orderId:', orderId);
+        console.log('orderId type:', typeof orderId);
 
         // Validate orderId
         if (!orderId) {
@@ -1735,15 +2097,34 @@
             return;
         }
 
+        // Ensure orderId is a number
+        orderId = parseInt(orderId);
+        if (isNaN(orderId)) {
+            alert('Invalid order ID format');
+            return;
+        }
+
+        console.log('Using orderId:', orderId);
+
         // Debug: Check if ordersData exists
         console.log('ordersData available:', !!ordersData);
         console.log('ordersData keys:', Object.keys(ordersData || {}));
         console.log('Looking for order ID:', orderId);
 
         // Get order data from embedded JSON (no API call needed)
-        if (ordersData && ordersData[orderId]) {
+        var orderData = null;
+        if (ordersData) {
+            // Search for the order with matching ID (ordersData is an array, not an object keyed by ID)
+            for (var i = 0; i < ordersData.length; i++) {
+                if (ordersData[i] && ordersData[i].id === orderId) {
+                    orderData = ordersData[i];
+                    break;
+                }
+            }
+        }
+
+        if (orderData) {
             console.log('Using embedded order data for order:', orderId);
-            var orderData = ordersData[orderId];
             console.log('Order data:', orderData);
 
             try {
@@ -1801,175 +2182,60 @@
         // Fallback: if embedded data not available, try API call
         console.log('Embedded data not found, falling back to API call...');
 
-        // Check if fetch is available
-        if (typeof window.fetch !== 'function') {
-            alert('Your browser does not support this feature. Please update your browser.');
-            return;
-        }
+        // Use XMLHttpRequest directly (same as working test function)
+        console.log('Using XMLHttpRequest for reliable API call...');
 
-        // Construct URL safely
         var url = '/inventory/purchase-orders/' + orderId + '/details/';
         console.log('Attempting to fetch order details from URL:', url);
 
-        try {
-            console.log('Starting fetch request...');
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.setRequestHeader('Accept', 'application/json');
 
-            // Get CSRF token
-            var csrfToken = getCookie('csrftoken');
-            console.log('CSRF token:', csrfToken);
-
-            // Fetch order details and populate modal
-            var headers = {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-            };
-
-            // Add CSRF token if available
-            if (csrfToken) {
-                headers['X-CSRFToken'] = csrfToken;
-            }
-
-            var fetchPromise = window.fetch(url, {
-                method: 'GET',
-                headers: headers,
-                credentials: 'same-origin'
-            });
-
-            console.log('Fetch promise created:', fetchPromise);
-
-            fetchPromise
-            .then(function(response) {
-                console.log('Fetch response received:', {
-                    status: response.status,
-                    statusText: response.statusText,
-                    ok: response.ok,
-                    url: response.url,
-                    redirected: response.redirected
-                });
-
-                // Check if we were redirected (likely to login page)
-                if (response.redirected && response.url.includes('/login/')) {
-                    throw new Error('Authentication required. Please refresh the page and log in as a Head Manager.');
-                }
-
-                if (!response.ok) {
-                    if (response.status === 403) {
-                        throw new Error('Access denied. Head Manager role required.');
-                    } else if (response.status === 404) {
-                        throw new Error('Order not found.');
-                    } else if (response.status === 302) {
-                        throw new Error('Please log in as a Head Manager to access this feature.');
-                    } else if (response.status === 0) {
-                        throw new Error('Network error. Please check your connection.');
-                    } else {
-                        throw new Error('Server error: ' + response.status + ' (' + response.statusText + ')');
-                    }
-                }
-
-                // Check if response is actually JSON
-                var contentType = response.headers.get('content-type');
-                console.log('Response content-type:', contentType);
-
-                if (!contentType || !contentType.includes('application/json')) {
-                    throw new Error('Server returned non-JSON response. Expected JSON but got: ' + (contentType || 'unknown'));
-                }
-
-                return response.json().catch(function(jsonError) {
-                    console.error('Failed to parse JSON response:', jsonError);
-                    throw new Error('Server returned invalid JSON. You may need to log in again.');
-                });
-            })
-            .then(function(data) {
-                console.log('Received data:', data);
-
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-
-                // Check if we got redirected to login page
-                if (typeof data === 'string' && data.includes('login')) {
-                    throw new Error('Authentication required. Please refresh the page and log in again.');
-                }
-
-                populateDeliveryModal(data);
-                new bootstrap.Modal(document.getElementById('deliveryConfirmationModal')).show();
-            })
-            .catch(function(error) {
-                console.error('Error fetching order details:', error);
-                console.error('Error details:', {
-                    message: error.message,
-                    name: error.name,
-                    stack: error.stack,
-                    toString: error.toString()
-                });
-
-                var errorMessage = error.message || 'Unable to load order details. Please try again.';
-                if (errorMessage.trim() === '') {
-                    errorMessage = 'An unknown error occurred while loading order details. Please try again or contact support.';
-                }
-
-                // Provide more specific error information
-                if (error.name === 'TypeError') {
-                    errorMessage = 'Network error or CORS issue. Please check your connection and try again.';
-                } else if (error.message.includes('JSON')) {
-                    errorMessage = 'Server response format error. You may need to log in again.';
-                }
-
-                alert('Delivery Confirmation Error: ' + errorMessage);
-
-                // Fallback: redirect to a simple page reload
-                if (confirm('Would you like to refresh the page and try again?')) {
-                    window.location.reload();
-                }
-            });
-        } catch (error) {
-            console.error('Error in confirmDelivery:', error);
-            console.log('Falling back to XMLHttpRequest...');
-
-            // Fallback to XMLHttpRequest
-            var xhr = new XMLHttpRequest();
-            xhr.open('GET', url, true);
-            xhr.setRequestHeader('Accept', 'application/json');
-            xhr.setRequestHeader('Content-Type', 'application/json');
-
-            // Add CSRF token if available
-            var csrfToken = getCookie('csrftoken');
-            if (csrfToken) {
-                xhr.setRequestHeader('X-CSRFToken', csrfToken);
-            }
-
-            xhr.withCredentials = true;
-
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState === 4) {
-                    console.log('XHR response:', {
-                        status: xhr.status,
-                        statusText: xhr.statusText,
-                        responseText: xhr.responseText
-                    });
-
-                    if (xhr.status === 200) {
-                        try {
-                            var data = JSON.parse(xhr.responseText);
-                            populateDeliveryModal(data);
-                            new bootstrap.Modal(document.getElementById('deliveryConfirmationModal')).show();
-                        } catch (parseError) {
-                            console.error('XHR JSON parse error:', parseError);
-                            alert('Error parsing server response. Please try again.');
-                        }
-                    } else {
-                        alert('Error loading order details (XHR): ' + xhr.status + ' - ' + xhr.statusText);
-                    }
-                }
-            };
-
-            xhr.onerror = function() {
-                console.error('XHR network error');
-                alert('Network error. Please check your connection and try again.');
-            };
-
-            xhr.send();
+        var csrfToken = getCookie('csrftoken');
+        if (csrfToken) {
+            xhr.setRequestHeader('X-CSRFToken', csrfToken);
         }
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                console.log('XHR Status:', xhr.status);
+                console.log('XHR Response:', xhr.responseText);
+
+                if (xhr.status === 200) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        console.log('Successfully parsed order data:', data);
+                        console.log('Order ID:', data.id);
+
+                        // Populate modal and show it
+                        populateDeliveryModal(data);
+                        new bootstrap.Modal(document.getElementById('deliveryConfirmationModal')).show();
+
+                    } catch (parseError) {
+                        console.error('JSON parse error:', parseError);
+                        alert('Error parsing server response: ' + parseError.message);
+                    }
+                } else if (xhr.status === 403) {
+                    alert('Access denied. Head Manager role required.');
+                } else if (xhr.status === 404) {
+                    alert('Order not found.');
+                } else {
+                    alert('Server error: HTTP ' + xhr.status);
+                }
+            }
+        };
+
+        xhr.onerror = function() {
+            console.error('XHR network error');
+            alert('Network error. Please check your connection and try again.');
+        };
+
+        xhr.send();
+
+
+
+
     }
 
     function populateDeliveryModal(orderData) {
@@ -2338,6 +2604,52 @@
     function viewIssues(orderId) {
         // Redirect to order detail page with issues tab
         window.location.href = '/inventory/purchase-orders/' + orderId + '/?tab=issues';
+    }
+
+    // Simple test function for delivery confirmation API
+    function testDeliveryAPI(orderId) {
+        console.log('Testing delivery API with order ID:', orderId);
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/inventory/purchase-orders/' + orderId + '/details/', true);
+        xhr.setRequestHeader('Accept', 'application/json');
+
+        var csrfToken = getCookie('csrftoken');
+        if (csrfToken) {
+            xhr.setRequestHeader('X-CSRFToken', csrfToken);
+        }
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                console.log('XHR Test - Status:', xhr.status);
+                console.log('XHR Test - Response:', xhr.responseText);
+
+                if (xhr.status === 200) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        console.log('XHR Test - Parsed data:', data);
+                        console.log('XHR Test - Has ID:', 'id' in data);
+                        console.log('XHR Test - ID value:', data.id);
+                        alert('API Test Success! Order ID: ' + data.id + ', Order Number: ' + data.order_number);
+
+                        // Now try to populate the modal
+                        try {
+                            populateDeliveryModal(data);
+                            alert('Modal population test successful!');
+                        } catch (modalError) {
+                            alert('Modal population failed: ' + modalError.message);
+                        }
+                    } catch (e) {
+                        console.error('XHR Test - Parse error:', e);
+                        alert('API Test Failed: Invalid JSON response');
+                    }
+                } else {
+                    alert('API Test Failed: HTTP ' + xhr.status);
+                }
+            }
+        };
+
+        xhr.send();
     }
 </script>
 {% endblock %}

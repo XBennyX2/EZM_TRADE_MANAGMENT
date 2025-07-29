@@ -208,6 +208,11 @@
         display: block !important;
     }
 
+    /* Force visibility for active tab panes */
+    .tab-pane.show {
+        display: block !important;
+    }
+
     /* Ensure tab content is visible */
     #orderTabsContent .tab-pane {
         min-height: 200px;
@@ -216,6 +221,24 @@
     #orderTabsContent .tab-pane.active {
         opacity: 1;
         visibility: visible;
+    }
+
+    /* Debug styling to help identify tab issues */
+    .tab-pane.show.active {
+        border: 2px solid transparent;
+        animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    /* Ensure Bootstrap tab navigation works */
+    .nav-tabs .nav-link.active {
+        background-color: rgba(102, 252, 241, 0.1) !important;
+        border-bottom: 3px solid var(--accent-teal) !important;
+        color: var(--accent-teal) !important;
     }
 
     /* Search and Filter Enhancements */
@@ -1644,11 +1667,41 @@
         triggerTabList.forEach(function (triggerEl) {
             console.log('Setting up tab:', triggerEl.id, 'target:', triggerEl.getAttribute('data-bs-target'));
 
-            // Remove any manual event listeners to avoid conflicts
-            triggerEl.removeEventListener('click', arguments.callee);
+            // Initialize Bootstrap Tab instance
+            var tabInstance = new bootstrap.Tab(triggerEl);
 
-            // Let Bootstrap handle the tab switching automatically
-            // Just add our custom event listeners for when tabs are shown
+            // Add click event listener to ensure tab switching works
+            triggerEl.addEventListener('click', function (event) {
+                event.preventDefault();
+                console.log('Tab clicked:', triggerEl.id);
+
+                // Hide all tab panes first
+                document.querySelectorAll('.tab-pane').forEach(function(pane) {
+                    pane.classList.remove('show', 'active');
+                });
+
+                // Remove active class from all tabs
+                document.querySelectorAll('#orderTabs .nav-link').forEach(function(tab) {
+                    tab.classList.remove('active');
+                    tab.setAttribute('aria-selected', 'false');
+                });
+
+                // Show the target tab
+                tabInstance.show();
+
+                // Manually activate the tab and pane
+                var targetSelector = triggerEl.getAttribute('data-bs-target');
+                var targetPane = document.querySelector(targetSelector);
+
+                if (targetPane) {
+                    triggerEl.classList.add('active');
+                    triggerEl.setAttribute('aria-selected', 'true');
+                    targetPane.classList.add('show', 'active');
+                    console.log('Tab activated:', triggerEl.id, 'Pane:', targetSelector);
+                }
+            });
+
+            // Add event listeners for when tabs are shown
             triggerEl.addEventListener('shown.bs.tab', function (event) {
                 console.log('Tab shown:', event.target.id);
                 var targetPane = event.target.getAttribute('data-bs-target');
@@ -1708,29 +1761,55 @@
                 // Test tracking tab
                 setTimeout(function() {
                     console.log('Switching to tracking tab...');
-                    var trackingTab = new bootstrap.Tab(tabs[1]);
-                    trackingTab.show();
+                    tabs[1].click(); // Use click instead of Bootstrap API
                 }, 1000);
 
                 // Test table tab
                 setTimeout(function() {
                     if (tabs[2]) {
                         console.log('Switching to table tab...');
-                        var tableTab = new bootstrap.Tab(tabs[2]);
-                        tableTab.show();
+                        tabs[2].click(); // Use click instead of Bootstrap API
                     }
                 }, 3000);
 
                 // Back to overview
                 setTimeout(function() {
                     console.log('Switching back to overview tab...');
-                    var overviewTab = new bootstrap.Tab(tabs[0]);
-                    overviewTab.show();
+                    tabs[0].click(); // Use click instead of Bootstrap API
                 }, 5000);
             }
         };
 
-        console.log('Tab test function available as window.testTabs()');
+        // Add manual tab switching functions
+        window.showTrackingTab = function() {
+            console.log('Manually showing tracking tab...');
+            var trackingTab = document.querySelector('#tracking-tab');
+            if (trackingTab) {
+                trackingTab.click();
+            }
+        };
+
+        window.showTableTab = function() {
+            console.log('Manually showing table tab...');
+            var tableTab = document.querySelector('#table-tab');
+            if (tableTab) {
+                tableTab.click();
+            }
+        };
+
+        window.showOverviewTab = function() {
+            console.log('Manually showing overview tab...');
+            var overviewTab = document.querySelector('#overview-tab');
+            if (overviewTab) {
+                overviewTab.click();
+            }
+        };
+
+        console.log('Tab test functions available:');
+        console.log('- window.testTabs()');
+        console.log('- window.showTrackingTab()');
+        console.log('- window.showTableTab()');
+        console.log('- window.showOverviewTab()');
     }
 
     // Initialize search and filter functionality

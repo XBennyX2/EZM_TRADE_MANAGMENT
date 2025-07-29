@@ -389,26 +389,57 @@ def confirm_delivery(request, order_id):
                 delivery_confirmation.save()
             
             # Update order items and warehouse stock
-            for item_id in received_items:
+            # Process all items in the order, not just received_items list
+            for item in order.items.all():
                 try:
-                    item = PurchaseOrderItem.objects.get(id=item_id, purchase_order=order)
-                    item.is_confirmed_received = True
-                    item.quantity_received = item.quantity_ordered
-                    item.confirmed_at = timezone.now()
-                    item.save()
+                    # Determine if this item was received
+                    item_was_received = str(item.id) in received_items if received_items else all_items_received
 
-                    # Update warehouse stock for received items
-                    warehouse_product = item.warehouse_product
-                    if warehouse_product:
-                        warehouse_product.update_stock(
-                            item.quantity_received,
-                            f"Purchase order delivery - {order.order_number}"
-                        )
-                        logger.info(f"Updated warehouse stock for {warehouse_product.product_name}: +{item.quantity_received}")
+                    if item_was_received:
+                        # Only update if not already confirmed to avoid double-counting
+                        if not item.is_confirmed_received:
+                            # Calculate quantity to add to warehouse stock
+                            quantity_to_add = item.quantity_ordered - item.quantity_received
 
-                except PurchaseOrderItem.DoesNotExist:
+                            # Update item status
+                            item.is_confirmed_received = True
+                            item.quantity_received = item.quantity_ordered
+                            item.confirmed_at = timezone.now()
+                            item.save()
+
+                            # Update warehouse stock for received items
+                            warehouse_product = item.warehouse_product
+                            if warehouse_product and quantity_to_add > 0:
+                                warehouse_product.update_stock(
+                                    quantity_to_add,
+                                    f"Purchase order delivery - {order.order_number}",
+                                    movement_type='purchase_delivery',
+                                    purchase_order=order
+                                )
+                                logger.info(f"Updated warehouse stock for {warehouse_product.product_name}: +{quantity_to_add} (Total received: {item.quantity_received})")
+                        else:
+                            logger.info(f"Item {item.warehouse_product.product_name} already confirmed, skipping stock update")
+                    else:
+                        # Item not received - mark as having issues if not already marked
+                        if not item.has_issues:
+                            item.has_issues = True
+                            item.issue_description = "Item not received during delivery confirmation"
+                            item.save()
+                            logger.info(f"Marked item {item.warehouse_product.product_name} as having delivery issues")
+
+                except Exception as e:
+                    logger.error(f"Error processing item {item.id}: {str(e)}")
                     continue
             
+            # Validate that all items have been processed correctly
+            total_items = order.items.count()
+            confirmed_items = order.items.filter(is_confirmed_received=True).count()
+            items_with_issues = order.items.filter(has_issues=True).count()
+
+            logger.info(f"Delivery confirmation summary for order {order.order_number}: "
+                       f"Total items: {total_items}, Confirmed: {confirmed_items}, "
+                       f"With issues: {items_with_issues}")
+
             # Update order status
             previous_status = order.status
             order.confirm_delivery(request.user, delivery_notes)

@@ -82,7 +82,7 @@ class PurchaseOrderAccessMixin(UserPassesTestMixin):
 # --- Product Views (Catalog Management) ---
 
 class ProductListView(LoginRequiredMixin, ListView):
-    model = Product
+    model = WarehouseProduct
     template_name = 'inventory/product_list.html'
     context_object_name = 'products'
     paginate_by = 24  # Show 24 products per page instead of 12
@@ -94,9 +94,10 @@ class ProductListView(LoginRequiredMixin, ListView):
         search_query = self.request.GET.get('search')
         if search_query:
             queryset = queryset.filter(
-                Q(name__icontains=search_query) |
-                Q(description__icontains=search_query) |
-                Q(category__icontains=search_query)
+                Q(product_name__icontains=search_query) |
+                Q(category__icontains=search_query) |
+                Q(sku__icontains=search_query) |
+                Q(supplier__name__icontains=search_query)
             )
 
         # Category filter
@@ -115,18 +116,29 @@ class ProductListView(LoginRequiredMixin, ListView):
             # Non-Head Managers only see active products
             queryset = queryset.filter(is_active=True)
 
-        return queryset.order_by('name')
+        return queryset.order_by('product_name')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # Add categories for filter dropdown
-        context['categories'] = Product.objects.values_list('category', flat=True).distinct().order_by('category')
+        # Add categories for filter dropdown from WarehouseProduct
+        context['categories'] = WarehouseProduct.objects.values_list('category', flat=True).distinct().order_by('category')
 
         # Add search and filter parameters to context
         context['search_query'] = self.request.GET.get('search', '')
         context['selected_category'] = self.request.GET.get('category', '')
         context['selected_product_status'] = self.request.GET.get('product_status', '')
+
+        # Add warehouse product statistics
+        total_products = WarehouseProduct.objects.count()
+        active_products = WarehouseProduct.objects.filter(is_active=True).count()
+        low_stock_products = WarehouseProduct.objects.filter(
+            quantity_in_stock__lte=models.F('minimum_stock_level')
+        ).count()
+
+        context['total_products'] = total_products
+        context['active_products'] = active_products
+        context['low_stock_products'] = low_stock_products
 
         return context
 

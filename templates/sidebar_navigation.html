@@ -131,14 +131,14 @@
     <li class="sidebar-menu-item">
         <a href="{% url 'manage_cashiers' %}" data-tooltip="Manage Cashiers">
             <i class="bi bi-people"></i>
-            <span>Manage Cashiers</span>
+            <span>Manage Salespersons</span>
         </a>
     </li>
 
 
 </ul>
 
-<!-- Cashier Sidebar -->
+<!-- Salesperson Sidebar -->
 {% elif user.role == 'cashier' %}
 <ul>
     <li class="sidebar-menu-item{% if request.resolver_match.url_name == 'initiate_order' %} active{% endif %}">

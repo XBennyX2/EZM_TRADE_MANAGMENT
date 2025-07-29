@@ -17,6 +17,7 @@ from .views import (
     # Store Manager request views
     submit_restock_request, submit_transfer_request, update_product_price,
     store_manager_restock_requests, store_manager_transfer_requests, store_manager_stock_management,
+    mark_restock_received,
     # Head Manager request management views
     head_manager_restock_requests,
     approve_restock_request, reject_restock_request,
@@ -74,6 +75,7 @@ urlpatterns = [
     path('store-manager/submit-transfer-request/', submit_transfer_request, name='submit_transfer_request'),
     path('store-manager/update-product-price/', update_product_price, name='update_product_price'),
     path('store-manager/restock-requests/', store_manager_restock_requests, name='store_manager_restock_requests'),
+    path('store-manager/mark-restock-received/', mark_restock_received, name='mark_restock_received'),
     path('store-manager/transfer-requests/', store_manager_transfer_requests, name='store_manager_transfer_requests'),
     path('store-manager/stock-management/', store_manager_stock_management, name='store_manager_stock_management'),
     path('store-manager/sales-report/', store_sales_report, name='store_sales_report'),

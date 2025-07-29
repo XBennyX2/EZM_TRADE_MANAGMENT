@@ -349,13 +349,12 @@
                         <li class="page-item active">
                             <span class="page-link">{{ num }}</span>
                         </li>
-                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %} <li
-                            class="page-item">
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
                             <a class="page-link"
-                                href="?page={{ num }}{% if not category_all_selected %}&category={{ category_filter }}{% endif %}{% if not stock_level_all_selected %}&stock_level={{ stock_level_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">{{
-                                num }}</a>
-                            </li>
-                            {% endif %}
+                                href="?page={{ num }}{% if not category_all_selected %}&category={{ category_filter }}{% endif %}{% if not stock_level_all_selected %}&stock_level={{ stock_level_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">{{ num }}</a>
+                        </li>
+                        {% endif %}
                             {% endfor %}
 
                             {% if page_obj.has_next %}

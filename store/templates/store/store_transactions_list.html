@@ -168,7 +168,7 @@
         </div>
         <div class="col-md-4">
             <div class="summary-card">
-                <div class="summary-value">ETB {% if total_transactions > 0 %}{{ total_revenue|div:total_transactions|floatformat:0 }}{% else %}0{% endif %}</div>
+                <div class="summary-value">ETB {{ avg_transaction_value|floatformat:0 }}</div>
                 <div class="summary-label">Average Transaction</div>
             </div>
         </div>
@@ -200,8 +200,7 @@
                                     <th><i class="bi bi-calendar me-1"></i>Date & Time</th>
                                     <th><i class="bi bi-cash-stack me-1"></i>Amount</th>
                                     <th><i class="bi bi-credit-card me-1"></i>Payment</th>
-                                    <th><i class="bi bi-person me-1"></i>Cashier</th>
-                                    <th><i class="bi bi-receipt me-1"></i>Receipt</th>
+                                    <th><i class="bi bi-shop me-1"></i>Source</th>
                                     <th><i class="bi bi-info-circle me-1"></i>Type</th>
                                 </tr>
                             </thead>
@@ -229,22 +228,7 @@
                                         <span class="badge bg-secondary">{{ transaction.get_payment_type_display }}</span>
                                     </td>
                                     <td>
-                                        {% if transaction.cashier %}
-                                        <div>
-                                            <strong>{{ transaction.cashier.get_full_name|default:transaction.cashier.username }}</strong>
-                                        </div>
-                                        {% else %}
-                                        <span class="text-muted">System</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if transaction.receipt %}
-                                        <a href="{% url 'view_receipt' transaction.receipt.id %}" class="btn btn-sm btn-outline-primary">
-                                            <i class="bi bi-eye me-1"></i>View
-                                        </a>
-                                        {% else %}
-                                        <span class="text-muted">No receipt</span>
-                                        {% endif %}
+                                        <span class="text-muted">Store Sale</span>
                                     </td>
                                     <td>
                                         {% if transaction.transaction_type == 'sale' %}

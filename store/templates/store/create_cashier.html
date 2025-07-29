@@ -1,8 +1,8 @@
 {% extends 'base_sidebar.html' %}
 {% load static %}
 
-{% block title %}Create New Cashier{% endblock %}
-{% block page_title %}Create New Cashier{% endblock %}
+{% block title %}Create New Sales Person{% endblock %}
+{% block page_title %}Create New Sales Person{% endblock %}
 
 {% block sidebar_menu %}
 {% include 'sidebar_navigation.html' %}
@@ -24,7 +24,7 @@
     <div class="col-lg-8 col-md-10">
       <div class="ezm-card">
         <div class="ezm-card-header">
-          <i class="bi bi-person-plus me-2"></i>Create New Cashier for {{ store.name }}
+          <i class="bi bi-person-plus me-2"></i>Create New Sales Person for {{ store.name }}
         </div>
         <div class="card-body">
           <form method="post">
@@ -97,16 +97,16 @@
 
             <div class="alert alert-info">
               <i class="bi bi-info-circle me-2"></i>
-              <strong>Note:</strong> The new cashier will be automatically assigned to your store ({{ store.name }}) 
+              <strong>Note:</strong> The new sales person will be automatically assigned to your store ({{ store.name }})
               and will be required to change their password on first login.
             </div>
 
             <div class="d-flex gap-3 mt-4">
               <button type="submit" class="btn btn-ezm-primary">
-                <i class="bi bi-person-plus me-2"></i>Create Cashier
+                <i class="bi bi-person-plus me-2"></i>Create Sales Person
               </button>
               <a href="{% url 'manage_cashiers' %}" class="btn btn-ezm-secondary">
-                <i class="bi bi-arrow-left me-2"></i>Back to Cashiers
+                <i class="bi bi-arrow-left me-2"></i>Back to Salespersons
               </a>
             </div>
           </form>

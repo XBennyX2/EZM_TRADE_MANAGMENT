@@ -1,4 +1,5 @@
 {% load static %}
+{% load store_extras %}
 <!DOCTYPE html>
 <html lang="en">
 
@@ -82,7 +83,7 @@
                         </div>
                         <div class="profile-info">
                             <div class="profile-name">{{ user.first_name|default:user.username }}</div>
-                            <div class="profile-role">{{ user.role|default:"User" }}</div>
+                            <div class="profile-role">{{ user.role|display_role }}</div>
                         </div>
                         <i class="bi bi-chevron-down dropdown-arrow"></i>
                     </div>

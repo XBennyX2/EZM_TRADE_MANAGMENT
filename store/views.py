@@ -2257,22 +2257,135 @@ Phone: {transaction_obj.store.phone_number}
 @login_required
 def cashier_transactions(request):
     """
-    Display transaction history for the current cashier
+    Display transaction history for the current cashier with search and filter functionality
     """
     if request.user.role != 'cashier':
         messages.error(request, "Access denied")
         return redirect('login')
 
     try:
-        # Get receipts for transactions made at this cashier's store
-        # Since Transaction model doesn't have a cashier field, we filter by store
-        receipts = Receipt.objects.filter(
+        from django.db.models import Sum, Q
+        from django.core.paginator import Paginator
+        from django.http import HttpResponse
+        import csv
+        from datetime import datetime
+
+        # Base queryset for receipts at this cashier's store
+        receipts_queryset = Receipt.objects.filter(
             transaction__store=request.user.store,
             transaction__transaction_type='sale'
-        ).select_related('transaction').order_by('-timestamp')[:50]  # Last 50 transactions
+        ).select_related('transaction').prefetch_related('orders')
 
-        # Calculate total revenue from all receipts at this store
-        from django.db.models import Sum
+        # Apply search and filter parameters
+        receipt_id = request.GET.get('receipt_id', '').strip()
+        customer_name = request.GET.get('customer_name', '').strip()
+        customer_phone = request.GET.get('customer_phone', '').strip()
+        payment_type = request.GET.get('payment_type', '').strip()
+        date_from = request.GET.get('date_from', '').strip()
+        date_to = request.GET.get('date_to', '').strip()
+        amount_min = request.GET.get('amount_min', '').strip()
+        amount_max = request.GET.get('amount_max', '').strip()
+
+        # Apply filters
+        if receipt_id:
+            try:
+                receipts_queryset = receipts_queryset.filter(id=int(receipt_id))
+            except ValueError:
+                messages.warning(request, "Invalid receipt ID format")
+
+        if customer_name:
+            receipts_queryset = receipts_queryset.filter(
+                customer_name__icontains=customer_name
+            )
+
+        if customer_phone:
+            receipts_queryset = receipts_queryset.filter(
+                customer_phone__icontains=customer_phone
+            )
+
+        if payment_type:
+            receipts_queryset = receipts_queryset.filter(
+                transaction__payment_type=payment_type
+            )
+
+        if date_from:
+            try:
+                from_date = datetime.strptime(date_from, '%Y-%m-%d').date()
+                receipts_queryset = receipts_queryset.filter(
+                    timestamp__date__gte=from_date
+                )
+            except ValueError:
+                messages.warning(request, "Invalid 'from' date format")
+
+        if date_to:
+            try:
+                to_date = datetime.strptime(date_to, '%Y-%m-%d').date()
+                receipts_queryset = receipts_queryset.filter(
+                    timestamp__date__lte=to_date
+                )
+            except ValueError:
+                messages.warning(request, "Invalid 'to' date format")
+
+        if amount_min:
+            try:
+                min_amount = float(amount_min)
+                receipts_queryset = receipts_queryset.filter(
+                    total_amount__gte=min_amount
+                )
+            except ValueError:
+                messages.warning(request, "Invalid minimum amount format")
+
+        if amount_max:
+            try:
+                max_amount = float(amount_max)
+                receipts_queryset = receipts_queryset.filter(
+                    total_amount__lte=max_amount
+                )
+            except ValueError:
+                messages.warning(request, "Invalid maximum amount format")
+
+        # Order by timestamp (newest first)
+        receipts_queryset = receipts_queryset.order_by('-timestamp')
+
+        # Handle CSV export
+        if request.GET.get('export') == 'csv':
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="transactions_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+
+            writer = csv.writer(response)
+            writer.writerow([
+                'Receipt ID', 'Date', 'Time', 'Customer Name', 'Customer Phone',
+                'Payment Type', 'Subtotal', 'Discount', 'Tax', 'Total Amount', 'Items Count'
+            ])
+
+            for receipt in receipts_queryset:
+                writer.writerow([
+                    receipt.id,
+                    receipt.timestamp.strftime('%Y-%m-%d'),
+                    receipt.timestamp.strftime('%H:%M:%S'),
+                    receipt.customer_name or 'Walk-in Customer',
+                    receipt.customer_phone or '',
+                    receipt.transaction.get_payment_type_display(),
+                    f"{receipt.subtotal:.2f}",
+                    f"{receipt.discount_amount:.2f}",
+                    f"{receipt.tax_amount:.2f}",
+                    f"{receipt.total_amount:.2f}",
+                    receipt.orders.count()
+                ])
+
+            return response
+
+        # Pagination
+        paginator = Paginator(receipts_queryset, 20)  # 20 transactions per page
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+
+        # Calculate filtered revenue
+        filtered_revenue = receipts_queryset.aggregate(
+            total=Sum('total_amount')
+        )['total'] or 0
+
+        # Calculate total revenue from all receipts at this store (for stats)
         total_revenue = Receipt.objects.filter(
             transaction__store=request.user.store,
             transaction__transaction_type='sale'
@@ -2281,9 +2394,12 @@ def cashier_transactions(request):
         )['total'] or 0
 
         context = {
-            'receipts': receipts,
+            'receipts': page_obj,
             'cashier': request.user,
             'total_revenue': total_revenue,
+            'filtered_revenue': filtered_revenue,
+            'is_paginated': page_obj.has_other_pages(),
+            'page_obj': page_obj,
         }
 
         return render(request, 'store/cashier_transactions.html', context)

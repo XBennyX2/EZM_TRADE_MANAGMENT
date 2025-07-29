@@ -69,3 +69,166 @@
     </div>
 </div>
 {% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Phone number validation
+        const phoneField = document.querySelector('input[name="phone_number"]');
+
+        if (phoneField) {
+            // Create validation message element
+            const validationMessage = document.createElement('div');
+            validationMessage.className = 'phone-validation-message mt-1';
+            validationMessage.style.fontSize = '0.875rem';
+            phoneField.parentNode.appendChild(validationMessage);
+
+            function validatePhoneNumber(phoneNumber) {
+                // Remove all spaces and special characters except +
+                const cleanPhone = phoneNumber.replace(/[\s\-\(\)]/g, '');
+
+                // Ethiopian phone number patterns
+                const patterns = [
+                    /^09\d{8}$/,           // 09xxxxxxxx (10 digits total)
+                    /^07\d{8}$/,           // 07xxxxxxxx (10 digits total)
+                    /^\+2519\d{8}$/,       // +2519xxxxxxxx (international format)
+                    /^\+2517\d{8}$/        // +2517xxxxxxxx (international format)
+                ];
+
+                return patterns.some(pattern => pattern.test(cleanPhone));
+            }
+
+            function updateValidationUI(isValid, message) {
+                if (isValid) {
+                    phoneField.classList.remove('is-invalid');
+                    phoneField.classList.add('is-valid');
+                    phoneField.style.borderColor = '#28a745';
+                    validationMessage.innerHTML = `<small class="text-success"><i class="bi bi-check-circle me-1"></i>${message}</small>`;
+                } else {
+                    phoneField.classList.remove('is-valid');
+                    phoneField.classList.add('is-invalid');
+                    phoneField.style.borderColor = '#dc3545';
+                    validationMessage.innerHTML = `<small class="text-danger"><i class="bi bi-exclamation-circle me-1"></i>${message}</small>`;
+                }
+            }
+
+            function validatePhone() {
+                const phoneValue = phoneField.value.trim();
+
+                if (phoneValue === '') {
+                    // Reset validation state for empty field
+                    phoneField.classList.remove('is-valid', 'is-invalid');
+                    phoneField.style.borderColor = '';
+                    validationMessage.innerHTML = '<small class="text-muted">Enter Ethiopian phone number (09xxxxxxxx, 07xxxxxxxx, or +2519xxxxxxxx)</small>';
+                    return;
+                }
+
+                if (validatePhoneNumber(phoneValue)) {
+                    updateValidationUI(true, 'Valid Ethiopian phone number');
+                } else {
+                    let errorMessage = 'Invalid phone number format. ';
+
+                    // Provide specific guidance based on input
+                    if (phoneValue.startsWith('+251')) {
+                        errorMessage += 'Use +2519xxxxxxxx or +2517xxxxxxxx format';
+                    } else if (phoneValue.startsWith('0')) {
+                        errorMessage += 'Use 09xxxxxxxx or 07xxxxxxxx format (10 digits total)';
+                    } else if (phoneValue.startsWith('9') || phoneValue.startsWith('7')) {
+                        errorMessage += 'Add leading 0 (09xxxxxxxx or 07xxxxxxxx)';
+                    } else {
+                        errorMessage += 'Use 09xxxxxxxx, 07xxxxxxxx, or +2519xxxxxxxx format';
+                    }
+
+                    updateValidationUI(false, errorMessage);
+                }
+            }
+
+            // Add event listeners
+            phoneField.addEventListener('input', validatePhone);
+            phoneField.addEventListener('blur', validatePhone);
+
+            // Initial validation if field has value
+            if (phoneField.value.trim()) {
+                validatePhone();
+            } else {
+                validationMessage.innerHTML = '<small class="text-muted">Enter Ethiopian phone number (09xxxxxxxx, 07xxxxxxxx, or +2519xxxxxxxx)</small>';
+            }
+
+            // Format phone number as user types (optional enhancement)
+            phoneField.addEventListener('input', function(e) {
+                let value = e.target.value.replace(/[\s\-\(\)]/g, ''); // Remove formatting
+
+                // Auto-format for better UX
+                if (value.startsWith('09') && value.length <= 10) {
+                    // Format as 09X XXX XXXX
+                    if (value.length > 3) {
+                        value = value.substring(0, 3) + ' ' + value.substring(3);
+                    }
+                    if (value.length > 7) {
+                        value = value.substring(0, 7) + ' ' + value.substring(7);
+                    }
+                } else if (value.startsWith('07') && value.length <= 10) {
+                    // Format as 07X XXX XXXX
+                    if (value.length > 3) {
+                        value = value.substring(0, 3) + ' ' + value.substring(3);
+                    }
+                    if (value.length > 7) {
+                        value = value.substring(0, 7) + ' ' + value.substring(7);
+                    }
+                } else if (value.startsWith('+2519') && value.length <= 13) {
+                    // Format as +251 9X XXX XXXX
+                    if (value.length > 4) {
+                        value = value.substring(0, 4) + ' ' + value.substring(4);
+                    }
+                    if (value.length > 8) {
+                        value = value.substring(0, 8) + ' ' + value.substring(8);
+                    }
+                    if (value.length > 12) {
+                        value = value.substring(0, 12) + ' ' + value.substring(12);
+                    }
+                }
+
+                // Update field value with formatting
+                if (e.target.value !== value) {
+                    const cursorPos = e.target.selectionStart;
+                    e.target.value = value;
+                    // Restore cursor position
+                    e.target.setSelectionRange(cursorPos, cursorPos);
+                }
+            });
+        }
+
+        // Form submission validation
+        const form = document.querySelector('form');
+        if (form && phoneField) {
+            form.addEventListener('submit', function(e) {
+                const phoneValue = phoneField.value.trim();
+                if (phoneValue && !validatePhoneNumber(phoneValue)) {
+                    e.preventDefault();
+                    phoneField.focus();
+                    updateValidationUI(false, 'Please enter a valid Ethiopian phone number before submitting');
+
+                    // Show alert
+                    alert('Please enter a valid Ethiopian phone number format:\n• 09xxxxxxxx (10 digits)\n• 07xxxxxxxx (10 digits)\n• +2519xxxxxxxx\n• +2517xxxxxxxx');
+                }
+            });
+        }
+    });
+</script>
+
+<style>
+    .phone-validation-message {
+        min-height: 20px;
+    }
+
+    .is-valid {
+        border-color: #28a745 !important;
+        box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25) !important;
+    }
+
+    .is-invalid {
+        border-color: #dc3545 !important;
+        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+    }
+</style>
+{% endblock %}

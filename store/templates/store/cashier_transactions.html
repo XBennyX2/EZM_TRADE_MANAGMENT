@@ -11,44 +11,48 @@
 <link rel="stylesheet" href="{% static 'css/ezm-theme.css' %}">
 <style>
   .transaction-card {
-    background: linear-gradient(135deg, #1F2833 0%, #0B0C10 100%);
-    border: 1px solid #45A29E;
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
     border-radius: 10px;
     margin-bottom: 1rem;
     transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
 
   .transaction-card:hover {
-    border-color: #66FCF1;
-    box-shadow: 0 4px 15px rgba(102, 252, 241, 0.1);
+    border-color: #45A29E;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
   }
 
   .transaction-header {
-    background: linear-gradient(90deg, #45A29E, #66FCF1);
-    color: #0B0C10;
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    color: #2c3e50;
     font-weight: bold;
     padding: 0.75rem 1rem;
     border-radius: 10px 10px 0 0;
+    border-bottom: 1px solid #e0e0e0;
   }
 
   .transaction-body {
     padding: 1rem;
-    color: #C5C6C7;
+    color: #495057;
+    background: #ffffff;
   }
 
   .transaction-amount {
-    color: #66FCF1;
+    color: #28a745;
     font-weight: bold;
     font-size: 1.1rem;
   }
 
   .transaction-date {
-    color: #45A29E;
+    color: #6c757d;
     font-size: 0.9rem;
   }
 
   .transaction-customer {
-    color: #C5C6C7;
+    color: #495057;
     font-size: 0.9rem;
   }
 
@@ -56,48 +60,89 @@
     background: linear-gradient(135deg, #45A29E, #66FCF1);
     border: none;
     color: #0B0C10;
-    font-weight: bold;
+    font-weight: 600;
     padding: 0.5rem 1rem;
-    border-radius: 5px;
+    border-radius: 8px;
     transition: all 0.3s ease;
+    text-decoration: none;
+    box-shadow: 0 2px 4px rgba(69, 162, 158, 0.2);
   }
 
   .btn-view-receipt:hover {
     background: linear-gradient(135deg, #66FCF1, #45A29E);
     color: #0B0C10;
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(69, 162, 158, 0.3);
+  }
+
+  .btn-view-receipt:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(69, 162, 158, 0.2);
+  }
+
+  .btn-download-receipt {
+    background: linear-gradient(135deg, #1F2833, #45A29E);
+    border: none;
+    color: #66FCF1;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    box-shadow: 0 2px 4px rgba(31, 40, 51, 0.2);
+  }
+
+  .btn-download-receipt:hover {
+    background: linear-gradient(135deg, #45A29E, #1F2833);
+    color: #66FCF1;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(31, 40, 51, 0.3);
+  }
+
+  .btn-download-receipt:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(31, 40, 51, 0.2);
   }
 
   .no-transactions {
     text-align: center;
-    color: #C5C6C7;
+    color: #6c757d;
     padding: 3rem;
-    background: linear-gradient(135deg, #1F2833 0%, #0B0C10 100%);
-    border: 1px solid #45A29E;
+    background: #f8f9fa;
+    border: 1px solid #e0e0e0;
     border-radius: 10px;
   }
 
+  .no-transactions h4 {
+    color: #495057 !important;
+  }
+
+  .no-transactions i {
+    color: #007bff !important;
+  }
+
   .stats-summary {
-    background: linear-gradient(135deg, #1F2833 0%, #0B0C10 100%);
-    border: 1px solid #45A29E;
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
     border-radius: 10px;
     padding: 1.5rem;
     margin-bottom: 2rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
 
   .stat-item {
     text-align: center;
-    color: #C5C6C7;
+    color: #495057;
   }
 
   .stat-number {
-    color: #66FCF1;
+    color: #28a745;
     font-size: 1.5rem;
     font-weight: bold;
   }
 
   .stat-label {
-    color: #45A29E;
+    color: #6c757d;
     font-size: 0.9rem;
   }
 </style>
@@ -110,8 +155,8 @@
     <div class="col-12">
       <div class="d-flex justify-content-between align-items-center">
         <div>
-          <h2 style="color: #66FCF1; font-weight: bold;">Transaction Details</h2>
-          <p style="color: #C5C6C7;">View your recent sales and transactions</p>
+          <h2 style="color: #2c3e50; font-weight: bold;">Transaction Details</h2>
+          <p style="color: #6c757d;">View your recent sales and transactions</p>
         </div>
         <div>
           <a href="{% url 'initiate_order' %}" class="btn btn-ezm-primary">
@@ -154,60 +199,220 @@
     </div>
   </div>
 
+  <!-- Search and Filter Section -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="ezm-card">
+        <div class="ezm-card-header">
+          <i class="bi bi-search me-2"></i>Search & Filter Transactions
+        </div>
+        <div class="card-body">
+          <form method="GET" id="filterForm">
+            <div class="row g-3">
+              <!-- Search by Receipt ID -->
+              <div class="col-md-3">
+                <label for="receipt_id" class="form-label">Receipt ID</label>
+                <input type="text" class="form-control" id="receipt_id" name="receipt_id"
+                       placeholder="e.g., 123" value="{{ request.GET.receipt_id }}">
+              </div>
+
+              <!-- Search by Customer Name -->
+              <div class="col-md-3">
+                <label for="customer_name" class="form-label">Customer Name</label>
+                <input type="text" class="form-control" id="customer_name" name="customer_name"
+                       placeholder="Customer name" value="{{ request.GET.customer_name }}">
+              </div>
+
+              <!-- Payment Type Filter -->
+              <div class="col-md-2">
+                <label for="payment_type" class="form-label">Payment Type</label>
+                <select class="form-select" id="payment_type" name="payment_type">
+                  <option value="">All Types</option>
+                  <option value="cash" {% if request.GET.payment_type == 'cash' %}selected{% endif %}>Cash</option>
+                  <option value="mobile" {% if request.GET.payment_type == 'mobile' %}selected{% endif %}>Mobile Banking</option>
+                  <option value="bank" {% if request.GET.payment_type == 'bank' %}selected{% endif %}>Bank Transfer</option>
+                </select>
+              </div>
+
+              <!-- Date Range Filter -->
+              <div class="col-md-2">
+                <label for="date_from" class="form-label">From Date</label>
+                <input type="date" class="form-control" id="date_from" name="date_from"
+                       value="{{ request.GET.date_from }}">
+              </div>
+
+              <div class="col-md-2">
+                <label for="date_to" class="form-label">To Date</label>
+                <input type="date" class="form-control" id="date_to" name="date_to"
+                       value="{{ request.GET.date_to }}">
+              </div>
+            </div>
+
+            <div class="row mt-3">
+              <!-- Amount Range Filter -->
+              <div class="col-md-2">
+                <label for="amount_min" class="form-label">Min Amount</label>
+                <input type="number" class="form-control" id="amount_min" name="amount_min"
+                       placeholder="0.00" step="0.01" value="{{ request.GET.amount_min }}">
+              </div>
+
+              <div class="col-md-2">
+                <label for="amount_max" class="form-label">Max Amount</label>
+                <input type="number" class="form-control" id="amount_max" name="amount_max"
+                       placeholder="1000.00" step="0.01" value="{{ request.GET.amount_max }}">
+              </div>
+
+              <!-- Customer Phone Filter -->
+              <div class="col-md-3">
+                <label for="customer_phone" class="form-label">Customer Phone</label>
+                <input type="text" class="form-control" id="customer_phone" name="customer_phone"
+                       placeholder="09xxxxxxxx" value="{{ request.GET.customer_phone }}">
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="col-md-5 d-flex align-items-end gap-2">
+                <button type="submit" class="btn btn-primary">
+                  <i class="bi bi-search me-2"></i>Search
+                </button>
+                <a href="{% url 'cashier_transactions' %}" class="btn btn-secondary">
+                  <i class="bi bi-arrow-clockwise me-2"></i>Clear Filters
+                </a>
+                <button type="button" class="btn btn-success" onclick="exportTransactions()">
+                  <i class="bi bi-download me-2"></i>Export
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results Summary -->
+  {% if receipts %}
+  <div class="row mb-3">
+    <div class="col-12">
+      <div class="alert alert-info border-0" style="background: rgba(102, 252, 241, 0.1); color: var(--accent-teal);">
+        <i class="bi bi-info-circle me-2"></i>
+        Showing {{ receipts|length }} transaction{{ receipts|length|pluralize }}
+        {% if request.GET.receipt_id or request.GET.customer_name or request.GET.payment_type or request.GET.date_from or request.GET.date_to or request.GET.amount_min or request.GET.amount_max or request.GET.customer_phone %}
+        matching your search criteria
+        {% endif %}
+        (Total: ETB {{ filtered_revenue|floatformat:2 }})
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <!-- Transactions List -->
   <div class="row">
     <div class="col-12">
       {% if receipts %}
-      {% for receipt in receipts %}
-      <div class="transaction-card">
-        <div class="transaction-header">
-          <div class="row align-items-center">
-            <div class="col-md-6">
-              <i class="bi bi-receipt me-2"></i>Receipt #{{ receipt.id }}
+      <div id="transactionsList">
+        {% for receipt in receipts %}
+        <div class="transaction-card" data-receipt-id="{{ receipt.id }}"
+             data-customer-name="{{ receipt.customer_name|default:'Walk-in Customer' }}"
+             data-payment-type="{{ receipt.transaction.payment_type }}"
+             data-amount="{{ receipt.total_amount }}"
+             data-date="{{ receipt.timestamp|date:'Y-m-d' }}">
+          <div class="transaction-header">
+            <div class="row align-items-center">
+              <div class="col-md-6">
+                <i class="bi bi-receipt me-2"></i>Receipt #{{ receipt.id }}
+                <span class="badge bg-primary ms-2">{{ receipt.transaction.get_payment_type_display }}</span>
+              </div>
+              <div class="col-md-6 text-end">
+                <span class="transaction-amount">ETB {{ receipt.total_amount|floatformat:2 }}</span>
+              </div>
             </div>
-            <div class="col-md-6 text-end">
-              <span class="transaction-amount">ETB {{ receipt.total_amount|floatformat:2 }}</span>
+          </div>
+          <div class="transaction-body">
+            <div class="row">
+              <div class="col-md-8">
+                <div class="transaction-date mb-2">
+                  <i class="bi bi-calendar me-2"></i>{{ receipt.timestamp|date:"F d, Y g:i A" }}
+                </div>
+                <div class="transaction-customer mb-2">
+                  <i class="bi bi-person me-2"></i>{{ receipt.customer_name|default:"Walk-in Customer" }}
+                  {% if receipt.customer_phone %}
+                  <span class="ms-2">
+                    <i class="bi bi-telephone me-1"></i>{{ receipt.customer_phone }}
+                  </span>
+                  {% endif %}
+                </div>
+                <div class="transaction-details">
+                  <small class="text-muted">
+                    <i class="bi bi-box me-1"></i>{{ receipt.orders.count }} item{{ receipt.orders.count|pluralize }}
+                    {% if receipt.discount_amount > 0 %}
+                    | <i class="bi bi-percent me-1"></i>{{ receipt.discount_percent }}% discount
+                    {% endif %}
+                  </small>
+                </div>
+              </div>
+              <div class="col-md-4 text-end">
+                <div class="btn-group-vertical gap-2">
+                  <a href="{% url 'view_receipt' receipt.id %}" class="btn btn-view-receipt btn-sm">
+                    <i class="bi bi-eye me-2"></i>View Receipt
+                  </a>
+                  <a href="{% url 'generate_receipt_pdf' receipt.id %}" class="btn btn-download-receipt btn-sm" target="_blank">
+                    <i class="bi bi-download me-2"></i>Download PDF
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        <div class="transaction-body">
-          <div class="row">
-            <div class="col-md-8">
-              <div class="transaction-date mb-2">
-                <i class="bi bi-calendar me-2"></i>{{ receipt.timestamp|date:"F d, Y g:i A" }}
-              </div>
-              <div class="transaction-customer mb-2">
-                <i class="bi bi-person me-2"></i>{{ receipt.customer_name|default:"Walk-in Customer" }}
-                {% if receipt.customer_phone %}
-                <span class="ms-2">
-                  <i class="bi bi-telephone me-1"></i>{{ receipt.customer_phone }}
-                </span>
-                {% endif %}
-              </div>
-              <div class="transaction-customer">
-                <i class="bi bi-credit-card me-2"></i>{{ receipt.transaction.get_payment_type_display|default:"Cash" }}
-              </div>
-            </div>
-            <div class="col-md-4 text-end">
-              <a href="{% url 'view_receipt' receipt.id %}" class="btn btn-view-receipt">
-                <i class="bi bi-eye me-2"></i>View Receipt
-              </a>
-              <a href="{% url 'generate_receipt_pdf' receipt.id %}" class="btn btn-view-receipt ms-2" target="_blank">
-                <i class="bi bi-download me-2"></i>Download PDF
-              </a>
-            </div>
-          </div>
+        {% endfor %}
+      </div>
+
+      <!-- Pagination -->
+      {% if is_paginated %}
+      <div class="row mt-4">
+        <div class="col-12">
+          <nav aria-label="Transaction pagination">
+            <ul class="pagination justify-content-center">
+              {% if page_obj.has_previous %}
+              <li class="page-item">
+                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page=1">First</a>
+              </li>
+              <li class="page-item">
+                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">Previous</a>
+              </li>
+              {% endif %}
+
+              <li class="page-item active">
+                <span class="page-link">{{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+              </li>
+
+              {% if page_obj.has_next %}
+              <li class="page-item">
+                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">Next</a>
+              </li>
+              <li class="page-item">
+                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.paginator.num_pages }}">Last</a>
+              </li>
+              {% endif %}
+            </ul>
+          </nav>
         </div>
       </div>
-      {% endfor %}
+      {% endif %}
+
       {% else %}
       <div class="no-transactions">
         <i class="bi bi-receipt" style="font-size: 3rem; color: #45A29E; margin-bottom: 1rem;"></i>
         <h4 style="color: #66FCF1;">No Transactions Found</h4>
+        {% if request.GET.receipt_id or request.GET.customer_name or request.GET.payment_type or request.GET.date_from or request.GET.date_to or request.GET.amount_min or request.GET.amount_max or request.GET.customer_phone %}
+        <p>No transactions match your search criteria. Try adjusting your filters.</p>
+        <a href="{% url 'cashier_transactions' %}" class="btn btn-secondary mt-3">
+          <i class="bi bi-arrow-clockwise me-2"></i>Clear All Filters
+        </a>
+        {% else %}
         <p>You haven't processed any transactions yet.</p>
         <a href="{% url 'initiate_order' %}" class="btn btn-ezm-primary mt-3">
           <i class="bi bi-cash-register me-2"></i>Start Your First Sale
         </a>
+        {% endif %}
       </div>
       {% endif %}
     </div>
@@ -217,12 +422,200 @@
 
 {% block extra_js %}
 <script>
-  // Add any JavaScript functionality here if needed
   document.addEventListener('DOMContentLoaded', function () {
-    // Auto-refresh every 30 seconds to show new transactions
+    // Initialize search functionality
+    initializeSearch();
+
+    // Auto-refresh every 5 minutes (reduced from 30 seconds for better UX)
     setTimeout(function () {
       location.reload();
-    }, 30000);
+    }, 300000);
+  });
+
+  function initializeSearch() {
+    // Real-time search for receipt ID
+    const receiptIdInput = document.getElementById('receipt_id');
+    const customerNameInput = document.getElementById('customer_name');
+
+    // Add input event listeners for instant feedback
+    if (receiptIdInput) {
+      receiptIdInput.addEventListener('input', function() {
+        validateReceiptId(this.value);
+      });
+    }
+
+    // Add form validation
+    const filterForm = document.getElementById('filterForm');
+    if (filterForm) {
+      filterForm.addEventListener('submit', function(e) {
+        if (!validateForm()) {
+          e.preventDefault();
+        }
+      });
+    }
+
+    // Add keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+      // Ctrl/Cmd + F to focus search
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        receiptIdInput?.focus();
+      }
+
+      // Enter key in any search field submits form
+      if (e.key === 'Enter' && e.target.matches('input[type="text"], input[type="number"], input[type="date"], select')) {
+        filterForm?.submit();
+      }
+    });
+  }
+
+  function validateReceiptId(value) {
+    const input = document.getElementById('receipt_id');
+    if (value && !/^\d+$/.test(value)) {
+      input.classList.add('is-invalid');
+      showTooltip(input, 'Receipt ID must be a number');
+    } else {
+      input.classList.remove('is-invalid');
+      hideTooltip(input);
+    }
+  }
+
+  function validateForm() {
+    let isValid = true;
+
+    // Validate date range
+    const dateFrom = document.getElementById('date_from').value;
+    const dateTo = document.getElementById('date_to').value;
+
+    if (dateFrom && dateTo && new Date(dateFrom) > new Date(dateTo)) {
+      alert('From date cannot be later than To date');
+      isValid = false;
+    }
+
+    // Validate amount range
+    const amountMin = parseFloat(document.getElementById('amount_min').value) || 0;
+    const amountMax = parseFloat(document.getElementById('amount_max').value) || Infinity;
+
+    if (amountMin > amountMax) {
+      alert('Minimum amount cannot be greater than maximum amount');
+      isValid = false;
+    }
+
+    return isValid;
+  }
+
+  function showTooltip(element, message) {
+    // Remove existing tooltip
+    hideTooltip(element);
+
+    const tooltip = document.createElement('div');
+    tooltip.className = 'invalid-tooltip';
+    tooltip.textContent = message;
+    tooltip.style.position = 'absolute';
+    tooltip.style.top = '100%';
+    tooltip.style.left = '0';
+    tooltip.style.zIndex = '1000';
+    tooltip.style.backgroundColor = '#dc3545';
+    tooltip.style.color = 'white';
+    tooltip.style.padding = '4px 8px';
+    tooltip.style.borderRadius = '4px';
+    tooltip.style.fontSize = '12px';
+
+    element.parentNode.style.position = 'relative';
+    element.parentNode.appendChild(tooltip);
+  }
+
+  function hideTooltip(element) {
+    const tooltip = element.parentNode.querySelector('.invalid-tooltip');
+    if (tooltip) {
+      tooltip.remove();
+    }
+  }
+
+  function exportTransactions() {
+    // Get current filter parameters
+    const form = document.getElementById('filterForm');
+    const formData = new FormData(form);
+    const params = new URLSearchParams(formData);
+
+    // Add export parameter
+    params.append('export', 'csv');
+
+    // Create download link
+    const url = window.location.pathname + '?' + params.toString();
+
+    // Show loading state
+    const exportBtn = event.target;
+    const originalText = exportBtn.innerHTML;
+    exportBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Exporting...';
+    exportBtn.disabled = true;
+
+    // Create temporary link and trigger download
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `transactions_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Reset button state
+    setTimeout(() => {
+      exportBtn.innerHTML = originalText;
+      exportBtn.disabled = false;
+    }, 2000);
+  }
+
+  // Quick filter functions
+  function quickFilterToday() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('date_from').value = today;
+    document.getElementById('date_to').value = today;
+    document.getElementById('filterForm').submit();
+  }
+
+  function quickFilterThisWeek() {
+    const today = new Date();
+    const weekStart = new Date(today.setDate(today.getDate() - today.getDay()));
+    const weekEnd = new Date(today.setDate(today.getDate() - today.getDay() + 6));
+
+    document.getElementById('date_from').value = weekStart.toISOString().split('T')[0];
+    document.getElementById('date_to').value = weekEnd.toISOString().split('T')[0];
+    document.getElementById('filterForm').submit();
+  }
+
+  function quickFilterThisMonth() {
+    const today = new Date();
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+    document.getElementById('date_from').value = monthStart.toISOString().split('T')[0];
+    document.getElementById('date_to').value = monthEnd.toISOString().split('T')[0];
+    document.getElementById('filterForm').submit();
+  }
+
+  // Add quick filter buttons
+  function addQuickFilters() {
+    const filterCard = document.querySelector('.ezm-card .card-body');
+    if (filterCard) {
+      const quickFiltersDiv = document.createElement('div');
+      quickFiltersDiv.className = 'row mt-3 pt-3 border-top';
+      quickFiltersDiv.innerHTML = `
+        <div class="col-12">
+          <label class="form-label">Quick Filters:</label>
+          <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="quickFilterToday()">Today</button>
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="quickFilterThisWeek()">This Week</button>
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="quickFilterThisMonth()">This Month</button>
+          </div>
+        </div>
+      `;
+      filterCard.appendChild(quickFiltersDiv);
+    }
+  }
+
+  // Initialize quick filters when page loads
+  document.addEventListener('DOMContentLoaded', function() {
+    addQuickFilters();
   });
 </script>
 {% endblock %}

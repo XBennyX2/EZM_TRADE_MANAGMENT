@@ -198,19 +198,24 @@
 
     .tab-pane {
         display: none !important;
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
     }
 
     .tab-pane.active {
         display: block !important;
+        opacity: 1;
     }
 
     .tab-pane.show.active {
         display: block !important;
+        opacity: 1;
     }
 
     /* Force visibility for active tab panes */
     .tab-pane.show {
         display: block !important;
+        opacity: 1;
     }
 
     /* Ensure tab content is visible */
@@ -219,19 +224,25 @@
     }
 
     #orderTabsContent .tab-pane.active {
-        opacity: 1;
-        visibility: visible;
+        opacity: 1 !important;
+        visibility: visible !important;
     }
 
-    /* Debug styling to help identify tab issues */
+    /* Enhanced tab animation */
     .tab-pane.show.active {
         border: 2px solid transparent;
-        animation: fadeIn 0.3s ease-in;
+        animation: fadeInTab 0.4s ease-in-out;
     }
 
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
+    @keyframes fadeInTab {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     /* Ensure Bootstrap tab navigation works */
@@ -239,6 +250,13 @@
         background-color: rgba(102, 252, 241, 0.1) !important;
         border-bottom: 3px solid var(--accent-teal) !important;
         color: var(--accent-teal) !important;
+        font-weight: 600 !important;
+    }
+
+    /* Tab hover effects */
+    .nav-tabs .nav-link:hover:not(.active) {
+        background-color: rgba(102, 252, 241, 0.05);
+        border-bottom: 2px solid rgba(102, 252, 241, 0.3);
     }
 
     /* Search and Filter Enhancements */
@@ -1675,30 +1693,20 @@
                 event.preventDefault();
                 console.log('Tab clicked:', triggerEl.id);
 
-                // Hide all tab panes first
-                document.querySelectorAll('.tab-pane').forEach(function(pane) {
-                    pane.classList.remove('show', 'active');
-                });
-
-                // Remove active class from all tabs
-                document.querySelectorAll('#orderTabs .nav-link').forEach(function(tab) {
-                    tab.classList.remove('active');
-                    tab.setAttribute('aria-selected', 'false');
-                });
-
-                // Show the target tab
+                // Use Bootstrap's built-in tab switching
                 tabInstance.show();
+            });
 
-                // Manually activate the tab and pane
-                var targetSelector = triggerEl.getAttribute('data-bs-target');
-                var targetPane = document.querySelector(targetSelector);
+            // Enhanced event listeners for better tab management
+            triggerEl.addEventListener('show.bs.tab', function (event) {
+                console.log('Tab showing:', event.target.id);
 
-                if (targetPane) {
-                    triggerEl.classList.add('active');
-                    triggerEl.setAttribute('aria-selected', 'true');
-                    targetPane.classList.add('show', 'active');
-                    console.log('Tab activated:', triggerEl.id, 'Pane:', targetSelector);
-                }
+                // Hide all other panes
+                document.querySelectorAll('.tab-pane').forEach(function(pane) {
+                    if (pane.id !== event.target.getAttribute('data-bs-target').substring(1)) {
+                        pane.classList.remove('show', 'active');
+                    }
+                });
             });
 
             // Add event listeners for when tabs are shown
@@ -1795,6 +1803,58 @@
             if (tableTab) {
                 tableTab.click();
             }
+        };
+
+        window.showOverviewTab = function() {
+            console.log('Manually showing overview tab...');
+            var overviewTab = document.querySelector('#overview-tab');
+            if (overviewTab) {
+                overviewTab.click();
+            }
+        };
+
+        // Add a comprehensive tab test function
+        window.testOrderTrackingTab = function() {
+            console.log('=== Testing Order Tracking Tab Specifically ===');
+
+            var trackingTab = document.querySelector('#tracking-tab');
+            var trackingPane = document.querySelector('#tracking');
+
+            if (!trackingTab) {
+                console.error('❌ Tracking tab not found');
+                return false;
+            }
+
+            if (!trackingPane) {
+                console.error('❌ Tracking pane not found');
+                return false;
+            }
+
+            console.log('✅ Tracking tab and pane found');
+
+            // Test clicking the tracking tab
+            console.log('🔄 Clicking tracking tab...');
+            trackingTab.click();
+
+            // Check if it became active
+            setTimeout(function() {
+                var isTabActive = trackingTab.classList.contains('active');
+                var isPaneActive = trackingPane.classList.contains('active');
+                var isPaneVisible = trackingPane.classList.contains('show');
+
+                console.log('Tab active:', isTabActive);
+                console.log('Pane active:', isPaneActive);
+                console.log('Pane visible:', isPaneVisible);
+                console.log('Pane display style:', getComputedStyle(trackingPane).display);
+
+                if (isTabActive && isPaneActive && isPaneVisible) {
+                    console.log('✅ Order tracking tab is working perfectly!');
+                    return true;
+                } else {
+                    console.log('❌ Order tracking tab has issues');
+                    return false;
+                }
+            }, 500);
         };
 
         window.showOverviewTab = function() {

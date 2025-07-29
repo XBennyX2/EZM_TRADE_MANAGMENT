@@ -9,6 +9,7 @@ from .models import Order, Store, StoreCashier
 from users.models import CustomUser
 from django.template.loader import render_to_string
 from django.http import HttpResponse
+import traceback 
 try:
     from weasyprint import HTML  # Make sure you have WeasyPrint installed
     WEASYPRINT_AVAILABLE = True
@@ -870,6 +871,7 @@ def add_to_cart(request):
     except Stock.DoesNotExist:
         return JsonResponse({'error': 'Product not found in store'}, status=404)
     except Exception as e:
+        traceback.print_exc()
         return JsonResponse({'error': str(e)}, status=500)
 
 
@@ -2099,7 +2101,7 @@ Please find your receipt attached to this email.
 Transaction Details:
 - Receipt #: {receipt.id}
 - Date: {transaction_obj.timestamp.strftime('%B %d, %Y at %I:%M %p')}
-- Total Amount: ${receipt.total_amount}
+- Total Amount: ETB{receipt.total_amount}
 - Payment Method: {transaction_obj.get_payment_type_display()}
 
 We appreciate your business and look forward to serving you again.

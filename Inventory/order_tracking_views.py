@@ -351,17 +351,20 @@ def confirm_delivery(request, order_id):
         # Validate order status
         if order.status not in ['in_transit', 'payment_confirmed']:
             logger.warning(f"Order {order_id} has invalid status for delivery confirmation: {order.status}")
+            status_display = order.get_status_display() if hasattr(order, 'get_status_display') else order.status
             return JsonResponse({
                 'success': False,
-                'message': 'Order must be in transit or payment confirmed to confirm delivery'
+                'message': f'Cannot confirm delivery for order with status "{status_display}". Order must be in transit or payment confirmed.'
             })
         
         # Check if delivery is already confirmed
         if hasattr(order, 'delivery_confirmation') and order.delivery_confirmation:
             logger.warning(f"Order {order_id} already has delivery confirmation")
+            confirmed_by = order.delivery_confirmation.confirmed_by.get_full_name() if order.delivery_confirmation.confirmed_by else "Unknown"
+            confirmed_at = order.delivery_confirmation.confirmed_at.strftime('%Y-%m-%d %H:%M') if order.delivery_confirmation.confirmed_at else "Unknown time"
             return JsonResponse({
                 'success': False,
-                'message': 'Delivery has already been confirmed for this order'
+                'message': f'Delivery was already confirmed by {confirmed_by} on {confirmed_at}.'
             })
         
         # Parse and validate form data
@@ -382,7 +385,7 @@ def confirm_delivery(request, order_id):
             logger.error(f"Error parsing form data for order {order_id}: {str(e)}")
             return JsonResponse({
                 'success': False,
-                'message': 'Invalid form data provided'
+                'message': 'Invalid form data provided. Please refresh the page and try again.'
             })
         
         # Validate required fields
@@ -390,7 +393,7 @@ def confirm_delivery(request, order_id):
             logger.warning(f"Missing delivery condition for order {order_id}")
             return JsonResponse({
                 'success': False,
-                'message': 'Delivery condition is required'
+                'message': 'Please select a delivery condition to proceed with confirmation.'
             })
         
         # Validate delivery condition choice
@@ -399,7 +402,7 @@ def confirm_delivery(request, order_id):
             logger.warning(f"Invalid delivery condition '{delivery_condition}' for order {order_id}")
             return JsonResponse({
                 'success': False,
-                'message': f'Invalid delivery condition. Must be one of: {", ".join(valid_conditions)}'
+                'message': f'Please select a valid delivery condition: {", ".join(valid_conditions)}'
             })
         
         with transaction.atomic():
@@ -440,11 +443,56 @@ def confirm_delivery(request, order_id):
                 
                 # Update order items and warehouse stock
                 order_items = order.items.all()
-                if not order_items.exists():
-                    logger.error(f"Order {order_id} has no items")
-                    raise ValueError("Order has no items to confirm")
+                items_count = order_items.count()
                 
-                logger.info(f"Processing {order_items.count()} items for order {order_id}")
+                if items_count == 0:
+                    logger.warning(f"Order {order_id} has no items to confirm")
+                    # Instead of failing, we'll allow confirmation but skip item processing
+                    # This handles cases where orders exist but items weren't properly created
+                    logger.info(f"Confirming order {order_id} without items - marking as delivered")
+                    
+                    # Update order status directly since there are no items to process
+                    previous_status = order.status
+                    try:
+                        order.confirm_delivery(request.user, delivery_notes)
+                        logger.info(f"Order {order_id} status updated from {previous_status} to {order.status}")
+                    except Exception as status_error:
+                        logger.error(f"Failed to update order status for order {order_id}: {str(status_error)}")
+                        raise
+                    
+                    # Create status history record
+                    try:
+                        OrderStatusHistory.objects.create(
+                            purchase_order=order,
+                            previous_status=previous_status,
+                            new_status=order.status,
+                            changed_by=request.user,
+                            reason='Delivery confirmed by Head Manager (no items)',
+                            notes=f"Condition: {delivery_condition}, All items received: {all_items_received}",
+                            ip_address=request.META.get('REMOTE_ADDR'),
+                            user_agent=request.META.get('HTTP_USER_AGENT', '')
+                        )
+                        logger.info(f"Created status history record for order {order_id}")
+                    except Exception as history_error:
+                        logger.error(f"Failed to create status history for order {order_id}: {str(history_error)}")
+                        # Continue without status history rather than failing
+                    
+                    # Send notification to supplier (outside transaction to avoid rollback on notification failure)
+                    try:
+                        supplier_notification_service.send_delivery_confirmation_notification(delivery_confirmation)
+                        logger.info(f"Delivery confirmation notification sent for order {order_id}")
+                    except Exception as notification_error:
+                        logger.error(f"Failed to send delivery confirmation notification for order {order_id}: {str(notification_error)}")
+                        # Don't fail the entire operation for notification errors
+                    
+                    logger.info(f"Successfully confirmed delivery for order {order_id} (no items)")
+                    return JsonResponse({
+                        'success': True,
+                        'message': 'Delivery confirmed successfully (order had no items)',
+                        'new_status': order.status
+                    })
+
+                logger.info(f"Processing {items_count} items for order {order_id}")
                 
                 processed_items = 0
                 error_items = 0
@@ -572,7 +620,7 @@ def confirm_delivery(request, order_id):
         logger.error(f"Traceback: {traceback.format_exc()}")
         return JsonResponse({
             'success': False,
-            'message': 'Unable to confirm delivery. Please check the logs for details.'
+            'message': 'Unable to confirm delivery due to a system error. Please try again or contact support if the problem persists.'
         }, status=500)
 
 

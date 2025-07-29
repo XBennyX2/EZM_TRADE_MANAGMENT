@@ -1,0 +1,314 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
+{% block title %}{{ stock.product.name }} - Stock Detail{% endblock %}
+{% block page_title %}Stock Management{% endblock %}
+
+{% block extra_css %}
+<style>
+  .stock-detail-card {
+    background: var(--white);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    border: none;
+    margin-bottom: 1.5rem;
+  }
+
+  .stock-header {
+    background: linear-gradient(90deg, var(--accent-teal), var(--accent-cyan));
+    color: var(--white);
+    border-radius: 12px 12px 0 0;
+    padding: 1.5rem;
+  }
+
+  .metric-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+    border: 1px solid #e9ecef;
+  }
+
+  .metric-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--secondary-dark);
+    margin-bottom: 0.25rem;
+  }
+
+  .metric-label {
+    font-size: 0.85rem;
+    color: #6c757d;
+  }
+
+  .alert-card {
+    border-left: 4px solid #ffc107;
+    background: #fff3cd;
+    border-color: #ffeaa7;
+  }
+
+  .success-card {
+    border-left: 4px solid #28a745;
+    background: #d4edda;
+    border-color: #c3e6cb;
+  }
+
+  .danger-card {
+    border-left: 4px solid #dc3545;
+    background: #f8d7da;
+    border-color: #f5c6cb;
+  }
+
+  .transaction-item {
+    border-bottom: 1px solid #e9ecef;
+    padding: 0.75rem 0;
+  }
+
+  .transaction-item:last-child {
+    border-bottom: none;
+  }
+
+  .status-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+
+  .status-pending {
+    background: #fff3cd;
+    color: #856404;
+  }
+
+  .status-approved {
+    background: #d4edda;
+    color: #155724;
+  }
+
+  .status-rejected {
+    background: #f8d7da;
+    color: #721c24;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Breadcrumb -->
+  <nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'store_manager_page' %}">Dashboard</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'store_manager_stock_management' %}">Stock Management</a></li>
+      <li class="breadcrumb-item active">{{ stock.product.name }}</li>
+    </ol>
+  </nav>
+
+  <!-- Stock Information Card -->
+  <div class="stock-detail-card">
+    <div class="stock-header">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h3 class="mb-1">{{ stock.product.name }}</h3>
+          <p class="mb-0 opacity-75">{{ stock.product.category|default:"No Category" }}</p>
+        </div>
+        <div class="text-end">
+          {% if stock.quantity <= 0 %}
+            <span class="badge bg-danger fs-6">Out of Stock</span>
+          {% elif stock.quantity <= stock.product.minimum_stock_threshold %}
+            <span class="badge bg-warning text-dark fs-6">Low Stock</span>
+          {% else %}
+            <span class="badge bg-success fs-6">In Stock</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    
+    <div class="card-body p-4">
+      <!-- Key Metrics -->
+      <div class="row mb-4">
+        <div class="col-md-3">
+          <div class="metric-card">
+            <div class="metric-value {% if stock.quantity <= 10 %}text-danger{% else %}text-success{% endif %}">
+              {{ stock.quantity }}
+            </div>
+            <div class="metric-label">Current Stock</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="metric-card">
+            <div class="metric-value">ETB {{ stock.selling_price }}</div>
+            <div class="metric-label">Selling Price</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="metric-card">
+            <div class="metric-value">{{ total_sold_30_days }}</div>
+            <div class="metric-label">Sold (30 days)</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="metric-card">
+            <div class="metric-value">
+              {% if days_until_empty %}
+                {{ days_until_empty|floatformat:0 }} days
+              {% else %}
+                N/A
+              {% endif %}
+            </div>
+            <div class="metric-label">Est. Days Left</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stock Status Alert -->
+      {% if stock.quantity <= 0 %}
+        <div class="alert danger-card" role="alert">
+          <h6 class="alert-heading"><i class="bi bi-exclamation-triangle me-2"></i>Out of Stock</h6>
+          <p class="mb-0">This product is currently out of stock. Consider requesting a restock immediately.</p>
+        </div>
+      {% elif stock.quantity <= stock.product.minimum_stock_threshold %}
+        <div class="alert alert-card" role="alert">
+          <h6 class="alert-heading"><i class="bi bi-exclamation-triangle me-2"></i>Low Stock Alert</h6>
+          <p class="mb-0">Stock level is below the minimum threshold of {{ stock.product.minimum_stock_threshold }} units.</p>
+        </div>
+      {% else %}
+        <div class="alert success-card" role="alert">
+          <h6 class="alert-heading"><i class="bi bi-check-circle me-2"></i>Stock Level Good</h6>
+          <p class="mb-0">Current stock level is above the minimum threshold.</p>
+        </div>
+      {% endif %}
+
+      <!-- Action Buttons -->
+      <div class="row">
+        <div class="col-md-6">
+          {% if pending_restock %}
+            <div class="alert alert-info" role="alert">
+              <h6 class="alert-heading">Pending Restock Request</h6>
+              <p class="mb-2">You have a pending restock request for {{ pending_restock.quantity }} units.</p>
+              <small class="text-muted">Requested on {{ pending_restock.requested_date|date:"M d, Y" }}</small>
+            </div>
+          {% else %}
+            <button class="btn btn-ezm-primary btn-lg w-100" data-bs-toggle="modal" data-bs-target="#restockModal">
+              <i class="bi bi-arrow-up-circle me-2"></i>Request Restock
+            </button>
+          {% endif %}
+        </div>
+        <div class="col-md-6">
+          <a href="{% url 'store_manager_stock_management' %}" class="btn btn-ezm-secondary btn-lg w-100">
+            <i class="bi bi-arrow-left me-2"></i>Back to Stock Management
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Additional Information -->
+  <div class="row">
+    <!-- Recent Transactions -->
+    <div class="col-md-6">
+      <div class="stock-detail-card">
+        <div class="card-header bg-light">
+          <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Recent Sales (30 days)</h6>
+        </div>
+        <div class="card-body">
+          {% if recent_transactions %}
+            {% for transaction in recent_transactions %}
+            <div class="transaction-item">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <strong>{{ transaction.quantity }} units sold</strong>
+                  <br>
+                  <small class="text-muted">{{ transaction.transaction.timestamp|date:"M d, Y H:i" }}</small>
+                </div>
+                <div class="text-end">
+                  <span class="text-success">ETB {{ transaction.price_at_time_of_sale }}</span>
+                  <br>
+                  <small class="text-muted">per unit</small>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          {% else %}
+            <div class="text-center py-4">
+              <i class="bi bi-graph-down text-muted fs-2"></i>
+              <p class="text-muted mt-2">No sales in the last 30 days</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Restock History -->
+    <div class="col-md-6">
+      <div class="stock-detail-card">
+        <div class="card-header bg-light">
+          <h6 class="mb-0"><i class="bi bi-arrow-repeat me-2"></i>Restock Requests</h6>
+        </div>
+        <div class="card-body">
+          {% if recent_restock_requests %}
+            {% for request in recent_restock_requests %}
+            <div class="transaction-item">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <strong>{{ request.quantity }} units requested</strong>
+                  <br>
+                  <small class="text-muted">{{ request.requested_date|date:"M d, Y" }}</small>
+                </div>
+                <div class="text-end">
+                  <span class="status-badge status-{{ request.status }}">{{ request.get_status_display }}</span>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          {% else %}
+            <div class="text-center py-4">
+              <i class="bi bi-inbox text-muted fs-2"></i>
+              <p class="text-muted mt-2">No restock requests yet</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Restock Request Modal -->
+<div class="modal fade" id="restockModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Request Restock - {{ stock.product.name }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{% url 'submit_restock_request' %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          <input type="hidden" name="product_id" value="{{ stock.product.id }}">
+          <div class="mb-3">
+            <label for="quantity" class="form-label">Quantity to Request</label>
+            <input type="number" class="form-control" id="quantity" name="quantity" min="1" required>
+            <div class="form-text">Current stock: {{ stock.quantity }} units</div>
+          </div>
+          <div class="mb-3">
+            <label for="priority" class="form-label">Priority</label>
+            <select class="form-select" id="priority" name="priority" required>
+              <option value="low">Low</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="notes" class="form-label">Notes (Optional)</label>
+            <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Additional information about this restock request..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-ezm-primary">Submit Request</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

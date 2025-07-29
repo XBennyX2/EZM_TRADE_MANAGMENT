@@ -54,14 +54,20 @@ def cart_add(request):
         
         product = get_object_or_404(SupplierProduct, id=product_id)
         cart = Cart(request)
-        cart.add(product=product, quantity=quantity)
-        
-        return JsonResponse({
-            'success': True,
-            'message': f'{product.product_name} added to cart',
-            'cart_total_items': cart.get_total_items(),
-            'cart_total_price': str(cart.get_total_price()),
-        })
+        result = cart.add(product=product, quantity=quantity)
+
+        if result['success']:
+            return JsonResponse({
+                'success': True,
+                'message': result['message'],
+                'cart_total_items': cart.get_total_items(),
+                'cart_total_price': str(cart.get_total_price()),
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'message': result['message']
+            })
         
     except (ValueError, TypeError) as e:
         return JsonResponse({
@@ -114,28 +120,34 @@ def cart_update_quantity(request):
         quantity = int(request.POST.get('quantity', 1))
         
         cart = Cart(request)
-        cart.update_quantity(product_id, quantity)
-        
-        # Get updated cart info
-        cart_items = cart.get_cart_items()
-        updated_item = None
-        for item in cart_items:
-            if str(item['product'].id) == str(product_id):
-                updated_item = item
-                break
-        
-        response_data = {
-            'success': True,
-            'message': 'Quantity updated',
-            'cart_total_items': cart.get_total_items(),
-            'cart_total_price': str(cart.get_total_price()),
-        }
-        
-        if updated_item:
-            response_data['item_total_price'] = str(updated_item['total_price'])
-            response_data['item_quantity'] = updated_item['quantity']
-        
-        return JsonResponse(response_data)
+        result = cart.update_quantity(product_id, quantity)
+
+        if result['success']:
+            # Get updated cart info
+            cart_items = cart.get_cart_items()
+            updated_item = None
+            for item in cart_items:
+                if str(item['product'].id) == str(product_id):
+                    updated_item = item
+                    break
+
+            response_data = {
+                'success': True,
+                'message': result['message'],
+                'cart_total_items': cart.get_total_items(),
+                'cart_total_price': str(cart.get_total_price()),
+            }
+
+            if updated_item:
+                response_data['item_total_price'] = str(updated_item['total_price'])
+                response_data['item_quantity'] = updated_item['quantity']
+
+            return JsonResponse(response_data)
+        else:
+            return JsonResponse({
+                'success': False,
+                'message': result['message']
+            })
         
     except (ValueError, TypeError):
         return JsonResponse({
@@ -159,6 +171,26 @@ def cart_clear(request):
     cart.clear()
     messages.success(request, 'Cart cleared successfully')
     return redirect('cart_view')
+
+
+@login_required
+@user_passes_test(is_head_manager)
+@require_POST
+def cart_validate(request):
+    """
+    Validate cart stock levels before checkout
+    """
+    try:
+        cart = Cart(request)
+        validation_result = cart.validate_stock()
+
+        return JsonResponse(validation_result)
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': 'Error validating cart'
+        })
 
 
 @login_required

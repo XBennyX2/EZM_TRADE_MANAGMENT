@@ -1075,6 +1075,25 @@
             color: #6c757d;
             margin-top: 0.25rem;
         }
+
+        /* Store Selection Cards */
+        .store-selection-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .store-selection-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .store-selection-card .btn {
+            transition: all 0.3s ease;
+        }
+
+        .store-selection-card:hover .btn {
+            transform: scale(1.05);
+        }
     </style>
     
     {% block extra_css %}{% endblock %}
@@ -1603,7 +1622,9 @@
     // Update cart display
     function updateCartDisplay() {
         const cartCount = cart.items.reduce((total, item) => total + item.quantity, 0);
-        const cartTotal = cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+        const subtotal = cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+        const taxAmount = subtotal * 0.15; // 15% tax
+        const cartTotal = subtotal + taxAmount;
 
         // Update navigation cart badge
         const cartBadge = document.getElementById('cart-badge');
@@ -1642,8 +1663,12 @@
                 const summaryItems = document.getElementById('cart-summary-items');
                 const summaryTotal = document.getElementById('cart-summary-total');
                 const summaryStore = document.getElementById('cart-summary-store');
+                const summarySubtotal = document.getElementById('cart-summary-subtotal');
+                const summaryTax = document.getElementById('cart-summary-tax');
 
                 if (summaryItems) summaryItems.textContent = cartCount;
+                if (summarySubtotal) summarySubtotal.textContent = `ETB ${subtotal.toFixed(2)}`;
+                if (summaryTax) summaryTax.textContent = `ETB ${taxAmount.toFixed(2)}`;
                 if (summaryTotal) summaryTotal.textContent = `ETB ${cartTotal.toFixed(2)}`;
                 if (summaryStore) summaryStore.textContent = cart.store_name;
             } else {
@@ -1734,8 +1759,10 @@
         // Show welcome message if cart has items
         if (cart.items.length > 0) {
             const itemCount = cart.items.reduce((total, item) => total + item.quantity, 0);
-            const total = cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
-            showNotification(`Your cart: ${itemCount} item${itemCount !== 1 ? 's' : ''} • ETB ${total.toFixed(2)}`, 'info');
+            const subtotal = cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+            const taxAmount = subtotal * 0.15;
+            const total = subtotal + taxAmount;
+            showNotification(`Your cart: ${itemCount} item${itemCount !== 1 ? 's' : ''} • ETB ${total.toFixed(2)} (incl. tax)`, 'info');
         }
     }
 
@@ -1779,10 +1806,10 @@
                     <tbody>
         `;
 
-        let grandTotal = 0;
+        let subtotal = 0;
         cart.items.forEach(item => {
             const itemTotal = item.price * item.quantity;
-            grandTotal += itemTotal;
+            subtotal += itemTotal;
             cartHtml += `
                 <tr>
                     <td>${item.product_name}</td>
@@ -1806,9 +1833,22 @@
             `;
         });
 
+        const taxAmount = subtotal * 0.15;
+        const grandTotal = subtotal + taxAmount;
+
         cartHtml += `
                     </tbody>
                     <tfoot>
+                        <tr>
+                            <th colspan="3">Subtotal</th>
+                            <th>ETB ${subtotal.toFixed(2)}</th>
+                            <th></th>
+                        </tr>
+                        <tr>
+                            <th colspan="3">Tax (15%)</th>
+                            <th>ETB ${taxAmount.toFixed(2)}</th>
+                            <th></th>
+                        </tr>
                         <tr class="table-active">
                             <th colspan="3">Total</th>
                             <th>ETB ${grandTotal.toFixed(2)}</th>
@@ -1830,7 +1870,9 @@
         }
 
         const itemCount = cart.items.reduce((total, item) => total + item.quantity, 0);
-        const total = cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+        const subtotal = cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+        const taxAmount = subtotal * 0.15;
+        const total = subtotal + taxAmount;
 
         // Hide cart modal and show checkout modal
         const cartModal = bootstrap.Modal.getInstance(document.getElementById('cartModal'));

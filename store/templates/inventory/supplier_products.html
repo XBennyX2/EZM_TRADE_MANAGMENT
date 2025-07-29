@@ -19,9 +19,11 @@
                         <p class="text-muted mb-0">Products available from this supplier</p>
                     </div>
                 </div>
+                {% if user.role == 'admin' or user.role == 'head_manager' or user.is_superuser %}
                 <a href="{% url 'warehouse_product_create' supplier.pk %}" class="btn btn-primary">
                     <i class="bi bi-plus-circle me-2"></i>Add New Product
                 </a>
+                {% endif %}
             </div>
 
             <!-- Supplier Info Card -->
@@ -210,10 +212,12 @@
                                     </td>
                                     <td>
                                         <div class="btn-group" role="group">
-                                            <a href="{% url 'warehouse_product_update' product.pk %}" 
+                                            {% if user.role == 'admin' or user.role == 'head_manager' or user.is_superuser %}
+                                            <a href="{% url 'warehouse_product_update' product.pk %}"
                                                class="btn btn-sm btn-outline-primary" title="Edit">
                                                 <i class="bi bi-pencil"></i>
                                             </a>
+                                            {% endif %}
                                             <button class="btn btn-sm btn-outline-success" title="Create Purchase Order">
                                                 <i class="bi bi-cart-plus"></i>
                                             </button>

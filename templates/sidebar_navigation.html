@@ -105,6 +105,12 @@
         </a>
     </li>
     <li class="sidebar-menu-item">
+        <a href="{% url 'stock_alerts_dashboard' %}" data-tooltip="Stock Alerts">
+            <i class="bi bi-exclamation-triangle"></i>
+            <span>Stock Alerts</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
         <a href="{% url 'store_manager_restock_requests' %}" data-tooltip="Restock Requests">
             <i class="bi bi-arrow-up-circle"></i>
             <span>Restock Requests</span>
@@ -125,19 +131,14 @@
     <li class="sidebar-menu-item">
         <a href="{% url 'manage_cashiers' %}" data-tooltip="Manage Cashiers">
             <i class="bi bi-people"></i>
-            <span>Manage Cashiers</span>
+            <span>Manage Salespersons</span>
         </a>
     </li>
-    <li class="sidebar-menu-item">
-        <a href="#" data-tooltip="Request History" onclick="showRequestHistory()">
-            <i class="bi bi-clock-history"></i>
-            <span>Request History</span>
-        </a>
-    </li>
+
 
 </ul>
 
-<!-- Cashier Sidebar -->
+<!-- Salesperson Sidebar -->
 {% elif user.role == 'cashier' %}
 <ul>
     <li class="sidebar-menu-item{% if request.resolver_match.url_name == 'initiate_order' %} active{% endif %}">

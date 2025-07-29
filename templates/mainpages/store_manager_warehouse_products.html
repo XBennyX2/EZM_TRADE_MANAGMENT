@@ -1,0 +1,540 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
+{% block title %}Warehouse Products - Request Restock{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary-dark: #0B0C10;
+        --secondary-dark: #1F2833;
+        --light-gray: #C5C6C7;
+        --accent-cyan: #66FCF1;
+        --accent-teal: #45A29E;
+        --white: #ffffff;
+    }
+
+    .warehouse-card {
+        background: var(--white);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        border: none;
+        margin-bottom: 1.5rem;
+        border-left: 4px solid var(--accent-teal);
+    }
+
+    .stats-card {
+        background: linear-gradient(135deg, var(--primary-dark), var(--secondary-dark));
+        color: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        border: none;
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+
+    .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .in-stock-card {
+        background: linear-gradient(135deg, #28a745, #20c997);
+    }
+
+    .out-of-stock-card {
+        background: linear-gradient(135deg, #dc3545, #fd7e14);
+    }
+
+    .total-card {
+        background: linear-gradient(135deg, var(--accent-cyan), var(--accent-teal));
+        color: var(--primary-dark);
+    }
+
+    .dashboard-header {
+        background: linear-gradient(90deg, var(--accent-teal), var(--accent-cyan));
+        color: var(--white);
+        border-radius: 12px 12px 0 0;
+        padding: 1rem 1.5rem;
+    }
+
+    .table-warehouse {
+        background: var(--white);
+        border-radius: 8px;
+    }
+
+    .table-warehouse th {
+        background: linear-gradient(135deg, var(--primary-dark), var(--secondary-dark));
+        color: var(--white);
+        border: none;
+        font-weight: 600;
+        padding: 1rem;
+    }
+
+    .table-warehouse td {
+        padding: 1rem;
+        border-color: #e9ecef;
+        vertical-align: middle;
+    }
+
+    .stock-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-weight: 500;
+    }
+
+    .stock-available {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .stock-low {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .stock-out {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .pending-badge {
+        background: #cce5ff;
+        color: #004085;
+    }
+
+    .filter-card {
+        background: var(--white);
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border-left: 4px solid var(--accent-cyan);
+    }
+
+    .btn-request {
+        background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
+        color: var(--primary-dark);
+        border: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-request:hover {
+        background: linear-gradient(135deg, var(--accent-cyan), var(--accent-teal));
+        color: var(--primary-dark);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 15px rgba(69, 162, 158, 0.3);
+    }
+
+    .btn-request:disabled {
+        background: #6c757d;
+        color: white;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .metric-label {
+        opacity: 0.9;
+        margin-bottom: 0;
+        font-size: 0.9rem;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #6c757d;
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    @media (max-width: 768px) {
+        .stats-card {
+            margin-bottom: 1rem;
+        }
+
+        .filter-card {
+            padding: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">Warehouse Products</h2>
+                    <p class="text-muted mb-0">Request restocks from available warehouse inventory</p>
+                </div>
+                <div>
+                    <a href="{% url 'store_manager_restock_requests' %}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left me-1"></i>Back to Requests
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4 g-3">
+        <div class="col-lg-4 col-md-4">
+            <div class="stats-card total-card">
+                <div class="metric-value">{{ stats.total_products }}</div>
+                <div class="metric-label">Total Products</div>
+            </div>
+        </div>
+        <div class="col-lg-4 col-md-4">
+            <div class="stats-card in-stock-card">
+                <div class="metric-value">{{ stats.in_stock_count }}</div>
+                <div class="metric-label">Available in Stock</div>
+            </div>
+        </div>
+        <div class="col-lg-4 col-md-4">
+            <div class="stats-card out-of-stock-card">
+                <div class="metric-value">{{ stats.out_of_stock_count }}</div>
+                <div class="metric-label">Out of Stock</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="filter-card">
+                <form method="get" class="row g-3">
+                    <div class="col-md-4">
+                        <label for="search" class="form-label">Search Products</label>
+                        <input type="text" class="form-control" id="search" name="search"
+                               value="{{ search_query }}" placeholder="Product name, category, supplier, SKU...">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="category" class="form-label">Category</label>
+                        <select class="form-select" id="category" name="category">
+                            <option value="">All Categories</option>
+                            {% for category in categories %}
+                            <option value="{{ category }}" {% if category_filter == category %}selected{% endif %}>
+                                {{ category|title }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="availability" class="form-label">Availability</label>
+                        <select class="form-select" id="availability" name="availability">
+                            <option value="all" {% if availability_filter == 'all' %}selected{% endif %}>All Products</option>
+                            <option value="in_stock" {% if availability_filter == 'in_stock' %}selected{% endif %}>In Stock</option>
+                            <option value="out_of_stock" {% if availability_filter == 'out_of_stock' %}selected{% endif %}>Out of Stock</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-search me-1"></i>Filter
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Products Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="warehouse-card">
+                <div class="dashboard-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0">
+                                <i class="bi bi-boxes me-2"></i>
+                                Warehouse Inventory
+                            </h5>
+                            <small class="opacity-75">{{ page_obj.paginator.count }} products found</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if page_obj %}
+                    <div class="table-responsive">
+                        <table class="table table-warehouse mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Category</th>
+                                    <th>Supplier</th>
+                                    <th>Available Stock</th>
+                                    <th>Unit Price</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in page_obj %}
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <strong>{{ product.product_name }}</strong>
+                                            {% if product.sku %}
+                                            <br><small class="text-muted">SKU: {{ product.sku }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ product.category|title }}</span>
+                                    </td>
+                                    <td>
+                                        {% if product.supplier %}
+                                        <strong>{{ product.supplier.name }}</strong>
+                                        {% else %}
+                                        <span class="text-muted">No supplier</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <strong>{{ product.quantity_in_stock }}</strong>
+                                        <br><small class="text-muted">units</small>
+                                    </td>
+                                    <td>
+                                        <strong>ETB {{ product.unit_price|floatformat:2 }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if product.product_name in pending_requests %}
+                                        <span class="stock-badge pending-badge">Request Pending</span>
+                                        {% elif product.quantity_in_stock > 50 %}
+                                        <span class="stock-badge stock-available">Available</span>
+                                        {% elif product.quantity_in_stock > 0 %}
+                                        <span class="stock-badge stock-low">Low Stock</span>
+                                        {% else %}
+                                        <span class="stock-badge stock-out">Out of Stock</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if product.quantity_in_stock > 0 and product.product_name not in pending_requests %}
+                                        <button class="btn btn-sm btn-request" 
+                                                onclick="requestRestock('{{ product.product_name|escapejs }}', {{ product.quantity_in_stock }}, {{ product.unit_price }})">
+                                            <i class="bi bi-plus-circle me-1"></i>Request
+                                        </button>
+                                        {% elif product.product_name in pending_requests %}
+                                        <button class="btn btn-sm btn-secondary" disabled>
+                                            <i class="bi bi-clock me-1"></i>Pending
+                                        </button>
+                                        {% else %}
+                                        <button class="btn btn-sm btn-secondary" disabled>
+                                            <i class="bi bi-x-circle me-1"></i>Unavailable
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if page_obj.has_other_pages %}
+                    <div class="d-flex justify-content-between align-items-center p-3 border-top">
+                        <div>
+                            <small class="text-muted">
+                                Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} entries
+                            </small>
+                        </div>
+                        <nav aria-label="Products pagination">
+                            <ul class="pagination pagination-sm mb-0">
+                                {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}&search={{ search_query }}&category={{ category_filter }}&availability={{ availability_filter }}">Previous</a>
+                                </li>
+                                {% endif %}
+                                
+                                {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}&search={{ search_query }}&category={{ category_filter }}&availability={{ availability_filter }}">{{ num }}</a>
+                                </li>
+                                {% endif %}
+                                {% endfor %}
+                                
+                                {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}&search={{ search_query }}&category={{ category_filter }}&availability={{ availability_filter }}">Next</a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                    {% endif %}
+
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="bi bi-box-seam"></i>
+                        <h4 class="text-muted">No Products Found</h4>
+                        <p class="text-muted">No warehouse products match your search criteria.</p>
+                        <a href="{% url 'store_manager_warehouse_products' %}" class="btn btn-primary">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Reset Filters
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Restock Request Modal -->
+<div class="modal fade" id="restockRequestModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Request Restock</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'submit_restock_request' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="hidden" id="modal_product_name" name="product_name">
+
+                    <div class="mb-3">
+                        <label class="form-label">Product</label>
+                        <input type="text" class="form-control" id="modal_product_display" readonly>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label">Available Stock</label>
+                            <input type="text" class="form-control" id="modal_available_stock" readonly>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Unit Price</label>
+                            <input type="text" class="form-control" id="modal_unit_price" readonly>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="requested_quantity" class="form-label">Requested Quantity *</label>
+                        <input type="number" class="form-control" id="requested_quantity" name="requested_quantity"
+                               min="1" required>
+                        <div class="form-text">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Enter the quantity you need for your store.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="priority" class="form-label">Priority Level *</label>
+                        <select class="form-select" id="priority" name="priority" required>
+                            <option value="">Select Priority</option>
+                            <option value="low">Low - Can wait 3-5 days</option>
+                            <option value="medium">Medium - Needed within 2-3 days</option>
+                            <option value="high">High - Urgent, needed within 1 day</option>
+                            <option value="critical">Critical - Emergency restock</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="reason" class="form-label">Reason for Request</label>
+                        <textarea class="form-control" id="reason" name="reason" rows="3"
+                                  placeholder="Optional: Explain why you need this restock..."></textarea>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="bi bi-lightbulb me-2"></i>
+                        <strong>Note:</strong> Your request will be reviewed by the head manager.
+                        Higher priority requests are processed first.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-request">
+                        <i class="bi bi-send me-1"></i>Submit Request
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function requestRestock(productName, availableStock, unitPrice) {
+    // Populate modal fields
+    document.getElementById('modal_product_name').value = productName;
+    document.getElementById('modal_product_display').value = productName;
+    document.getElementById('modal_available_stock').value = availableStock + ' units';
+    document.getElementById('modal_unit_price').value = 'ETB ' + parseFloat(unitPrice).toFixed(2);
+
+    // Set max quantity to available stock
+    const quantityInput = document.getElementById('requested_quantity');
+    quantityInput.max = availableStock;
+    quantityInput.value = '';
+
+    // Reset form
+    document.getElementById('priority').value = '';
+    document.getElementById('reason').value = '';
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('restockRequestModal'));
+    modal.show();
+}
+
+// Validate quantity input
+document.getElementById('requested_quantity').addEventListener('input', function() {
+    const maxQuantity = parseInt(this.max);
+    const currentValue = parseInt(this.value);
+
+    if (currentValue > maxQuantity) {
+        this.value = maxQuantity;
+        alert(`Maximum available quantity is ${maxQuantity} units.`);
+    }
+
+    if (currentValue < 1) {
+        this.value = 1;
+    }
+});
+
+// Auto-submit form when filters change
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('search');
+    const categorySelect = document.getElementById('category');
+    const availabilitySelect = document.getElementById('availability');
+
+    // Auto-submit on category/availability change
+    categorySelect.addEventListener('change', function() {
+        this.form.submit();
+    });
+
+    availabilitySelect.addEventListener('change', function() {
+        this.form.submit();
+    });
+
+    // Submit on Enter key for search
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            this.form.submit();
+        }
+    });
+});
+</script>
+{% endblock %}

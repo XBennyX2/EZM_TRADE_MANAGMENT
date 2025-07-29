@@ -2,8 +2,8 @@
 {% load static %}
 {% load widget_tweaks %}
 
-{% block title %}Assign Cashier{% endblock %}
-{% block page_title %}Assign Cashier{% endblock %}
+{% block title %}Assign Sales Person{% endblock %}
+{% block page_title %}Assign Sales Person{% endblock %}
 
 {% block sidebar_menu %}
 {% include 'sidebar_navigation.html' %}
@@ -15,7 +15,7 @@
     <div class="col-lg-8 col-md-10">
       <div class="ezm-card">
         <div class="ezm-card-header">
-          <i class="bi bi-person-plus me-2"></i>Assign Cashier for {{ store.name }}
+          <i class="bi bi-person-plus me-2"></i>Assign Sales Person for {{ store.name }}
         </div>
         <div class="card-body">
           <form method="post">
@@ -32,10 +32,10 @@
 
             <div class="d-flex gap-3">
               <button type="submit" class="btn btn-ezm-primary">
-                <i class="bi bi-person-plus me-2"></i>Assign Cashier
+                <i class="bi bi-person-plus me-2"></i>Assign Sales Person
               </button>
               <a href="{% url 'manage_cashiers' %}" class="btn btn-ezm-secondary">
-                <i class="bi bi-arrow-left me-2"></i>Back to Cashiers
+                <i class="bi bi-arrow-left me-2"></i>Back to Salespersons
               </a>
             </div>
           </form>

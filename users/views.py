@@ -67,16 +67,18 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 
 def send_otp_email(user):
-    subject = "Welcome to EZM Trade — Verify Your Email"
+    company_name = getattr(settings, 'COMPANY_NAME', 'EZM Trade Management System')
+    subject = f"Welcome to {company_name} — Verify Your Email"
     from_email = settings.DEFAULT_FROM_EMAIL
     to_email = user.email
 
     context = {
         'username': user.username,
         'otp': user.otp_code,
+        'company_name': company_name,
     }
 
-    text_content = f"Hi {user.username},\\nWelcome to EZM Trade!\\nYour OTP code is: {user.otp_code}"
+    text_content = f"Hi {user.username},\\nWelcome to {company_name}!\\nYour OTP code is: {user.otp_code}"
     html_content = render_to_string('users/email_otp.html', context)
 
     msg = EmailMultiAlternatives(subject, text_content, from_email, [to_email])
@@ -416,7 +418,7 @@ def approve_restock_request(request, request_id):
             if approved_quantity > restock_request.requested_quantity * 2:
                 messages.warning(request, f"Approved quantity ({approved_quantity}) is significantly higher than requested ({restock_request.requested_quantity}). Please confirm this is intentional.")
 
-            # Use the new approve method which handles notifications and immediate inventory transfer
+            # Use the approve method which validates and approves the request
             restock_request.approve(
                 approved_by=request.user,
                 approved_quantity=approved_quantity,
@@ -424,7 +426,7 @@ def approve_restock_request(request, request_id):
             )
 
             # Success message with details
-            success_msg = f"✅ Restock request #{restock_request.request_number} approved and inventory transferred! {approved_quantity} units of {restock_request.product.name} have been moved from warehouse to {restock_request.store.name}."
+            success_msg = f"✅ Restock request #{restock_request.request_number} approved! {approved_quantity} units of {restock_request.product.name} are ready for the store manager to receive."
             if approved_quantity != restock_request.requested_quantity:
                 success_msg += f" (Originally requested: {restock_request.requested_quantity} units)"
             messages.success(request, success_msg)
@@ -1252,84 +1254,162 @@ def export_sales_report(sales_data, summary_data, export_format):
 
 def export_sales_pdf(sales_data, summary_data):
     """
-    Generate HTML-based PDF sales report (simplified version).
+    Generate PDF sales report using ReportLab.
     """
-    response = HttpResponse(content_type='text/html')
-    response['Content-Disposition'] = f'attachment; filename="sales_report_{summary_data["start_date"]}_{summary_data["end_date"]}.html"'
+    from reportlab.lib.pagesizes import A4, letter
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.units import inch
+    from io import BytesIO
+    from django.utils import timezone
 
-    # Create HTML content
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Sales Report - {summary_data['store'].name}</title>
-        <style>
-            body {{ font-family: Arial, sans-serif; margin: 20px; }}
-            .header {{ text-align: center; margin-bottom: 30px; }}
-            .summary {{ background: #f5f5f5; padding: 20px; margin-bottom: 30px; }}
-            table {{ width: 100%; border-collapse: collapse; }}
-            th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
-            th {{ background-color: #4CAF50; color: white; }}
-            .profit-positive {{ color: green; }}
-            .profit-negative {{ color: red; }}
-        </style>
-    </head>
-    <body>
-        <div class="header">
-            <h1>Sales Report - {summary_data['store'].name}</h1>
-            <p>Period: {summary_data['start_date']} to {summary_data['end_date']}</p>
-        </div>
+    # Create PDF buffer
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    styles = getSampleStyleSheet()
+    story = []
 
-        <div class="summary">
-            <h2>Summary Statistics</h2>
-            <p><strong>Total Revenue:</strong> ETB {summary_data['total_revenue']:,.2f}</p>
-            <p><strong>Total Units Sold:</strong> {summary_data['total_units_sold']:,}</p>
-            <p><strong>Total Transactions:</strong> {summary_data['total_transactions']:,}</p>
-            <p><strong>Average Transaction Value:</strong> ETB {summary_data['avg_transaction_value']:,.2f}</p>
-        </div>
+    # Title
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        spaceAfter=30,
+        textColor=colors.HexColor('#0B0C10'),
+        alignment=1  # Center alignment
+    )
 
-        <h2>Detailed Sales Data</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Product</th>
-                    <th>SKU</th>
-                    <th>Category</th>
-                    <th>Qty</th>
-                    <th>Unit Price</th>
-                    <th>Total</th>
-                    <th>Profit</th>
-                    <th>Payment</th>
-                </tr>
-            </thead>
-            <tbody>
-    """
+    story.append(Paragraph(f"Sales Report - {summary_data['store'].name}", title_style))
+    story.append(Paragraph(f"Period: {summary_data['start_date']} to {summary_data['end_date']}", styles['Normal']))
+    story.append(Spacer(1, 20))
 
-    for item in sales_data:
-        profit_class = "profit-positive" if item['total_profit'] >= 0 else "profit-negative"
-        html_content += f"""
-                <tr>
-                    <td>{item['sale_date'].strftime('%Y-%m-%d %H:%M')}</td>
-                    <td>{item['product_name']}</td>
-                    <td>{item['product_sku']}</td>
-                    <td>{item['category']}</td>
-                    <td>{item['quantity_sold']}</td>
-                    <td>ETB {item['unit_price']:.2f}</td>
-                    <td>ETB {item['line_total']:.2f}</td>
-                    <td class="{profit_class}">ETB {item['total_profit']:.2f}</td>
-                    <td>{item['payment_method'].title()}</td>
-                </tr>
-        """
+    # Summary section
+    summary_data_table = [
+        ['Metric', 'Value'],
+        ['Total Revenue', f"ETB {summary_data['total_revenue']:,.2f}"],
+        ['Total Transactions', f"{summary_data['total_transactions']:,}"],
+        ['Units Sold', f"{summary_data['total_units_sold']:,}"],
+        ['Average Transaction', f"ETB {summary_data['avg_transaction_value']:,.2f}"],
+    ]
 
-    html_content += """
-            </tbody>
-        </table>
-    </body>
-    </html>
-    """
+    summary_table = Table(summary_data_table, colWidths=[2*inch, 2*inch])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#66FCF1')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#0B0C10')),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
+    ]))
 
-    response.write(html_content)
+    story.append(Paragraph("Summary", styles['Heading2']))
+    story.append(summary_table)
+    story.append(Spacer(1, 20))
+
+    # Sales data table (all records)
+    if sales_data:
+        sales_table_data = [['Date', 'Product', 'SKU', 'Category', 'Qty', 'Unit Price', 'Total', 'Profit', 'Payment']]
+
+        for item in sales_data:  # Include all items
+            try:
+                # Safely get values with defaults
+                product_name = item.get('product_name', 'Unknown Product')
+                category = item.get('category', 'N/A')
+                product_sku = item.get('product_sku', 'N/A')
+                sale_date = item.get('sale_date', timezone.now())
+                quantity_sold = item.get('quantity_sold', 0)
+                unit_price = item.get('unit_price', 0)
+                line_total = item.get('line_total', 0)
+                total_profit = item.get('total_profit', 0)
+                payment_method = item.get('payment_method', 'N/A')
+
+                # Truncate long names for better table formatting
+                product_name = product_name[:25] + '...' if len(str(product_name)) > 25 else str(product_name)
+                category = category[:15] + '...' if len(str(category)) > 15 else str(category)
+
+                sales_table_data.append([
+                    sale_date.strftime('%m/%d/%Y %H:%M') if hasattr(sale_date, 'strftime') else str(sale_date),
+                    product_name,
+                    str(product_sku),
+                    category,
+                    str(quantity_sold),
+                    f"ETB {float(unit_price):,.2f}",
+                    f"ETB {float(line_total):,.2f}",
+                    f"ETB {float(total_profit):,.2f}",
+                    str(payment_method)
+                ])
+            except Exception as e:
+                # Skip problematic records and continue
+                print(f"Error processing sales record: {e}")
+                continue
+
+        # Adjust column widths for better fit
+        sales_table = Table(sales_table_data, colWidths=[0.8*inch, 1.5*inch, 0.6*inch, 0.8*inch, 0.5*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.7*inch])
+        sales_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#66FCF1')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#0B0C10')),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 7),  # Smaller font for more data
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8F9FA')])  # Alternating row colors
+        ]))
+
+        story.append(Paragraph(f"Complete Sales Details ({len(sales_data)} Records)", styles['Heading2']))
+        story.append(sales_table)
+        story.append(Spacer(1, 20))
+    else:
+        # No sales data available
+        story.append(Paragraph("Sales Details", styles['Heading2']))
+        story.append(Paragraph("No sales data found for the selected period.", styles['Normal']))
+        story.append(Spacer(1, 20))
+
+
+
+    # Payment method distribution
+    if summary_data.get('payment_distribution'):
+        payment_data = [['Payment Method', 'Transactions', 'Total Amount']]
+
+        for payment in summary_data['payment_distribution']:
+            try:
+                payment_type = payment.get('payment_type', 'Unknown')
+                count = payment.get('count', 0)
+                total = payment.get('total', 0)
+
+                payment_data.append([
+                    str(payment_type).title(),
+                    f"{int(count):,}",
+                    f"ETB {float(total):,.2f}"
+                ])
+            except Exception as e:
+                print(f"Error processing payment distribution: {e}")
+                continue
+
+        payment_table = Table(payment_data, colWidths=[2*inch, 1.5*inch, 2*inch])
+        payment_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#66FCF1')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#0B0C10')),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
+        ]))
+
+        story.append(Paragraph("Payment Method Distribution", styles['Heading2']))
+        story.append(payment_table)
+
+    # Build PDF
+    doc.build(story)
+
+    # Return PDF response
+    buffer.seek(0)
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="sales_report_{summary_data["start_date"]}_{summary_data["end_date"]}.pdf"'
+
     return response
 
 
@@ -1405,13 +1485,30 @@ def store_manager_page(request):
             'user': request.user
         })
 
+    # Get period from request (default to 30 days)
+    period = request.GET.get('period', '30')
+
     # Get current date for filtering
     from django.utils import timezone
     from datetime import datetime, timedelta
-    from django.db.models import Sum, Count, Q, F
+    from django.db.models import Sum, Count, Q, F, Avg
     from Inventory.models import Stock, Product, RestockRequest, StoreStockTransferRequest
 
-    today = timezone.now().date()
+    now = timezone.now()
+    today = now.date()
+
+    # Calculate date ranges based on period
+    if period == '7':
+        start_date = now - timedelta(days=7)
+    elif period == '30':
+        start_date = now - timedelta(days=30)
+    elif period == '90':
+        start_date = now - timedelta(days=90)
+    elif period == '365':
+        start_date = now - timedelta(days=365)
+    else:
+        start_date = now - timedelta(days=30)
+
     last_30_days = today - timedelta(days=30)
     last_7_days = today - timedelta(days=7)
 
@@ -1439,6 +1536,13 @@ def store_manager_page(request):
         store=store,
         quantity__lte=F('low_stock_threshold')
     ).select_related('product').order_by('quantity')
+
+    # Debug: Print low stock information
+    print(f"DEBUG - Store: {store.name}")
+    print(f"DEBUG - Total stock items: {Stock.objects.filter(store=store).count()}")
+    print(f"DEBUG - Low stock items: {low_stock_items.count()}")
+    for stock in low_stock_items[:5]:
+        print(f"DEBUG - {stock.product.name}: qty={stock.quantity}, threshold={stock.low_stock_threshold}")
 
     # Current stock levels
     current_stock = Stock.objects.filter(store=store).select_related('product').order_by('product__name')
@@ -1489,26 +1593,544 @@ def store_manager_page(request):
     # in warehouse, other stores, or needs to be ordered from suppliers
     restock_available_products = Product.objects.all().order_by('name')
 
+    # Enhanced Analytics for the selected period
+    period_transactions = Transaction.objects.filter(
+        store=store,
+        timestamp__gte=start_date
+    )
+
+    # Financial metrics for the period
+    total_revenue = period_transactions.aggregate(
+        total=Sum('total_amount')
+    )['total'] or 0
+
+    total_transactions = period_transactions.count()
+    avg_transaction_value = total_revenue / total_transactions if total_transactions > 0 else 0
+
+    # Stock analytics
+    total_products = current_stock.count()
+    total_stock_value = current_stock.aggregate(
+        total=Sum(F('quantity') * F('selling_price'))
+    )['total'] or 0
+
+    out_of_stock_count = Stock.objects.filter(store=store, quantity=0).count()
+    critical_stock_count = Stock.objects.filter(store=store, quantity__lte=5, quantity__gt=0).count()
+
+    # Top selling products for the period
+    from transactions.models import Order as TransactionOrder
+    top_products = TransactionOrder.objects.filter(
+        transaction__store=store,
+        transaction__timestamp__gte=start_date
+    ).values('product__name').annotate(
+        total_sold=Sum('quantity'),
+        total_revenue=Sum(F('quantity') * F('price_at_time_of_sale'))
+    ).order_by('-total_sold')[:5]
+
+    # Daily sales trend (last 7 days for chart)
+    daily_sales = []
+    for i in range(7):
+        day = now - timedelta(days=i)
+        day_start = day.replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start + timedelta(days=1)
+
+        day_revenue = Transaction.objects.filter(
+            store=store,
+            timestamp__gte=day_start,
+            timestamp__lt=day_end
+        ).aggregate(total=Sum('total_amount'))['total'] or 0
+
+        daily_sales.append({
+            'date': day_start.strftime('%Y-%m-%d'),
+            'revenue': float(day_revenue)
+        })
+
+    daily_sales.reverse()  # Show oldest to newest
+
+    # Payment method breakdown
+    payment_methods = Transaction.objects.filter(
+        store=store,
+        timestamp__gte=start_date
+    ).values('payment_type').annotate(
+        count=Count('id'),
+        total=Sum('total_amount')
+    ).order_by('-total')
+
+    # Recent transactions - get receipts for sales transactions since they have more detailed info
+    from transactions.models import Receipt
+    recent_transactions = Receipt.objects.filter(
+        transaction__store=store,
+        transaction__transaction_type='sale'
+    ).select_related('transaction').order_by('-timestamp')[:10]
+
+    # Compare with previous period
+    previous_start = start_date - (now - start_date)
+    previous_revenue = Transaction.objects.filter(
+        store=store,
+        timestamp__gte=previous_start,
+        timestamp__lt=start_date
+    ).aggregate(total=Sum('total_amount'))['total'] or 0
+
+    revenue_change = 0
+    if previous_revenue > 0:
+        revenue_change = ((total_revenue - previous_revenue) / previous_revenue) * 100
+
     # Comprehensive Analytics Data
     analytics = calculate_store_analytics(store)
 
     context = {
         'store': store,
+        'period': period,
+        'start_date': start_date,
+        'end_date': now,
+
+        # Enhanced metrics
+        'total_revenue': total_revenue,
+        'total_transactions': total_transactions,
+        'avg_transaction_value': avg_transaction_value,
+        'revenue_change': revenue_change,
+        'previous_revenue': previous_revenue,
+
+        # Stock metrics
+        'total_products': total_products,
+        'total_stock_value': total_stock_value,
+        'out_of_stock_count': out_of_stock_count,
+        'critical_stock_count': critical_stock_count,
+
+        # Analytics data
+        'top_products': top_products,
+        'daily_sales': daily_sales,
+        'payment_methods': payment_methods,
+        'recent_transactions': recent_transactions,
+
+        # Original context
         'cashier_assignment': cashier_assignment,
         'total_sales_30_days': total_sales_30_days,
         'total_sales_7_days': total_sales_7_days,
         'low_stock_items': low_stock_items,
         'current_stock': current_stock,
-        'restock_available_products': restock_available_products,  # Products for restock dropdown
+        'restock_available_products': restock_available_products,
         'recent_restock_requests': recent_restock_requests,
         'recent_transfer_requests': recent_transfer_requests,
         'pending_restock_count': pending_restock_count,
         'pending_transfer_count': pending_transfer_count,
         'other_stores': other_stores,
-        'analytics': analytics,  # Comprehensive analytics data
+        'analytics': analytics,
     }
 
     return render(request, 'mainpages/store_manager_page.html', context)
+
+
+@login_required
+def export_store_report(request):
+    """
+    Export store manager's store report as PDF
+    """
+    if request.user.role != 'store_manager':
+        messages.warning(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
+    try:
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, "You are not assigned to manage any store.")
+        return redirect('store_manager_page')
+
+    # Get period from request (default to 30 days)
+    period = request.GET.get('period', '30')
+
+    from datetime import timedelta
+    from django.utils import timezone
+    from django.db.models import Sum, Count, Avg, Q
+    from django.http import HttpResponse
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.units import inch
+    from io import BytesIO
+
+    # Calculate date ranges
+    now = timezone.now()
+    if period == '7':
+        start_date = now - timedelta(days=7)
+        period_name = "7 Days"
+    elif period == '30':
+        start_date = now - timedelta(days=30)
+        period_name = "30 Days"
+    elif period == '90':
+        start_date = now - timedelta(days=90)
+        period_name = "90 Days"
+    elif period == '365':
+        start_date = now - timedelta(days=365)
+        period_name = "1 Year"
+    else:
+        start_date = now - timedelta(days=30)
+        period_name = "30 Days"
+
+    # Get store data
+    period_transactions = Transaction.objects.filter(
+        store=store,
+        timestamp__gte=start_date
+    ).order_by('-timestamp')
+
+    # Financial metrics
+    total_revenue = period_transactions.aggregate(
+        total=Sum('total_amount')
+    )['total'] or 0
+
+    total_transactions = period_transactions.count()
+    avg_transaction_value = total_revenue / total_transactions if total_transactions > 0 else 0
+
+    # Stock metrics
+    current_stock = Stock.objects.filter(store=store)
+    total_products = current_stock.count()
+    total_stock_value = current_stock.aggregate(
+        total=Sum(F('quantity') * F('selling_price'))
+    )['total'] or 0
+
+    low_stock_items = Stock.objects.filter(
+        store=store,
+        quantity__lte=F('low_stock_threshold')
+    ).select_related('product')
+
+    # Top products
+    from transactions.models import Order as TransactionOrder
+    top_products = TransactionOrder.objects.filter(
+        transaction__store=store,
+        transaction__timestamp__gte=start_date
+    ).values('product__name').annotate(
+        total_sold=Sum('quantity'),
+        total_revenue=Sum(F('quantity') * F('price_at_time_of_sale'))
+    ).order_by('-total_sold')[:10]
+
+    # Create PDF
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    styles = getSampleStyleSheet()
+    story = []
+
+    # Title
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        spaceAfter=30,
+        textColor=colors.HexColor('#0B0C10'),
+        alignment=1  # Center alignment
+    )
+
+    story.append(Paragraph(f"{store.name} - Store Report", title_style))
+    story.append(Paragraph(f"Period: {period_name} ({start_date.strftime('%B %d, %Y')} - {now.strftime('%B %d, %Y')})", styles['Normal']))
+    story.append(Spacer(1, 20))
+
+    # Store Information
+    store_info = [
+        ['Store Name:', store.name],
+        ['Address:', store.address],
+        ['Phone:', store.phone_number or 'N/A'],
+        ['Manager:', request.user.get_full_name() or request.user.username],
+        ['Report Generated:', now.strftime('%B %d, %Y at %I:%M %p')]
+    ]
+
+    store_table = Table(store_info, colWidths=[2*inch, 4*inch])
+    store_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#45A29E')),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+
+    story.append(Paragraph("Store Information", styles['Heading2']))
+    story.append(store_table)
+    story.append(Spacer(1, 20))
+
+    # Financial Summary
+    financial_data = [
+        ['Metric', 'Value'],
+        ['Total Revenue', f'ETB {total_revenue:,.2f}'],
+        ['Total Transactions', f'{total_transactions:,}'],
+        ['Average Transaction', f'ETB {avg_transaction_value:,.2f}'],
+        ['Total Products', f'{total_products:,}'],
+        ['Stock Value', f'ETB {total_stock_value:,.2f}'],
+        ['Low Stock Alerts', f'{low_stock_items.count():,}']
+    ]
+
+    financial_table = Table(financial_data, colWidths=[3*inch, 3*inch])
+    financial_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#66FCF1')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#0B0C10')),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
+    ]))
+
+    story.append(Paragraph("Financial Summary", styles['Heading2']))
+    story.append(financial_table)
+    story.append(Spacer(1, 20))
+
+    # Recent Transactions (last 20) - use receipts for sales transactions
+    from transactions.models import Receipt
+    recent_receipts = Receipt.objects.filter(
+        transaction__store=store,
+        transaction__transaction_type='sale',
+        transaction__timestamp__gte=start_date
+    ).select_related('transaction').order_by('-timestamp')[:20]
+
+    if recent_receipts.exists():
+        transaction_data = [['Date', 'Amount', 'Payment Method', 'Customer']]
+
+        for receipt in recent_receipts:
+            customer_name = receipt.customer_name if receipt.customer_name != 'Walk-in Customer' else 'Walk-in'
+            transaction_data.append([
+                receipt.timestamp.strftime('%m/%d/%Y %H:%M'),
+                f'ETB {receipt.total_amount:,.2f}',
+                receipt.transaction.get_payment_type_display(),
+                customer_name
+            ])
+
+        transaction_table = Table(transaction_data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])
+        transaction_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#66FCF1')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#0B0C10')),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
+        ]))
+
+        story.append(Paragraph("Recent Transactions", styles['Heading2']))
+        story.append(transaction_table)
+        story.append(Spacer(1, 20))
+
+    # Top Products
+    if top_products:
+        product_data = [['Product', 'Units Sold', 'Revenue']]
+
+        for product in top_products:
+            product_data.append([
+                product['product__name'][:30],
+                f"{product['total_sold']:,}",
+                f"ETB {product['total_revenue']:,.2f}"
+            ])
+
+        product_table = Table(product_data, colWidths=[3*inch, 1.5*inch, 1.5*inch])
+        product_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#66FCF1')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#0B0C10')),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
+        ]))
+
+        story.append(Paragraph("Top Selling Products", styles['Heading2']))
+        story.append(product_table)
+        story.append(Spacer(1, 20))
+
+    # Low Stock Alerts
+    if low_stock_items.exists():
+        stock_data = [['Product', 'Current Stock', 'Threshold', 'Status']]
+
+        for stock in low_stock_items[:15]:
+            status = "Out of Stock" if stock.quantity == 0 else "Low Stock"
+            stock_data.append([
+                stock.product.name[:30],
+                f"{stock.quantity}",
+                f"{stock.low_stock_threshold}",
+                status
+            ])
+
+        stock_table = Table(stock_data, colWidths=[2.5*inch, 1*inch, 1*inch, 1.5*inch])
+        stock_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#FFC107')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#0B0C10')),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
+        ]))
+
+        story.append(Paragraph("Low Stock Alerts", styles['Heading2']))
+        story.append(stock_table)
+
+    # Build PDF
+    doc.build(story)
+
+    # Return PDF response
+    buffer.seek(0)
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{store.name}_Report_{period_name.replace(" ", "_")}_{now.strftime("%Y%m%d")}.pdf"'
+
+    return response
+
+
+@login_required
+def update_stock_threshold(request):
+    """
+    Update the low stock threshold for a specific stock item
+    """
+    if request.method != 'POST':
+        messages.error(request, "Invalid request method.")
+        return redirect('store_manager_stock_management')
+
+    if request.user.role != 'store_manager':
+        messages.error(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
+    try:
+        from store.models import Store
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, "You are not assigned to manage any store.")
+        return redirect('store_manager_page')
+
+    stock_id = request.POST.get('stock_id')
+    new_threshold = request.POST.get('new_threshold')
+
+    if not stock_id or not new_threshold:
+        messages.error(request, "Missing required fields.")
+        return redirect('store_manager_stock_management')
+
+    try:
+        new_threshold = int(new_threshold)
+        if new_threshold < 0:
+            messages.error(request, "Threshold cannot be negative.")
+            return redirect('store_manager_stock_management')
+    except ValueError:
+        messages.error(request, "Invalid threshold value.")
+        return redirect('store_manager_stock_management')
+
+    try:
+        from Inventory.models import Stock
+        stock_item = Stock.objects.get(id=stock_id, store=store)
+
+        old_threshold = stock_item.low_stock_threshold
+        stock_item.low_stock_threshold = new_threshold
+        stock_item.save()
+
+        messages.success(
+            request,
+            f"Successfully updated threshold for {stock_item.product.name} from {old_threshold} to {new_threshold}."
+        )
+
+        # Log the threshold update
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(
+            f"Store Manager {request.user.username} updated threshold for {stock_item.product.name} "
+            f"in store {store.name} from {old_threshold} to {new_threshold}"
+        )
+
+    except Stock.DoesNotExist:
+        messages.error(request, "Stock item not found or you don't have permission to update it.")
+    except Exception as e:
+        messages.error(request, f"Error updating threshold: {str(e)}")
+
+    return redirect('store_manager_stock_management')
+
+
+@login_required
+def store_manager_warehouse_products(request):
+    """
+    Display all warehouse products for store managers to request restocks
+    """
+    if request.user.role != 'store_manager':
+        messages.error(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
+    try:
+        from store.models import Store
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, "You are not assigned to manage any store.")
+        return redirect('store_manager_page')
+
+    from Inventory.models import WarehouseProduct, Product, RestockRequest
+    from django.core.paginator import Paginator
+    from django.db.models import Q
+
+    # Get search and filter parameters
+    search_query = request.GET.get('search', '')
+    category_filter = request.GET.get('category', '')
+    availability_filter = request.GET.get('availability', 'all')
+
+    # Build query for warehouse products
+    warehouse_products = WarehouseProduct.objects.filter(
+        is_active=True
+    ).select_related('supplier')
+
+    # Apply search filter
+    if search_query:
+        warehouse_products = warehouse_products.filter(
+            Q(product_name__icontains=search_query) |
+            Q(supplier__name__icontains=search_query) |
+            Q(category__icontains=search_query) |
+            Q(sku__icontains=search_query)
+        )
+
+    # Apply category filter
+    if category_filter:
+        warehouse_products = warehouse_products.filter(category=category_filter)
+
+    # Apply availability filter
+    if availability_filter == 'in_stock':
+        warehouse_products = warehouse_products.filter(quantity_in_stock__gt=0)
+    elif availability_filter == 'out_of_stock':
+        warehouse_products = warehouse_products.filter(quantity_in_stock=0)
+
+    # Order by availability (in stock first) then by name
+    warehouse_products = warehouse_products.order_by('-quantity_in_stock', 'product_name')
+
+    # Pagination
+    paginator = Paginator(warehouse_products, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Get categories for filter dropdown
+    categories = WarehouseProduct.objects.filter(
+        is_active=True
+    ).values_list('category', flat=True).distinct().order_by('category')
+
+    # Get pending requests for this store to show status
+    pending_requests = RestockRequest.objects.filter(
+        store=store,
+        status__in=['pending', 'approved', 'shipped']
+    ).values_list('product__name', flat=True)
+
+    # Statistics
+    total_products = warehouse_products.count()
+    in_stock_count = WarehouseProduct.objects.filter(
+        is_active=True,
+        quantity_in_stock__gt=0
+    ).count()
+    out_of_stock_count = WarehouseProduct.objects.filter(
+        is_active=True,
+        quantity_in_stock=0
+    ).count()
+
+    context = {
+        'page_obj': page_obj,
+        'store': store,
+        'search_query': search_query,
+        'category_filter': category_filter,
+        'availability_filter': availability_filter,
+        'categories': categories,
+        'pending_requests': pending_requests,
+        'stats': {
+            'total_products': total_products,
+            'in_stock_count': in_stock_count,
+            'out_of_stock_count': out_of_stock_count,
+        }
+    }
+
+    return render(request, 'mainpages/store_manager_warehouse_products.html', context)
 
 
 @login_required
@@ -1622,9 +2244,23 @@ def get_stores_with_product(request):
             'product_name': product.name
         })
 
+    # Debug logging
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Product ID: {product_id}, Product: {product.name}")
+    logger.info(f"Requesting store: {requesting_store.name}")
+    logger.info(f"Found {len(available_stores)} stores with product")
+    for store in available_stores:
+        logger.info(f"  - {store['name']}: {store['available_quantity']} units")
+
     return JsonResponse({
         'stores': available_stores,
-        'product_name': product.name
+        'product_name': product.name,
+        'debug': {
+            'product_id': product_id,
+            'requesting_store': requesting_store.name,
+            'total_stores_found': len(available_stores)
+        }
     })
 
 
@@ -1646,18 +2282,33 @@ def submit_restock_request(request):
     if request.method == 'POST':
         from Inventory.models import Product, Stock, RestockRequest
 
+        # Handle both product_id (old) and product_name (new) parameters
         product_id = request.POST.get('product_id')
+        product_name = request.POST.get('product_name')
         requested_quantity = request.POST.get('requested_quantity')
         priority = request.POST.get('priority', 'medium')
         reason = request.POST.get('reason', '')
 
         try:
-            product = Product.objects.get(id=product_id)
+            if product_name:
+                # New logic: find or create product by name
+                product, created = Product.objects.get_or_create(
+                    name=product_name,
+                    defaults={
+                        'category': 'general',
+                        'description': f'Product requested from warehouse: {product_name}'
+                    }
+                )
+            elif product_id:
+                # Old logic: get product by ID
+                product = Product.objects.get(id=product_id)
+            else:
+                raise ValueError("No product specified")
             requested_quantity = int(requested_quantity)
 
             if requested_quantity <= 0:
                 messages.error(request, "Requested quantity must be greater than 0.")
-                return redirect('store_manager_page')
+                return redirect('store_manager_restock_requests')
 
             # Check for existing pending requests
             existing_request = RestockRequest.objects.filter(
@@ -1668,7 +2319,7 @@ def submit_restock_request(request):
 
             if existing_request:
                 messages.warning(request, f"You already have a pending restock request for {product.name}.")
-                return redirect('store_manager_page')
+                return redirect('store_manager_restock_requests')
 
             # Get current stock level
             try:
@@ -1699,7 +2350,7 @@ def submit_restock_request(request):
         except Exception as e:
             messages.error(request, f"Error submitting restock request: {str(e)}")
 
-    return redirect('store_manager_page')
+    return redirect('store_manager_restock_requests')
 
 
 @login_required
@@ -1733,21 +2384,21 @@ def submit_transfer_request(request):
 
             if requested_quantity <= 0:
                 messages.error(request, "Requested quantity must be greater than 0.")
-                return redirect('store_manager_page')
+                return redirect('store_manager_transfer_requests')
 
             if requesting_store == from_store:
                 messages.error(request, "Cannot transfer from the same store.")
-                return redirect('store_manager_page')
+                return redirect('store_manager_transfer_requests')
 
             # Check if the source store has the product in stock
             try:
                 source_stock = Stock.objects.get(product=product, store=from_store)
                 if source_stock.quantity < requested_quantity:
                     messages.error(request, f"Insufficient stock. {from_store.name} only has {source_stock.quantity} units of {product.name}.")
-                    return redirect('store_manager_page')
+                    return redirect('store_manager_transfer_requests')
             except Stock.DoesNotExist:
                 messages.error(request, f"{product.name} is not available in {from_store.name}.")
-                return redirect('store_manager_page')
+                return redirect('store_manager_transfer_requests')
 
             # Check for existing pending requests
             existing_request = StoreStockTransferRequest.objects.filter(
@@ -1759,7 +2410,7 @@ def submit_transfer_request(request):
 
             if existing_request:
                 messages.warning(request, f"You already have a pending transfer request for {product.name} from {from_store.name}.")
-                return redirect('store_manager_page')
+                return redirect('store_manager_transfer_requests')
 
             # Create transfer request (FROM other store TO current store)
             transfer_request = StoreStockTransferRequest.objects.create(
@@ -1783,7 +2434,7 @@ def submit_transfer_request(request):
         except Exception as e:
             messages.error(request, f"Error submitting transfer request: {str(e)}")
 
-    return redirect('store_manager_page')
+    return redirect('store_manager_transfer_requests')
 
 
 @login_required
@@ -1948,6 +2599,75 @@ def store_manager_restock_requests(request):
 
 
 @login_required
+def mark_restock_received(request):
+    """
+    Mark a restock request as received and update store stock
+    """
+    if request.user.role != 'store_manager':
+        messages.error(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
+    if request.method != 'POST':
+        messages.error(request, "Invalid request method.")
+        return redirect('store_manager_restock_requests')
+
+    try:
+        from Inventory.models import RestockRequest
+        from django.db import transaction
+
+        request_id = request.POST.get('request_id')
+        received_quantity = int(request.POST.get('received_quantity', 0))
+        receiving_notes = request.POST.get('receiving_notes', '').strip()
+
+        # Get the restock request
+        restock_request = RestockRequest.objects.get(
+            id=request_id,
+            requested_by=request.user,
+            status='shipped'
+        )
+
+        if received_quantity <= 0:
+            messages.error(request, "Received quantity must be greater than 0.")
+            return redirect('store_manager_restock_requests')
+
+        if received_quantity > restock_request.shipped_quantity:
+            messages.error(request, f"Received quantity cannot exceed shipped quantity ({restock_request.shipped_quantity}).")
+            return redirect('store_manager_restock_requests')
+
+        # Use the existing receive method from the model
+        with transaction.atomic():
+            restock_request.receive(
+                received_by=request.user,
+                received_quantity=received_quantity,
+                notes=receiving_notes
+            )
+
+            # Create notification for head manager if there's a discrepancy
+            if received_quantity < restock_request.shipped_quantity:
+                from users.notifications import NotificationManager
+                NotificationManager.create_notification(
+                    notification_type='low_stock_alert',
+                    title=f'Restock Delivery Discrepancy: {restock_request.product.name}',
+                    message=f'Store received {received_quantity} units but {restock_request.shipped_quantity} were shipped. Store: {restock_request.store.name}',
+                    target_roles=['head_manager'],
+                    priority='high',
+                    related_object_type='restock_request',
+                    related_object_id=restock_request.id
+                )
+
+        messages.success(request, f"Restock request marked as received. {received_quantity} units of {restock_request.product.name} added to your store stock.")
+
+    except RestockRequest.DoesNotExist:
+        messages.error(request, "Restock request not found or not eligible for receiving.")
+    except ValueError:
+        messages.error(request, "Invalid quantity specified.")
+    except Exception as e:
+        messages.error(request, f"Error processing receipt: {str(e)}")
+
+    return redirect('store_manager_restock_requests')
+
+
+@login_required
 def store_manager_transfer_requests(request):
     """
     Store Manager view for managing their stock transfer requests.
@@ -2001,15 +2721,38 @@ def store_manager_transfer_requests(request):
         'rejected_count': all_requests.filter(status='rejected').count(),
     }
 
-    # Get products available in other stores for transfer requests
-    # (excluding warehouse and current store)
-    other_stores_products = Stock.objects.filter(
-        quantity__gt=0
-    ).exclude(store=store).values_list('product', flat=True).distinct()
+    # Get detailed stock information for transfer requests
+    from collections import defaultdict
 
-    transfer_available_products = Product.objects.filter(
-        id__in=other_stores_products
-    ).order_by('name')
+    # Get all stock items from other stores (excluding current store)
+    other_stores_stock = Stock.objects.filter(
+        quantity__gt=0
+    ).exclude(store=store).select_related('product', 'store').order_by('product__name', 'store__name')
+
+    # Group stock by product for easy access in template
+    products_with_stores = defaultdict(list)
+    for stock in other_stores_stock:
+        products_with_stores[stock.product].append({
+            'store': stock.store,
+            'quantity': stock.quantity
+        })
+
+    # Convert to list for template with product-store combinations
+    transfer_product_store_combinations = []
+    for product, stores_data in products_with_stores.items():
+        for store_data in stores_data:
+            transfer_product_store_combinations.append({
+                'product_id': product.id,
+                'product_name': product.name,
+                'product_category': product.category,
+                'store_id': store_data['store'].id,
+                'store_name': store_data['store'].name,
+                'available_quantity': store_data['quantity'],
+                'display_text': f"{product.name} from {store_data['store'].name} ({store_data['quantity']} units)"
+            })
+
+    # Sort by product name then store name
+    transfer_product_store_combinations.sort(key=lambda x: (x['product_name'], x['store_name']))
 
     other_stores = Store.objects.exclude(id=store.id)
 
@@ -2045,7 +2788,7 @@ def store_manager_transfer_requests(request):
         'to_store_filter': to_store_filter,
         'status_choices': status_choices_with_selected,
         'priority_choices': priority_choices_with_selected,
-        'transfer_available_products': transfer_available_products,  # Products from other stores
+        'transfer_product_store_combinations': transfer_product_store_combinations,  # Product-store combinations with stock
         'other_stores': other_stores_with_selected,
         'status_all_selected': status_filter == 'all',
         'priority_all_selected': priority_filter == 'all',
@@ -2184,8 +2927,40 @@ def store_manager_stock_management(request):
     # in warehouse, other stores, or needs to be ordered from suppliers
     restock_available_products = Product.objects.all().order_by('name')
 
-    # For transfer requests, show products available in OTHER stores only
-    # (excluding warehouse and current store)
+    # For transfer requests, get detailed stock information for all products in other stores
+    from collections import defaultdict
+
+    # Get all stock items from other stores (excluding current store)
+    other_stores_stock = Stock.objects.filter(
+        quantity__gt=0
+    ).exclude(store=store).select_related('product', 'store').order_by('product__name', 'store__name')
+
+    # Group stock by product for easy access in template
+    products_with_stores = defaultdict(list)
+    for stock in other_stores_stock:
+        products_with_stores[stock.product].append({
+            'store': stock.store,
+            'quantity': stock.quantity
+        })
+
+    # Convert to list for template with product-store combinations
+    transfer_product_store_combinations = []
+    for product, stores_data in products_with_stores.items():
+        for store_data in stores_data:
+            transfer_product_store_combinations.append({
+                'product_id': product.id,
+                'product_name': product.name,
+                'product_category': product.category,
+                'store_id': store_data['store'].id,
+                'store_name': store_data['store'].name,
+                'available_quantity': store_data['quantity'],
+                'display_text': f"{product.name} from {store_data['store'].name} ({store_data['quantity']} units)"
+            })
+
+    # Sort by product name then store name
+    transfer_product_store_combinations.sort(key=lambda x: (x['product_name'], x['store_name']))
+
+    # Keep the old transfer_available_products for backward compatibility
     transfer_available_products = Product.objects.filter(
         id__in=other_stores_products
     ).order_by('name')

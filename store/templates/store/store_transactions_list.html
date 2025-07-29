@@ -1,0 +1,296 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
+{% block title %}{{ store.name }} - Transactions{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary-dark: #0B0C10;
+        --secondary-dark: #1F2833;
+        --light-gray: #C5C6C7;
+        --accent-cyan: #66FCF1;
+        --accent-teal: #45A29E;
+        --white: #ffffff;
+    }
+
+    .store-card {
+        background: var(--white);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        border: none;
+        margin-bottom: 1.5rem;
+        border-left: 4px solid var(--accent-teal);
+    }
+
+    .dashboard-header {
+        background: linear-gradient(90deg, var(--accent-teal), var(--accent-cyan));
+        color: var(--white);
+        border-radius: 12px 12px 0 0;
+        padding: 1rem 1.5rem;
+    }
+
+    .table-store {
+        background: var(--white);
+        border-radius: 8px;
+    }
+
+    .table-store th {
+        background: linear-gradient(135deg, var(--primary-dark), var(--secondary-dark));
+        color: var(--white);
+        border: none;
+        font-weight: 600;
+        padding: 1rem;
+    }
+
+    .table-store td {
+        padding: 1rem;
+        border-color: #e9ecef;
+        vertical-align: middle;
+    }
+
+    .period-selector {
+        background: linear-gradient(135deg, var(--primary-dark), var(--secondary-dark));
+        border-radius: 12px;
+        padding: 0.75rem;
+        box-shadow: 0 8px 25px rgba(11, 12, 16, 0.15);
+        display: inline-flex;
+        gap: 0.5rem;
+        border: 2px solid var(--accent-teal);
+    }
+
+    .period-btn {
+        background: rgba(197, 198, 199, 0.1);
+        border: 1px solid rgba(102, 252, 241, 0.2);
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        color: var(--light-gray);
+        font-weight: 600;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+        font-size: 0.9rem;
+        text-decoration: none;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .period-btn.active {
+        background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
+        color: var(--primary-dark);
+        border-color: var(--accent-cyan);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(69, 162, 158, 0.4);
+        font-weight: 700;
+    }
+
+    .period-btn:hover {
+        background: linear-gradient(135deg, var(--accent-cyan), var(--accent-teal));
+        color: var(--primary-dark);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 15px rgba(102, 252, 241, 0.3);
+        border-color: var(--accent-cyan);
+        text-decoration: none;
+    }
+
+    .summary-card {
+        background: linear-gradient(135deg, var(--accent-cyan), var(--accent-teal));
+        color: var(--primary-dark);
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .summary-value {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .summary-label {
+        opacity: 0.9;
+        margin-bottom: 0;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">{{ store.name }} - All Transactions</h2>
+                    <p class="text-muted mb-0">Complete transaction history and details</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <div class="period-selector">
+                        <a href="?period=7" class="period-btn {% if period == '7' %}active{% endif %}">
+                            <i class="bi bi-calendar-week me-1"></i>7 Days
+                        </a>
+                        <a href="?period=30" class="period-btn {% if period == '30' %}active{% endif %}">
+                            <i class="bi bi-calendar-month me-1"></i>30 Days
+                        </a>
+                        <a href="?period=90" class="period-btn {% if period == '90' %}active{% endif %}">
+                            <i class="bi bi-calendar3 me-1"></i>90 Days
+                        </a>
+                        <a href="?period=365" class="period-btn {% if period == '365' %}active{% endif %}">
+                            <i class="bi bi-calendar-year me-1"></i>1 Year
+                        </a>
+                    </div>
+                    <a href="{% url 'store_manager_page' %}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="summary-card">
+                <div class="summary-value">{{ total_transactions }}</div>
+                <div class="summary-label">Total Transactions</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="summary-card">
+                <div class="summary-value">ETB {{ total_revenue|floatformat:0 }}</div>
+                <div class="summary-label">Total Revenue</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="summary-card">
+                <div class="summary-value">ETB {{ avg_transaction_value|floatformat:0 }}</div>
+                <div class="summary-label">Average Transaction</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transactions Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="store-card">
+                <div class="dashboard-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0">
+                                <i class="bi bi-receipt me-2"></i>
+                                Transaction History
+                            </h5>
+                            <small class="opacity-75">{{ start_date|date:"M d, Y" }} - {{ end_date|date:"M d, Y" }}</small>
+                        </div>
+                        <span class="badge bg-info">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if page_obj %}
+                    <div class="table-responsive">
+                        <table class="table table-store mb-0">
+                            <thead>
+                                <tr>
+                                    <th><i class="bi bi-hash me-1"></i>ID</th>
+                                    <th><i class="bi bi-calendar me-1"></i>Date & Time</th>
+                                    <th><i class="bi bi-cash-stack me-1"></i>Amount</th>
+                                    <th><i class="bi bi-credit-card me-1"></i>Payment</th>
+                                    <th><i class="bi bi-shop me-1"></i>Source</th>
+                                    <th><i class="bi bi-info-circle me-1"></i>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transaction in page_obj %}
+                                <tr>
+                                    <td>
+                                        <strong>#{{ transaction.id }}</strong>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong>{{ transaction.timestamp|date:"M d, Y" }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ transaction.timestamp|date:"H:i A" }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <strong style="color: var(--accent-teal);">ETB {{ transaction.total_amount|floatformat:2 }}</strong>
+                                        {% if transaction.discount_amount and transaction.discount_amount > 0 %}
+                                        <br>
+                                        <small class="text-muted">Discount: ETB {{ transaction.discount_amount|floatformat:2 }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ transaction.get_payment_type_display }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="text-muted">Store Sale</span>
+                                    </td>
+                                    <td>
+                                        {% if transaction.transaction_type == 'sale' %}
+                                        <span class="badge bg-success">Sale</span>
+                                        {% elif transaction.transaction_type == 'return' %}
+                                        <span class="badge bg-warning">Return</span>
+                                        {% else %}
+                                        <span class="badge bg-info">{{ transaction.transaction_type|title }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if page_obj.has_other_pages %}
+                    <div class="d-flex justify-content-center mt-4 mb-3">
+                        <nav aria-label="Transactions pagination">
+                            <ul class="pagination">
+                                {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}&period={{ period }}">Previous</a>
+                                </li>
+                                {% endif %}
+                                
+                                {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}&period={{ period }}">{{ num }}</a>
+                                </li>
+                                {% endif %}
+                                {% endfor %}
+                                
+                                {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}&period={{ period }}">Next</a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                    {% endif %}
+
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-receipt text-muted fs-1 mb-3"></i>
+                        <h4 class="text-muted">No Transactions Found</h4>
+                        <p class="text-muted">No transactions found for the selected period.</p>
+                        <a href="{% url 'store_manager_page' %}" class="btn btn-primary">
+                            <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

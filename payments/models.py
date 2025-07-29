@@ -145,6 +145,9 @@ class PurchaseOrderPayment(models.Model):
                 from django.utils import timezone
                 self.payment_confirmed_at = timezone.now()
 
+            # Always process stock deduction when payment is confirmed
+            self.process_stock_deduction()
+
             # Create purchase order if it doesn't exist
             if not self.purchase_order:
                 self.create_purchase_order()
@@ -165,6 +168,68 @@ class PurchaseOrderPayment(models.Model):
 
         self.save()
 
+    def process_stock_deduction(self):
+        """
+        Process stock deduction for all items in the order.
+        This is called separately from purchase order creation to ensure stock is always deducted.
+        """
+        from Inventory.models import SupplierProduct
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.info(f"🔄 Processing stock deduction for payment {self.id}")
+
+        if not self.order_items:
+            logger.warning(f"No order items found for payment {self.id}")
+            return
+
+        logger.info(f"Processing {len(self.order_items)} order items for stock deduction")
+
+        for item_data in self.order_items:
+            try:
+                product_id = item_data.get('product_id')
+                quantity_ordered = item_data.get('quantity', 1)
+
+                logger.info(f"Processing item: product_id={product_id}, quantity={quantity_ordered}")
+
+                # Get the supplier product
+                supplier_product = SupplierProduct.objects.get(
+                    id=product_id,
+                    supplier=self.supplier
+                )
+
+                logger.info(f"Found product: {supplier_product.product_name}, "
+                          f"Current stock: {supplier_product.stock_quantity}")
+
+                # Check if supplier has sufficient stock
+                if not supplier_product.can_fulfill_quantity(quantity_ordered):
+                    logger.warning(f"Insufficient stock for {supplier_product.product_name}. "
+                                 f"Requested: {quantity_ordered}, Available: {supplier_product.stock_quantity}")
+                    # Continue with stock deduction anyway (business decision)
+
+                # Decrease supplier stock
+                logger.info(f"Attempting to decrease stock for {supplier_product.product_name}")
+                success = supplier_product.decrease_stock(
+                    quantity_ordered,
+                    f"Payment confirmed - Order {self.id}"
+                )
+
+                if success:
+                    logger.info(f"✅ Successfully decreased stock for {supplier_product.product_name}. "
+                              f"New stock: {supplier_product.stock_quantity}")
+                else:
+                    logger.error(f"❌ Failed to decrease stock for {supplier_product.product_name}. "
+                               f"Payment: {self.id}, Quantity: {quantity_ordered}")
+
+            except SupplierProduct.DoesNotExist:
+                logger.error(f"❌ SupplierProduct {product_id} not found for payment {self.id}")
+                continue
+            except Exception as e:
+                logger.error(f"❌ Error processing item {item_data}: {str(e)}")
+                continue
+
+        logger.info(f"✅ Completed stock deduction processing for payment {self.id}")
+
     def create_purchase_order(self):
         """Create a purchase order from the payment information"""
         from Inventory.models import PurchaseOrder, PurchaseOrderItem, SupplierProduct
@@ -176,8 +241,9 @@ class PurchaseOrderPayment(models.Model):
             # Generate unique order number
             order_number = f"PO-{uuid.uuid4().hex[:8].upper()}"
 
-            # Calculate expected delivery date (7 days from now)
-            expected_delivery = timezone.now().date() + timedelta(days=7)
+            # Calculate expected delivery date using supplier's specific delivery time
+            delivery_days = self.supplier.get_estimated_delivery_days()
+            expected_delivery = timezone.now().date() + timedelta(days=delivery_days)
 
             # Create purchase order
             purchase_order = PurchaseOrder.objects.create(
@@ -197,28 +263,54 @@ class PurchaseOrderPayment(models.Model):
             )
 
             # Create purchase order items from cart items
+            # Note: Stock deduction is now handled separately in process_stock_deduction()
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Creating purchase order items for {len(self.order_items)} order items")
+
             for item_data in self.order_items:
                 try:
+                    product_id = item_data.get('product_id')
+                    logger.info(f"Creating purchase order item for product_id: {product_id}")
+
                     # Get the supplier product
                     supplier_product = SupplierProduct.objects.get(
-                        id=item_data.get('product_id'),
+                        id=product_id,
                         supplier=self.supplier
                     )
 
-                    # Create purchase order item
-                    PurchaseOrderItem.objects.create(
-                        purchase_order=purchase_order,
-                        warehouse_product=supplier_product,  # This might need adjustment based on your model structure
-                        quantity_ordered=item_data.get('quantity', 1),
-                        unit_price=item_data.get('price', 0),
-                        total_price=item_data.get('total_price', 0)
-                    )
+                    quantity_ordered = item_data.get('quantity', 1)
+                    logger.info(f"Creating order item for: {supplier_product.product_name}, "
+                              f"Quantity: {quantity_ordered}")
+
+                    # Get or create warehouse product for this supplier product
+                    warehouse_product = supplier_product.warehouse_product
+                    if not warehouse_product:
+                        # If no warehouse product is linked, we need to handle this case
+                        # For now, we'll skip creating the purchase order item but still decrease stock
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.warning(f"No warehouse product linked to {supplier_product.product_name}. "
+                                     f"Skipping purchase order item creation but decreasing stock.")
+                    else:
+                        # Create purchase order item with correct warehouse product
+                        PurchaseOrderItem.objects.create(
+                            purchase_order=purchase_order,
+                            warehouse_product=warehouse_product,
+                            quantity_ordered=quantity_ordered,
+                            unit_price=item_data.get('price', 0),
+                            total_price=item_data.get('total_price', 0)
+                        )
+
+                    # Stock deduction is handled separately in process_stock_deduction()
+                    logger.info(f"Purchase order item created for {supplier_product.product_name}")
 
                 except SupplierProduct.DoesNotExist:
                     # Log error but continue with other items
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.error(f"SupplierProduct {item_data.get('product_id')} not found for purchase order {order_number}")
+                    logger.error(f"❌ SupplierProduct {item_data.get('product_id')} not found for purchase order {order_number}")
+                    continue
+                except Exception as e:
+                    logger.error(f"❌ Error processing item {item_data}: {str(e)}")
                     continue
 
             # Link the purchase order to this payment

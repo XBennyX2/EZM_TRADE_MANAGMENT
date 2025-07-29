@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (
     ProductListView, ProductCreateView, ProductUpdateView, ProductDeleteView,
-    StockListView, StockCreateView, StockUpdateView, StockDeleteView,
+    StockCreateView, StockUpdateView, StockDeleteView,
     SupplierListView, SupplierCreateView, SupplierUpdateView, SupplierDeleteView,
     WarehouseListView, WarehouseDetailView, WarehouseCreateView, WarehouseUpdateView, WarehouseDeleteView, WarehouseDebugView,
     SupplierProductListView, WarehouseProductCreateView, WarehouseProductUpdateView, WarehouseProductDeleteView,
@@ -19,14 +19,13 @@ from . import fifo_views
 urlpatterns = [
     # Product URLs
     path('products/', ProductListView.as_view(), name='product_list'),
-    path('products/new/', ProductCreateView.as_view(), name='product_create'),
     path('products/<int:pk>/edit/', ProductUpdateView.as_view(), name='product_update'),
+    #path('products/new/', name='product_create'),
     path('products/<int:pk>/delete/', ProductDeleteView.as_view(), name='product_delete'),
     path('products/<int:pk>/edit-threshold/', ProductStockThresholdEditView.as_view(), name='product_stock_threshold_edit'),
     path('products/<int:pk>/toggle-status/', product_toggle_status, name='product_toggle_status'),
 
-    # Stock URLs
-    path('stock/', StockListView.as_view(), name='stock_list'),
+    # Stock URLs (removed - use store manager stock management instead)
     path('stock/new/', StockCreateView.as_view(), name='stock_create'),
     path('stock/<int:pk>/update/', StockUpdateView.as_view(), name='stock_update'),
     path('stock/<int:pk>/delete/', StockDeleteView.as_view(), name='stock_delete'),
@@ -51,7 +50,6 @@ urlpatterns = [
     path('warehouses/', WarehouseListView.as_view(), name='warehouse_list'),
     path('warehouses/debug/', WarehouseDebugView.as_view(), name='warehouse_debug'),
     path('warehouses/<int:pk>/', WarehouseDetailView.as_view(), name='warehouse_detail'),
-    path('warehouses/new/', WarehouseCreateView.as_view(), name='warehouse_create'),
     path('warehouses/<int:pk>/edit/', WarehouseUpdateView.as_view(), name='warehouse_update'),
     path('warehouses/<int:pk>/delete/', WarehouseDeleteView.as_view(), name='warehouse_delete'),
 

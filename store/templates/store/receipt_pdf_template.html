@@ -146,7 +146,7 @@
         <div>Receipt #: {{ receipt.id }}</div>
         <div>SalesOrder ID: {{ transaction.id }}</div>
         <div>Date: {{ transaction.timestamp|date:"M d, Y" }}</div>
-        <div>Cashier: {{ cashier.get_full_name|default:cashier.username|default:"Unknown" }}</div>
+        <div>Salesperson: {{ cashier.get_full_name|default:cashier.username|default:"Unknown" }}</div>
         <div>Customer: {{ receipt.customer_name|default:"Walk-in Customer" }}</div>
         {% if receipt.customer_phone %}
         <div>Phone: {{ receipt.customer_phone }}</div>

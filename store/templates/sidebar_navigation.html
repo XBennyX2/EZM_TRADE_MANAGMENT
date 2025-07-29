@@ -99,9 +99,27 @@
         </a>
     </li>
     <li class="sidebar-menu-item">
-        <a href="#" data-tooltip="Stock Management">
+        <a href="{% url 'store_manager_stock_management' %}" data-tooltip="Stock Management">
             <i class="bi bi-boxes"></i>
             <span>Stock Management</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'stock_alerts_dashboard' %}" data-tooltip="Stock Alerts Dashboard">
+            <i class="bi bi-exclamation-triangle"></i>
+            <span>Stock Alerts</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'stock_alerts_dashboard' %}?filter=low_stock" data-tooltip="Manage Low Stocks">
+            <i class="bi bi-exclamation-circle"></i>
+            <span>Manage Low Stocks</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'stock_alerts_dashboard' %}?filter=out_of_stock" data-tooltip="Out of Stock Items">
+            <i class="bi bi-x-circle"></i>
+            <span>Out of Stock</span>
         </a>
     </li>
     <li class="sidebar-menu-item">
@@ -111,21 +129,27 @@
         </a>
     </li>
     <li class="sidebar-menu-item">
-        <a href="#" data-tooltip="Sales Reports">
-            <i class="bi bi-receipt"></i>
+        <a href="{% url 'store_manager_restock_requests' %}" data-tooltip="Restock Requests">
+            <i class="bi bi-arrow-up-circle"></i>
+            <span>Restock Requests</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'store_manager_transfer_requests' %}" data-tooltip="Transfer Requests">
+            <i class="bi bi-arrow-left-right"></i>
+            <span>Transfer Requests</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'store_sales_report' %}" data-tooltip="Sales Reports">
+            <i class="bi bi-graph-up"></i>
             <span>Sales Reports</span>
         </a>
     </li>
     <li class="sidebar-menu-item">
-        <a href="#" data-tooltip="Stock Requests">
-            <i class="bi bi-arrow-up-right"></i>
-            <span>Stock Requests</span>
-        </a>
-    </li>
-    <li class="sidebar-menu-item">
-        <a href="#" data-tooltip="Store Analytics">
-            <i class="bi bi-graph-up"></i>
-            <span>Store Analytics</span>
+        <a href="{% url 'store_manager_stock_management' %}" data-tooltip="Stock Management">
+            <i class="bi bi-clipboard-data"></i>
+            <span>Stock Operations</span>
         </a>
     </li>
 </ul>
@@ -140,9 +164,68 @@
         </a>
     </li>
     <li class="sidebar-menu-item">
+        <a href="{% url 'ticket_management' %}" data-tooltip="Customer Tickets Management">
+            <i class="bi bi-ticket-perforated"></i>
+            <span>Customer Tickets</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
         <a href="{% url 'cashier_transactions' %}" data-tooltip="Transaction Details">
             <i class="bi bi-receipt"></i>
             <span>Transaction Details</span>
+        </a>
+    </li>
+</ul>
+
+<!-- Supplier Sidebar -->
+{% elif user.role == 'supplier' %}
+<ul>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'supplier_dashboard' %}" data-tooltip="Dashboard">
+            <i class="bi bi-speedometer2"></i>
+            <span>Dashboard</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'supplier_purchase_orders' %}" data-tooltip="Purchase Orders">
+            <i class="bi bi-clipboard-check"></i>
+            <span>Purchase Orders</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'supplier_products' %}" data-tooltip="Products">
+            <i class="bi bi-box-seam"></i>
+            <span>Products</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'supplier_product_catalog' %}" data-tooltip="Product Catalog">
+            <i class="bi bi-grid"></i>
+            <span>Product Catalog</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'supplier_transactions' %}" data-tooltip="Transactions">
+            <i class="bi bi-credit-card"></i>
+            <span>Transactions</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'supplier_payments' %}" data-tooltip="Payments">
+            <i class="bi bi-wallet"></i>
+            <span>Payments</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'supplier_invoices' %}" data-tooltip="Invoices">
+            <i class="bi bi-receipt"></i>
+            <span>Invoices</span>
+        </a>
+    </li>
+    <li class="sidebar-menu-item">
+        <a href="{% url 'supplier_account' %}" data-tooltip="Account Settings">
+            <i class="bi bi-gear"></i>
+            <span>Account Settings</span>
         </a>
     </li>
 </ul>
@@ -170,3 +253,40 @@
     </li>
 </ul>
 {% endif %}
+
+<!-- JavaScript for active sidebar highlighting -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Get current URL path
+    const currentPath = window.location.pathname;
+
+    // Find all sidebar menu links
+    const sidebarLinks = document.querySelectorAll('.sidebar-menu-item a');
+
+    // Remove any existing active classes
+    sidebarLinks.forEach(link => {
+        link.classList.remove('active');
+        link.parentElement.classList.remove('active');
+    });
+
+    // Find and highlight the current page link
+    sidebarLinks.forEach(link => {
+        const linkPath = new URL(link.href).pathname;
+
+        // Exact match or if current path starts with link path (for sub-pages)
+        if (currentPath === linkPath || (linkPath !== '/' && currentPath.startsWith(linkPath))) {
+            link.classList.add('active');
+            link.parentElement.classList.add('active');
+        }
+    });
+
+    // Special handling for dashboard pages
+    if (currentPath.includes('/store-manager/') && !document.querySelector('.sidebar-menu-item.active')) {
+        const dashboardLink = document.querySelector('a[href*="store-manager"]');
+        if (dashboardLink) {
+            dashboardLink.classList.add('active');
+            dashboardLink.parentElement.classList.add('active');
+        }
+    }
+});
+</script>

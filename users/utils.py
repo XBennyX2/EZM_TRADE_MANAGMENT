@@ -6,18 +6,21 @@ def send_otp_email(user_email, otp_code):
     """
     Send OTP code to user's email for verification.
     """
-    subject = 'Your OTP Code for EZM Trade Management System'
+    from django.conf import settings
+
+    company_name = getattr(settings, 'COMPANY_NAME', 'EZM Trade Management System')
+    subject = f'Your OTP Code for {company_name}'
     message = f'''
     Hello,
-    
+
     Your OTP code for account verification is: {otp_code}
-    
+
     This code will expire in 10 minutes.
-    
+
     If you didn't request this code, please ignore this email.
-    
+
     Best regards,
-    EZM Trade Management System
+    {company_name}
     '''
     
     try:

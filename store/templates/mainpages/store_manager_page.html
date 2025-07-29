@@ -1,8 +1,9 @@
 {% extends 'base_sidebar.html' %}
 {% load static %}
+{% load humanize %}
 
-{% block title %}Store Manager Dashboard{% endblock %}
-{% block page_title %}Store Manager Dashboard{% endblock %}
+{% block title %}{{ store.name }} - Analytics Dashboard{% endblock %}
+{% block page_title %}Store Analytics Dashboard{% endblock %}
 
 {% block sidebar_menu %}
 {% include 'sidebar_navigation.html' %}
@@ -10,183 +11,845 @@
 
 {% block extra_css %}
 <style>
-  .dashboard-card {
-    background: var(--white);
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    border: none;
-    transition: all 0.3s ease;
-    height: 100%;
-  }
+    :root {
+        --primary-blue: #2563eb;
+        --primary-dark: #1e40af;
+        --secondary-gray: #6b7280;
+        --light-gray: #f8fafc;
+        --success-green: #10b981;
+        --warning-yellow: #f59e0b;
+        --danger-red: #ef4444;
+        --accent-cyan: #06b6d4;
+        --text-dark: #1f2937;
+        --border-light: #e2e8f0;
+        --purple-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --blue-gradient: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%);
+    }
 
-  .dashboard-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-  }
+    body {
+        background: var(--light-gray);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
 
-  .dashboard-header {
-    background: linear-gradient(90deg, var(--accent-teal), var(--accent-cyan));
-    color: var(--white);
-    border-radius: 12px 12px 0 0;
-    padding: 1.5rem;
-  }
+    .dashboard-container {
+        padding: 1.5rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
 
-  .welcome-card {
-    background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
-    color: var(--white);
-    border-radius: 15px;
-    box-shadow: 0 8px 25px rgba(69, 162, 158, 0.3);
-  }
+    /* Header Section */
+    .dashboard-header {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--border-light);
+    }
 
-  .card-icon {
-    font-size: 1.5rem;
-    margin-right: 0.5rem;
-    vertical-align: middle;
-  }
+    .store-info {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
 
-  .feature-card {
-    background: var(--white);
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    border: none;
-    transition: all 0.3s ease;
-    height: 100%;
-  }
+    .store-details h1 {
+        color: var(--primary-dark);
+        font-weight: 700;
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
 
-  .feature-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.12);
-  }
+    .store-meta {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        color: var(--secondary-gray);
+        font-size: 0.9rem;
+    }
 
-  .feature-card .card-body {
-    padding: 2rem;
-    text-align: center;
-  }
+    .store-meta span {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
 
-  .feature-card i {
-    font-size: 2.5rem;
-    margin-bottom: 1rem;
-    background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
+    /* Period Selector */
+    .period-controls {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--border-light);
+    }
 
-  .feature-card h5 {
-    color: var(--secondary-dark);
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-  }
+    .period-selector {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
 
-  .feature-card p {
-    color: #6c757d;
-    font-size: 0.9rem;
-  }
+    .period-selector label {
+        font-weight: 600;
+        color: var(--text-dark);
+        margin-bottom: 0;
+    }
+
+    .period-selector select {
+        border: 2px solid var(--border-light);
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 500;
+        min-width: 150px;
+    }
+
+    .period-selector select:focus {
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        outline: none;
+    }
+
+    /* Metrics Grid */
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .metric-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--border-light);
+        position: relative;
+        transition: all 0.3s ease;
+    }
+
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        border-radius: 12px 12px 0 0;
+    }
+
+    .metric-card.revenue::before { background: var(--blue-gradient); }
+    .metric-card.transactions::before { background: linear-gradient(135deg, #10b981, #059669); }
+    .metric-card.products::before { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    .metric-card.stock::before { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+
+    .metric-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+    }
+
+    .metric-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+    }
+
+    .metric-icon.revenue { background: var(--blue-gradient); }
+    .metric-icon.transactions { background: linear-gradient(135deg, #10b981, #059669); }
+    .metric-icon.products { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    .metric-icon.stock { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+
+    .metric-value {
+        font-size: 2.25rem;
+        font-weight: 700;
+        color: var(--text-dark);
+        margin-bottom: 0.25rem;
+    }
+
+    .metric-label {
+        color: var(--secondary-gray);
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+
+    .metric-change {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .metric-change.positive { color: var(--success-green); }
+    .metric-change.negative { color: var(--danger-red); }
+    .metric-change.neutral { color: var(--secondary-gray); }
+
+    /* Charts and Analytics */
+    .analytics-section {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .chart-card, .summary-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--border-light);
+    }
+
+    .card-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-dark);
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Quick Actions */
+    .quick-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .action-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--border-light);
+        transition: all 0.3s ease;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .action-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.1);
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .action-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .action-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        color: white;
+    }
+
+    .action-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text-dark);
+        margin-bottom: 0.25rem;
+    }
+
+    .action-description {
+        color: var(--secondary-gray);
+        font-size: 0.875rem;
+        margin-bottom: 0;
+    }
+
+    .action-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--border-light);
+    }
+
+    .action-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    /* Status Badges */
+    .badge-success { background: rgba(16, 185, 129, 0.1); color: var(--success-green); }
+    .badge-warning { background: rgba(245, 158, 11, 0.1); color: var(--warning-yellow); }
+    .badge-danger { background: rgba(239, 68, 68, 0.1); color: var(--danger-red); }
+    .badge-info { background: rgba(37, 99, 235, 0.1); color: var(--primary-blue); }
+
+    /* Tables */
+    .data-table {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--border-light);
+    }
+
+    .table-header {
+        background: var(--light-gray);
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--border-light);
+    }
+
+    .table-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text-dark);
+        margin: 0;
+    }
+
+    .table-responsive {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .table {
+        margin: 0;
+    }
+
+    .table th {
+        background: var(--light-gray);
+        border-top: none;
+        border-bottom: 2px solid var(--border-light);
+        font-weight: 600;
+        color: var(--text-dark);
+        font-size: 0.875rem;
+        padding: 1rem;
+    }
+
+    .table td {
+        padding: 1rem;
+        border-bottom: 1px solid var(--border-light);
+        vertical-align: middle;
+    }
+
+    /* Buttons */
+    .btn-primary {
+        background: var(--blue-gradient);
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px -2px rgba(37, 99, 235, 0.3);
+    }
+
+    .btn-outline-primary {
+        border: 2px solid var(--primary-blue);
+        color: var(--primary-blue);
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-outline-primary:hover {
+        background: var(--primary-blue);
+        transform: translateY(-1px);
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1024px) {
+        .analytics-section {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .dashboard-container {
+            padding: 1rem;
+        }
+
+        .store-info {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .metrics-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .quick-actions {
+            grid-template-columns: 1fr;
+        }
+
+        .period-selector {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+    }
+
+    /* Loading States */
+    .loading-skeleton {
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: loading 1.5s infinite;
+    }
+
+    @keyframes loading {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+
+    /* Alert Styles */
+    .alert-custom {
+        border-radius: 12px;
+        border: none;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .alert-warning {
+        background: rgba(245, 158, 11, 0.1);
+        border-left: 4px solid var(--warning-yellow);
+        color: #92400e;
+    }
+
+    .alert-info {
+        background: rgba(37, 99, 235, 0.1);
+        border-left: 4px solid var(--primary-blue);
+        color: #1e40af;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-  <!-- Welcome Section -->
-  <div class="row mb-4">
-    <div class="col-12">
-      <div class="welcome-card">
-        <div class="card-body text-center py-4">
-          <i class="bi bi-person-badge" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-          <h2 class="mb-2">Welcome, {{ user.first_name|default:user.username }}!</h2>
-          {% if store %}
-          <p class="mb-0 opacity-90">Managing: <strong>{{ store.name }}</strong></p>
-          <p class="mb-0 opacity-75"><i class="bi bi-geo-alt me-1"></i>{{ store.address }}</p>
-          {% else %}
-          <p class="mb-0 opacity-90">You are not currently assigned to manage a store.</p>
-          {% endif %}
+<div class="dashboard-container">
+    <!-- Dashboard Header -->
+    <div class="dashboard-header">
+        <div class="store-info">
+            <div class="store-details">
+                <h1>{{ store.name }}</h1>
+                <div class="store-meta">
+                    <span><i class="bi bi-geo-alt"></i>{{ store.address }}</span>
+                    {% if store.phone_number %}
+                    <span><i class="bi bi-telephone"></i>{{ store.phone_number }}</span>
+                    {% endif %}
+                    <span><i class="bi bi-person-badge"></i>{{ request.user.get_full_name|default:request.user.username }}</span>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <a href="{% url 'export_store_report' %}?period={{ period }}" class="btn btn-primary">
+                    <i class="bi bi-download me-2"></i>Export Report
+                </a>
+            </div>
         </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Management Features -->
-  <div class="row g-4">
-    <div class="col-lg-6 col-md-6">
-      <a href="{% url 'store_product_list' %}" class="text-decoration-none">
-        <div class="feature-card">
-          <div class="card-body">
-            <i class="bi bi-box-seam"></i>
-            <h5>Product Management</h5>
-            <p>View and manage products in your store</p>
-          </div>
-        </div>
-      </a>
     </div>
 
-    <div class="col-lg-6 col-md-6">
-      <a href="#" onclick="showComingSoon('Stock Management')" class="text-decoration-none">
-        <div class="feature-card">
-          <div class="card-body">
-            <i class="bi bi-boxes"></i>
-            <h5>Stock Management</h5>
-            <p>Keep your inventory accurate and up to date</p>
-          </div>
+    <!-- Period Controls -->
+    <div class="period-controls">
+        <div class="period-selector">
+            <label for="period-select">Analytics Period:</label>
+            <select id="period-select" onchange="window.location.href='?period='+this.value">
+                <option value="7" {% if period == '7' %}selected{% endif %}>Last 7 Days</option>
+                <option value="30" {% if period == '30' %}selected{% endif %}>Last 30 Days</option>
+                <option value="90" {% if period == '90' %}selected{% endif %}>Last 90 Days</option>
+                <option value="365" {% if period == '365' %}selected{% endif %}>Last Year</option>
+            </select>
+            <span class="text-muted ms-3">
+                <i class="bi bi-calendar-range me-1"></i>
+                {{ start_date|date:"M d, Y" }} - {{ end_date|date:"M d, Y" }}
+            </span>
         </div>
-      </a>
     </div>
 
-    <div class="col-lg-6 col-md-6">
-      <a href="{% url 'manage_cashiers' %}" class="text-decoration-none">
-        <div class="feature-card">
-          <div class="card-body">
-            <i class="bi bi-people"></i>
-            <h5>Cashier Management</h5>
-            <p>Assign and manage cashiers for your store</p>
-          </div>
+    <!-- Key Metrics Grid -->
+    <div class="metrics-grid">
+        <!-- Revenue Metric -->
+        <div class="metric-card revenue">
+            <div class="metric-header">
+                <div class="metric-icon revenue">
+                    <i class="bi bi-currency-dollar"></i>
+                </div>
+                {% if revenue_change != 0 %}
+                <div class="metric-change {% if revenue_change > 0 %}positive{% elif revenue_change < 0 %}negative{% else %}neutral{% endif %}">
+                    <i class="bi bi-{% if revenue_change > 0 %}arrow-up{% elif revenue_change < 0 %}arrow-down{% else %}dash{% endif %}"></i>
+                    {% if revenue_change != 0 %}{{ revenue_change|floatformat:1 }}%{% else %}0%{% endif %}
+                </div>
+                {% endif %}
+            </div>
+            <div class="metric-value">${{ total_revenue|floatformat:0|intcomma }}</div>
+            <div class="metric-label">Total Revenue</div>
+            {% if previous_revenue > 0 %}
+            <small class="text-muted">vs ${{ previous_revenue|floatformat:0|intcomma }} previous period</small>
+            {% endif %}
         </div>
-      </a>
+
+        <!-- Transactions Metric -->
+        <div class="metric-card transactions">
+            <div class="metric-header">
+                <div class="metric-icon transactions">
+                    <i class="bi bi-receipt"></i>
+                </div>
+            </div>
+            <div class="metric-value">{{ total_transactions|intcomma }}</div>
+            <div class="metric-label">Total Transactions</div>
+            {% if total_transactions > 0 %}
+            <small class="text-muted">Avg: ${{ avg_transaction_value|floatformat:2 }} per transaction</small>
+            {% endif %}
+        </div>
+
+        <!-- Products Metric -->
+        <div class="metric-card products">
+            <div class="metric-header">
+                <div class="metric-icon products">
+                    <i class="bi bi-box-seam"></i>
+                </div>
+            </div>
+            <div class="metric-value">{{ total_products|intcomma }}</div>
+            <div class="metric-label">Products in Stock</div>
+            {% if out_of_stock_count > 0 %}
+            <small class="text-danger">{{ out_of_stock_count }} out of stock</small>
+            {% else %}
+            <small class="text-success">All products in stock</small>
+            {% endif %}
+        </div>
+
+        <!-- Stock Value Metric -->
+        <div class="metric-card stock">
+            <div class="metric-header">
+                <div class="metric-icon stock">
+                    <i class="bi bi-graph-up"></i>
+                </div>
+            </div>
+            <div class="metric-value">${{ total_stock_value|floatformat:0|intcomma }}</div>
+            <div class="metric-label">Total Stock Value</div>
+            {% if critical_stock_count > 0 %}
+            <small class="text-warning">{{ critical_stock_count }} items low stock</small>
+            {% else %}
+            <small class="text-success">Stock levels healthy</small>
+            {% endif %}
+        </div>
+    </div>
+    <!-- Analytics Section -->
+    <div class="analytics-section">
+        <!-- Sales Chart -->
+        <div class="chart-card">
+            <div class="card-title">
+                <i class="bi bi-graph-up"></i>
+                Sales Trend (Last 7 Days)
+            </div>
+            <div id="salesChart" style="height: 300px;">
+                <!-- Chart will be rendered here -->
+                <div class="d-flex align-items-center justify-content-center h-100">
+                    <div class="text-center">
+                        <i class="bi bi-bar-chart fs-1 text-muted"></i>
+                        <p class="text-muted mt-2">Sales chart visualization</p>
+                        <small class="text-muted">Chart.js integration coming soon</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="summary-card">
+            <div class="card-title">
+                <i class="bi bi-list-check"></i>
+                Quick Summary
+            </div>
+
+            <!-- Top Products -->
+            <div class="mb-4">
+                <h6 class="text-muted mb-3">Top Selling Products</h6>
+                {% if top_products %}
+                    {% for product in top_products|slice:":3" %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <div class="fw-semibold">{{ product.product__name }}</div>
+                            <small class="text-muted">{{ product.total_sold }} units sold</small>
+                        </div>
+                        <div class="text-end">
+                            <div class="fw-semibold text-success">${{ product.total_revenue|floatformat:0 }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted small">No sales data available for this period</p>
+                {% endif %}
+            </div>
+
+            <!-- Payment Methods -->
+            <div class="mb-4">
+                <h6 class="text-muted mb-3">Payment Methods</h6>
+                {% if payment_methods %}
+                    {% for method in payment_methods|slice:":3" %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <span class="fw-semibold text-capitalize">{{ method.payment_type }}</span>
+                            <small class="text-muted ms-2">{{ method.count }} transactions</small>
+                        </div>
+                        <div class="fw-semibold">${{ method.total|floatformat:0 }}</div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted small">No payment data available</p>
+                {% endif %}
+            </div>
+
+            <!-- Alerts -->
+            {% if low_stock_items.count > 0 %}
+            <div class="alert alert-warning">
+                <h6 class="alert-heading mb-2">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    Low Stock Alert
+                </h6>
+                <p class="mb-1">{{ low_stock_items.count }} product{{ low_stock_items.count|pluralize }} running low</p>
+                <a href="{% url 'store_manager_stock_management' %}" class="btn btn-outline-warning btn-sm">
+                    View Stock Management
+                </a>
+            </div>
+            {% endif %}
+        </div>
     </div>
 
-    <div class="col-lg-6 col-md-6">
-      <a href="#" onclick="showComingSoon('Reports & Analytics')" class="text-decoration-none">
-        <div class="feature-card">
-          <div class="card-body">
-            <i class="bi bi-graph-up"></i>
-            <h5>Reports & Analytics</h5>
-            <p>View sales reports and store performance</p>
-          </div>
-        </div>
-      </a>
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <!-- Stock Management -->
+        <a href="{% url 'store_manager_stock_management' %}" class="action-card">
+            <div class="action-header">
+                <div class="action-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+                    <i class="bi bi-boxes"></i>
+                </div>
+                <div>
+                    <div class="action-title">Stock Management</div>
+                    <div class="action-description">View and manage inventory levels</div>
+                </div>
+            </div>
+            <div class="action-meta">
+                <span class="action-badge badge-info">{{ total_products }} products</span>
+                <i class="bi bi-arrow-right"></i>
+            </div>
+        </a>
+
+        <!-- Transfer Requests -->
+        <a href="{% url 'store_manager_transfer_requests' %}" class="action-card">
+            <div class="action-header">
+                <div class="action-icon" style="background: linear-gradient(135deg, #06b6d4, #0891b2);">
+                    <i class="bi bi-arrow-left-right"></i>
+                </div>
+                <div>
+                    <div class="action-title">Transfer Requests</div>
+                    <div class="action-description">Request stock transfers between stores</div>
+                </div>
+            </div>
+            <div class="action-meta">
+                {% if pending_transfer_count > 0 %}
+                <span class="action-badge badge-warning">{{ pending_transfer_count }} pending</span>
+                {% else %}
+                <span class="action-badge badge-success">Up to date</span>
+                {% endif %}
+                <i class="bi bi-arrow-right"></i>
+            </div>
+        </a>
+
+        <!-- Restock Requests -->
+        <a href="{% url 'store_manager_restock_requests' %}" class="action-card">
+            <div class="action-header">
+                <div class="action-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+                    <i class="bi bi-arrow-up-circle"></i>
+                </div>
+                <div>
+                    <div class="action-title">Restock Requests</div>
+                    <div class="action-description">Request inventory from warehouse</div>
+                </div>
+            </div>
+            <div class="action-meta">
+                {% if pending_restock_count > 0 %}
+                <span class="action-badge badge-warning">{{ pending_restock_count }} pending</span>
+                {% else %}
+                <span class="action-badge badge-success">Up to date</span>
+                {% endif %}
+                <i class="bi bi-arrow-right"></i>
+            </div>
+        </a>
+
+        <!-- Sales Person Management -->
+        <a href="{% url 'manage_cashiers' %}" class="action-card">
+            <div class="action-header">
+                <div class="action-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                    <i class="bi bi-people"></i>
+                </div>
+                <div>
+                    <div class="action-title">Sales Person Management</div>
+                    <div class="action-description">Manage store sales personnel</div>
+                </div>
+            </div>
+            <div class="action-meta">
+                {% if cashier_assignment %}
+                <span class="action-badge badge-success">Active staff</span>
+                {% else %}
+                <span class="action-badge badge-danger">No active staff</span>
+                {% endif %}
+                <i class="bi bi-arrow-right"></i>
+            </div>
+        </a>
     </div>
-  </div>
+    <!-- Data Tables Section -->
+    <div class="row">
+        <!-- Recent Transactions -->
+        <div class="col-lg-8">
+            <div class="data-table">
+                <div class="table-header">
+                    <h3 class="table-title">Recent Transactions</h3>
+                </div>
+                <div class="table-responsive">
+                    {% if recent_transactions %}
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Date & Time</th>
+                                <th>Amount</th>
+                                <th>Payment</th>
+                                <th>Sales Person</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in recent_transactions|slice:":10" %}
+                            <tr>
+                                <td>
+                                    <div>
+                                        <div class="fw-semibold">{{ transaction.timestamp|date:"M d, Y" }}</div>
+                                        <small class="text-muted">{{ transaction.timestamp|date:"H:i A" }}</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold text-success">${{ transaction.total_amount|floatformat:2 }}</div>
+                                </td>
+                                <td>
+                                    <span class="badge badge-info">{{ transaction.get_payment_type_display }}</span>
+                                </td>
+                                <td>
+                                    {% if transaction.cashier %}
+                                        {{ transaction.cashier.get_full_name|default:transaction.cashier.username }}
+                                    {% else %}
+                                        <span class="text-muted">System</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if transaction.transaction_type == 'sale' %}
+                                    <span class="badge badge-success">Sale</span>
+                                    {% elif transaction.transaction_type == 'return' %}
+                                    <span class="badge badge-warning">Return</span>
+                                    {% else %}
+                                    <span class="badge badge-info">{{ transaction.transaction_type|title }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-receipt fs-1 text-muted"></i>
+                        <h5 class="text-muted mt-3">No Transactions</h5>
+                        <p class="text-muted">No transactions found for the selected period.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Low Stock Items -->
+        <div class="col-lg-4">
+            <div class="data-table">
+                <div class="table-header">
+                    <h3 class="table-title">Low Stock Items</h3>
+                </div>
+                <div class="table-responsive">
+                    {% if low_stock_items %}
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Stock</th>
+                                <th>Threshold</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in low_stock_items|slice:":8" %}
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">{{ item.product.name }}</div>
+                                    <small class="text-muted">{{ item.product.category }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge {% if item.quantity == 0 %}badge-danger{% elif item.quantity <= 5 %}badge-warning{% else %}badge-success{% endif %}">
+                                        {{ item.quantity }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ item.low_stock_threshold }}</small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-check-circle fs-1 text-success"></i>
+                        <h6 class="text-success mt-2">All Good!</h6>
+                        <p class="text-muted small">No low stock items</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
-
-<!-- Coming Soon Modal -->
-<div class="modal fade" id="comingSoonModal" tabindex="-1" aria-labelledby="comingSoonModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header"
-        style="background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan)); color: white;">
-        <h5 class="modal-title" id="comingSoonModalLabel">
-          <i class="bi bi-info-circle me-2"></i>Feature Coming Soon
-        </h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body text-center py-4">
-        <i class="bi bi-tools" style="font-size: 3rem; color: var(--accent-teal); margin-bottom: 1rem;"></i>
-        <h6 id="featureName" class="mb-3"></h6>
-        <p class="text-muted">This feature is currently under development and will be available soon.</p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-ezm-primary" data-bs-dismiss="modal">Got it</button>
-      </div>
-    </div>
-  </div>
-</div>
-{% endblock %}
-
 {% block extra_js %}
 <script>
-  function showComingSoon(featureName) {
-    document.getElementById('featureName').textContent = featureName;
-    const modal = new bootstrap.Modal(document.getElementById('comingSoonModal'));
-    modal.show();
-  }
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Store Manager Dashboard loaded for {{ store.name }}');
+
+    // Auto-refresh metrics every 5 minutes
+    setInterval(function() {
+        // You can add auto-refresh functionality here if needed
+        console.log('Dashboard metrics could be refreshed here');
+    }, 300000); // 5 minutes
+
+    // Add smooth scrolling for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            document.querySelector(this.getAttribute('href')).scrollIntoView({
+                behavior: 'smooth'
+            });
+        });
+    });
+});
 </script>
 {% endblock %}

@@ -1,0 +1,959 @@
+{% extends 'base_sidebar.html' %}
+{% load static %}
+
+{% block title %}Customer Tickets{% endblock %}
+
+{% block sidebar_menu %}
+{% include 'sidebar_navigation.html' %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Match system theme exactly */
+
+    /* Welcome Card - matching head manager style */
+    .welcome-card {
+        background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        color: white;
+        margin-bottom: 2rem;
+        padding: 2rem;
+        text-align: center;
+    }
+
+    .welcome-card i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.9;
+    }
+
+    .welcome-card h2 {
+        font-size: 2rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .welcome-card p {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        margin-bottom: 0;
+    }
+
+    /* Dashboard Cards - matching head manager style */
+    .dashboard-card {
+        background: var(--white);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        border: none;
+        transition: all 0.3s ease;
+        height: 100%;
+        text-align: center;
+    }
+
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    .dashboard-card .card-body {
+        padding: 2rem;
+    }
+
+    .dashboard-card i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .dashboard-card h5 {
+        color: var(--secondary-dark);
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        font-size: 2.5rem;
+    }
+
+    .dashboard-card p {
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin: 0;
+    }
+
+    /* EZM Cards */
+    .ezm-card {
+        background: var(--white);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        border: none;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .ezm-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    }
+
+    .ezm-card-header {
+        background: linear-gradient(90deg, var(--accent-teal), var(--accent-cyan));
+        color: var(--white);
+        padding: 20px;
+        border-radius: 12px 12px 0 0;
+        font-weight: 600;
+    }
+
+    /* Ticket Cards */
+    .ticket-card {
+        background: var(--white);
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+        height: 100%;
+    }
+
+    .ticket-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    .ticket-header {
+        background: linear-gradient(90deg, var(--accent-teal), var(--accent-cyan));
+        color: var(--white);
+        border-bottom: none;
+    }
+
+    .ticket-number {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        font-size: 0.8rem;
+        font-weight: 600;
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .ticket-time {
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 0.85rem;
+    }
+
+    .customer-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+        font-size: 1.2rem;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .customer-name {
+        font-weight: 600;
+        color: white;
+        margin-bottom: 0.25rem;
+    }
+
+    .customer-phone {
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 0.9rem;
+        margin: 0;
+    }
+
+    .ticket-amount {
+        font-size: 1.8rem;
+        font-weight: 700;
+        background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0.25rem;
+    }
+
+    .items-count {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--secondary-dark);
+        margin-bottom: 0.25rem;
+    }
+
+    /* Items Preview */
+    .items-preview {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1rem;
+        border: 1px solid #e9ecef;
+    }
+
+    .items-list {
+        max-height: 120px;
+        overflow-y: auto;
+    }
+
+    .item-row {
+        border-bottom: 1px solid #e9ecef;
+        font-size: 0.85rem;
+    }
+
+    .item-row:last-child {
+        border-bottom: none;
+    }
+
+    .item-name {
+        font-weight: 500;
+        color: var(--secondary-dark);
+    }
+
+    .item-details {
+        font-size: 0.8rem;
+    }
+
+    /* Timestamps */
+    .ticket-timestamps {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 0.75rem;
+        border: 1px solid #e9ecef;
+        font-size: 0.85rem;
+    }
+
+    /* Buttons - EZM Style */
+    .btn-ezm-primary {
+        background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+        border: none;
+        color: var(--white);
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-ezm-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(69, 162, 158, 0.4);
+        color: var(--white);
+    }
+
+    .btn-ezm-secondary {
+        background: var(--secondary-dark);
+        border: none;
+        color: var(--white);
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-ezm-secondary:hover {
+        background: var(--primary-dark);
+        color: var(--white);
+    }
+
+    /* Process Button */
+    .process-btn {
+        background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 500;
+        color: white;
+        transition: all 0.3s ease;
+        width: 100%;
+    }
+
+    .process-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(69, 162, 158, 0.4);
+        color: white;
+    }
+
+    .process-btn:disabled {
+        background: #6c757d;
+        color: white;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    /* Action Buttons */
+    .action-btn {
+        background: white;
+        border: 2px solid var(--light-gray);
+        border-radius: 12px;
+        padding: 0.75rem 1.25rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        color: var(--secondary-dark);
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+    }
+
+    .action-btn.primary {
+        background: linear-gradient(45deg, var(--primary-color), var(--primary-dark));
+        border-color: transparent;
+        color: white;
+    }
+
+    .action-btn.primary:hover {
+        color: white;
+        transform: translateY(-2px) scale(1.02);
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border: 1px solid var(--light-gray);
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    }
+
+    .empty-icon {
+        width: 100px;
+        height: 100px;
+        margin: 0 auto 2rem;
+        background: linear-gradient(45deg, var(--accent-teal), var(--accent-cyan));
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        color: white;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    .empty-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--secondary-dark);
+        margin-bottom: 1rem;
+    }
+
+    .empty-subtitle {
+        color: var(--text-muted);
+        margin-bottom: 2rem;
+        font-size: 1.1rem;
+    }
+
+    /* Form Controls */
+    .form-control, .form-select {
+        border: 2px solid var(--light-gray);
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.2rem rgba(var(--primary-color-rgb), 0.25);
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: var(--secondary-dark);
+        margin-bottom: 0.5rem;
+    }
+
+    /* Animations */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .ticket-card {
+        opacity: 0;
+        animation: fadeInUp 0.6s ease forwards;
+    }
+
+    /* Loading Spinner */
+    .loading-spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-radius: 50%;
+        border-top-color: white;
+        animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .header-title {
+            font-size: 1.8rem;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+        }
+
+        .ticket-amount {
+            font-size: 1.5rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Hidden CSRF token for JavaScript -->
+    {% csrf_token %}
+
+    <!-- Welcome Section - matching head manager style -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="welcome-card">
+                <i class="bi bi-ticket-perforated"></i>
+                <h2 class="mb-2">Customer Tickets Management</h2>
+                <p class="mb-3 opacity-90">Process pending customer orders from webfront and manage completed tickets</p>
+                <div class="d-flex justify-content-center gap-3 mt-3">
+                    <button class="btn btn-ezm-secondary" onclick="location.reload()">
+                        <i class="bi bi-arrow-clockwise me-2"></i>Refresh
+                    </button>
+                    <a href="{% url 'initiate_order' %}" class="btn btn-ezm-primary">
+                        <i class="bi bi-cash-register me-2"></i>Point of Sale
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Cards Row - matching head manager style -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="dashboard-card">
+                <div class="card-body">
+                    <i class="bi bi-clock-history"></i>
+                    <h5 class="mb-2">{{ pending_count }}</h5>
+                    <p>Pending Orders</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="dashboard-card">
+                <div class="card-body">
+                    <i class="bi bi-check-circle"></i>
+                    <h5 class="mb-2">{{ completed_count }}</h5>
+                    <p>Completed Orders</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="dashboard-card">
+                <div class="card-body">
+                    <i class="bi bi-ticket-perforated"></i>
+                    <h5 class="mb-2">{{ total_count }}</h5>
+                    <p>Total Tickets</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="dashboard-card">
+                <div class="card-body">
+                    <i class="bi bi-currency-dollar"></i>
+                    <h5 class="mb-2" id="totalValue">ETB 0</h5>
+                    <p>Displayed Value</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search & Filter Card - EZM Style -->
+    <div class="ezm-card">
+        <div class="ezm-card-header">
+            <i class="bi bi-funnel me-2"></i>Search & Filter Tickets
+        </div>
+        <div class="card-body p-4">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label for="search" class="form-label">Search Tickets</label>
+                    <input type="text" class="form-control" id="search" name="search"
+                           value="{{ search_query }}" placeholder="Search by phone number or ticket number...">
+                    <small class="form-text text-muted">Enter phone number or ticket number (e.g., CT20250726...)</small>
+                </div>
+                <div class="col-md-3">
+                    <label for="status" class="form-label">Status Filter</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="" {% if not status_filter %}selected{% endif %}>All Statuses</option>
+                        <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                        <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="sort" class="form-label">Sort By</label>
+                    <select class="form-select" id="sort" name="sort">
+                        {% for value, label in sort_choices %}
+                        <option value="{{ value }}" {% if sort_order == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-ezm-primary flex-fill">
+                            <i class="bi bi-search me-1"></i>Search
+                        </button>
+                        {% if search_query or status_filter %}
+                        <a href="{% url 'ticket_management' %}" class="btn btn-ezm-secondary">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+        <!-- Tickets Grid -->
+        {% if tickets %}
+            <div class="row g-4">
+                {% for ticket_data in tickets %}
+                <div class="col-lg-6 col-xl-4">
+                    <div class="card ticket-card h-100" data-ticket-amount="{{ ticket_data.ticket.total_amount }}">
+                        <!-- Card Header with Status -->
+                        <div class="card-header ticket-header border-0 p-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="ticket-number">#{{ ticket_data.ticket.ticket_number }}</span>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-{{ ticket_data.status_color }} px-2 py-1">
+                                        <i class="{{ ticket_data.status_icon }} me-1"></i>
+                                        {{ ticket_data.ticket.get_status_display }}
+                                    </span>
+                                    <small class="ticket-time">{{ ticket_data.ticket.created_at|date:"M d, H:i" }}</small>
+                                </div>
+                            </div>
+
+                            <div class="d-flex align-items-center">
+                                <div class="customer-avatar me-3">
+                                    {{ ticket_data.ticket.customer_name|default:"C"|first|upper }}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="customer-name mb-1">{{ ticket_data.ticket.customer_name|default:"Walk-in Customer" }}</h6>
+                                    <p class="customer-phone mb-0">
+                                        <i class="bi bi-telephone me-1"></i>
+                                        {{ ticket_data.ticket.customer_phone }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card Body with Full Information -->
+                        <div class="card-body p-4">
+                            <!-- Amount and Summary -->
+                            <div class="row mb-3">
+                                <div class="col-6">
+                                    <div class="text-center">
+                                        <div class="ticket-amount">ETB {{ ticket_data.ticket.total_amount|floatformat:2 }}</div>
+                                        <small class="text-muted">Total Amount</small>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-center">
+                                        <div class="items-count">{{ ticket_data.items_count }}</div>
+                                        <small class="text-muted">Products ({{ ticket_data.total_quantity }} items)</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Items Preview -->
+                            <div class="items-preview mb-3">
+                                <h6 class="mb-2">
+                                    <i class="bi bi-box me-2"></i>Items Preview
+                                </h6>
+                                <div class="items-list">
+                                    {% for item in ticket_data.items_preview %}
+                                    <div class="item-row d-flex justify-content-between align-items-center py-1">
+                                        <span class="item-name">{{ item.product.name|truncatechars:25 }}</span>
+                                        <span class="item-details">
+                                            <span class="badge bg-light text-dark">{{ item.quantity }}x</span>
+                                            <small class="text-muted ms-1">ETB {{ item.unit_price|floatformat:2 }}</small>
+                                        </span>
+                                    </div>
+                                    {% endfor %}
+                                    {% if ticket_data.has_more_items %}
+                                    <div class="item-row py-1">
+                                        <small class="text-muted">... and {{ ticket_data.items_count|add:"-2" }} more items</small>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Timestamps -->
+                            <div class="ticket-timestamps mb-3">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Created</small>
+                                        <small>{{ ticket_data.ticket.created_at|date:"M d, Y H:i" }}</small>
+                                    </div>
+                                    {% if ticket_data.ticket.completed_at %}
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Completed</small>
+                                        <small>{{ ticket_data.ticket.completed_at|date:"M d, Y H:i" }}</small>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% if ticket_data.ticket.confirmed_by %}
+                                <div class="mt-2">
+                                    <small class="text-muted d-block">Processed by</small>
+                                    <small>{{ ticket_data.ticket.confirmed_by.get_full_name|default:ticket_data.ticket.confirmed_by.username }}</small>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Action Button -->
+                            {% if ticket_data.ticket.status == 'pending' %}
+                            <button type="button" class="process-btn"
+                                    data-ticket-id="{{ ticket_data.ticket.id }}"
+                                    data-ticket-number="{{ ticket_data.ticket.ticket_number }}"
+                                    data-customer-name="{{ ticket_data.ticket.customer_name|default:'Customer' }}"
+                                    onclick="confirmProcessTicket(this)">
+                                <i class="bi bi-cart-plus me-2"></i>Process Order
+                            </button>
+                            {% else %}
+                            <button class="process-btn" disabled style="background: var(--success-color);">
+                                <i class="bi bi-check-circle me-2"></i>Completed
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="ezm-card text-center">
+                <div class="card-body p-5">
+                    <div class="empty-icon mb-4">
+                        <i class="bi bi-ticket-perforated" style="font-size: 4rem; color: var(--accent-teal);"></i>
+                    </div>
+                    <h3 class="empty-title mb-3" style="color: var(--secondary-dark);">No Tickets Found</h3>
+                    <p class="empty-subtitle mb-4" style="color: #6c757d;">
+                        {% if search_query or status_filter %}
+                            No tickets match your search criteria. Try adjusting your filters.
+                        {% else %}
+                            Great! All customer orders have been processed. New orders will appear here automatically.
+                        {% endif %}
+                    </p>
+                    {% if search_query or status_filter %}
+                    <a href="{% url 'ticket_management' %}" class="btn btn-ezm-primary">
+                        <i class="bi bi-arrow-clockwise me-2"></i>Show All Tickets
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+    </div>
+</div>
+</div>
+
+<script>
+function confirmProcessTicket(button) {
+    const ticketId = button.getAttribute('data-ticket-id');
+    const ticketNumber = button.getAttribute('data-ticket-number');
+    const customerName = button.getAttribute('data-customer-name');
+
+    const message = `Are you sure you want to process ticket #${ticketNumber} for ${customerName}?\n\nThis will load the ticket items into your POS cart.`;
+
+    if (confirm(message)) {
+        // Show loading state
+        const originalText = button.innerHTML;
+        button.innerHTML = '<div class="loading-spinner me-2"></div>Processing...';
+        button.disabled = true;
+
+        // Process ticket using JavaScript and localStorage
+        processTicketToCart(ticketId, ticketNumber, customerName, button, originalText);
+    }
+}
+
+// Helper function to make HTTP requests using XMLHttpRequest
+function makeRequest(url, options = {}) {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open(options.method || 'GET', url);
+
+        // Set headers
+        if (options.headers) {
+            for (const key in options.headers) {
+                xhr.setRequestHeader(key, options.headers[key]);
+            }
+        }
+
+        xhr.onload = function() {
+            const response = {
+                ok: xhr.status >= 200 && xhr.status < 300,
+                status: xhr.status,
+                statusText: xhr.statusText,
+                data: null
+            };
+
+            try {
+                response.data = JSON.parse(xhr.responseText);
+            } catch (e) {
+                response.data = xhr.responseText;
+            }
+
+            resolve(response);
+        };
+
+        xhr.onerror = function() {
+            reject(new Error('Network error'));
+        };
+
+        xhr.ontimeout = function() {
+            reject(new Error('Request timeout'));
+        };
+
+        xhr.timeout = 30000; // 30 second timeout
+        xhr.send(options.body || null);
+    });
+}
+
+async function processTicketToCart(ticketId, ticketNumber, customerName, button, originalText) {
+    try {
+        // Get CSRF token
+        const csrfToken = getCsrfToken();
+        if (!csrfToken) {
+            throw new Error('CSRF token not found');
+        }
+
+        // Use XMLHttpRequest instead of fetch to avoid context issues
+        const response = await makeRequest(`/stores/api/tickets/${ticketNumber}/`, {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}, message: ${response.statusText}`);
+        }
+
+        const data = response.data;
+
+        if (data.success && data.ticket) {
+            const ticket = data.ticket;
+
+            // Prepare cart data for localStorage
+            const cartData = {
+                items: [],
+                total: 0,
+                created_at: new Date().toISOString(),
+                from_ticket: true,
+                ticket_info: {
+                    ticket_id: ticketId,
+                    ticket_number: ticketNumber,
+                    customer_name: customerName,
+                    customer_phone: ticket.customer_phone
+                }
+            };
+
+            // Add ticket items to cart
+            for (const item of ticket.items) {
+                const cartItem = {
+                    product_id: item.product_id,
+                    product_name: item.product_name,
+                    quantity: item.quantity,
+                    price: parseFloat(item.unit_price),
+                    subtotal: parseFloat(item.total_price),
+                    added_at: new Date().toISOString()
+                };
+                cartData.items.push(cartItem);
+                cartData.total += cartItem.subtotal;
+            }
+
+            // Store cart data in localStorage
+            localStorage.setItem('pos_cart_data', JSON.stringify(cartData));
+
+            // Store customer information
+            localStorage.setItem('pos_customer_info', JSON.stringify({
+                name: customerName,
+                phone: ticket.customer_phone
+            }));
+
+            // Show success message
+            showNotification(`Ticket #${ticketNumber} processed successfully! Redirecting to Point of Sale...`, 'success');
+
+            // Redirect to POS immediately
+            window.location.href = '/stores/cashier/initiate-order/';
+
+        } else {
+            throw new Error(data.error || 'Failed to load ticket data');
+        }
+
+    } catch (error) {
+        console.error('Error processing ticket:', error);
+        console.error('Error details:', {
+            message: error.message,
+            stack: error.stack,
+            ticketNumber: ticketNumber,
+            ticketId: ticketId
+        });
+
+        // Show user-friendly error message
+        let errorMessage = 'Failed to process ticket';
+        if (error.message.includes('CSRF')) {
+            errorMessage = 'Security token error. Please refresh the page and try again.';
+        } else if (error.message.includes('HTTP error')) {
+            errorMessage = 'Server error. Please try again or contact support.';
+        } else if (error.message.includes('Fetch API')) {
+            errorMessage = 'Browser compatibility issue. Please use a modern browser.';
+        } else {
+            errorMessage = `Error: ${error.message}`;
+        }
+
+        showNotification(errorMessage, 'error');
+
+        // Restore button state
+        if (button && originalText) {
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }
+    }
+}
+
+// Helper function to get CSRF token
+function getCsrfToken() {
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+    return csrfToken ? csrfToken.value : '';
+}
+
+// Using XMLHttpRequest for better browser compatibility
+
+// Calculate and display total value of displayed tickets
+function calculateTotalValue() {
+    const ticketCards = document.querySelectorAll('.ticket-card[data-ticket-amount]');
+    let totalValue = 0;
+
+    ticketCards.forEach(card => {
+        const amount = parseFloat(card.getAttribute('data-ticket-amount')) || 0;
+        totalValue += amount;
+    });
+
+    const totalValueElement = document.getElementById('totalValue');
+    if (totalValueElement) {
+        totalValueElement.textContent = `ETB ${totalValue.toFixed(2)}`;
+    }
+}
+
+// Auto-refresh every 60 seconds for real-time updates
+let autoRefreshInterval = setInterval(function() {
+    // Only refresh if no modals are open
+    if (!document.querySelector('.modal.show')) {
+        location.reload();
+    }
+}, 60000);
+
+// Initialize page functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Calculate total value of displayed tickets
+    calculateTotalValue();
+
+    // Add real-time search for phone numbers
+    const phoneInput = document.getElementById('phone');
+    if (phoneInput) {
+        phoneInput.addEventListener('input', function() {
+            // Format phone number input
+            let value = this.value.replace(/\D/g, '');
+            if (value.length > 10) {
+                value = value.substring(0, 10);
+            }
+        });
+
+        // Auto-submit search after typing stops
+        let searchTimeout;
+        phoneInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                if (this.value.length >= 3 || this.value.length === 0) {
+                    this.form.submit();
+                }
+            }, 1000);
+        });
+    }
+
+    // Add keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl+R or F5 for refresh
+        if ((e.ctrlKey && e.key === 'r') || e.key === 'F5') {
+            e.preventDefault();
+            location.reload();
+        }
+
+        // Escape to reset filters
+        if (e.key === 'Escape') {
+            window.location.href = '{% url "ticket_management" %}';
+        }
+
+        // Enter to search
+        if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') {
+            const form = document.querySelector('form[method="get"]');
+            if (form) {
+                form.submit();
+            }
+        }
+    });
+
+    // Add smooth animations to ticket cards
+    const ticketCards = document.querySelectorAll('.ticket-card');
+    ticketCards.forEach((card, index) => {
+        card.style.animationDelay = `${index * 0.1}s`;
+        card.style.animation = 'fadeInUp 0.6s ease forwards';
+    });
+});
+
+// Show notification function
+function showNotification(message, type = 'info') {
+    const alertClass = type === 'error' ? 'danger' : type;
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${alertClass} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    document.body.appendChild(notification);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

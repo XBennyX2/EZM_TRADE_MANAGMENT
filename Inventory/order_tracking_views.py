@@ -23,6 +23,7 @@ from payments.notification_service import supplier_notification_service
 
 def is_head_manager(user):
     """Check if user is a head manager"""
+    logger.info(f"Checking if user {user.username} is head manager. Role: {user.role}")
     return user.is_authenticated and user.role == 'head_manager'
 
 logger = logging.getLogger(__name__)
@@ -118,14 +119,20 @@ def order_tracking_detail(request, order_id):
 
 
 @login_required
-@user_passes_test(is_head_manager)
 def purchase_order_details_api(request, order_id):
     """
     API endpoint to get purchase order details for modals
     """
     try:
+        # Check if user is head manager
+        if not is_head_manager(request.user):
+            logger.warning(f"User {request.user.username} attempted to access order details but is not a head manager")
+            return JsonResponse({'error': 'Access denied. Head Manager role required.'}, status=403)
+
+        logger.info(f"Fetching order details for order_id: {order_id}")
         order = get_object_or_404(PurchaseOrder, id=order_id)
-        
+        logger.info(f"Found order: {order.order_number}")
+
         # Serialize order data
         order_data = {
             'id': order.id,
@@ -145,25 +152,38 @@ def purchase_order_details_api(request, order_id):
             'tracking_number': order.tracking_number,
             'items': []
         }
-        
+
         # Add order items
+        items_count = order.items.count()
+        logger.info(f"Processing {items_count} items")
+
+        if items_count == 0:
+            logger.warning(f"Order {order.order_number} has no items")
+
         for item in order.items.all():
-            order_data['items'].append({
-                'id': item.id,
-                'product_name': item.warehouse_product.product_name,
-                'quantity_ordered': item.quantity_ordered,
-                'quantity_received': item.quantity_received,
-                'unit_price': float(item.unit_price),
-                'total_price': float(item.total_price),
-                'is_confirmed_received': item.is_confirmed_received,
-                'has_issues': item.has_issues,
-                'issue_description': item.issue_description,
-            })
-        
+            try:
+                order_data['items'].append({
+                    'id': item.id,
+                    'product_name': item.warehouse_product.product_name,
+                    'quantity_ordered': item.quantity_ordered,
+                    'quantity_received': item.quantity_received,
+                    'unit_price': float(item.unit_price),
+                    'total_price': float(item.total_price),
+                    'is_confirmed_received': item.is_confirmed_received,
+                    'has_issues': item.has_issues,
+                    'issue_description': item.issue_description,
+                })
+            except Exception as item_error:
+                logger.error(f"Error processing item {item.id}: {str(item_error)}")
+                # Continue processing other items
+
+        logger.info(f"Successfully serialized order data for {order.order_number}")
         return JsonResponse(order_data)
-        
+
     except Exception as e:
         logger.error(f"Error fetching order details for {order_id}: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return JsonResponse({'error': 'Unable to fetch order details'}, status=500)
 
 
@@ -233,7 +253,13 @@ def mark_order_in_transit(request, order_id):
     """
     try:
         order = get_object_or_404(PurchaseOrder, id=order_id)
-        
+
+        if not is_head_manager(request.user):
+            return JsonResponse({
+                'success': False,
+                'message': 'Only head managers can mark orders as in transit'
+            }, status=403)
+            
         if order.status != 'payment_confirmed':
             return JsonResponse({
                 'success': False,
@@ -292,6 +318,8 @@ def confirm_delivery(request, order_id):
     """
     try:
         order = get_object_or_404(PurchaseOrder, id=order_id)
+
+        logger.info(f"Attempting to confirm delivery for order {order_id} by user {request.user.username}")
         
         if order.status not in ['in_transit', 'payment_confirmed']:
             return JsonResponse({

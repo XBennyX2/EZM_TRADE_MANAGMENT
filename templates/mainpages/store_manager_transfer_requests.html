@@ -156,6 +156,47 @@
         filter: invert(1);
     }
 
+    /* Live search dropdown styles */
+    .search-dropdown-item {
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        border-bottom: 1px solid #e9ecef;
+        transition: background-color 0.2s ease;
+    }
+
+    .search-dropdown-item:hover,
+    .search-dropdown-item.active {
+        background-color: #f8f9fa;
+    }
+
+    .search-dropdown-item:last-child {
+        border-bottom: none;
+    }
+
+    .search-dropdown-item .item-title {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.25rem;
+    }
+
+    .search-dropdown-item .item-details {
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+
+    .search-dropdown-item .item-stock {
+        font-size: 0.875rem;
+        color: #28a745;
+        font-weight: 500;
+    }
+
+    .search-no-results {
+        padding: 1rem;
+        text-align: center;
+        color: #6c757d;
+        font-style: italic;
+    }
+
     .stats-card {
         background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
         color: white;
@@ -333,7 +374,7 @@
                                 {% elif request.to_store.store_manager == user and request.status == 'approved' %}
                                 <!-- Incoming approved request - receiving store can mark as completed -->
                                 <button class="btn btn-primary btn-sm me-1"
-                                    onclick="completeTransferRequest({{ request.id }}, '{{ request.request_number }}', '{{ request.product.name }}', {{ request.requested_quantity }}, '{{ request.from_store.name }}')">
+                                    onclick="completeTransferRequest({{ request.id }}, '{{ request.request_number }}', '{{ request.product.name }}', {{ request.approved_quantity }}, '{{ request.from_store.name }}')">
                                     <i class="bi bi-check2-all"></i> Mark as Completed
                                 </button>
                                 <button class="btn btn-outline-primary btn-sm"
@@ -413,31 +454,53 @@
                 {% csrf_token %}
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="transfer_product_id" class="form-label">Product *</label>
-                        <select class="form-select" id="transfer_product_id" name="product_id" required>
-                            <option value="">Select a product</option>
-                            {% for product in transfer_available_products %}
-                            <option value="{{ product.id }}">
-                                {{ product.name }} - {{ product.category }}
-                            </option>
-                            {% endfor %}
-                        </select>
+                        <label for="product_store_search" class="form-label">Product & Source Store *</label>
+                        <div class="position-relative">
+                            <input type="text"
+                                   class="form-control"
+                                   id="product_store_search"
+                                   placeholder="Type to search for product and store..."
+                                   autocomplete="off"
+                                   required>
+                            <div id="search_dropdown" class="dropdown-menu w-100" style="max-height: 300px; overflow-y: auto; display: none;">
+                                <!-- Search results will be populated here -->
+                            </div>
+                        </div>
+                        <div class="form-text">Type to search for products available in other stores.</div>
+
+                        <!-- Selected item display -->
+                        <div id="selected_item_display" class="mt-2" style="display: none;">
+                            <div class="alert alert-info mb-0">
+                                <strong>Selected:</strong> <span id="selected_item_text"></span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="to_store_id" class="form-label">Transfer From *</label>
-                        <select class="form-select" id="to_store_id" name="to_store_id" required>
-                            <option value="">Select source store</option>
-                            {% for store in other_stores %}
-                            <option value="{{ store.id }}">{{ store.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
+
+                    <!-- Hidden fields for form submission -->
+                    <input type="hidden" id="product_id" name="product_id" required>
+                    <input type="hidden" id="to_store_id" name="to_store_id" required>
+
+                    <!-- Hidden data for search -->
+                    <script type="application/json" id="transfer_combinations_data">
+                        [
+                        {% for combo in transfer_product_store_combinations %}
+                        {
+                            "product_id": {{ combo.product_id }},
+                            "store_id": {{ combo.store_id }},
+                            "available_quantity": {{ combo.available_quantity }},
+                            "product_name": "{{ combo.product_name|escapejs }}",
+                            "store_name": "{{ combo.store_name|escapejs }}",
+                            "display_text": "{{ combo.display_text|escapejs }}",
+                            "search_text": "{{ combo.product_name|escapejs }} {{ combo.store_name|escapejs }} {{ combo.product_category|escapejs }}"
+                        }{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                        ]
+                    </script>
                     <div class="mb-3">
                         <label for="transfer_quantity" class="form-label">Quantity to Transfer *</label>
                         <input type="number" class="form-control" id="transfer_quantity" name="requested_quantity"
                             min="1" required>
-                        <div class="form-text" id="stock-availability-text">Select a product to see available stock.
-                        </div>
+                        <div class="form-text" id="stock-availability-text">Select a product and store to see available stock.</div>
                     </div>
                     <div class="mb-3">
                         <label for="transfer_priority" class="form-label">Priority Level *</label>
@@ -509,40 +572,224 @@
         }, 1000);
     }
 
-    // Update stock availability when product is selected
-    document.getElementById('transfer_product_id').addEventListener('change', function () {
-        const selectedOption = this.options[this.selectedIndex];
-        const stockText = document.getElementById('stock-availability-text');
-        const quantityInput = document.getElementById('transfer_quantity');
+    // Live search functionality
+    let transferCombinations = [];
+    let selectedItem = null;
+    let currentFocus = -1;
 
-        if (this.value) {
-            const availableStock = selectedOption.getAttribute('data-available-stock');
-            stockText.textContent = `Available stock: ${availableStock} units`;
-            quantityInput.max = availableStock;
-            quantityInput.focus();
-        } else {
-            stockText.textContent = 'Select a product to see available stock.';
-            quantityInput.removeAttribute('max');
+    // Load transfer combinations data
+    try {
+        const dataScript = document.getElementById('transfer_combinations_data');
+        transferCombinations = JSON.parse(dataScript.textContent);
+    } catch (e) {
+        console.error('Error loading transfer combinations data:', e);
+    }
+
+    const searchInput = document.getElementById('product_store_search');
+    const searchDropdown = document.getElementById('search_dropdown');
+    const selectedDisplay = document.getElementById('selected_item_display');
+    const selectedText = document.getElementById('selected_item_text');
+    const stockText = document.getElementById('stock-availability-text');
+    const quantityInput = document.getElementById('transfer_quantity');
+    const productIdField = document.getElementById('product_id');
+    const storeIdField = document.getElementById('to_store_id');
+
+    // Search input event handler
+    searchInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        currentFocus = -1;
+
+        if (query.length === 0) {
+            hideDropdown();
+            clearSelection();
+            return;
+        }
+
+        // Filter combinations based on search query
+        const filteredItems = transferCombinations.filter(item =>
+            item.search_text.toLowerCase().includes(query)
+        );
+
+        showDropdown(filteredItems, query);
+    });
+
+    // Handle keyboard navigation
+    searchInput.addEventListener('keydown', function(e) {
+        const items = searchDropdown.querySelectorAll('.search-dropdown-item');
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            currentFocus++;
+            if (currentFocus >= items.length) currentFocus = 0;
+            setActive(items);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            currentFocus--;
+            if (currentFocus < 0) currentFocus = items.length - 1;
+            setActive(items);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (currentFocus > -1 && items[currentFocus]) {
+                items[currentFocus].click();
+            }
+        } else if (e.key === 'Escape') {
+            hideDropdown();
         }
     });
 
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !searchDropdown.contains(e.target)) {
+            hideDropdown();
+        }
+    });
+
+    function showDropdown(items, query) {
+        searchDropdown.innerHTML = '';
+
+        if (items.length === 0) {
+            searchDropdown.innerHTML = '<div class="search-no-results">No products found matching your search.</div>';
+        } else {
+            items.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'search-dropdown-item';
+                div.innerHTML = `
+                    <div class="item-title">${highlightMatch(item.product_name, query)}</div>
+                    <div class="item-details">From: ${highlightMatch(item.store_name, query)}</div>
+                    <div class="item-stock">${item.available_quantity} units available</div>
+                `;
+
+                div.addEventListener('click', function() {
+                    selectItem(item);
+                });
+
+                searchDropdown.appendChild(div);
+            });
+        }
+
+        searchDropdown.style.display = 'block';
+        searchDropdown.classList.add('show');
+    }
+
+    function hideDropdown() {
+        searchDropdown.style.display = 'none';
+        searchDropdown.classList.remove('show');
+        currentFocus = -1;
+    }
+
+    function setActive(items) {
+        items.forEach((item, index) => {
+            if (index === currentFocus) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
+        });
+    }
+
+    function highlightMatch(text, query) {
+        if (!query) return text;
+        const regex = new RegExp(`(${query})`, 'gi');
+        return text.replace(regex, '<strong>$1</strong>');
+    }
+
+    function selectItem(item) {
+        selectedItem = item;
+
+        // Update search input
+        searchInput.value = item.display_text;
+
+        // Update hidden fields
+        productIdField.value = item.product_id;
+        storeIdField.value = item.store_id;
+
+        // Show selected item
+        selectedText.textContent = item.display_text;
+        selectedDisplay.style.display = 'block';
+
+        // Update stock info
+        stockText.textContent = `Available stock: ${item.available_quantity} units in ${item.store_name}`;
+        quantityInput.max = item.available_quantity;
+        quantityInput.value = '';
+
+        // Hide dropdown and focus quantity input
+        hideDropdown();
+        quantityInput.focus();
+    }
+
+    function clearSelection() {
+        selectedItem = null;
+        productIdField.value = '';
+        storeIdField.value = '';
+        selectedDisplay.style.display = 'none';
+        stockText.textContent = 'Select a product and store to see available stock.';
+        quantityInput.removeAttribute('max');
+        quantityInput.value = '';
+    }
+
     // Form validation
     document.querySelector('#transferRequestModal form').addEventListener('submit', function (e) {
-        const productSelect = document.getElementById('transfer_product_id');
         const quantityInput = document.getElementById('transfer_quantity');
 
+        // Check if an item is selected
+        if (!selectedItem) {
+            e.preventDefault();
+            alert('Please select a product and store from the search results.');
+            searchInput.focus();
+            return false;
+        }
+
         // Check if quantity doesn't exceed available stock
-        if (productSelect.value && quantityInput.value) {
-            const selectedOption = productSelect.options[productSelect.selectedIndex];
-            const availableStock = parseInt(selectedOption.getAttribute('data-available-stock'));
+        if (quantityInput.value) {
+            const availableStock = parseInt(selectedItem.available_quantity);
             const requestedQuantity = parseInt(quantityInput.value);
 
             if (requestedQuantity > availableStock) {
                 e.preventDefault();
-                alert(`Cannot transfer ${requestedQuantity} units. Only ${availableStock} units available.`);
+                alert(`Cannot transfer ${requestedQuantity} units. Only ${availableStock} units available for ${selectedItem.product_name} in ${selectedItem.store_name}.`);
                 quantityInput.focus();
                 return false;
             }
+        }
+    });
+
+    // Reset form when modal is closed
+    document.getElementById('transferRequestModal').addEventListener('hidden.bs.modal', function () {
+        // Don't clear search if it came from URL parameter
+        if (!window.location.search.includes('search=')) {
+            searchInput.value = '';
+            clearSelection();
+            hideDropdown();
+        }
+        document.getElementById('transfer_quantity').value = '';
+        document.getElementById('priority').value = '';
+        document.getElementById('reason').value = '';
+    });
+
+    // Auto-populate search from URL parameter
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const searchParam = urlParams.get('search');
+
+        if (searchParam) {
+            // Set the search input value
+            searchInput.value = searchParam;
+
+            // Trigger the search
+            const event = new Event('input', { bubbles: true });
+            searchInput.dispatchEvent(event);
+
+            // Open the modal automatically
+            setTimeout(() => {
+                const modal = new bootstrap.Modal(document.getElementById('transferRequestModal'));
+                modal.show();
+
+                // Focus on the search input
+                setTimeout(() => {
+                    searchInput.focus();
+                    searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+                }, 300);
+            }, 500);
         }
     });
 
@@ -571,11 +818,18 @@
         modal.show();
     }
 
-    function completeTransferRequest(requestId, requestNumber, productName, requestedQty, fromStore) {
+    function completeTransferRequest(requestId, requestNumber, productName, approvedQty, fromStore) {
         document.getElementById('completion-request-number').textContent = requestNumber;
         document.getElementById('completion-product-name').textContent = productName;
-        document.getElementById('completion-requested-qty').textContent = requestedQty;
+        document.getElementById('completion-requested-qty').textContent = approvedQty;
         document.getElementById('completion-from-store').textContent = fromStore;
+
+        // Set default received quantity to approved quantity
+        document.getElementById('received_quantity').value = approvedQty;
+        document.getElementById('received_quantity').max = approvedQty;
+
+        // Clear completion notes
+        document.getElementById('completion_notes').value = '';
 
         const form = document.getElementById('transferCompletionForm');
         form.action = '{% url "complete_store_transfer_request" 0 %}'.replace('0', requestId);
@@ -666,8 +920,17 @@
                     <div class="alert alert-info">
                         <strong>Request:</strong> <span id="completion-request-number"></span><br>
                         <strong>Product:</strong> <span id="completion-product-name"></span><br>
-                        <strong>Quantity:</strong> <span id="completion-requested-qty"></span><br>
+                        <strong>Approved Quantity:</strong> <span id="completion-requested-qty"></span><br>
                         <strong>From Store:</strong> <span id="completion-from-store"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label for="received_quantity" class="form-label">Received Quantity *</label>
+                        <input type="number" class="form-control" id="received_quantity" name="received_quantity"
+                               min="1" required>
+                        <div class="form-text">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Enter the actual quantity you received. This can be different from the approved quantity if there were issues during transfer.
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label for="completion_notes" class="form-label">Completion Notes (Optional)</label>

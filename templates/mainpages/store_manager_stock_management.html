@@ -91,9 +91,9 @@
             <p class="text-muted mb-0">Monitor and manage your store inventory</p>
         </div>
         <div class="d-flex gap-2">
-            <button class="btn btn-ezm-secondary" data-bs-toggle="modal" data-bs-target="#restockModal">
+            <a href="{% url 'store_manager_restock_requests' %}" class="btn btn-ezm-secondary">
                 <i class="bi bi-arrow-up-circle me-1"></i>Request Restock
-            </button>
+            </a>
             <button class="btn btn-ezm-primary" data-bs-toggle="modal" data-bs-target="#transferModal">
                 <i class="bi bi-arrow-left-right me-1"></i>Request Transfer
             </button>
@@ -229,6 +229,7 @@
                             <th>Product</th>
                             <th>Category</th>
                             <th>Current Stock</th>
+                            <th>Threshold</th>
                             <th>Status</th>
                             <th>Selling Price</th>
                             <th>Supplier</th>
@@ -255,7 +256,11 @@
                             </td>
                             <td>
                                 <strong>{{ stock_item.quantity }}</strong>
-                                <br><small class="text-muted">Threshold: {{ stock_item.low_stock_threshold }}</small>
+                                <br><small class="text-muted">units</small>
+                            </td>
+                            <td>
+                                <strong>{{ stock_item.low_stock_threshold }}</strong>
+                                <br><small class="text-muted">alert level</small>
                             </td>
                             <td>
                                 {% if stock_item.quantity == 0 %}
@@ -308,6 +313,11 @@
                                             title="Update Price">
                                             <i class="bi bi-tag"></i>
                                         </button>
+                                        <button class="btn btn-sm btn-outline-secondary"
+                                            onclick="updateThreshold({{ stock_item.id }}, '{{ stock_item.product.name }}', {{ stock_item.low_stock_threshold }})"
+                                            title="Update Threshold">
+                                            <i class="bi bi-speedometer2"></i>
+                                        </button>
                                 </div>
                             </td>
                         </tr>
@@ -339,13 +349,12 @@
                         <li class="page-item active">
                             <span class="page-link">{{ num }}</span>
                         </li>
-                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %} <li
-                            class="page-item">
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
                             <a class="page-link"
-                                href="?page={{ num }}{% if not category_all_selected %}&category={{ category_filter }}{% endif %}{% if not stock_level_all_selected %}&stock_level={{ stock_level_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">{{
-                                num }}</a>
-                            </li>
-                            {% endif %}
+                                href="?page={{ num }}{% if not category_all_selected %}&category={{ category_filter }}{% endif %}{% if not stock_level_all_selected %}&stock_level={{ stock_level_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">{{ num }}</a>
+                        </li>
+                        {% endif %}
                             {% endfor %}
 
                             {% if page_obj.has_next %}
@@ -369,108 +378,9 @@
     </div>
 </div>
 
-<!-- Restock Request Modal -->
-<div class="modal fade" id="restockModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Request Restock</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="post" action="{% url 'submit_restock_request' %}">
-                {% csrf_token %}
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="restock_product_id" class="form-label">Product *</label>
-                        <select class="form-select" id="restock_product_id" name="product_id" required>
-                            <option value="">Select a product</option>
-                            {% for product in restock_available_products %}
-                            <option value="{{ product.id }}">
-                                {{ product.name }} - {{ product.category }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="restock_quantity" class="form-label">Requested Quantity *</label>
-                        <input type="number" class="form-control" id="restock_quantity" name="requested_quantity"
-                            min="1" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="restock_priority" class="form-label">Priority Level *</label>
-                        <select class="form-select" id="restock_priority" name="priority" required>
-                            <option value="low">Low - Can wait</option>
-                            <option value="medium" selected>Medium - Normal priority</option>
-                            <option value="high">High - Needed soon</option>
-                            <option value="urgent">Urgent - Critical need</option>
-                        </select>
-                    </div>
+<!-- Restock modal removed - now redirects to warehouse products page -->
 
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-ezm-primary">Submit Request</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Transfer Request Modal -->
-<div class="modal fade" id="transferModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Request Transfer</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="post" action="{% url 'submit_transfer_request' %}">
-                {% csrf_token %}
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="transfer_product_id" class="form-label">Product *</label>
-                        <select class="form-select" id="transfer_product_id" name="product_id" required>
-                            <option value="">Select a product</option>
-                            {% for product in transfer_available_products %}
-                            <option value="{{ product.id }}">
-                                {{ product.name }} - {{ product.category }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="transfer_to_store" class="form-label">Transfer From *</label>
-                        <select class="form-select" id="transfer_to_store" name="to_store_id" required>
-                            <option value="">Select source store</option>
-                            {% for other_store in other_stores %}
-                            <option value="{{ other_store.id }}">{{ other_store.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="transfer_quantity" class="form-label">Transfer Quantity *</label>
-                        <input type="number" class="form-control" id="transfer_quantity" name="requested_quantity"
-                            min="1" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="transfer_priority" class="form-label">Priority Level *</label>
-                        <select class="form-select" id="transfer_priority" name="priority" required>
-                            <option value="low">Low - Can wait</option>
-                            <option value="medium" selected>Medium - Normal priority</option>
-                            <option value="high">High - Needed soon</option>
-                            <option value="urgent">Urgent - Critical need</option>
-                        </select>
-                    </div>
-
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-ezm-primary">Submit Request</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+<!-- Transfer modal removed - now redirects to transfer requests page -->
 
 <!-- Price Update Modal -->
 <div class="modal fade" id="priceUpdateModal" tabindex="-1">
@@ -505,6 +415,46 @@
         </div>
     </div>
 </div>
+
+<!-- Threshold Update Modal -->
+<div class="modal fade" id="thresholdUpdateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Low Stock Threshold</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'update_stock_threshold' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="hidden" id="threshold_stock_id" name="stock_id">
+                    <div class="mb-3">
+                        <label class="form-label">Product</label>
+                        <input type="text" class="form-control" id="threshold_product_name" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_threshold" class="form-label">New Low Stock Threshold *</label>
+                        <input type="number" class="form-control" id="new_threshold" name="new_threshold"
+                               min="0" step="1" required>
+                        <div class="form-text">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Set the minimum quantity before low stock alerts are triggered.
+                        </div>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="bi bi-lightbulb me-2"></i>
+                        <strong>Tip:</strong> Set a threshold that gives you enough time to restock before running out.
+                        Consider your supplier lead times and sales velocity.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-ezm-primary">Update Threshold</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -514,23 +464,18 @@
         return dict[key] || null;
     }
 
-    // Request restock for specific product
+    // Request restock for specific product - redirect to warehouse products with search
     function requestRestock(productId, productName, currentStock) {
-        document.getElementById('restock_product_id').value = productId;
-        document.getElementById('restock_quantity').value = '';
-
-        const modal = new bootstrap.Modal(document.getElementById('restockModal'));
-        modal.show();
+        // Redirect to warehouse products page with search for this product
+        const searchQuery = encodeURIComponent(productName);
+        window.location.href = `{% url 'store_manager_warehouse_products' %}?search=${searchQuery}`;
     }
 
-    // Request transfer for specific product
+    // Request transfer for specific product - redirect to transfer requests page with search
     function requestTransfer(productId, productName, currentStock) {
-        document.getElementById('transfer_product_id').value = productId;
-        document.getElementById('transfer_quantity').value = '';
-        document.getElementById('transfer_quantity').max = currentStock;
-
-        const modal = new bootstrap.Modal(document.getElementById('transferModal'));
-        modal.show();
+        // Redirect to transfer requests page with search for this product
+        const searchQuery = encodeURIComponent(productName);
+        window.location.href = `{% url 'store_manager_transfer_requests' %}?search=${searchQuery}`;
     }
 
     // Update price for specific product
@@ -540,6 +485,16 @@
         document.getElementById('new_price').value = currentPrice;
 
         const modal = new bootstrap.Modal(document.getElementById('priceUpdateModal'));
+        modal.show();
+    }
+
+    // Update threshold for specific product
+    function updateThreshold(stockId, productName, currentThreshold) {
+        document.getElementById('threshold_stock_id').value = stockId;
+        document.getElementById('threshold_product_name').value = productName;
+        document.getElementById('new_threshold').value = currentThreshold;
+
+        const modal = new bootstrap.Modal(document.getElementById('thresholdUpdateModal'));
         modal.show();
     }
 

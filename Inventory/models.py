@@ -205,6 +205,67 @@ class Supplier(models.Model):
     def __str__(self):
         return self.name
 
+    def get_estimated_delivery_days(self):
+        """
+        Get estimated delivery days for this supplier.
+        Returns the number of days based on supplier profile or default.
+        """
+        try:
+            if hasattr(self, 'profile') and self.profile.estimated_delivery_timeframe:
+                return self._parse_delivery_timeframe(self.profile.estimated_delivery_timeframe)
+        except:
+            pass
+
+        # Default to 7 days if no specific timeframe is set
+        return 7
+
+    def _parse_delivery_timeframe(self, timeframe):
+        """
+        Parse delivery timeframe text and return number of days.
+        Examples: "3-5 business days" -> 5, "1-2 weeks" -> 14, "2 days" -> 2
+        """
+        import re
+
+        if not timeframe:
+            return 7
+
+        timeframe = timeframe.lower().strip()
+
+        # Look for patterns like "3-5 days", "1-2 weeks", "2 days", etc.
+
+        # Pattern for ranges like "3-5 days" or "1-2 weeks"
+        range_pattern = r'(\d+)-(\d+)\s*(business\s+)?(days?|weeks?)'
+        range_match = re.search(range_pattern, timeframe)
+
+        if range_match:
+            start_num = int(range_match.group(1))
+            end_num = int(range_match.group(2))
+            unit = range_match.group(4)
+
+            # Use the higher end of the range for safety
+            days = end_num
+
+            if 'week' in unit:
+                days *= 7
+
+            return days
+
+        # Pattern for single numbers like "2 days" or "1 week"
+        single_pattern = r'(\d+)\s*(business\s+)?(days?|weeks?)'
+        single_match = re.search(single_pattern, timeframe)
+
+        if single_match:
+            num = int(single_match.group(1))
+            unit = single_match.group(3)
+
+            if 'week' in unit:
+                num *= 7
+
+            return num
+
+        # If no pattern matches, return default
+        return 7
+
 
 class SupplierProfile(models.Model):
     """
@@ -385,7 +446,10 @@ class SupplierProduct(models.Model):
         max_length=100,
         help_text="e.g., '2-3 business days', '1 week'"
     )
-    stock_quantity = models.PositiveIntegerField(null=True, blank=True)
+    stock_quantity = models.PositiveIntegerField(
+        default=0,
+        help_text="Current stock quantity available from this supplier"
+    )
 
     # Product Images
     product_image = models.ImageField(
@@ -408,7 +472,182 @@ class SupplierProduct(models.Model):
 
     def is_available(self):
         """Check if product is available for ordering"""
-        return self.availability_status in ['in_stock', 'limited_stock', 'pre_order']
+        return (self.availability_status in ['in_stock', 'limited_stock', 'pre_order']
+                and self.stock_quantity > 0)
+
+    def is_in_stock(self):
+        """Check if product has stock available"""
+        return self.stock_quantity > 0
+
+    def is_low_stock(self, threshold=10):
+        """Check if product stock is below threshold"""
+        return 0 < self.stock_quantity <= threshold
+
+    def is_out_of_stock(self):
+        """Check if product is out of stock"""
+        return self.stock_quantity == 0
+
+    def can_fulfill_quantity(self, requested_quantity):
+        """Check if supplier can fulfill the requested quantity"""
+        return self.stock_quantity >= requested_quantity
+
+    def decrease_stock(self, quantity, reason="Stock decrease"):
+        """
+        Decrease stock quantity with validation
+
+        Args:
+            quantity: Amount to decrease
+            reason: Reason for stock decrease (for logging)
+
+        Returns:
+            bool: True if successful, False if insufficient stock
+
+        Raises:
+            ValueError: If quantity is invalid
+        """
+        if quantity <= 0:
+            raise ValueError("Quantity must be positive")
+
+        if self.stock_quantity < quantity:
+            return False
+
+        old_quantity = self.stock_quantity
+        self.stock_quantity -= quantity
+
+        # Update availability status based on new stock level
+        if self.stock_quantity == 0:
+            self.availability_status = 'out_of_stock'
+        elif self.stock_quantity <= 10:  # Low stock threshold
+            self.availability_status = 'limited_stock'
+        else:
+            self.availability_status = 'in_stock'
+
+        self.save()
+
+        # Log stock change
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Stock decreased for {self.product_name} (ID: {self.id}): -{quantity}. "
+                   f"New stock: {self.stock_quantity}. Reason: {reason}")
+
+        # Send stock update notification if needed
+        try:
+            from .stock_notification_service import StockNotificationService
+            StockNotificationService.send_stock_update_notification(
+                self, old_quantity, self.stock_quantity, reason
+            )
+        except ImportError:
+            pass  # Notification service not available
+        except Exception as e:
+            logger.error(f"Error sending stock update notification: {str(e)}")
+
+        return True
+
+    def increase_stock(self, quantity, reason="Stock increase"):
+        """
+        Increase stock quantity
+
+        Args:
+            quantity: Amount to increase
+            reason: Reason for stock increase (for logging)
+
+        Raises:
+            ValueError: If quantity is invalid
+        """
+        if quantity <= 0:
+            raise ValueError("Quantity must be positive")
+
+        self.stock_quantity += quantity
+
+        # Update availability status based on new stock level
+        if self.stock_quantity > 10:
+            self.availability_status = 'in_stock'
+        elif self.stock_quantity > 0:
+            self.availability_status = 'limited_stock'
+
+        self.save()
+
+        # Log stock change
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Stock increased for {self.product_name} (ID: {self.id}): +{quantity}. "
+                   f"New stock: {self.stock_quantity}. Reason: {reason}")
+
+    def get_stock_status_display(self):
+        """Get human-readable stock status"""
+        if self.is_out_of_stock():
+            return "Out of Stock"
+        elif self.is_low_stock():
+            return f"Low Stock ({self.stock_quantity} remaining)"
+        else:
+            return f"In Stock ({self.stock_quantity} available)"
+
+    def get_stock_status_class(self):
+        """Get CSS class for stock status styling"""
+        if self.is_out_of_stock():
+            return "text-danger"
+        elif self.is_low_stock():
+            return "text-warning"
+        else:
+            return "text-success"
+
+    def get_estimated_delivery_days(self):
+        """
+        Get estimated delivery days for this specific product.
+        Uses product-specific delivery time, falls back to supplier default.
+        """
+        if self.estimated_delivery_time:
+            return self._parse_delivery_timeframe(self.estimated_delivery_time)
+
+        # Fall back to supplier's general delivery timeframe
+        return self.supplier.get_estimated_delivery_days()
+
+    def _parse_delivery_timeframe(self, timeframe):
+        """
+        Parse delivery timeframe text and return number of days.
+        Examples: "3-5 business days" -> 5, "1-2 weeks" -> 14, "2 days" -> 2
+        """
+        import re
+
+        if not timeframe:
+            return 7
+
+        timeframe = timeframe.lower().strip()
+
+        # Look for patterns like "3-5 days", "1-2 weeks", "2 days", etc.
+
+        # Pattern for ranges like "3-5 days" or "1-2 weeks"
+        range_pattern = r'(\d+)-(\d+)\s*(business\s+)?(days?|weeks?)'
+        range_match = re.search(range_pattern, timeframe)
+
+        if range_match:
+            start_num = int(range_match.group(1))
+            end_num = int(range_match.group(2))
+            unit = range_match.group(4)
+
+            # Use the higher end of the range for safety
+            days = end_num
+
+            if 'week' in unit:
+                days *= 7
+
+            return days
+
+        # Pattern for single numbers like "2 days" or "1 week"
+        single_pattern = r'(\d+)\s*(business\s+)?(days?|weeks?)'
+        single_match = re.search(single_pattern, timeframe)
+
+        if single_match:
+            num = int(single_match.group(1))
+            unit = single_match.group(3)
+
+            if 'week' in unit:
+                num *= 7
+
+            return num
+
+        # If no pattern matches, return supplier default
+        return self.supplier.get_estimated_delivery_days()
 
 
 class PurchaseRequest(models.Model):
@@ -998,6 +1237,15 @@ class PurchaseOrder(models.Model):
         }
         return status_map.get(self.status, self.status.title())
 
+    def save(self, *args, **kwargs):
+        """Override save to set supplier-specific delivery times"""
+        # Set estimated delivery hours based on supplier's delivery timeframe
+        if not self.estimated_delivery_hours or self.estimated_delivery_hours == 168:  # 168 = default 7 days
+            delivery_days = self.supplier.get_estimated_delivery_days()
+            self.estimated_delivery_hours = delivery_days * 24  # Convert days to hours
+
+        super().save(*args, **kwargs)
+
 
 class PurchaseOrderItem(models.Model):
     """
@@ -1345,7 +1593,7 @@ class RestockRequest(models.Model):
         ).exclude(pk=self.pk).exists()
 
     def approve(self, approved_by, approved_quantity=None, notes=""):
-        """Approve the restock request and immediately transfer inventory"""
+        """Approve the restock request and reduce warehouse stock - store stock updated when received"""
         from django.utils import timezone
         from django.db import transaction
         from users.notifications import NotificationManager
@@ -1353,66 +1601,55 @@ class RestockRequest(models.Model):
         approved_qty = approved_quantity or self.requested_quantity
 
         with transaction.atomic():
-            # Update request status
-            self.status = 'approved'
-            self.reviewed_by = approved_by
-            self.reviewed_date = timezone.now()
-            self.approved_quantity = approved_qty
-            self.review_notes = notes
-
-            # Immediately transfer inventory upon approval
+            # Validate and reduce warehouse stock
             try:
-                # 1. Decrease warehouse stock
-                warehouse_product = WarehouseProduct.objects.get(
+                # Get the warehouse product with the highest stock or most recent one
+                warehouse_product = WarehouseProduct.objects.filter(
                     product_name=self.product.name,
                     is_active=True
-                )
+                ).order_by('-quantity_in_stock', '-id').first()
 
-                # Check if warehouse has sufficient stock
+                if not warehouse_product:
+                    raise ValueError(f"Product '{self.product.name}' not found in warehouse")
+
                 if warehouse_product.quantity_in_stock < approved_qty:
                     raise ValueError(f"Insufficient warehouse stock. Available: {warehouse_product.quantity_in_stock}, Requested: {approved_qty}")
 
-                # Decrease warehouse stock
+                # Reduce warehouse stock immediately upon approval
                 warehouse_product.update_stock(
                     -approved_qty,
-                    f"Restock approval to {self.store.name} - {self.request_number}"
+                    f"Restock approval for {self.store.name} - {self.request_number}"
                 )
 
-                # 2. Increase store stock
-                stock, created = Stock.objects.get_or_create(
-                    product=self.product,
-                    store=self.store,
-                    defaults={
-                        'quantity': 0,
-                        'low_stock_threshold': 10,
-                        'selling_price': warehouse_product.unit_price * Decimal('1.25')  # 25% markup
-                    }
-                )
-                stock.quantity += approved_qty
-                stock.save()
-
-                # 3. Mark as fulfilled since inventory is immediately transferred
-                self.status = 'fulfilled'
-                self.fulfilled_quantity = approved_qty
-                self.fulfilled_date = timezone.now()
-
-            except WarehouseProduct.DoesNotExist:
-                raise ValueError(f"Product '{self.product.name}' not found in warehouse")
             except Exception as e:
-                raise ValueError(f"Inventory transfer failed: {str(e)}")
+                if "not found in warehouse" in str(e) or "Insufficient warehouse stock" in str(e):
+                    raise ValueError(str(e))
+                else:
+                    raise ValueError(f"Error processing warehouse stock: {str(e)}")
 
+            # Update request status to shipped (ready for store manager to receive)
+            self.status = 'shipped'
+            self.reviewed_by = approved_by
+            self.reviewed_date = timezone.now()
+            self.approved_quantity = approved_qty
+            self.shipped_quantity = approved_qty
+            self.shipped_by = approved_by
+            self.shipped_date = timezone.now()
+            self.review_notes = notes
             self.save()
 
-        # Create notification for store manager
-        NotificationManager.create_notification(
-            notification_type='request_approved',
-            title=f'Restock Request Approved & Fulfilled: {self.product.name}',
-            message=f'Your request for {self.approved_quantity} units has been approved and inventory has been transferred to your store',
-            target_users=[self.requested_by],
-            priority='medium',
-            related_object_type='restock_request',
-            related_object_id=self.id
-        )
+            # Create notification for store manager
+            NotificationManager.create_notification(
+                notification_type='request_approved',
+                title=f'Restock Request Approved: {self.product.name}',
+                message=f'Your request for {self.approved_quantity} units has been approved. Please mark as received to update your store stock.',
+                target_users=[self.requested_by],
+                priority='medium',
+                related_object_type='restock_request',
+                related_object_id=self.id
+            )
+
+
 
     def reject(self, rejected_by, notes=""):
         """Reject the restock request"""
@@ -1461,31 +1698,62 @@ class RestockRequest(models.Model):
             pass
 
     def receive(self, received_by, received_quantity=None, notes=""):
-        """Mark request as received by store"""
+        """Mark request as received by store and update store stock"""
         from django.utils import timezone
+        from django.db import transaction
+        from decimal import Decimal
 
-        self.status = 'received'
-        self.received_by = received_by
-        self.received_date = timezone.now()
-        self.received_quantity = received_quantity or self.shipped_quantity
-        self.receiving_notes = notes
-        self.save()
+        if self.status != 'shipped':
+            raise ValueError("Only shipped requests can be marked as received")
 
-        # Update store stock
-        try:
-            stock, created = Stock.objects.get_or_create(
-                product=self.product,
-                store=self.store,
-                defaults={'quantity': 0, 'low_stock_threshold': 10}
-            )
-            stock.quantity += self.received_quantity
-            stock.save()
-        except Exception:
-            pass
+        received_qty = received_quantity or self.shipped_quantity
 
-        # Mark as fulfilled if fully received
-        if self.received_quantity >= self.approved_quantity:
-            self.fulfill()
+        with transaction.atomic():
+            # Update request status
+            self.status = 'received'
+            self.received_by = received_by
+            self.received_date = timezone.now()
+            self.received_quantity = received_qty
+            self.receiving_notes = notes
+
+            # Update store stock
+            try:
+                # Get warehouse product for pricing
+                warehouse_product = WarehouseProduct.objects.filter(
+                    product_name=self.product.name,
+                    is_active=True
+                ).order_by('-quantity_in_stock', '-id').first()
+
+                # Set default values for stock creation
+                stock_defaults = {
+                    'quantity': 0,
+                    'low_stock_threshold': 10
+                }
+
+                # Add selling price if warehouse product found
+                if warehouse_product:
+                    stock_defaults['selling_price'] = warehouse_product.unit_price * Decimal('1.25')  # 25% markup
+
+                stock, created = Stock.objects.get_or_create(
+                    product=self.product,
+                    store=self.store,
+                    defaults=stock_defaults
+                )
+
+                # Add received quantity to store stock
+                stock.quantity += received_qty
+                stock.save()
+
+                # Mark as fulfilled if fully received
+                if received_qty >= self.approved_quantity:
+                    self.status = 'fulfilled'
+                    self.fulfilled_quantity = received_qty
+                    self.fulfilled_date = timezone.now()
+
+                self.save()
+
+            except Exception as e:
+                raise ValueError(f"Failed to update store stock: {str(e)}")
 
     def fulfill(self):
         """Mark request as completely fulfilled"""

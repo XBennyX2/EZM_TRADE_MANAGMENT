@@ -504,7 +504,7 @@ def process_single_sale(request):
 @login_required
 def initiate_order(request):
     """
-    Unified cashier interface - combines order initiation with customer tickets
+    Cashier Point of Sale interface - focused on order processing only
     """
     if request.user.role != 'cashier':
         messages.error(request, "Access denied. Cashier role required.")
@@ -537,27 +537,71 @@ def initiate_order(request):
     # Get ticket information if this order is from a ticket
     ticket_info = request.session.get('ticket_info', {})
 
-    # Customer Tickets functionality (from cashier dashboard)
+    cart = request.session.get('cart', {})
+    print(f"DEBUG: initiate_order view - cart from session: {cart}")
+
+    context = {
+        'available_products': list(available_products),
+        'cart': cart,
+        'store': request.user.store,
+        'ticket_info': ticket_info,
+    }
+
+    return render(request, 'store/initiate_order.html', context)
+
+
+@login_required
+def ticket_management(request):
+    """
+    Dedicated ticket management interface for cashiers
+    """
+    if request.user.role != 'cashier':
+        messages.error(request, "Access denied. Cashier role required.")
+        return redirect('login')
+
+    if not request.user.store:
+        messages.error(request, "You are not assigned to any store. Contact your manager.")
+        return redirect('cashier_page')
+
+    # Customer Tickets functionality
     from webfront.models import CustomerTicket
 
     # Get search parameters
-    phone_search = request.GET.get('phone', '').strip()
-    status_filter = request.GET.get('status', '')
+    search_query = request.GET.get('search', '').strip()  # Combined search for phone and ticket number
+    phone_search = request.GET.get('phone', '').strip()  # Keep for backward compatibility
+    status_filter = request.GET.get('status', '')  # Show all statuses by default
     sort_order = request.GET.get('sort', 'newest')
 
-    # Base queryset for tickets
+    # Use search_query if provided, otherwise fall back to phone_search
+    if search_query:
+        phone_search = search_query
+
+    # Base queryset for tickets - only show pending and completed tickets
     tickets_queryset = CustomerTicket.objects.filter(
-        store=request.user.store
+        store=request.user.store,
+        status__in=['pending', 'completed']
     ).select_related('store', 'confirmed_by').prefetch_related('items__product')
 
-    # Apply phone search filter
+    # Apply search filter - enhanced to search both phone and ticket number
     if phone_search:
-        # Remove any non-digit characters for flexible search
-        phone_digits = ''.join(filter(str.isdigit, phone_search))
-        if phone_digits:
-            tickets_queryset = tickets_queryset.filter(
-                customer_phone__icontains=phone_digits
-            )
+        # Check if search looks like a ticket number (starts with CT and contains letters/numbers)
+        if phone_search.upper().startswith('CT') and len(phone_search) > 2:
+            # Search by ticket number
+            tickets_queryset = tickets_queryset.filter(ticket_number__icontains=phone_search.upper())
+        else:
+            # Search by phone number
+            # Remove any non-digit characters for flexible search
+            phone_digits = ''.join(filter(str.isdigit, phone_search))
+            if phone_digits:
+                tickets_queryset = tickets_queryset.filter(
+                    customer_phone__icontains=phone_digits
+                )
+            else:
+                # If no digits found, search in both phone and ticket number fields
+                tickets_queryset = tickets_queryset.filter(
+                    models.Q(customer_phone__icontains=phone_search) |
+                    models.Q(ticket_number__icontains=phone_search.upper())
+                )
 
     # Apply status filter
     if status_filter:
@@ -616,22 +660,26 @@ def initiate_order(request):
             'status_icon': status_icons.get(ticket.status, 'bi-question-circle')
         })
 
-    # Count pending tickets
+    # Count tickets by status (only pending and completed)
     pending_count = CustomerTicket.objects.filter(
         store=request.user.store,
-        status__in=['pending', 'confirmed']
+        status='pending'
     ).count()
 
-    cart = request.session.get('cart', {})
+    completed_count = CustomerTicket.objects.filter(
+        store=request.user.store,
+        status='completed'
+    ).count()
+
+    total_count = pending_count + completed_count
+
     context = {
-        'available_products': list(available_products),
-        'cart': cart,
-        'store': request.user.store,
-        'ticket_info': ticket_info,
-        # Ticket data
         'tickets': tickets,
         'pending_count': pending_count,
-        'phone_search': phone_search,
+        'completed_count': completed_count,
+        'total_count': total_count,
+        'search_query': search_query,  # New combined search field
+        'phone_search': phone_search,  # Keep for backward compatibility
         'status_filter': status_filter,
         'sort_order': sort_order,
         'status_choices': CustomerTicket.STATUS_CHOICES,
@@ -641,9 +689,106 @@ def initiate_order(request):
             ('status', 'By Status'),
             ('amount', 'By Amount'),
         ],
+        'store': request.user.store,
     }
 
-    return render(request, 'store/initiate_order.html', context)
+    return render(request, 'store/ticket_management.html', context)
+
+
+@login_required
+def process_ticket(request, ticket_id):
+    """
+    Process a ticket by loading its data into the cart and redirecting to initiate-order
+    """
+    if request.user.role != 'cashier':
+        messages.error(request, 'Unauthorized access.')
+        return redirect('ticket_management')
+
+    if not request.user.store:
+        messages.error(request, 'You are not assigned to any store.')
+        return redirect('ticket_management')
+
+    try:
+        from webfront.models import CustomerTicket
+
+        # Get the ticket by ID
+        ticket = CustomerTicket.objects.get(
+            id=ticket_id,
+            store=request.user.store
+        )
+
+        # Check if ticket can be processed
+        if ticket.status in ['completed', 'cancelled']:
+            messages.warning(request, f'Ticket #{ticket.ticket_number} cannot be processed as it is already {ticket.status}.')
+            return redirect('ticket_management')
+
+        # Clear existing cart
+        request.session['cart'] = {
+            'items': [],
+            'total': 0,
+            'created_at': timezone.now().isoformat(),
+            'cashier_id': request.user.id,
+            'store_id': request.user.store.id
+        }
+
+        # Load ticket items into cart
+        cart_items = []
+        cart_total = 0
+
+        for ticket_item in ticket.items.all():
+            # Get current stock for this product
+            try:
+                stock = Stock.objects.get(
+                    product=ticket_item.product,
+                    store=request.user.store
+                )
+
+                # Check if we have enough stock
+                if stock.quantity >= ticket_item.quantity:
+                    cart_item = {
+                        'product_id': ticket_item.product.id,
+                        'product_name': ticket_item.product.name,
+                        'quantity': ticket_item.quantity,
+                        'price': float(ticket_item.unit_price),  # JavaScript expects 'price' not 'unit_price'
+                        'subtotal': float(ticket_item.total_price),  # JavaScript expects 'subtotal' not 'total_price'
+                        'added_at': timezone.now().isoformat()
+                    }
+                    cart_items.append(cart_item)
+                    cart_total += float(ticket_item.total_price)
+                else:
+                    messages.warning(request, f'Insufficient stock for {ticket_item.product.name}. Available: {stock.quantity}, Required: {ticket_item.quantity}')
+            except Stock.DoesNotExist:
+                messages.warning(request, f'Product {ticket_item.product.name} is not available in this store.')
+
+        # Update cart in session
+        request.session['cart']['items'] = cart_items
+        request.session['cart']['total'] = cart_total
+        request.session.modified = True
+
+        # Store ticket information for order completion
+        request.session['ticket_info'] = {
+            'from_ticket': True,
+            'ticket_id': ticket.id,
+            'ticket_number': ticket.ticket_number,
+            'customer_name': ticket.customer_name,
+            'customer_phone': ticket.customer_phone
+        }
+        request.session.modified = True
+
+        # Debug: Print cart contents
+        print(f"DEBUG: Cart loaded with {len(cart_items)} items, total: {cart_total}")
+        for item in cart_items:
+            print(f"DEBUG: Item - {item['product_name']}: {item['quantity']}x @ {item['price']} = {item['subtotal']}")
+
+        messages.success(request, f'Ticket #{ticket.ticket_number} loaded into cart. {len(cart_items)} items added.')
+        return redirect('initiate_order')
+
+    except CustomerTicket.DoesNotExist:
+        messages.error(request, f'Ticket not found.')
+        return redirect('ticket_management')
+    except Exception as e:
+        messages.error(request, f'Error processing ticket: {str(e)}')
+        return redirect('ticket_management')
 
 
 @login_required
@@ -740,20 +885,47 @@ def remove_from_cart(request):
         data = json.loads(request.body)
         product_id = data.get('product_id')
 
+        # Convert to int to ensure proper comparison
+        try:
+            product_id = int(product_id)
+        except (ValueError, TypeError):
+            return JsonResponse({'error': 'Invalid product ID'}, status=400)
+
         cart = request.session.get('cart', {'items': [], 'total': 0})
-        cart['items'] = [item for item in cart['items'] if item['product_id'] != product_id]
+
+        # Debug logging
+        print(f"DEBUG: Removing product_id {product_id} from cart")
+        print(f"DEBUG: Cart before removal: {cart}")
+
+        # Count items before removal
+        items_before = len(cart['items'])
+
+        # Remove item with proper type comparison
+        cart['items'] = [item for item in cart['items'] if int(item['product_id']) != product_id]
+
+        # Count items after removal
+        items_after = len(cart['items'])
+
+        print(f"DEBUG: Items before: {items_before}, Items after: {items_after}")
+
+        # Recalculate total
         cart['total'] = sum(item['subtotal'] for item in cart['items'])
 
         request.session['cart'] = cart
         request.session.modified = True
 
+        print(f"DEBUG: Cart after removal: {cart}")
+
         return JsonResponse({
             'success': True,
             'cart': cart,
-            'message': 'Item removed from cart'
+            'message': f'Item removed from cart (removed {items_before - items_after} items)'
         })
 
     except Exception as e:
+        print(f"DEBUG: Error in remove_from_cart: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return JsonResponse({'error': str(e)}, status=500)
 
 
@@ -777,19 +949,55 @@ def complete_order(request):
         customer_phone = data.get('customer_phone', '')
 
         cart = request.session.get('cart')
-        print(f"Cart data: {cart}")  # Debug log
-        if not cart or not cart.get('items'):
+        print(f"DEBUG - Cart data from session: {cart}")  # Debug log
+        print(f"DEBUG - Session keys: {list(request.session.keys())}")  # Debug log
+
+        if not cart:
+            print("DEBUG - No cart found in session")
+            return JsonResponse({'error': 'Cart not found in session'}, status=400)
+
+        if not cart.get('items'):
+            print("DEBUG - Cart has no items")
             return JsonResponse({'error': 'Cart is empty'}, status=400)
+
+        print(f"DEBUG - Cart has {len(cart['items'])} items")
+
+        # Validate cart items structure
+        for i, item in enumerate(cart['items']):
+            print(f"DEBUG - Item {i}: {item}")  # Debug log
+            if not all(key in item for key in ['product_id', 'quantity']):
+                return JsonResponse({'error': f'Invalid cart item structure at index {i}'}, status=400)
 
         with transaction.atomic():
             # Calculate totals - convert all to Decimal for consistency
             try:
-                subtotal = Decimal(str(sum(item['subtotal'] for item in cart['items'])))
+                # Handle different cart item structures (subtotal vs total_price)
+                cart_subtotal = 0
+                for item in cart['items']:
+                    # Try different field combinations
+                    if 'subtotal' in item:
+                        item_total = float(item['subtotal'])
+                    elif 'total_price' in item:
+                        item_total = float(item['total_price'])
+                    else:
+                        # Calculate from price and quantity
+                        price = float(item.get('price', 0) or item.get('unit_price', 0))
+                        quantity = int(item.get('quantity', 0))
+                        item_total = price * quantity
+
+                    cart_subtotal += item_total
+                    print(f"DEBUG - Item total: {item_total}, Running subtotal: {cart_subtotal}")  # Debug log
+
+                subtotal = Decimal(str(cart_subtotal))
                 discount_amount = subtotal * (Decimal(str(discount_percent)) / Decimal('100'))
                 taxable_amount = subtotal - discount_amount
                 tax_amount = taxable_amount * Decimal('0.15') if is_taxable else Decimal('0')
                 total_amount = taxable_amount + tax_amount
+
+                print(f"DEBUG - Final calculations: subtotal={subtotal}, total={total_amount}")  # Debug log
             except (ValueError, TypeError, KeyError) as calc_error:
+                print(f"DEBUG - Calculation error details: {calc_error}")  # Debug log
+                print(f"DEBUG - Cart items causing error: {cart['items']}")  # Debug log
                 return JsonResponse({'error': f'Calculation error: {str(calc_error)}'}, status=400)
 
             # Create main transaction
@@ -815,34 +1023,60 @@ def complete_order(request):
 
             # Create order entries and update stock
             order_items = []
-            for item in cart['items']:
-                # Get stock and update quantity
-                stock = Stock.objects.select_for_update().get(
-                    product_id=item['product_id'],
-                    store=request.user.store
-                )
+            for i, item in enumerate(cart['items']):
+                try:
+                    print(f"DEBUG - Processing item {i}: {item}")  # Debug log
 
-                if stock.quantity < item['quantity']:
-                    raise ValueError(f"Insufficient stock for {item['product_name']}")
+                    # Validate required fields
+                    product_id = item.get('product_id')
+                    quantity = int(item.get('quantity', 0))
 
-                stock.quantity -= item['quantity']
-                stock.save()
+                    if not product_id or quantity <= 0:
+                        raise ValueError(f"Invalid product_id or quantity for item {i}")
 
-                # Create transaction order
-                order = TransactionOrder.objects.create(
-                    receipt=receipt,
-                    transaction=transaction_obj,
-                    product_id=item['product_id'],
-                    quantity=item['quantity'],
-                    price_at_time_of_sale=Decimal(str(item['price']))
-                )
+                    # Get stock and update quantity
+                    stock = Stock.objects.select_for_update().get(
+                        product_id=product_id,
+                        store=request.user.store
+                    )
 
-                order_items.append({
-                    'product_name': item['product_name'],
-                    'quantity': item['quantity'],
-                    'price': item['price'],
-                    'subtotal': item['subtotal']
-                })
+                    if stock.quantity < quantity:
+                        product_name = item.get('product_name', stock.product.name)
+                        raise ValueError(f"Insufficient stock for {product_name}. Available: {stock.quantity}, Requested: {quantity}")
+
+                    stock.quantity -= quantity
+                    stock.save()
+
+                    # Handle different price field names
+                    item_price = float(item.get('price', 0) or item.get('unit_price', 0))
+                    if item_price <= 0:
+                        # Fallback to product price if not in cart
+                        item_price = float(stock.product.price)
+
+                    item_subtotal = item.get('subtotal') or item.get('total_price') or (item_price * quantity)
+
+                    # Create transaction order
+                    order = TransactionOrder.objects.create(
+                        receipt=receipt,
+                        transaction=transaction_obj,
+                        product_id=product_id,
+                        quantity=quantity,
+                        price_at_time_of_sale=Decimal(str(item_price))
+                    )
+
+                    order_items.append({
+                        'product_name': item.get('product_name', stock.product.name),
+                        'quantity': quantity,
+                        'price': item_price,
+                        'subtotal': float(item_subtotal)
+                    })
+
+                    print(f"DEBUG - Successfully processed item {i}")  # Debug log
+
+                except Exception as item_error:
+                    print(f"DEBUG - Error processing item {i}: {item_error}")  # Debug log
+                    print(f"DEBUG - Item data: {item}")  # Debug log
+                    raise ValueError(f"Error processing item {i}: {str(item_error)}")
 
             # Create financial record
             FinancialRecord.objects.create(
@@ -931,6 +1165,107 @@ def complete_order(request):
         return JsonResponse({'error': f'Order completion failed: {str(e)}'}, status=500)
 
 
+def generate_simple_html_receipt(receipt, transaction_obj, order_items, user, receipt_id):
+    """
+    Generate a simple HTML receipt for download when PDF generation fails
+    """
+    from django.template.loader import render_to_string
+
+    context = {
+        'receipt': receipt,
+        'transaction': transaction_obj,
+        'order_items': order_items,
+        'subtotal': receipt.subtotal,
+        'store': transaction_obj.store,
+        'cashier': user,
+        'timestamp': transaction_obj.timestamp,
+        'customer_name': receipt.customer_name,
+        'customer_phone': receipt.customer_phone,
+        'discount_amount': receipt.discount_amount,
+        'discount_percent': receipt.discount_percent,
+        'tax_amount': receipt.tax_amount,
+        'payment_method': transaction_obj.payment_type,
+    }
+
+    # Generate clean HTML receipt
+    receipt_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Receipt #{receipt.id}</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 20px; }}
+            .header {{ text-align: center; margin-bottom: 20px; }}
+            .store-name {{ font-size: 18px; font-weight: bold; }}
+            .receipt-info {{ margin: 20px 0; }}
+            .items-table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+            .items-table th, .items-table td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+            .items-table th {{ background-color: #f2f2f2; }}
+            .totals {{ margin-top: 20px; text-align: right; }}
+            .total-line {{ font-weight: bold; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div class="store-name">EZM Trade & Investment</div>
+            <div>Receipt #{receipt.id}</div>
+        </div>
+
+        <div class="receipt-info">
+            <p><strong>Transaction ID:</strong> {transaction_obj.id}</p>
+            <p><strong>Date:</strong> {transaction_obj.timestamp.strftime('%B %d, %Y at %I:%M %p')}</p>
+            <p><strong>Salesperson:</strong> {user.get_full_name() or user.username}</p>
+            <p><strong>Customer:</strong> {receipt.customer_name or 'Walk-in Customer'}</p>
+            <p><strong>Phone:</strong> {receipt.customer_phone or 'N/A'}</p>
+            <p><strong>Payment Method:</strong> {transaction_obj.get_payment_type_display()}</p>
+        </div>
+
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Unit Price</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+    """
+
+    for item in order_items:
+        line_total = item.quantity * item.price_at_time_of_sale
+        receipt_html += f"""
+                <tr>
+                    <td>{item.product.name}</td>
+                    <td>{item.quantity}</td>
+                    <td>ETB {item.price_at_time_of_sale:.2f}</td>
+                    <td>ETB {line_total:.2f}</td>
+                </tr>
+        """
+
+    receipt_html += f"""
+            </tbody>
+        </table>
+
+        <div class="totals">
+            <p>Subtotal: ETB {receipt.subtotal:.2f}</p>
+            <p>Tax (15%): ETB {receipt.tax_amount:.2f}</p>
+            <p>Discount: ETB {receipt.discount_amount:.2f}</p>
+            <p class="total-line">Total: ETB {receipt.total_amount:.2f}</p>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px;">
+            <p>Thank you for your business!</p>
+        </div>
+    </body>
+    </html>
+    """
+
+    response = HttpResponse(receipt_html, content_type='text/html')
+    response['Content-Disposition'] = f'attachment; filename="receipt_{receipt_id}.html"'
+    return response
+
+
 @login_required
 def generate_receipt_pdf(request, receipt_id):
     """
@@ -983,65 +1318,175 @@ def generate_receipt_pdf(request, receipt_id):
         # Render HTML template
         receipt_html = render_to_string('store/receipt_pdf_template.html', context)
 
-        # Generate PDF using weasyprint with error handling
+        # Generate PDF using ReportLab for reliable PDF generation
         try:
-            from weasyprint import HTML, CSS
-            from weasyprint.text.fonts import FontConfiguration
+            from reportlab.lib.pagesizes import letter
+            from reportlab.lib import colors
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+            from reportlab.lib.units import inch
+            from reportlab.pdfgen import canvas
+            from io import BytesIO
 
-            # Create font configuration for better PDF rendering
-            font_config = FontConfiguration()
+            # Create PDF buffer with receipt-like dimensions
+            buffer = BytesIO()
 
-            # Add basic CSS for better PDF formatting
-            css = CSS(string='''
-                @page {
-                    size: A4;
-                    margin: 1cm;
-                }
-                body {
-                    font-family: Arial, sans-serif;
-                    font-size: 12px;
-                    line-height: 1.4;
-                }
-                .header {
-                    text-align: center;
-                    margin-bottom: 20px;
-                }
-                .store-name {
-                    font-size: 18px;
-                    font-weight: bold;
-                }
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                }
-                th, td {
-                    padding: 8px;
-                    text-align: left;
-                    border-bottom: 1px solid #ddd;
-                }
-                .total-line {
-                    font-weight: bold;
-                }
-            ''', font_config=font_config)
+            # Create canvas for custom receipt layout
+            c = canvas.Canvas(buffer, pagesize=(4*inch, 11*inch))  # Receipt paper size
+            width, height = 4*inch, 11*inch
 
-            # Generate PDF
-            html_doc = HTML(string=receipt_html)
-            pdf = html_doc.write_pdf(stylesheets=[css], font_config=font_config)
+            # Set font
+            c.setFont("Courier", 10)  # Monospace font for receipt look
 
-            response = HttpResponse(pdf, content_type='application/pdf')
-            response['Content-Disposition'] = f'inline; filename="receipt_{receipt_id}.pdf"'
+            y_position = height - 0.5*inch
+
+            # Store header (centered)
+            store_name = "EZM TRADE & INVESTMENT"
+            c.setFont("Courier-Bold", 12)
+            text_width = c.stringWidth(store_name, "Courier-Bold", 12)
+            c.drawString((width - text_width) / 2, y_position, store_name)
+            y_position -= 20
+
+            # Store address (centered)
+            c.setFont("Courier", 9)
+            address = "Piassa, Addis Ababa"
+            text_width = c.stringWidth(address, "Courier", 9)
+            c.drawString((width - text_width) / 2, y_position, address)
+            y_position -= 15
+
+            phone = f"Phone: {transaction_obj.store.phone_number or 'N/A'}"
+            text_width = c.stringWidth(phone, "Courier", 9)
+            c.drawString((width - text_width) / 2, y_position, phone)
+            y_position -= 25
+
+            # Separator line
+            c.line(0.2*inch, y_position, width - 0.2*inch, y_position)
+            y_position -= 20
+
+            # Receipt details
+            c.setFont("Courier", 9)
+            receipt_details = [
+                f"Receipt #: {receipt.id}",
+                f"Trans ID: {transaction_obj.id}",
+                f"Date: {transaction_obj.timestamp.strftime('%m/%d/%Y %I:%M %p')}",
+                f"Salesperson: {request.user.get_full_name() or request.user.username}",
+                f"Customer: {receipt.customer_name or 'Walk-in Customer'}",
+                f"Payment: {transaction_obj.get_payment_type_display()}"
+            ]
+
+            for detail in receipt_details:
+                c.drawString(0.2*inch, y_position, detail)
+                y_position -= 12
+
+            y_position -= 10
+
+            # Items separator
+            c.line(0.2*inch, y_position, width - 0.2*inch, y_position)
+            y_position -= 15
+
+            # Items header
+            c.setFont("Courier-Bold", 9)
+            c.drawString(0.2*inch, y_position, "ITEM")
+            c.drawString(2.2*inch, y_position, "QTY")
+            c.drawString(2.8*inch, y_position, "PRICE")
+            c.drawString(3.4*inch, y_position, "TOTAL")
+            y_position -= 12
+
+            # Items separator
+            c.line(0.2*inch, y_position, width - 0.2*inch, y_position)
+            y_position -= 15
+
+            # Items
+            c.setFont("Courier", 8)
+            for item in order_items:
+                line_total = item.quantity * item.price_at_time_of_sale
+
+                # Item name (truncate if too long)
+                item_name = item.product.name[:20] if len(item.product.name) > 20 else item.product.name
+                c.drawString(0.2*inch, y_position, item_name)
+
+                # Quantity (right aligned)
+                qty_str = str(item.quantity)
+                qty_width = c.stringWidth(qty_str, "Courier", 8)
+                c.drawString(2.5*inch - qty_width, y_position, qty_str)
+
+                # Unit price (right aligned)
+                price_str = f"{item.price_at_time_of_sale:.2f}"
+                price_width = c.stringWidth(price_str, "Courier", 8)
+                c.drawString(3.2*inch - price_width, y_position, price_str)
+
+                # Line total (right aligned)
+                total_str = f"{line_total:.2f}"
+                total_width = c.stringWidth(total_str, "Courier", 8)
+                c.drawString(3.8*inch - total_width, y_position, total_str)
+
+                y_position -= 12
+
+            y_position -= 10
+
+            # Totals separator
+            c.line(0.2*inch, y_position, width - 0.2*inch, y_position)
+            y_position -= 15
+
+            # Totals
+            c.setFont("Courier", 9)
+            totals = [
+                ("Subtotal", receipt.subtotal),
+                ("Tax (15%)", receipt.tax_amount),
+                ("Discount", receipt.discount_amount),
+            ]
+
+            for label, amount in totals:
+                # Create dot leaders
+                dots_needed = 25 - len(label) - len(f"{amount:.2f}")
+                dots = "." * max(0, dots_needed)
+                line = f"{label}{dots}ETB {amount:.2f}"
+                c.drawString(0.2*inch, y_position, line)
+                y_position -= 12
+
+            # Total line (bold)
+            c.setFont("Courier-Bold", 10)
+            total_dots = 22 - len(f"{receipt.total_amount:.2f}")
+            total_dots_str = "." * max(0, total_dots)
+            total_line = f"TOTAL{total_dots_str}ETB {receipt.total_amount:.2f}"
+            c.drawString(0.2*inch, y_position, total_line)
+            y_position -= 25
+
+            # Final separator
+            c.line(0.2*inch, y_position, width - 0.2*inch, y_position)
+            y_position -= 20
+
+            # Thank you message (centered)
+            c.setFont("Courier", 9)
+            thank_you = "THANK YOU FOR YOUR BUSINESS!"
+            text_width = c.stringWidth(thank_you, "Courier", 9)
+            c.drawString((width - text_width) / 2, y_position, thank_you)
+            y_position -= 15
+
+            visit_again = "Please visit us again!"
+            text_width = c.stringWidth(visit_again, "Courier", 9)
+            c.drawString((width - text_width) / 2, y_position, visit_again)
+
+            # Save the PDF
+            c.save()
+
+            # Return PDF response
+            buffer.seek(0)
+            response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="receipt_{receipt_id}.pdf"'
             return response
 
-        except ImportError:
-            # Fallback: If weasyprint is not available, return HTML view
-            messages.warning(request, "PDF generation not available. Showing receipt in browser.")
-            return HttpResponse(receipt_html, content_type='text/html')
+        except ImportError as e:
+            print(f"ReportLab not available: {str(e)}")
+            # Fallback: Generate simple HTML receipt for download
+            return generate_simple_html_receipt(receipt, transaction_obj, order_items, request.user, receipt_id)
 
         except Exception as pdf_error:
             print(f"PDF Generation Error: {str(pdf_error)}")
-            # Fallback: Return HTML view if PDF generation fails
-            messages.warning(request, f"PDF generation failed: {str(pdf_error)}. Showing receipt in browser.")
-            return HttpResponse(receipt_html, content_type='text/html')
+            import traceback
+            traceback.print_exc()
+            # Fallback: Generate simple HTML receipt for download
+            return generate_simple_html_receipt(receipt, transaction_obj, order_items, request.user, receipt_id)
 
     except Exception as e:
         print(f"Receipt Generation Error: {str(e)}")  # Debug print
@@ -1077,6 +1522,13 @@ def view_receipt(request, receipt_id):
         # Add subtotal to each item for template
         for item in order_items:
             item.subtotal = item.quantity * item.price_at_time_of_sale
+
+        # Debug: Print data to console
+        print(f"DEBUG - Receipt ID: {receipt.id}")
+        print(f"DEBUG - Customer: {receipt.customer_name}")
+        print(f"DEBUG - Order items count: {order_items.count()}")
+        for item in order_items:
+            print(f"DEBUG - Item: {item.product.name if item.product else 'No Product'}, Qty: {item.quantity}, Price: {item.price_at_time_of_sale}")
 
         context = {
             'receipt': receipt,
@@ -1151,7 +1603,7 @@ def approve_store_transfer_request(request, request_id):
                 messages.error(request, error_msg)
                 return redirect('store_manager_transfer_requests')
 
-            # Update transfer request
+            # Update transfer request (approve but don't transfer stock yet)
             transfer_request.status = 'approved'
             transfer_request.approved_quantity = approved_quantity
             transfer_request.reviewed_by = request.user
@@ -1159,28 +1611,10 @@ def approve_store_transfer_request(request, request_id):
             transfer_request.review_notes = review_notes
             transfer_request.save()
 
-            # Transfer stock
-            # Reduce stock from source store (this store)
-            source_stock.quantity -= approved_quantity
-            source_stock.last_updated = timezone.now()
-            source_stock.save()
+            # Note: Stock transfer will happen when the receiving store marks it as completed
+            # This ensures the receiving store actually receives the items before stock is updated
 
-            # Add stock to destination store
-            dest_stock, _ = Stock.objects.get_or_create(
-                store=transfer_request.to_store,
-                product=transfer_request.product,
-                defaults={
-                    'quantity': 0,
-                    'low_stock_threshold': 10,
-                    'selling_price': source_stock.selling_price,
-                    'last_updated': timezone.now()
-                }
-            )
-            dest_stock.quantity += approved_quantity
-            dest_stock.last_updated = timezone.now()
-            dest_stock.save()
-
-            success_msg = f"Transfer request #{transfer_request.request_number} approved. {approved_quantity} units transferred to {transfer_request.to_store.name}."
+            success_msg = f"Transfer request #{transfer_request.request_number} approved for {approved_quantity} units. Stock will be transferred when {transfer_request.to_store.name} confirms receipt."
 
             if request.content_type == 'application/json':
                 return JsonResponse({'success': True, 'message': success_msg})
@@ -1310,18 +1744,81 @@ def complete_store_transfer_request(request, request_id):
             if request.content_type == 'application/json':
                 data = json.loads(request.body)
                 completion_notes = data.get('completion_notes', '').strip()
+                received_quantity = int(data.get('received_quantity', transfer_request.approved_quantity))
             else:
                 completion_notes = request.POST.get('completion_notes', '').strip()
+                received_quantity = int(request.POST.get('received_quantity', transfer_request.approved_quantity))
+
+            # Validate received quantity
+            if received_quantity <= 0:
+                error_msg = "Received quantity must be greater than 0."
+                if request.content_type == 'application/json':
+                    return JsonResponse({'success': False, 'error': error_msg})
+                messages.error(request, error_msg)
+                return redirect('store_manager_transfer_requests')
+
+            if received_quantity > transfer_request.approved_quantity:
+                error_msg = f"Received quantity ({received_quantity}) cannot exceed approved quantity ({transfer_request.approved_quantity})."
+                if request.content_type == 'application/json':
+                    return JsonResponse({'success': False, 'error': error_msg})
+                messages.error(request, error_msg)
+                return redirect('store_manager_transfer_requests')
+
+            # Now perform the actual stock transfer
+            from Inventory.models import Stock
+            from django.utils import timezone
+
+            # Get source stock (from the sending store)
+            try:
+                source_stock = Stock.objects.get(
+                    store=transfer_request.from_store,
+                    product=transfer_request.product
+                )
+            except Stock.DoesNotExist:
+                error_msg = f"Source stock not found for {transfer_request.product.name} in {transfer_request.from_store.name}."
+                if request.content_type == 'application/json':
+                    return JsonResponse({'success': False, 'error': error_msg})
+                messages.error(request, error_msg)
+                return redirect('store_manager_transfer_requests')
+
+            # Check if source store still has enough stock
+            if source_stock.quantity < received_quantity:
+                error_msg = f"Insufficient stock in {transfer_request.from_store.name}. Available: {source_stock.quantity}, Required: {received_quantity}."
+                if request.content_type == 'application/json':
+                    return JsonResponse({'success': False, 'error': error_msg})
+                messages.error(request, error_msg)
+                return redirect('store_manager_transfer_requests')
+
+            # Perform stock transfer
+            # Reduce stock from source store
+            source_stock.quantity -= received_quantity
+            source_stock.last_updated = timezone.now()
+            source_stock.save()
+
+            # Add stock to destination store (this store)
+            dest_stock, created = Stock.objects.get_or_create(
+                store=store,
+                product=transfer_request.product,
+                defaults={
+                    'quantity': 0,
+                    'low_stock_threshold': 10,
+                    'selling_price': source_stock.selling_price,
+                    'last_updated': timezone.now()
+                }
+            )
+            dest_stock.quantity += received_quantity
+            dest_stock.last_updated = timezone.now()
+            dest_stock.save()
 
             # Update request status to completed
             transfer_request.status = 'completed'
-            transfer_request.review_notes = completion_notes or f"Transfer completed by {request.user.get_full_name() or request.user.username}"
-            transfer_request.reviewed_by = request.user
-            transfer_request.reviewed_date = timezone.now()
+            transfer_request.actual_quantity_transferred = received_quantity
+            transfer_request.received_date = timezone.now()
+            transfer_request.review_notes = completion_notes or f"Transfer completed by {request.user.get_full_name() or request.user.username}. Received {received_quantity} units."
             transfer_request.save()
 
             # Success response
-            success_msg = f"Transfer request {transfer_request.request_number} marked as completed successfully."
+            success_msg = f"Transfer request {transfer_request.request_number} completed successfully. {received_quantity} units added to your store inventory."
 
             if request.content_type == 'application/json':
                 return JsonResponse({
@@ -1420,59 +1917,171 @@ def email_receipt(request, receipt_id):
             'payment_method': transaction_obj.payment_type,
         }
 
-        # Generate PDF with error handling
-        receipt_html = render_to_string('store/receipt_pdf_template.html', context)
+        # Generate PDF using ReportLab for reliable PDF generation
         pdf = None
 
         try:
-            from weasyprint import HTML, CSS
-            from weasyprint.text.fonts import FontConfiguration
+            from reportlab.lib.pagesizes import letter
+            from reportlab.lib import colors
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+            from reportlab.lib.units import inch
+            from reportlab.pdfgen import canvas
+            from io import BytesIO
 
-            # Create font configuration for better PDF rendering
-            font_config = FontConfiguration()
+            # Create PDF buffer with receipt-like dimensions
+            buffer = BytesIO()
 
-            # Add basic CSS for email PDF
-            css = CSS(string='''
-                @page {
-                    size: A4;
-                    margin: 1cm;
-                }
-                body {
-                    font-family: Arial, sans-serif;
-                    font-size: 12px;
-                    line-height: 1.4;
-                }
-                .header {
-                    text-align: center;
-                    margin-bottom: 20px;
-                }
-                .store-name {
-                    font-size: 18px;
-                    font-weight: bold;
-                }
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                }
-                th, td {
-                    padding: 8px;
-                    text-align: left;
-                    border-bottom: 1px solid #ddd;
-                }
-                .total-line {
-                    font-weight: bold;
-                }
-            ''', font_config=font_config)
+            # Create canvas for custom receipt layout
+            c = canvas.Canvas(buffer, pagesize=(4*inch, 11*inch))  # Receipt paper size
+            width, height = 4*inch, 11*inch
 
-            # Generate PDF
-            html_doc = HTML(string=receipt_html)
-            pdf = html_doc.write_pdf(stylesheets=[css], font_config=font_config)
+            # Set font
+            c.setFont("Courier", 10)  # Monospace font for receipt look
 
-        except ImportError:
-            print("WeasyPrint not available for PDF generation")
+            y_position = height - 0.5*inch
+
+            # Store header (centered)
+            store_name = "EZM TRADE & INVESTMENT"
+            c.setFont("Courier-Bold", 12)
+            text_width = c.stringWidth(store_name, "Courier-Bold", 12)
+            c.drawString((width - text_width) / 2, y_position, store_name)
+            y_position -= 20
+
+            # Store address (centered)
+            c.setFont("Courier", 9)
+            address = "Piassa, Addis Ababa"
+            text_width = c.stringWidth(address, "Courier", 9)
+            c.drawString((width - text_width) / 2, y_position, address)
+            y_position -= 15
+
+            phone = f"Phone: {transaction_obj.store.phone_number or 'N/A'}"
+            text_width = c.stringWidth(phone, "Courier", 9)
+            c.drawString((width - text_width) / 2, y_position, phone)
+            y_position -= 25
+
+            # Separator line
+            c.line(0.2*inch, y_position, width - 0.2*inch, y_position)
+            y_position -= 20
+
+            # Receipt details
+            c.setFont("Courier", 9)
+            receipt_details = [
+                f"Receipt #: {receipt.id}",
+                f"Trans ID: {transaction_obj.id}",
+                f"Date: {transaction_obj.timestamp.strftime('%m/%d/%Y %I:%M %p')}",
+                f"Salesperson: {request.user.get_full_name() or request.user.username}",
+                f"Customer: {receipt.customer_name or 'Walk-in Customer'}",
+                f"Payment: {transaction_obj.get_payment_type_display()}"
+            ]
+
+            for detail in receipt_details:
+                c.drawString(0.2*inch, y_position, detail)
+                y_position -= 12
+
+            y_position -= 10
+
+            # Items separator
+            c.line(0.2*inch, y_position, width - 0.2*inch, y_position)
+            y_position -= 15
+
+            # Items header
+            c.setFont("Courier-Bold", 9)
+            c.drawString(0.2*inch, y_position, "ITEM")
+            c.drawString(2.2*inch, y_position, "QTY")
+            c.drawString(2.8*inch, y_position, "PRICE")
+            c.drawString(3.4*inch, y_position, "TOTAL")
+            y_position -= 12
+
+            # Items separator
+            c.line(0.2*inch, y_position, width - 0.2*inch, y_position)
+            y_position -= 15
+
+            # Items
+            c.setFont("Courier", 8)
+            for item in order_items:
+                line_total = item.quantity * item.price_at_time_of_sale
+
+                # Item name (truncate if too long)
+                item_name = item.product.name[:20] if len(item.product.name) > 20 else item.product.name
+                c.drawString(0.2*inch, y_position, item_name)
+
+                # Quantity (right aligned)
+                qty_str = str(item.quantity)
+                qty_width = c.stringWidth(qty_str, "Courier", 8)
+                c.drawString(2.5*inch - qty_width, y_position, qty_str)
+
+                # Unit price (right aligned)
+                price_str = f"{item.price_at_time_of_sale:.2f}"
+                price_width = c.stringWidth(price_str, "Courier", 8)
+                c.drawString(3.2*inch - price_width, y_position, price_str)
+
+                # Line total (right aligned)
+                total_str = f"{line_total:.2f}"
+                total_width = c.stringWidth(total_str, "Courier", 8)
+                c.drawString(3.8*inch - total_width, y_position, total_str)
+
+                y_position -= 12
+
+            y_position -= 10
+
+            # Totals separator
+            c.line(0.2*inch, y_position, width - 0.2*inch, y_position)
+            y_position -= 15
+
+            # Totals
+            c.setFont("Courier", 9)
+            totals = [
+                ("Subtotal", receipt.subtotal),
+                ("Tax (15%)", receipt.tax_amount),
+                ("Discount", receipt.discount_amount),
+            ]
+
+            for label, amount in totals:
+                # Create dot leaders
+                dots_needed = 25 - len(label) - len(f"{amount:.2f}")
+                dots = "." * max(0, dots_needed)
+                line = f"{label}{dots}ETB {amount:.2f}"
+                c.drawString(0.2*inch, y_position, line)
+                y_position -= 12
+
+            # Total line (bold)
+            c.setFont("Courier-Bold", 10)
+            total_dots = 22 - len(f"{receipt.total_amount:.2f}")
+            total_dots_str = "." * max(0, total_dots)
+            total_line = f"TOTAL{total_dots_str}ETB {receipt.total_amount:.2f}"
+            c.drawString(0.2*inch, y_position, total_line)
+            y_position -= 25
+
+            # Final separator
+            c.line(0.2*inch, y_position, width - 0.2*inch, y_position)
+            y_position -= 20
+
+            # Thank you message (centered)
+            c.setFont("Courier", 9)
+            thank_you = "THANK YOU FOR YOUR BUSINESS!"
+            text_width = c.stringWidth(thank_you, "Courier", 9)
+            c.drawString((width - text_width) / 2, y_position, thank_you)
+            y_position -= 15
+
+            visit_again = "Please visit us again!"
+            text_width = c.stringWidth(visit_again, "Courier", 9)
+            c.drawString((width - text_width) / 2, y_position, visit_again)
+
+            # Save the PDF
+            c.save()
+
+            # Get PDF bytes
+            buffer.seek(0)
+            pdf = buffer.getvalue()
+
+        except ImportError as e:
+            print(f"ReportLab not available for PDF generation: {str(e)}")
             pdf = None
         except Exception as pdf_error:
             print(f"PDF generation failed: {pdf_error}")
+            import traceback
+            traceback.print_exc()
             pdf = None
 
         # Send email
@@ -1516,10 +2125,81 @@ Phone: {transaction_obj.store.phone_number}
                 'application/pdf'
             )
         else:
-            # Fallback: attach HTML receipt if PDF generation failed
+            # Generate HTML receipt for email attachment
+            html_receipt = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Receipt #{receipt.id}</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; }}
+        .header {{ text-align: center; margin-bottom: 20px; }}
+        .store-name {{ font-size: 18px; font-weight: bold; }}
+        .receipt-info {{ margin: 20px 0; }}
+        .items-table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+        .items-table th, .items-table td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+        .items-table th {{ background-color: #f2f2f2; }}
+        .totals {{ margin-top: 20px; text-align: right; }}
+        .total-line {{ font-weight: bold; }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="store-name">EZM Trade & Investment</div>
+        <div>Receipt #{receipt.id}</div>
+    </div>
+
+    <div class="receipt-info">
+        <p><strong>Transaction ID:</strong> {transaction_obj.id}</p>
+        <p><strong>Date:</strong> {transaction_obj.timestamp.strftime('%B %d, %Y at %I:%M %p')}</p>
+        <p><strong>Salesperson:</strong> {request.user.get_full_name() or request.user.username}</p>
+        <p><strong>Customer:</strong> {receipt.customer_name or 'Walk-in Customer'}</p>
+        <p><strong>Phone:</strong> {receipt.customer_phone or 'N/A'}</p>
+        <p><strong>Payment Method:</strong> {transaction_obj.get_payment_type_display()}</p>
+    </div>
+
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th>Qty</th>
+                <th>Unit Price</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>"""
+
+            for item in order_items:
+                line_total = item.quantity * item.price_at_time_of_sale
+                html_receipt += f"""
+            <tr>
+                <td>{item.product.name}</td>
+                <td>{item.quantity}</td>
+                <td>ETB {item.price_at_time_of_sale:.2f}</td>
+                <td>ETB {line_total:.2f}</td>
+            </tr>"""
+
+            html_receipt += f"""
+        </tbody>
+    </table>
+
+    <div class="totals">
+        <p>Subtotal: ETB {receipt.subtotal:.2f}</p>
+        <p>Tax (15%): ETB {receipt.tax_amount:.2f}</p>
+        <p>Discount: ETB {receipt.discount_amount:.2f}</p>
+        <p class="total-line">Total: ETB {receipt.total_amount:.2f}</p>
+    </div>
+
+    <div style="text-align: center; margin-top: 30px;">
+        <p>Thank you for your business!</p>
+    </div>
+</body>
+</html>"""
+
+            # Attach HTML receipt
             email.attach(
                 f'receipt_{receipt.id}.html',
-                receipt_html.encode('utf-8'),
+                html_receipt.encode('utf-8'),
                 'text/html'
             )
 
@@ -2465,3 +3145,197 @@ def get_ticket_api(request, ticket_number):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+@login_required
+def save_cart_to_session(request):
+    """
+    Save cart data from localStorage to Django session
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
+
+    if request.user.role != 'cashier':
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+        cart_data = data.get('cart')
+
+        if cart_data:
+            request.session['cart'] = cart_data
+            request.session.modified = True
+            return JsonResponse({'success': True})
+        else:
+            return JsonResponse({'error': 'No cart data provided'}, status=400)
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def save_ticket_info_to_session(request):
+    """
+    Save ticket info from localStorage to Django session
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
+
+    if request.user.role != 'cashier':
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+        ticket_info = data.get('ticket_info')
+
+        if ticket_info:
+            request.session['ticket_info'] = ticket_info
+            request.session.modified = True
+            return JsonResponse({'success': True})
+        else:
+            return JsonResponse({'error': 'No ticket info provided'}, status=400)
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def store_manager_stock_detail(request, stock_id):
+    """
+    Store manager specific stock detail view with restock request functionality
+    """
+    if request.user.role != 'store_manager':
+        messages.warning(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
+    try:
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, "You are not assigned to manage any store.")
+        return redirect('store_manager_page')
+
+    # Get the stock item
+    stock = get_object_or_404(Stock.objects.select_related('product', 'store'), id=stock_id, store=store)
+
+    # Get stock history for this product at this store (last 30 days)
+    from datetime import timedelta
+    from django.utils import timezone
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+
+    # Get recent transactions for this product
+    recent_transactions = TransactionOrder.objects.filter(
+        product=stock.product,
+        transaction__store=store,
+        transaction__timestamp__gte=thirty_days_ago
+    ).select_related('transaction').order_by('-transaction__timestamp')[:10]
+
+    # Get recent restock requests for this product
+    recent_restock_requests = RestockRequest.objects.filter(
+        store=store,
+        product=stock.product
+    ).order_by('-requested_date')[:5]
+
+    # Check if there's a pending restock request for this product
+    pending_restock = RestockRequest.objects.filter(
+        store=store,
+        product=stock.product,
+        status='pending'
+    ).first()
+
+    # Get other stores that have this product
+    other_stores_stock = Stock.objects.filter(
+        product=stock.product
+    ).exclude(store=store).select_related('store').order_by('store__name')
+
+    # Calculate sales velocity (units sold per day)
+    total_sold = recent_transactions.aggregate(
+        total=models.Sum('quantity')
+    )['total'] or 0
+
+    days_period = 30
+    sales_velocity = total_sold / days_period if total_sold > 0 else 0
+
+    # Estimate days until out of stock
+    days_until_empty = stock.quantity / sales_velocity if sales_velocity > 0 else None
+
+    context = {
+        'stock': stock,
+        'store': store,
+        'recent_transactions': recent_transactions,
+        'recent_restock_requests': recent_restock_requests,
+        'pending_restock': pending_restock,
+        'other_stores_stock': other_stores_stock,
+        'total_sold_30_days': total_sold,
+        'sales_velocity': sales_velocity,
+        'days_until_empty': days_until_empty,
+    }
+
+    return render(request, 'store/store_manager_stock_detail.html', context)
+
+
+@login_required
+def store_transactions_list(request):
+    """
+    Store manager view for all store transactions with pagination and filtering
+    """
+    if request.user.role != 'store_manager':
+        messages.warning(request, "Access denied. Store Manager role required.")
+        return redirect('login')
+
+    try:
+        store = Store.objects.get(store_manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, "You are not assigned to manage any store.")
+        return redirect('store_manager_page')
+
+    # Get period from request (default to 30 days)
+    period = request.GET.get('period', '30')
+
+    from datetime import timedelta
+    from django.utils import timezone
+    from django.core.paginator import Paginator
+
+    # Calculate date ranges
+    now = timezone.now()
+    if period == '7':
+        start_date = now - timedelta(days=7)
+    elif period == '30':
+        start_date = now - timedelta(days=30)
+    elif period == '90':
+        start_date = now - timedelta(days=90)
+    elif period == '365':
+        start_date = now - timedelta(days=365)
+    else:
+        start_date = now - timedelta(days=30)
+
+    # Get all transactions for the store in the period
+    transactions = Transaction.objects.filter(
+        store=store,
+        timestamp__gte=start_date
+    ).select_related('store', 'receipt').order_by('-timestamp')
+
+    # Pagination
+    paginator = Paginator(transactions, 25)  # Show 25 transactions per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Calculate summary
+    total_revenue = transactions.aggregate(
+        total=models.Sum('total_amount')
+    )['total'] or 0
+
+    total_transactions_count = transactions.count()
+    avg_transaction_value = total_revenue / total_transactions_count if total_transactions_count > 0 else 0
+
+    context = {
+        'store': store,
+        'page_obj': page_obj,
+        'period': period,
+        'start_date': start_date,
+        'end_date': now,
+        'total_revenue': total_revenue,
+        'total_transactions': total_transactions_count,
+        'avg_transaction_value': avg_transaction_value,
+    }
+
+    return render(request, 'store/store_transactions_list.html', context)

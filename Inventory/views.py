@@ -449,7 +449,7 @@ class WarehouseProductUpdateView(LoginRequiredMixin, StoreOwnerMixin, UpdateView
     template_name = 'inventory/warehouse_product_form.html'
 
     def get_success_url(self):
-        return reverse_lazy('supplier_products', kwargs={'supplier_id': self.object.supplier.pk})
+        return reverse_lazy('product_list')
 
     def form_valid(self, form):
         messages.success(self.request, f"Product '{form.instance.product_name}' updated successfully!")

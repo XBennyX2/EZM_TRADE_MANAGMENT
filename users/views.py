@@ -3538,6 +3538,26 @@ def store_manager_settings(request):
 
     return render(request, 'mainpages/store_manager_settings.html')
 
+
+@login_required
+def store_manager_edit_profile(request):
+    if request.user.role != 'store_manager':
+        messages.warning(request, "Access denied. You don't have permission to access this page.")
+        return redirect('login')
+
+    if request.method == 'POST':
+        form = EditProfileForm(request.POST, instance=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Profile updated successfully!')
+            return redirect('store_manager_settings')
+        else:
+            messages.error(request, 'Error updating profile.')
+    else:
+        form = EditProfileForm(instance=request.user)
+    return render(request, 'users/edit_profile.html', {'form': form})
+
+
 @login_required
 def store_manager_change_password(request):
     if request.user.role != 'store_manager':

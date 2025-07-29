@@ -99,27 +99,37 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database Configuration
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# Neon PostgreSQL Database Configuration
-DATABASE_URL = 'postgresql://neondb_owner:npg_CRVEs6MTg9cv@ep-noisy-boat-a9tqvkrl-pooler.gwc.azure.neon.tech/neondb?sslmode=require&channel_binding=require'
-
-# Parse the DATABASE_URL for Neon PostgreSQL
-parsed_url = urlparse(DATABASE_URL)
-
+# SQLite Database Configuration (Default)
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': parsed_url.path[1:],  # Remove leading slash
-        'USER': parsed_url.username,
-        'PASSWORD': parsed_url.password,
-        'HOST': parsed_url.hostname,
-        'PORT': parsed_url.port or '5432',
-        'OPTIONS': {
-            'sslmode': 'require',  # Required for Neon
-        },
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
-print("Database configured: Using Neon PostgreSQL")
+print("Database configured: Using SQLite")
+
+# Neon PostgreSQL Database Configuration (Commented out)
+# DATABASE_URL = 'postgresql://neondb_owner:npg_CRVEs6MTg9cv@ep-noisy-boat-a9tqvkrl-pooler.gwc.azure.neon.tech/neondb?sslmode=require&channel_binding=require'
+#
+# # Parse the DATABASE_URL for Neon PostgreSQL
+# parsed_url = urlparse(DATABASE_URL)
+#
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': parsed_url.path[1:],  # Remove leading slash
+#         'USER': parsed_url.username,
+#         'PASSWORD': parsed_url.password,
+#         'HOST': parsed_url.hostname,
+#         'PORT': parsed_url.port or '5432',
+#         'OPTIONS': {
+#             'sslmode': 'require',  # Required for Neon
+#         },
+#     }
+# }
+#
+# print("Database configured: Using Neon PostgreSQL")
 
 
 # Password validation

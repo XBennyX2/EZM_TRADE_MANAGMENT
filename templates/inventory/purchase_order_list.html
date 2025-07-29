@@ -582,6 +582,9 @@
                                     <button class="btn btn-success btn-sm" onclick="confirmDelivery({{ order.id }})">
                                         <i class="bi bi-check-circle me-1"></i>Confirm Delivery
                                     </button>
+                                    <button class="btn btn-info btn-sm" onclick="testDeliveryAPI({{ order.id }})" title="Test API">
+                                        <i class="bi bi-bug me-1"></i>Test API
+                                    </button>
                                     <button class="btn btn-warning btn-sm" onclick="reportIssue({{ order.id }})">
                                         <i class="bi bi-exclamation-triangle me-1"></i>Report Issue
                                     </button>
@@ -1728,6 +1731,7 @@
 
     function confirmDelivery(orderId) {
         console.log('confirmDelivery called with orderId:', orderId);
+        console.log('orderId type:', typeof orderId);
 
         // Validate orderId
         if (!orderId) {
@@ -1735,15 +1739,34 @@
             return;
         }
 
+        // Ensure orderId is a number
+        orderId = parseInt(orderId);
+        if (isNaN(orderId)) {
+            alert('Invalid order ID format');
+            return;
+        }
+
+        console.log('Using orderId:', orderId);
+
         // Debug: Check if ordersData exists
         console.log('ordersData available:', !!ordersData);
         console.log('ordersData keys:', Object.keys(ordersData || {}));
         console.log('Looking for order ID:', orderId);
 
         // Get order data from embedded JSON (no API call needed)
-        if (ordersData && ordersData[orderId]) {
+        var orderData = null;
+        if (ordersData) {
+            // Search for the order with matching ID (ordersData is an array, not an object keyed by ID)
+            for (var i = 0; i < ordersData.length; i++) {
+                if (ordersData[i] && ordersData[i].id === orderId) {
+                    orderData = ordersData[i];
+                    break;
+                }
+            }
+        }
+
+        if (orderData) {
             console.log('Using embedded order data for order:', orderId);
-            var orderData = ordersData[orderId];
             console.log('Order data:', orderData);
 
             try {
@@ -1801,175 +1824,60 @@
         // Fallback: if embedded data not available, try API call
         console.log('Embedded data not found, falling back to API call...');
 
-        // Check if fetch is available
-        if (typeof window.fetch !== 'function') {
-            alert('Your browser does not support this feature. Please update your browser.');
-            return;
-        }
+        // Use XMLHttpRequest directly (same as working test function)
+        console.log('Using XMLHttpRequest for reliable API call...');
 
-        // Construct URL safely
         var url = '/inventory/purchase-orders/' + orderId + '/details/';
         console.log('Attempting to fetch order details from URL:', url);
 
-        try {
-            console.log('Starting fetch request...');
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.setRequestHeader('Accept', 'application/json');
 
-            // Get CSRF token
-            var csrfToken = getCookie('csrftoken');
-            console.log('CSRF token:', csrfToken);
-
-            // Fetch order details and populate modal
-            var headers = {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-            };
-
-            // Add CSRF token if available
-            if (csrfToken) {
-                headers['X-CSRFToken'] = csrfToken;
-            }
-
-            var fetchPromise = window.fetch(url, {
-                method: 'GET',
-                headers: headers,
-                credentials: 'same-origin'
-            });
-
-            console.log('Fetch promise created:', fetchPromise);
-
-            fetchPromise
-            .then(function(response) {
-                console.log('Fetch response received:', {
-                    status: response.status,
-                    statusText: response.statusText,
-                    ok: response.ok,
-                    url: response.url,
-                    redirected: response.redirected
-                });
-
-                // Check if we were redirected (likely to login page)
-                if (response.redirected && response.url.includes('/login/')) {
-                    throw new Error('Authentication required. Please refresh the page and log in as a Head Manager.');
-                }
-
-                if (!response.ok) {
-                    if (response.status === 403) {
-                        throw new Error('Access denied. Head Manager role required.');
-                    } else if (response.status === 404) {
-                        throw new Error('Order not found.');
-                    } else if (response.status === 302) {
-                        throw new Error('Please log in as a Head Manager to access this feature.');
-                    } else if (response.status === 0) {
-                        throw new Error('Network error. Please check your connection.');
-                    } else {
-                        throw new Error('Server error: ' + response.status + ' (' + response.statusText + ')');
-                    }
-                }
-
-                // Check if response is actually JSON
-                var contentType = response.headers.get('content-type');
-                console.log('Response content-type:', contentType);
-
-                if (!contentType || !contentType.includes('application/json')) {
-                    throw new Error('Server returned non-JSON response. Expected JSON but got: ' + (contentType || 'unknown'));
-                }
-
-                return response.json().catch(function(jsonError) {
-                    console.error('Failed to parse JSON response:', jsonError);
-                    throw new Error('Server returned invalid JSON. You may need to log in again.');
-                });
-            })
-            .then(function(data) {
-                console.log('Received data:', data);
-
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-
-                // Check if we got redirected to login page
-                if (typeof data === 'string' && data.includes('login')) {
-                    throw new Error('Authentication required. Please refresh the page and log in again.');
-                }
-
-                populateDeliveryModal(data);
-                new bootstrap.Modal(document.getElementById('deliveryConfirmationModal')).show();
-            })
-            .catch(function(error) {
-                console.error('Error fetching order details:', error);
-                console.error('Error details:', {
-                    message: error.message,
-                    name: error.name,
-                    stack: error.stack,
-                    toString: error.toString()
-                });
-
-                var errorMessage = error.message || 'Unable to load order details. Please try again.';
-                if (errorMessage.trim() === '') {
-                    errorMessage = 'An unknown error occurred while loading order details. Please try again or contact support.';
-                }
-
-                // Provide more specific error information
-                if (error.name === 'TypeError') {
-                    errorMessage = 'Network error or CORS issue. Please check your connection and try again.';
-                } else if (error.message.includes('JSON')) {
-                    errorMessage = 'Server response format error. You may need to log in again.';
-                }
-
-                alert('Delivery Confirmation Error: ' + errorMessage);
-
-                // Fallback: redirect to a simple page reload
-                if (confirm('Would you like to refresh the page and try again?')) {
-                    window.location.reload();
-                }
-            });
-        } catch (error) {
-            console.error('Error in confirmDelivery:', error);
-            console.log('Falling back to XMLHttpRequest...');
-
-            // Fallback to XMLHttpRequest
-            var xhr = new XMLHttpRequest();
-            xhr.open('GET', url, true);
-            xhr.setRequestHeader('Accept', 'application/json');
-            xhr.setRequestHeader('Content-Type', 'application/json');
-
-            // Add CSRF token if available
-            var csrfToken = getCookie('csrftoken');
-            if (csrfToken) {
-                xhr.setRequestHeader('X-CSRFToken', csrfToken);
-            }
-
-            xhr.withCredentials = true;
-
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState === 4) {
-                    console.log('XHR response:', {
-                        status: xhr.status,
-                        statusText: xhr.statusText,
-                        responseText: xhr.responseText
-                    });
-
-                    if (xhr.status === 200) {
-                        try {
-                            var data = JSON.parse(xhr.responseText);
-                            populateDeliveryModal(data);
-                            new bootstrap.Modal(document.getElementById('deliveryConfirmationModal')).show();
-                        } catch (parseError) {
-                            console.error('XHR JSON parse error:', parseError);
-                            alert('Error parsing server response. Please try again.');
-                        }
-                    } else {
-                        alert('Error loading order details (XHR): ' + xhr.status + ' - ' + xhr.statusText);
-                    }
-                }
-            };
-
-            xhr.onerror = function() {
-                console.error('XHR network error');
-                alert('Network error. Please check your connection and try again.');
-            };
-
-            xhr.send();
+        var csrfToken = getCookie('csrftoken');
+        if (csrfToken) {
+            xhr.setRequestHeader('X-CSRFToken', csrfToken);
         }
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                console.log('XHR Status:', xhr.status);
+                console.log('XHR Response:', xhr.responseText);
+
+                if (xhr.status === 200) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        console.log('Successfully parsed order data:', data);
+                        console.log('Order ID:', data.id);
+
+                        // Populate modal and show it
+                        populateDeliveryModal(data);
+                        new bootstrap.Modal(document.getElementById('deliveryConfirmationModal')).show();
+
+                    } catch (parseError) {
+                        console.error('JSON parse error:', parseError);
+                        alert('Error parsing server response: ' + parseError.message);
+                    }
+                } else if (xhr.status === 403) {
+                    alert('Access denied. Head Manager role required.');
+                } else if (xhr.status === 404) {
+                    alert('Order not found.');
+                } else {
+                    alert('Server error: HTTP ' + xhr.status);
+                }
+            }
+        };
+
+        xhr.onerror = function() {
+            console.error('XHR network error');
+            alert('Network error. Please check your connection and try again.');
+        };
+
+        xhr.send();
+
+
+
+
     }
 
     function populateDeliveryModal(orderData) {
@@ -2338,6 +2246,52 @@
     function viewIssues(orderId) {
         // Redirect to order detail page with issues tab
         window.location.href = '/inventory/purchase-orders/' + orderId + '/?tab=issues';
+    }
+
+    // Simple test function for delivery confirmation API
+    function testDeliveryAPI(orderId) {
+        console.log('Testing delivery API with order ID:', orderId);
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/inventory/purchase-orders/' + orderId + '/details/', true);
+        xhr.setRequestHeader('Accept', 'application/json');
+
+        var csrfToken = getCookie('csrftoken');
+        if (csrfToken) {
+            xhr.setRequestHeader('X-CSRFToken', csrfToken);
+        }
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                console.log('XHR Test - Status:', xhr.status);
+                console.log('XHR Test - Response:', xhr.responseText);
+
+                if (xhr.status === 200) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        console.log('XHR Test - Parsed data:', data);
+                        console.log('XHR Test - Has ID:', 'id' in data);
+                        console.log('XHR Test - ID value:', data.id);
+                        alert('API Test Success! Order ID: ' + data.id + ', Order Number: ' + data.order_number);
+
+                        // Now try to populate the modal
+                        try {
+                            populateDeliveryModal(data);
+                            alert('Modal population test successful!');
+                        } catch (modalError) {
+                            alert('Modal population failed: ' + modalError.message);
+                        }
+                    } catch (e) {
+                        console.error('XHR Test - Parse error:', e);
+                        alert('API Test Failed: Invalid JSON response');
+                    }
+                } else {
+                    alert('API Test Failed: HTTP ' + xhr.status);
+                }
+            }
+        };
+
+        xhr.send();
     }
 </script>
 {% endblock %}

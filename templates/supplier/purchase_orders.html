@@ -232,9 +232,40 @@
 </style>
 
 <script>
+    // Debug: Check if required libraries are loaded
+    console.log('Script loaded. Checking dependencies...');
+    console.log('Bootstrap available:', typeof bootstrap !== 'undefined');
+    console.log('jQuery available:', typeof $ !== 'undefined');
+    console.log('Fetch API available:', typeof fetch !== 'undefined');
+
+    // Global error handler
+    window.addEventListener('error', function(e) {
+        console.error('JavaScript Error:', e.error);
+        console.error('Error message:', e.message);
+        console.error('Error filename:', e.filename);
+        console.error('Error line:', e.lineno);
+    });
+
+    // Wait for DOM to be ready
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM ready. Bootstrap:', typeof bootstrap !== 'undefined');
+
+        // Check if fetch is available, provide fallback if needed
+        if (typeof fetch === 'undefined') {
+            console.error('Fetch API not available. Please use a modern browser.');
+        }
+    });
+
     function filterOrders(status) {
         // Add filtering logic here
         console.log('Filtering orders by:', status);
+    }
+
+    // Test function to verify JavaScript is working
+    function testJavaScript() {
+        console.log('JavaScript test function called successfully');
+        alert('JavaScript is working correctly!');
+        return true;
     }
 
     function updateOrderStatus(orderId, status) {
@@ -243,6 +274,12 @@
     }
 
     function markInTransit(orderId) {
+        // Validate order ID
+        if (!orderId) {
+            alert('Error: Order ID is missing. Please refresh the page and try again.');
+            return;
+        }
+
         // Show modal to get tracking number
         const trackingNumber = prompt('Enter tracking number (optional):');
 
@@ -256,58 +293,143 @@
         button.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
         button.disabled = true;
 
-        // Send AJAX request
-        fetch(`/users/supplier/orders/${orderId}/mark-in-transit/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            },
-            body: `tracking_number=${encodeURIComponent(trackingNumber || '')}`
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Show success message
-                    alert('Order marked as in transit successfully!');
+        // Get CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (!csrfToken) {
+            alert('Error: Security token is missing. Please refresh the page and try again.');
+            button.innerHTML = originalContent;
+            button.disabled = false;
+            return;
+        }
 
-                    // Update the button to show new status
-                    button.outerHTML = `
+        console.log('Marking order as in transit:', orderId, 'Tracking:', trackingNumber);
+
+        // Use XMLHttpRequest directly to avoid fetch interceptor issues
+        console.log('Using XMLHttpRequest to avoid fetch interceptor conflicts');
+        sendRequestWithXHR();
+
+        function sendRequestWithFetch() {
+            fetch(`/users/supplier/orders/${orderId}/mark-in-transit/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken.value
+                },
+                body: `tracking_number=${encodeURIComponent(trackingNumber || '')}`
+            })
+            .then(response => {
+                console.log('Response status:', response.status);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                return response.json();
+            })
+            .then(data => {
+                handleResponse(data);
+            })
+            .catch(error => {
+                handleError(error);
+            });
+        }
+
+        function sendRequestWithXHR() {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', `/users/supplier/orders/${orderId}/mark-in-transit/`, true);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            xhr.setRequestHeader('X-CSRFToken', csrfToken.value);
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        try {
+                            const data = JSON.parse(xhr.responseText);
+                            handleResponse(data);
+                        } catch (e) {
+                            handleError(new Error('Invalid JSON response'));
+                        }
+                    } else {
+                        handleError(new Error(`HTTP error! status: ${xhr.status}`));
+                    }
+                }
+            };
+
+            xhr.onerror = function() {
+                handleError(new Error('Network error'));
+            };
+
+            xhr.send(`tracking_number=${encodeURIComponent(trackingNumber || '')}`);
+        }
+
+        function handleResponse(data) {
+            console.log('Response data:', data);
+
+            if (data.success) {
+                // Show success message
+                alert('Order marked as in transit successfully!');
+
+                // Update the button to show new status
+                button.outerHTML = `
                     <span class="badge bg-info">
                         <i class="bi bi-truck"></i> In Transit
                     </span>
                 `;
 
-                    // Optionally reload the page to refresh all data
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1000);
-                } else {
-                    alert('Error: ' + data.message);
-                    button.innerHTML = originalContent;
-                    button.disabled = false;
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred while updating the order status.');
+                // Optionally reload the page to refresh all data
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                alert('Error: ' + (data.message || 'Unknown error occurred'));
                 button.innerHTML = originalContent;
                 button.disabled = false;
-            });
+            }
+        }
+
+        function handleError(error) {
+            console.error('Detailed error:', error);
+
+            let errorMessage = 'An error occurred while updating the order status.';
+
+            if (error.message.includes('HTTP error')) {
+                errorMessage += ` Server responded with status: ${error.message}`;
+            } else if (error.message.includes('JSON')) {
+                errorMessage += ' Server returned invalid response format.';
+            } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+                errorMessage += ' Network connection error. Please check your internet connection.';
+            }
+
+            alert(errorMessage);
+            button.innerHTML = originalContent;
+            button.disabled = false;
+        }
     }
 
     // New shipping modal functionality
     function showShippingModal(orderId, orderNumber) {
-        document.getElementById('shippingOrderId').value = orderId;
-        document.getElementById('shippingOrderNumber').textContent = orderNumber;
+        console.log('showShippingModal called with:', orderId, orderNumber);
 
-        // Reset form
-        document.getElementById('shippingForm').reset();
-        document.getElementById('shippingOrderId').value = orderId;
+        try {
+            document.getElementById('shippingOrderId').value = orderId;
+            document.getElementById('shippingOrderNumber').textContent = orderNumber;
 
-        // Show modal
-        const modal = new bootstrap.Modal(document.getElementById('shippingModal'));
-        modal.show();
+            // Reset form
+            document.getElementById('shippingForm').reset();
+            document.getElementById('shippingOrderId').value = orderId;
+
+            // Show modal - check if Bootstrap is available
+            if (typeof bootstrap !== 'undefined') {
+                const modal = new bootstrap.Modal(document.getElementById('shippingModal'));
+                modal.show();
+            } else {
+                console.error('Bootstrap is not available');
+                alert('Error: Page not fully loaded. Please refresh and try again.');
+            }
+        } catch (error) {
+            console.error('Error in showShippingModal:', error);
+            alert('Error opening shipping modal. Please refresh the page and try again.');
+        }
     }
 
     function submitShipping() {
@@ -315,41 +437,87 @@
         const formData = new FormData(form);
         const orderId = document.getElementById('shippingOrderId').value;
 
+        // Validate required fields
+        if (!orderId) {
+            alert('Error: Order ID is missing. Please refresh the page and try again.');
+            return;
+        }
+
         const submitBtn = document.getElementById('submitShippingBtn');
         const originalText = submitBtn.innerHTML;
         submitBtn.innerHTML = '<i class="bi bi-spinner-border spinner-border-sm"></i> Shipping...';
         submitBtn.disabled = true;
 
-        fetch(`/users/supplier/orders/${orderId}/mark-in-transit/`, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Close modal
-                bootstrap.Modal.getInstance(document.getElementById('shippingModal')).hide();
-
-                // Show success message
-                alert(`Order ${data.order_number} marked as shipped successfully!`);
-
-                // Reload page to show updated status
-                location.reload();
-            } else {
-                alert('Error: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred while marking the order as shipped.');
-        })
-        .finally(() => {
+        // Get CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (!csrfToken) {
+            alert('Error: Security token is missing. Please refresh the page and try again.');
             submitBtn.innerHTML = originalText;
             submitBtn.disabled = false;
-        });
+            return;
+        }
+
+        console.log('Submitting shipping request for order:', orderId);
+        console.log('Form data:', Object.fromEntries(formData));
+
+        // Use XMLHttpRequest directly to avoid fetch interceptor issues
+        console.log('Using XMLHttpRequest for shipping request to avoid interceptor conflicts');
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `/users/supplier/orders/${orderId}/mark-in-transit/`, true);
+        xhr.setRequestHeader('X-CSRFToken', csrfToken.value);
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                if (xhr.status === 200) {
+                    try {
+                        const data = JSON.parse(xhr.responseText);
+                        console.log('Response data:', data);
+
+                        if (data.success) {
+                            // Close modal safely
+                            try {
+                                if (typeof bootstrap !== 'undefined') {
+                                    const modalInstance = bootstrap.Modal.getInstance(document.getElementById('shippingModal'));
+                                    if (modalInstance) {
+                                        modalInstance.hide();
+                                    }
+                                }
+                            } catch (modalError) {
+                                console.error('Error closing modal:', modalError);
+                            }
+
+                            // Show success message
+                            alert(`Order ${data.order_number} marked as shipped successfully!`);
+
+                            // Reload page to show updated status
+                            location.reload();
+                        } else {
+                            alert('Error: ' + (data.message || 'Unknown error occurred'));
+                        }
+                    } catch (e) {
+                        console.error('Error parsing response:', e);
+                        alert('Error: Server returned invalid response format.');
+                    }
+                } else {
+                    console.error('HTTP error:', xhr.status);
+                    alert(`Error: Server responded with status ${xhr.status}`);
+                }
+
+                // Reset button state
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        };
+
+        xhr.onerror = function() {
+            console.error('Network error');
+            alert('Error: Network connection error. Please check your internet connection.');
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        };
+
+        xhr.send(formData);
     }
 </script>
 

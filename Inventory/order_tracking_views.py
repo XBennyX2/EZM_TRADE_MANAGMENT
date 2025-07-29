@@ -123,61 +123,88 @@ def purchase_order_details_api(request, order_id):
     """
     API endpoint to get purchase order details for modals
     """
+    logger.info(f"purchase_order_details_api called with order_id: {order_id}, user: {request.user.username}, role: {request.user.role}")
+
     try:
+        # Check if user is authenticated
+        if not request.user.is_authenticated:
+            logger.error(f"Unauthenticated user attempted to access order details")
+            return JsonResponse({'error': 'Authentication required'}, status=401)
+
         # Check if user is head manager
         if not is_head_manager(request.user):
-            logger.warning(f"User {request.user.username} attempted to access order details but is not a head manager")
+            logger.warning(f"User {request.user.username} (role: {request.user.role}) attempted to access order details but is not a head manager")
             return JsonResponse({'error': 'Access denied. Head Manager role required.'}, status=403)
 
         logger.info(f"Fetching order details for order_id: {order_id}")
-        order = get_object_or_404(PurchaseOrder, id=order_id)
-        logger.info(f"Found order: {order.order_number}")
 
-        # Serialize order data
-        order_data = {
-            'id': order.id,
-            'order_number': order.order_number,
-            'supplier': {
-                'id': order.supplier.id,
-                'name': order.supplier.name,
-                'email': order.supplier.email,
-                'phone': order.supplier.phone,
-            },
-            'total_amount': float(order.total_amount),
-            'status': order.status,
-            'order_date': order.order_date.isoformat(),
-            'expected_delivery_date': order.expected_delivery_date.isoformat() if order.expected_delivery_date else None,
-            'estimated_delivery_datetime': order.estimated_delivery_datetime.isoformat() if order.estimated_delivery_datetime else None,
-            'delivery_countdown_seconds': order.delivery_countdown_seconds,
-            'tracking_number': order.tracking_number,
-            'items': []
-        }
+        try:
+            order = get_object_or_404(PurchaseOrder, id=order_id)
+            logger.info(f"Found order: {order.order_number}")
+        except Exception as e:
+            logger.error(f"Order {order_id} not found: {str(e)}")
+            return JsonResponse({'error': f'Order not found: {str(e)}'}, status=404)
+
+        # Serialize order data with error handling
+        try:
+            order_data = {
+                'id': order.id,
+                'order_number': order.order_number,
+                'supplier': {
+                    'id': order.supplier.id if order.supplier else None,
+                    'name': order.supplier.name if order.supplier else 'Unknown',
+                    'email': order.supplier.email if order.supplier else '',
+                    'phone': order.supplier.phone if order.supplier else '',
+                },
+                'total_amount': float(order.total_amount) if order.total_amount else 0.0,
+                'status': order.status,
+                'order_date': order.order_date.isoformat() if order.order_date else None,
+                'expected_delivery_date': order.expected_delivery_date.isoformat() if order.expected_delivery_date else None,
+                'estimated_delivery_datetime': order.estimated_delivery_datetime.isoformat() if order.estimated_delivery_datetime else None,
+                'delivery_countdown_seconds': order.delivery_countdown_seconds if hasattr(order, 'delivery_countdown_seconds') else 0,
+                'tracking_number': order.tracking_number or '',
+                'items': []
+            }
+            logger.info(f"Successfully created order_data with id: {order_data['id']}")
+        except Exception as serialization_error:
+            logger.error(f"Error serializing order data: {str(serialization_error)}")
+            return JsonResponse({'error': f'Error serializing order data: {str(serialization_error)}'}, status=500)
 
         # Add order items
-        items_count = order.items.count()
-        logger.info(f"Processing {items_count} items")
+        try:
+            items_count = order.items.count()
+            logger.info(f"Processing {items_count} items")
 
-        if items_count == 0:
-            logger.warning(f"Order {order.order_number} has no items")
+            if items_count == 0:
+                logger.warning(f"Order {order.order_number} has no items")
 
-        for item in order.items.all():
-            try:
-                order_data['items'].append({
-                    'id': item.id,
-                    'product_name': item.warehouse_product.product_name,
-                    'quantity_ordered': item.quantity_ordered,
-                    'quantity_received': item.quantity_received,
-                    'unit_price': float(item.unit_price),
-                    'total_price': float(item.total_price),
-                    'is_confirmed_received': item.is_confirmed_received,
-                    'has_issues': item.has_issues,
-                    'issue_description': item.issue_description,
-                })
-            except Exception as item_error:
-                logger.error(f"Error processing item {item.id}: {str(item_error)}")
-                # Continue processing other items
+            for item in order.items.all():
+                try:
+                    item_data = {
+                        'id': item.id,
+                        'product_name': item.warehouse_product.product_name if item.warehouse_product else 'Unknown Product',
+                        'quantity_ordered': item.quantity_ordered or 0,
+                        'quantity_received': item.quantity_received or 0,
+                        'unit_price': float(item.unit_price) if item.unit_price else 0.0,
+                        'total_price': float(item.total_price) if item.total_price else 0.0,
+                        'is_confirmed_received': getattr(item, 'is_confirmed_received', False),
+                        'has_issues': getattr(item, 'has_issues', False),
+                        'issue_description': getattr(item, 'issue_description', ''),
+                    }
+                    order_data['items'].append(item_data)
+                    logger.debug(f"Successfully processed item {item.id}")
+                except Exception as item_error:
+                    logger.error(f"Error processing item {item.id}: {str(item_error)}")
+                    # Continue processing other items
 
-        logger.info(f"Successfully serialized order data for {order.order_number}")
+        except Exception as items_error:
+            logger.error(f"Error processing items for order {order.id}: {str(items_error)}")
+            # Continue with empty items list
+
+        logger.info(f"Successfully serialized order data for {order.order_number} with {len(order_data['items'])} items")
+        logger.info(f"Final order_data keys: {list(order_data.keys())}")
+        logger.info(f"Order ID in response: {order_data.get('id')}")
+
         return JsonResponse(order_data)
 
     except Exception as e:

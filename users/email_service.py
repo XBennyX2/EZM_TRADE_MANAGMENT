@@ -137,7 +137,7 @@ Best regards,
             # Try to render HTML template
             html_content = None
             try:
-                html_content = render_to_string('users/emails/password_reset.html', context)
+                html_content = render_to_string('templates/users/password_reset_email.html', context)
             except Exception as template_error:
                 logger.warning(f"HTML template not found for password reset email: {template_error}")
             

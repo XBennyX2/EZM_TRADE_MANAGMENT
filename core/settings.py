@@ -183,13 +183,13 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Email Configuration - Django Default Backend
 # Using Django's console backend as default for development
-EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", 'django.core.mail.backends.console.EmailBackend')
-EMAIL_HOST = os.getenv("EMAIL_HOST", '')
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.getenv("EMAIL_HOST")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", '')
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", '')
-EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", 'True') == 'True'
-EMAIL_USE_SSL = False
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+EMAIL_USE_TLS = False
+EMAIL_USE_SSL = True
 EMAIL_TIMEOUT = 60
 
 # Company Email Configuration
@@ -199,19 +199,12 @@ COMPANY_NAME = os.getenv("COMPANY_NAME", 'EZM Trade Management')
 COMPANY_EMAIL = os.getenv("COMPANY_EMAIL", 'noreply@ezmtrade.com')
 
 # Email backend status
-if EMAIL_BACKEND == 'django.core.mail.backends.console.EmailBackend':
-    print("Email configured: Using Django's console backend for development")
-    print(f"From: {DEFAULT_FROM_EMAIL}")
-    print(f"Company: {COMPANY_NAME}")
-elif EMAIL_HOST and EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
+if EMAIL_BACKEND == 'django.core.mail.backends.smtp.EmailBackend':
     print(f"Email configured: Using SMTP backend with {EMAIL_HOST}")
     print(f"From: {DEFAULT_FROM_EMAIL}")
     print(f"Company: {COMPANY_NAME}")
 else:
-    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-    print("Email not fully configured: Using Django's console backend for development")
-    print(f"From: {DEFAULT_FROM_EMAIL}")
-    print(f"Company: {COMPANY_NAME}")
+    print("Email not fully configured: Check your .env file")
 
 # Cart session configuration
 CART_SESSION_ID = 'cart'

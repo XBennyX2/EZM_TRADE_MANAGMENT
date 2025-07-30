@@ -245,7 +245,56 @@ class PaymentTransactionService:
                             logger.info(f"Successfully decreased stock for {supplier_product.product_name}: "
                                       f"-{quantity_ordered} units. New stock: {supplier_product.stock_quantity}")
 
-                        # Create purchase order item if warehouse product exists
+                        # Create or get warehouse product
+                        if not warehouse_product:
+                            # Auto-create warehouse product for supplier product
+                            try:
+                                from django.utils import timezone
+                                import uuid
+                                
+                                # Generate unique product ID
+                                product_id = f"SP-{supplier_product.id}-{uuid.uuid4().hex[:8].upper()}"
+                                
+                                # Get default warehouse
+                                from Inventory.models import Warehouse
+                                default_warehouse = Warehouse.objects.filter(is_active=True).first()
+                                
+                                if not default_warehouse:
+                                    logger.error("No active warehouse found. Cannot create warehouse product.")
+                                    continue
+                                
+                                # Create warehouse product
+                                warehouse_product = WarehouseProduct.objects.create(
+                                    product_id=product_id,
+                                    product_name=supplier_product.product_name,
+                                    category=supplier_product.category,
+                                    quantity_in_stock=0,  # Will be updated when delivery is confirmed
+                                    unit_price=supplier_product.unit_price,
+                                    minimum_stock_level=10,
+                                    maximum_stock_level=1000,
+                                    reorder_point=20,
+                                    sku=f"WP-{supplier_product.product_code or supplier_product.id}",
+                                    barcode=f"251{uuid.uuid4().hex[:10]}",
+                                    warehouse_location="Auto-assigned",
+                                    supplier=supplier_product.supplier,
+                                    warehouse=default_warehouse,
+                                    batch_number=f"AUTO{timezone.now().strftime('%Y%m')}001",
+                                    arrival_date=timezone.now(),
+                                    is_active=True
+                                )
+                                
+                                # Link supplier product to warehouse product
+                                supplier_product.warehouse_product = warehouse_product
+                                supplier_product.save()
+                                
+                                logger.info(f"Auto-created warehouse product: {warehouse_product.product_name} "
+                                          f"(ID: {warehouse_product.product_id}) for supplier product: {supplier_product.product_name}")
+                                
+                            except Exception as create_error:
+                                logger.error(f"Failed to create warehouse product for {supplier_product.product_name}: {str(create_error)}")
+                                continue
+
+                        # Create purchase order item
                         if warehouse_product:
                             PurchaseOrderItem.objects.create(
                                 purchase_order=purchase_order,
@@ -254,8 +303,10 @@ class PaymentTransactionService:
                                 unit_price=item_data.get('price', 0),
                                 total_price=item_data.get('total_price', 0)
                             )
+                            logger.info(f"Created purchase order item for {warehouse_product.product_name} "
+                                      f"(Quantity: {quantity_ordered}, Unit Price: {item_data.get('price', 0)})")
                         else:
-                            logger.warning(f"No warehouse product found for {supplier_product.product_name}. "
+                            logger.warning(f"No warehouse product available for {supplier_product.product_name}. "
                                          f"Stock decreased but no purchase order item created.")
 
                 except Exception as e:

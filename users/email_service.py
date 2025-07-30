@@ -6,6 +6,7 @@ logging, and template management for user-related emails.
 """
 
 import logging
+import socket
 from django.core.mail import send_mail, EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.conf import settings
@@ -22,6 +23,50 @@ class EZMEmailService:
         self.company_name = getattr(settings, 'COMPANY_NAME', 'EZM Trade Management System')
         self.company_email = getattr(settings, 'COMPANY_EMAIL', settings.EMAIL_HOST_USER)
         
+    def test_network_connectivity(self, host: str = None, port: int = None) -> bool:
+        """
+        Test network connectivity to SMTP server
+        
+        Args:
+            host: SMTP host to test (defaults to settings.EMAIL_HOST)
+            port: SMTP port to test (defaults to settings.EMAIL_PORT)
+            
+        Returns:
+            bool: True if connection successful, False otherwise
+        """
+        if host is None:
+            host = getattr(settings, 'EMAIL_HOST', 'smtp.gmail.com')
+        if port is None:
+            port = getattr(settings, 'EMAIL_PORT', 465)
+            
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(5)
+            result = sock.connect_ex((host, port))
+            sock.close()
+            return result == 0
+        except Exception as e:
+            logger.warning(f"Network connectivity test failed: {e}")
+            return False
+    
+    def get_email_backend_status(self) -> Dict[str, any]:
+        """
+        Get current email backend status and configuration
+        
+        Returns:
+            Dict containing email configuration status
+        """
+        return {
+            'backend': getattr(settings, 'EMAIL_BACKEND', 'Not configured'),
+            'host': getattr(settings, 'EMAIL_HOST', 'Not configured'),
+            'port': getattr(settings, 'EMAIL_PORT', 'Not configured'),
+            'user': getattr(settings, 'EMAIL_HOST_USER', 'Not configured'),
+            'tls': getattr(settings, 'EMAIL_USE_TLS', False),
+            'ssl': getattr(settings, 'EMAIL_USE_SSL', False),
+            'from_email': self.from_email,
+            'network_accessible': self.test_network_connectivity(),
+        }
+    
     def send_user_creation_email(self, user, password: str) -> Tuple[bool, str]:
         """
         Send welcome email to newly created user with login credentials
@@ -495,8 +540,46 @@ Best regards,
             Tuple[bool, str]: (success, message)
         """
         try:
-            test_subject = f"{self.company_name} - Email Configuration Test"
-            test_message = f"""This is a test email to verify that the email configuration for {self.company_name} is working correctly.
+            # First check network connectivity
+            if not self.test_network_connectivity():
+                return False, "Network connectivity test failed - cannot reach SMTP server"
+            
+            # Check email backend configuration
+            backend_status = self.get_email_backend_status()
+            if backend_status['backend'] == 'django.core.mail.backends.console.EmailBackend':
+                # Console backend - just test that it works
+                test_subject = f"{self.company_name} - Console Email Test"
+                test_message = f"""This is a test email using console backend for {self.company_name}.
+
+Test Details:
+- Timestamp: {timezone.now()}
+- Email Backend: {settings.EMAIL_BACKEND}
+- From Email: {self.from_email}
+
+This email will be displayed in the console for development purposes.
+
+Best regards,
+{self.company_name} System"""
+
+                result = send_mail(
+                    subject=test_subject,
+                    message=test_message,
+                    from_email=self.from_email,
+                    recipient_list=['test@example.com'],
+                    fail_silently=False
+                )
+
+                if result == 1:
+                    logger.info("Console email backend test successful")
+                    return True, "Console email backend test successful - emails will be displayed in console"
+                else:
+                    logger.error("Console email backend test failed")
+                    return False, "Console email backend test failed"
+            
+            else:
+                # SMTP backend - test actual email sending
+                test_subject = f"{self.company_name} - Email Configuration Test"
+                test_message = f"""This is a test email to verify that the email configuration for {self.company_name} is working correctly.
 
 Test Details:
 - Timestamp: {timezone.now()}
@@ -509,20 +592,20 @@ If you receive this email, the email system is functioning properly.
 Best regards,
 {self.company_name} System"""
 
-            result = send_mail(
-                subject=test_subject,
-                message=test_message,
-                from_email=self.from_email,
-                recipient_list=['test@example.com'],
-                fail_silently=False
-            )
+                result = send_mail(
+                    subject=test_subject,
+                    message=test_message,
+                    from_email=self.from_email,
+                    recipient_list=['test@example.com'],
+                    fail_silently=False
+                )
 
-            if result == 1:
-                logger.info("Email configuration test successful")
-                return True, "Email configuration test successful"
-            else:
-                logger.error("Email configuration test failed - no emails sent")
-                return False, "Email configuration test failed"
+                if result == 1:
+                    logger.info("SMTP email configuration test successful")
+                    return True, "SMTP email configuration test successful"
+                else:
+                    logger.error("SMTP email configuration test failed - no emails sent")
+                    return False, "SMTP email configuration test failed"
 
         except Exception as e:
             error_msg = f"Email configuration test failed: {str(e)}"

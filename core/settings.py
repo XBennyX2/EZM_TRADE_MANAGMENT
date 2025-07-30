@@ -198,11 +198,29 @@ SERVER_EMAIL = DEFAULT_FROM_EMAIL
 COMPANY_NAME = os.getenv("COMPANY_NAME", 'EZM Trade Management')
 COMPANY_EMAIL = os.getenv("COMPANY_EMAIL", 'noreply@ezmtrade.com')
 
-# Email backend status
+# Email backend status and fallback configuration
 if EMAIL_BACKEND == 'django.core.mail.backends.smtp.EmailBackend':
-    print(f"Email configured: Using SMTP backend with {EMAIL_HOST}")
-    print(f"From: {DEFAULT_FROM_EMAIL}")
-    print(f"Company: {COMPANY_NAME}")
+    # Test SMTP connectivity
+    import socket
+    try:
+        # Test if we can connect to the SMTP server
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(5)
+        result = sock.connect_ex((EMAIL_HOST, EMAIL_PORT))
+        sock.close()
+        
+        if result != 0:
+            print(f"⚠️  SMTP connection failed to {EMAIL_HOST}:{EMAIL_PORT}")
+            print("🔄 Falling back to console email backend for development")
+            EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+        else:
+            print(f"✅ Email configured: Using SMTP backend with {EMAIL_HOST}")
+            print(f"From: {DEFAULT_FROM_EMAIL}")
+            print(f"Company: {COMPANY_NAME}")
+    except Exception as e:
+        print(f"⚠️  SMTP connectivity test failed: {e}")
+        print("🔄 Falling back to console email backend for development")
+        EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 else:
     print("Email not fully configured: Check your .env file")
 
